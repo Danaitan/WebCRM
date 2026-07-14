@@ -1,0 +1,907 @@
+@{
+    ViewData["Title"] = "Call management";
+    ViewData["HeaderTitle"] = "Call management";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/prospectCall.css" asp-append-version="true" />
+}
+
+<div class="pc-wrapper">
+    <!-- ===== TAB NAV ===== -->
+    <div class="pc-tabs-nav">
+        <button class="pc-tab-btn active" id="tabBtn1" onclick="switchTab('tab1')">
+            <i class="bi bi-telephone-fill"></i>
+            โทรขายแคมเปญ
+        </button>
+        <button class="pc-tab-btn" id="tabBtn2" onclick="switchTab('tab2')">
+            <i class="bi bi-telephone-forward-fill"></i>
+            โทรติดตามหนี้
+        </button>
+        <button class="pc-tab-btn" id="tabBtn3" onclick="switchTab('tab3')">
+            <i class="bi bi-bar-chart-line-fill"></i>
+            Call Report
+        </button>
+    </div>
+
+    <!-- ===== TAB 1: โทรขายแคมเปญ ===== -->
+    <div class="pc-tab-content active" id="tab1">
+        <div class="pc-layout">
+            <!-- Left Panel -->
+            <div class="pc-panel-left d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-dark">ตัวแคมเปญของฉัน</span>
+                    <i class="bi bi-sliders text-muted fs-5" style="cursor:pointer;"></i>
+                </div>
+                <div class="pc-search-box">
+                    <input type="text" class="form-control" placeholder="ค้นหาแคมเปญ">
+                    <i class="bi bi-search"></i>
+                </div>
+                <div class="text-muted" style="font-size:0.8rem;">พบ 11 แคมเปญ</div>
+                <div class="flex-grow-1 overflow-auto d-flex flex-column gap-2 pe-1">
+                    <div class="pc-campaign-card active">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-campaign-icon" style="background:#3b82f6;color:white;"><i class="bi bi-megaphone-fill"></i></div>
+                            <span class="pc-badge-status doing">กำลังดำเนินการ</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.9rem;">CMP-2024-0001</div>
+                        <div class="text-dark mb-1" style="font-size:0.82rem;">โปรโมชัน ดอกเบี้ยพิเศษ 2.99%</div>
+                        <div class="text-muted" style="font-size:0.75rem;">01/05/2024 - 31/07/2024</div>
+                        <div class="pc-campaign-stats">
+                            <span><i class="bi bi-list-ul"></i> ต้องโทร 12</span>
+                            <span><i class="bi bi-telephone-fill text-success"></i> โทรแล้ว 6</span>
+                            <span><i class="bi bi-clock text-warning"></i> รอติดตาม 6</span>
+                        </div>
+                    </div>
+                    <div class="pc-campaign-card">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-campaign-icon" style="background:#22c55e;color:white;"><i class="bi bi-megaphone-fill"></i></div>
+                            <span class="pc-badge-status calling">กำลังโทรออก</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.9rem;">CMP-2024-0002</div>
+                        <div class="text-dark mb-1" style="font-size:0.82rem;">แคมเปญ ฟรีวันรับเงินคืน 1</div>
+                        <div class="text-muted" style="font-size:0.75rem;">15/05/2024 - 30/06/2024</div>
+                        <div class="pc-campaign-stats">
+                            <span><i class="bi bi-list-ul"></i> ต้องโทร 8</span>
+                            <span><i class="bi bi-telephone-fill text-success"></i> โทรแล้ว 4</span>
+                            <span><i class="bi bi-clock text-warning"></i> รอติดตาม 4</span>
+                        </div>
+                    </div>
+                    <div class="pc-campaign-card">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-campaign-icon" style="background:#f59e0b;color:white;"><i class="bi bi-megaphone-fill"></i></div>
+                            <span class="pc-badge-status waiting">รอข้อมูลเพิ่มเติม</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.9rem;">CMP-2024-0003</div>
+                        <div class="text-dark mb-1" style="font-size:0.82rem;">โปรโมชัน รีไฟแนนซ์ ดอกเบี้ยพิเศษ</div>
+                        <div class="text-muted" style="font-size:0.75rem;">01/06/2024 - 31/08/2024</div>
+                        <div class="pc-campaign-stats">
+                            <span><i class="bi bi-list-ul"></i> ต้องโทร 10</span>
+                            <span><i class="bi bi-telephone-fill text-success"></i> โทรแล้ว 3</span>
+                            <span><i class="bi bi-clock text-warning"></i> รอติดตาม 7</span>
+                        </div>
+                    </div>
+                    <div class="pc-campaign-card">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-campaign-icon" style="background:#8b5cf6;color:white;"><i class="bi bi-megaphone-fill"></i></div>
+                            <span class="pc-badge-status pending">รออนุมัติ</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.9rem;">CMP-2024-0004</div>
+                        <div class="text-dark mb-1" style="font-size:0.82rem;">โปรโมชัน ผ่อนสบาย 0% 6 เดือน</div>
+                        <div class="text-muted" style="font-size:0.75rem;">10/06/2024 - 10/09/2024</div>
+                        <div class="pc-campaign-stats">
+                            <span><i class="bi bi-list-ul"></i> ต้องโทร 6</span>
+                            <span><i class="bi bi-telephone-fill text-success"></i> โทรแล้ว 1</span>
+                            <span><i class="bi bi-clock text-warning"></i> รอติดตาม 5</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <span class="text-muted" style="font-size:0.78rem;">1 - 4 จาก 11 รายการ</span>
+                    <ul class="pagination pagination-sm pc-pagination mb-0">
+                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Panel -->
+            <div class="pc-panel-main d-flex flex-column gap-3">
+                <!-- Stat Cards Row -->
+                <div class="row g-3 flex-shrink-0">
+                    <div class="col-md-4">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon blue"><i class="bi bi-telephone-outbound-fill"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">โจทย์การส่งโทรวันนี้</div>
+                                    <div class="pc-stat-value">36 <span class="pc-stat-unit">รายการ</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon green"><i class="bi bi-check-circle-fill"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">โทรแล้ว</div>
+                                    <div class="pc-stat-value text-success">18 <span class="pc-stat-unit">รายการ (50%)</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon orange"><i class="bi bi-clock-fill"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">รอติดตาม</div>
+                                    <div class="pc-stat-value text-warning">18 <span class="pc-stat-unit">รายการ (50%)</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Two Columns -->
+                <div class="row g-3 flex-grow-1 overflow-hidden" style="min-height:0;">
+                    <!-- Center -->
+                    <div class="col-xl-7 h-100 d-flex flex-column gap-3" style="overflow-y:auto;">
+                        <div class="pc-card flex-shrink-0">
+                            <div class="pc-search-box m-0">
+                                <input type="text" class="form-control" placeholder="ค้นหาชื่อลูกค้า, เมอร์โทร, เลขที่สัญญา">
+                                <i class="bi bi-search"></i>
+                            </div>
+                        </div>
+                        <div class="pc-card flex-shrink-0 p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <div class="text-muted" style="font-size:0.8rem;">ลูกค้าที่เลือก</div>
+                                    <div class="fw-bold text-dark fs-5">น.ส. อมรรัตน์ ใจดี</div>
+                                    <div class="text-muted"><i class="bi bi-telephone"></i> 081-234-5678</div>
+                                </div>
+                                <span class="pc-badge-ready">พร้อมติดต่อ</span>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">ครั้งที่ติดต่อ <span class="text-danger">*</span></label>
+                                    <select class="form-select form-select-sm">
+                                        <option>1</option><option>2</option><option>3</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">แผนผ่อนต่อเดือน</label>
+                                    <select class="form-select form-select-sm">
+                                        <option>6,000 / 12</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">ผลการติดต่อ <span class="text-danger">*</span></label>
+                                    <select class="form-select form-select-sm">
+                                        <option>เลือกผลการติดต่อ</option>
+                                        <option>สนใจ</option>
+                                        <option>ไม่สนใจ</option>
+                                        <option>ติดต่อไม่ได้</option>
+                                        <option>นัดติดตาม</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">นัดหมายครั้งถัดไป</label>
+                                    <input type="date" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">หมายเหตุ</label>
+                                    <input type="text" class="form-control form-control-sm" placeholder="ระบุหมายเหตุ (ถ้ามี)">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary w-100 fw-medium"><i class="bi bi-save me-2"></i>บันทึกผลการติดต่อ</button>
+                        </div>
+
+                        <div class="pc-card flex-grow-1 overflow-auto p-4" style="min-height:300px;">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-circle text-primary fs-5"></i>
+                                    <span class="fw-bold text-dark">ข้อมูลลูกค้า</span>
+                                </div>
+                                <i class="bi bi-pencil text-muted" style="cursor:pointer;"></i>
+                            </div>
+                            <div class="pc-info-grid">
+                                <span class="pc-info-label">เลขบัตรประชาชน</span>
+                                <span class="pc-info-value">1-2345-67890-12-3</span>
+                                <span class="pc-info-label">ที่อยู่</span>
+                                <span class="pc-info-value">99/123 หมู่ 4 ถนนรัตนาธิเบศร์ ต.บางกระสอ อ.เมืองนนทบุรี จ.นนทบุรี 11000</span>
+                                <span class="pc-info-label">เลขที่สัญญา</span>
+                                <span class="pc-info-value">CT-6705-000123</span>
+                                <span class="pc-info-label">ชื่อ</span>
+                                <span class="pc-info-value">น.ส. อมรรัตน์ ใจดี</span>
+                                <span class="pc-info-label">เบอร์โทร</span>
+                                <span class="pc-info-value d-flex align-items-center gap-3">
+                                    081-234-5678
+                                    <span class="text-primary fw-medium">PDPA</span>
+                                    <span class="pc-badge-pdpa"><i class="bi bi-check-circle-fill me-1"></i>ยินยอมแล้ว</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Call History -->
+                    <div class="col-xl-5 h-100">
+                        <div class="pc-card h-100 p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-shrink-0">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-clock-history text-primary fs-5"></i>
+                                    <span class="fw-bold text-dark">ประวัติการโทร</span>
+                                </div>
+                                @* <a href="#" class="text-primary" style="font-size:0.85rem;">ดูทั้งหมด</a> *@
+                            </div>
+                            <div class="pc-history-header flex-shrink-0">
+                                <span>วันที่โทร</span>
+                                <span>ผลการติดต่อ</span>
+                                <span class="text-center">ครั้งที่</span>
+                                <span>แคมเปญ</span>
+                                <span>ผู้โทร</span>
+                            </div>
+                            <div class="flex-grow-1 overflow-auto">
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">15/05/2024<br>10:22</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">นัดหมายติดตามเอกสารเพิ่มเติม</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">1</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CMP-2024-0001</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">พนมกร คงดอน</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">15/05/2024<br>09:45</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">ติดต่อได้ ไม่สะดวกรับสาย</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">1</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CMP-2024-0001</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">จิราภรณ์ วงศ์ดี</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">14/05/2024<br>16:30</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">โทรติดต่อตามนัด</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">1</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CMP-2024-0001</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">พนมกร คงดอน</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">13/05/2024<br>14:10</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">ส่ง SMS แจ้งโปรโมชัน</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">-</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CMP-2024-0001</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">ระบบอัตโนมัติ</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">12/05/2024<br>11:05</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">บันทึกข้อมูลลูกค้า</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">-</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CMP-2024-0001</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">พนมกร คงดอน</span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center pt-3 border-top flex-shrink-0">
+                                <span class="text-muted" style="font-size:0.8rem;">1 - 5 จาก 5 รายการ</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <ul class="pagination pagination-sm pc-pagination mb-0">
+                                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a></li>
+                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
+                                    </ul>
+                                    <select class="form-select form-select-sm" style="width:auto;">
+                                        <option>10 / หน้า</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB 2: โทรติดตามหนี้ ===== -->
+    <div class="pc-tab-content" id="tab2">
+        <div class="pc-layout">
+            <!-- Left Panel -->
+            <div class="pc-panel-left d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-dark">ตัวติดตามหนี้ของฉัน</span>
+                    <i class="bi bi-sliders text-muted fs-5" style="cursor:pointer;"></i>
+                </div>
+                <div class="pc-search-box">
+                    <input type="text" class="form-control" placeholder="ค้นหาหนี้ / เลขที่สัญญา">
+                    <i class="bi bi-search"></i>
+                </div>
+                <div class="text-muted" style="font-size:0.8rem;">ทั้งหมด 14 รายการ</div>
+                <div class="flex-grow-1 overflow-auto d-flex flex-column gap-2 pe-1">
+                    <div class="pc-debt-card active">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-debt-icon red"><i class="bi bi-telephone-fill"></i></div>
+                            <span class="pc-badge-debt today">ติดตามวันนี้</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.85rem;">CT-6705-000123</div>
+                        <div class="fw-medium text-dark mb-1" style="font-size:0.9rem;">น.ส. อมรรัตน์ ใจดี</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ยอดค้างชำระ 12,500 บาท</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ค้าง 2 งวด · เกินกำหนด 15 วัน</div>
+                        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">ครั้งต่อมา 15/05/2024 · เจ้าของบัญชี พนมกร</div>
+                    </div>
+                    <div class="pc-debt-card">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-debt-icon green"><i class="bi bi-telephone-fill"></i></div>
+                            <span class="pc-badge-debt paid">รับปากชำระ</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.85rem;">CT-6705-000456</div>
+                        <div class="fw-medium text-dark mb-1" style="font-size:0.9rem;">นาย ภาคภูมิ แสงทอง</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ยอดค้างชำระ 8,000 บาท</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ค้าง 1 งวด · เกินกำหนด 7 วัน</div>
+                        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">ครั้งต่อมา 14/05/2024 · เจ้าของบัญชี จิราภรณ์</div>
+                    </div>
+                    <div class="pc-debt-card">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-debt-icon orange"><i class="bi bi-telephone-fill"></i></div>
+                            <span class="pc-badge-debt overdue">ระเลยวัน</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.85rem;">CT-6705-000789</div>
+                        <div class="fw-medium text-dark mb-1" style="font-size:0.9rem;">นางสาว ศิริพร มิลดี</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ยอดค้างชำระ 24,000 บาท</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ค้าง 3 งวด · เกินกำหนด 32 วัน</div>
+                        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">ครั้งต่อมา 13/05/2024 · เจ้าของบัญชี พนมกร</div>
+                    </div>
+                    <div class="pc-debt-card">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="pc-debt-icon red"><i class="bi bi-telephone-fill"></i></div>
+                            <span class="pc-badge-debt urgent">เร่งด่วน</span>
+                        </div>
+                        <div class="fw-bold text-dark" style="font-size:0.85rem;">CT-6705-001025</div>
+                        <div class="fw-medium text-dark mb-1" style="font-size:0.9rem;">นาย สมชาย มันคง</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ยอดค้างชำระ 41,500 บาท</div>
+                        <div class="text-muted" style="font-size:0.78rem;">ค้าง 5 งวด · เกินกำหนด 65 วัน</div>
+                        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">ครั้งต่อมา 12/05/2024 · เจ้าของบัญชี พนมกร</div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <span class="text-muted" style="font-size:0.78rem;">1 - 4 จาก 14 รายการ</span>
+                    <ul class="pagination pagination-sm pc-pagination mb-0">
+                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link" href="#">4</a></li>
+                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Panel -->
+            <div class="pc-panel-main d-flex flex-column gap-3">
+                <div class="row g-3 flex-shrink-0">
+                    <div class="col-md-3">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon blue"><i class="bi bi-list-ul"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">รายการติดตามหนี้วันนี้</div>
+                                    <div class="pc-stat-value">42 <span class="pc-stat-unit">รายการ</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon green"><i class="bi bi-check-circle-fill"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">ติดต่อแล้ว</div>
+                                    <div class="pc-stat-value text-success">24 <span class="pc-stat-unit">รายการ (57%)</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon teal"><i class="bi bi-calendar-check-fill"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">รับปากชำระ</div>
+                                    <div class="pc-stat-value" style="color:#0d9488;">10 <span class="pc-stat-unit">รายการ</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="pc-stat-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="pc-stat-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                                <div>
+                                    <div class="pc-stat-label">ค้างชำระเกินกำหนด</div>
+                                    <div class="pc-stat-value text-danger">8 <span class="pc-stat-unit">รายการ</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 flex-grow-1 overflow-hidden" style="min-height:0;">
+                    <div class="col-xl-7 h-100 d-flex flex-column gap-3" style="overflow-y:auto;">
+                        <div class="pc-card flex-shrink-0">
+                            <div class="pc-search-box m-0">
+                                <input type="text" class="form-control" placeholder="ค้นหาชื่อลูกค้า, เมอร์โทร, เลขที่สัญญา">
+                                <i class="bi bi-search"></i>
+                            </div>
+                        </div>
+                        <div class="pc-card flex-shrink-0 p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <div class="text-muted" style="font-size:0.8rem;">ลูกค้าที่เลือก</div>
+                                    <div class="fw-bold text-dark fs-5">น.ส. อมรรัตน์ ใจดี</div>
+                                    <div class="text-muted"><i class="bi bi-telephone"></i> 081-234-5678</div>
+                                </div>
+                                <span class="pc-badge-ready">พร้อมติดต่อ</span>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">ครั้งที่ติดต่อ <span class="text-danger">*</span></label>
+                                    <select class="form-select form-select-sm"><option>2</option></select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">ยอดค้างชำระ</label>
+                                    <input type="text" class="form-control form-control-sm" value="12,500 บาท" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">จำนวนงวดค้าง</label>
+                                    <input type="text" class="form-control form-control-sm" value="2 งวด" readonly>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">ผลการติดต่อ <span class="text-danger">*</span></label>
+                                    <select class="form-select form-select-sm">
+                                        <option>เลือกผลการติดตาม</option>
+                                        <option>รับปากชำระ</option>
+                                        <option>ไม่รับสาย</option>
+                                        <option>ติดต่อไม่ได้</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">วันนัดชำระ</label>
+                                    <input type="date" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small">จำนวนเงินที่รับปากชำระ</label>
+                                    <input type="text" class="form-control form-control-sm" placeholder="ระบุจำนวนเงิน">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">ช่องทางชำระ</label>
+                                    <select class="form-select form-select-sm">
+                                        <option>โอนผ่านธนาคาร</option>
+                                        <option>เคาน์เตอร์</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">หมายเหตุ</label>
+                                    <textarea class="form-control form-control-sm" rows="1" placeholder="ระบุหมายเหตุกรณีติดตาม"></textarea>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary w-100 fw-medium"><i class="bi bi-save me-2"></i>บันทึกผลการติดตาม</button>
+                        </div>
+                        <div class="pc-card flex-grow-1 overflow-auto p-4" style="min-height:300px;">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-circle text-primary fs-5"></i>
+                                    <span class="fw-bold text-dark">ข้อมูลลูกหนี้</span>
+                                </div>
+                                <i class="bi bi-pencil text-muted" style="cursor:pointer;"></i>
+                            </div>
+                            <div class="pc-info-grid">
+                                <span class="pc-info-label">เลขบัตรประชาชน</span>
+                                <span class="pc-info-value">1-2345-67890-12-3</span>
+                                <span class="pc-info-label">วันที่ครบกำหนด</span>
+                                <span class="pc-info-value">30/04/2024</span>
+                                <span class="pc-info-label">เลขที่สัญญา</span>
+                                <span class="pc-info-value">CT-6705-000123</span>
+                                <span class="pc-info-label">ยอดค้างชำระรวม</span>
+                                <span class="pc-info-value text-danger fw-bold">12,500 บาท</span>
+                                <span class="pc-info-label">ชื่อ</span>
+                                <span class="pc-info-value">น.ส. อมรรัตน์ ใจดี</span>
+                                <span class="pc-info-label">จำนวนงวดค้าง</span>
+                                <span class="pc-info-value">15 งวด</span>
+                                <span class="pc-info-label">เบอร์โทร</span>
+                                <span class="pc-info-value">081-234-5678</span>
+                                <span class="pc-info-label">สถานะบัญชี</span>
+                                <span class="pc-info-value"><span class="pc-badge-debt overdue">ค้างชำระ</span></span>
+                                <span class="pc-info-label">ที่อยู่</span>
+                                <span class="pc-info-value">99/123 หมู่ 4 ถนนรัตนาธิเบศร์ ต.บางกระสอ อ.เมืองนนทบุรี จ.นนทบุรี 11000</span>
+                                <span class="pc-info-label">PDPA</span>
+                                <span class="pc-info-value"><span class="pc-badge-pdpa"><i class="bi bi-check-circle-fill me-1"></i>ยินยอมแล้ว</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Follow-up History -->
+                    <div class="col-xl-5 h-100">
+                        <div class="pc-card h-100 p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-shrink-0">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-clock-history text-primary fs-5"></i>
+                                    <span class="fw-bold text-dark">ประวัติการติดตามหนี้</span>
+                                </div>
+                                @* <a href="#" class="text-primary" style="font-size:0.85rem;">ดูทั้งหมด</a> *@
+                            </div>
+                            <div class="pc-debt-history-header flex-shrink-0">
+                                <span>วันที่ติดตาม</span>
+                                <span>ผลการติดตาม</span>
+                                <span class="text-center">ครั้งที่</span>
+                                <span>สัญญา</span>
+                                <span>ผู้ติดตาม</span>
+                            </div>
+                            <div class="flex-grow-1 overflow-auto">
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">15/05/2024<br>10:22</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">รับปากชำระ 5,000 บาท ภายใน 20/05/2024</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">2</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CT-6705-000123</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">พนมกร คงดอน</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">14/05/2024<br>16:10</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">ติดต่อได้ ขอเลื่อนชำระ</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">1</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CT-6705-000123</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">จิราภรณ์ วงศ์ดี</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">13/05/2024<br>14:05</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">ไม่สะดวกรับสาย</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">1</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CT-6705-000123</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">พนมกร คงดอน</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">12/05/2024<br>09:30</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">ส่ง SMS แจ้งเตือนค้างชำระ</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">-</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CT-6705-000123</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">ระบบอัตโนมัติ</span>
+                                </div>
+                                <div class="pc-history-row">
+                                    <span class="text-muted" style="font-size:0.8rem;">10/05/2024<br>11:15</span>
+                                    <span class="text-dark" style="font-size:0.82rem;">บันทึกข้อมูลลูกค้า</span>
+                                    <span class="text-center text-muted" style="font-size:0.82rem;">-</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">CT-6705-000123</span>
+                                    <span class="text-muted" style="font-size:0.82rem;">พนมกร คงดอน</span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center pt-3 border-top flex-shrink-0">
+                                <span class="text-muted" style="font-size:0.8rem;">1 - 5 จาก 5 รายการ</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <ul class="pagination pagination-sm pc-pagination mb-0">
+                                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a></li>
+                                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
+                                    </ul>
+                                    <select class="form-select form-select-sm" style="width:auto;"><option>10 / หน้า</option></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB 3: Call Report ===== -->
+    <div class="pc-tab-content" id="tab3">
+        <div class="pc-report-wrapper">
+            <!-- Filter Bar -->
+            <div class="pc-card p-4 flex-shrink-0">
+                <div class="fw-bold text-dark mb-3">ตัวกรองรายงาน</div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">ช่วงเวลา</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="date" class="form-control form-control-sm" value="2024-05-01">
+                            <span class="text-muted small">ถึง</span>
+                            <input type="date" class="form-control form-control-sm" value="2024-05-31">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted small">ประเภทการโทร</label>
+                        <select class="form-select form-select-sm">
+                            <option>ทั้งหมด</option>
+                            <option>โทรขายแคมเปญ</option>
+                            <option>โทรติดตามหนี้</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted small">สาขา</label>
+                        <select class="form-select form-select-sm"><option>สำนักงานใหญ่</option></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted small">ผู้โทร</label>
+                        <select class="form-select form-select-sm"><option>ทั้งหมด</option></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted small">แคมเปญ / สัญญา</label>
+                        <div class="pc-search-box" style="margin:0;">
+                            <input type="text" class="form-control form-control-sm" placeholder="ค้นหาแคมเปญ">
+                            <i class="bi bi-search" style="top:50%;font-size:0.8rem;"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label text-muted small">ผลการติดต่อ</label>
+                        <select class="form-select form-select-sm"><option>ทั้งหมด</option></select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-3 justify-content-end">
+                    <button class="btn btn-primary btn-sm px-3"><i class="bi bi-search me-2"></i>ค้นหารายงาน</button>
+                    <button class="btn btn-outline-secondary btn-sm px-3"><i class="bi bi-arrow-counterclockwise me-2"></i>ล้างตัวกรอง</button>
+                    <button class="btn btn-sm px-3" style="background:#1D6F42;color:white;"><i class="bi bi-file-earmark-excel-fill me-2"></i>Export Excel</button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="row g-3 flex-shrink-0">
+                <div class="col">
+                    <div class="pc-stat-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pc-stat-icon blue"><i class="bi bi-file-text-fill"></i></div>
+                            <div>
+                                <div class="pc-stat-label">รายการทั้งหมด</div>
+                                <div class="pc-stat-value">128</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="pc-stat-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pc-stat-icon green"><i class="bi bi-telephone-fill"></i></div>
+                            <div>
+                                <div class="pc-stat-label">โทรสำเร็จ</div>
+                                <div class="pc-stat-value text-success">82</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="pc-stat-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pc-stat-icon orange"><i class="bi bi-telephone-x-fill"></i></div>
+                            <div>
+                                <div class="pc-stat-label">ยังไม่ได้โทร</div>
+                                <div class="pc-stat-value text-warning">26</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="pc-stat-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pc-stat-icon teal"><i class="bi bi-calendar-check-fill"></i></div>
+                            <div>
+                                <div class="pc-stat-label">นัดติดตาม</div>
+                                <div class="pc-stat-value" style="color:#0d9488;">12</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="pc-stat-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pc-stat-icon purple"><i class="bi bi-check2-circle"></i></div>
+                            <div>
+                                <div class="pc-stat-label">รับปากชำระ</div>
+                                <div class="pc-stat-value" style="color:#8b5cf6;">8</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row g-3 flex-shrink-0">
+                <div class="col-md-5">
+                    <div class="pc-card p-4 h-100">
+                        <div class="fw-bold text-dark mb-3">ผลการติดต่อตามแต่ละประเภท</div>
+                        <div class="d-flex align-items-end gap-3 justify-content-center" style="height:140px;">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <span style="font-size:0.78rem;font-weight:600;">42</span>
+                                <div style="width:40px;background:#3b82f6;border-radius:4px 4px 0 0;height:100px;"></div>
+                                <span style="font-size:0.75rem;color:#64748b;">สนใจ</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <span style="font-size:0.78rem;font-weight:600;">26</span>
+                                <div style="width:40px;background:#22c55e;border-radius:4px 4px 0 0;height:62px;"></div>
+                                <span style="font-size:0.75rem;color:#64748b;">ไม่สนใจ</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <span style="font-size:0.78rem;font-weight:600;">24</span>
+                                <div style="width:40px;background:#f59e0b;border-radius:4px 4px 0 0;height:57px;"></div>
+                                <span style="font-size:0.75rem;color:#64748b;">ติดต่อไม่ได้</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <span style="font-size:0.78rem;font-weight:600;">12</span>
+                                <div style="width:40px;background:#fcd34d;border-radius:4px 4px 0 0;height:28px;"></div>
+                                <span style="font-size:0.75rem;color:#64748b;">นัดติดตาม</span>
+                            </div>
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <span style="font-size:0.78rem;font-weight:600;">8</span>
+                                <div style="width:40px;background:#0d9488;border-radius:4px 4px 0 0;height:19px;"></div>
+                                <span style="font-size:0.75rem;color:#64748b;">รับปากชำระ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="pc-card p-4 h-100">
+                        <div class="fw-bold text-dark mb-3">สัดส่วนประเภทการโทร</div>
+                        <div class="d-flex align-items-center justify-content-center gap-4">
+                            <div style="position:relative;width:120px;height:120px;">
+                                <svg viewBox="0 0 36 36" style="width:120px;height:120px;transform:rotate(-90deg);">
+                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#3b82f6" stroke-width="4"
+                                        stroke-dasharray="55 45" stroke-dashoffset="0"></circle>
+                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#22c55e" stroke-width="4"
+                                        stroke-dasharray="35 65" stroke-dashoffset="-55"></circle>
+                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#94a3b8" stroke-width="4"
+                                        stroke-dasharray="10 90" stroke-dashoffset="-90"></circle>
+                                </svg>
+                                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.8rem;font-weight:600;color:#1e293b;">128</div>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:12px;height:12px;background:#3b82f6;border-radius:3px;"></div>
+                                    <span style="font-size:0.82rem;">โทรขายแคมเปญ 55% (70)</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:12px;height:12px;background:#22c55e;border-radius:3px;"></div>
+                                    <span style="font-size:0.82rem;">โทรติดตามหนี้ 35% (45)</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:12px;height:12px;background:#94a3b8;border-radius:3px;"></div>
+                                    <span style="font-size:0.82rem;">อื่นๆ 10% (13)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="pc-card p-4 h-100">
+                        <div class="fw-bold text-dark mb-3">Top ผู้โทร</div>
+                        <div class="d-flex flex-column gap-3">
+                            <div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span style="font-size:0.85rem;">1. พนมกร คงดอน</span>
+                                    <span class="fw-bold" style="font-size:0.85rem;">35</span>
+                                </div>
+                                <div class="progress" style="height:6px;">
+                                    <div class="progress-bar bg-primary" style="width:70%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span style="font-size:0.85rem;">2. จิราภรณ์ วงศ์ดี</span>
+                                    <span class="fw-bold" style="font-size:0.85rem;">28</span>
+                                </div>
+                                <div class="progress" style="height:6px;">
+                                    <div class="progress-bar bg-success" style="width:56%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span style="font-size:0.85rem;">3. กิตติศักดิ์ ทองดี</span>
+                                    <span class="fw-bold" style="font-size:0.85rem;">19</span>
+                                </div>
+                                <div class="progress" style="height:6px;">
+                                    <div class="progress-bar bg-warning" style="width:38%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="#" class="d-block text-center text-primary mt-3" style="font-size:0.85rem;">ดูทั้งหมด</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Table -->
+            <div class="pc-card p-4 flex-grow-1 d-flex flex-column overflow-hidden" style="min-height:300px;">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                    <span class="fw-bold text-dark">รายการรายงานการโทร</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="pc-search-box" style="margin:0;width:220px;">
+                            <input type="text" class="form-control form-control-sm" placeholder="ค้นหารายการ">
+                            <i class="bi bi-search" style="top:50%;font-size:0.8rem;"></i>
+                        </div>
+                        <select class="form-select form-select-sm" style="width:auto;"><option>10 / หน้า</option></select>
+                    </div>
+                </div>
+                <div class="table-responsive flex-grow-1">
+                    <table class="table pc-report-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>วันที่โทร</th>
+                                <th>ลูกค้า</th>
+                                <th>ประเภทการโทร</th>
+                                <th>แคมเปญ / สัญญา</th>
+                                <th>ผู้โทร</th>
+                                <th>ผลการติดต่อ</th>
+                                <th>หมายเหตุ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-muted" style="font-size:0.85rem;">15/05/2024 10:22</td>
+                                <td class="text-dark" style="font-size:0.85rem;">น.ส. อมรรัตน์ ใจดี</td>
+                                <td class="text-dark" style="font-size:0.85rem;">โทรขายแคมเปญ</td>
+                                <td class="text-muted" style="font-size:0.85rem;">CMP-2024-0001</td>
+                                <td class="text-dark" style="font-size:0.85rem;">พนมกร คงดอน</td>
+                                <td><span class="pc-result-badge appointment">นัดติดตาม</span></td>
+                                <td class="text-muted" style="font-size:0.82rem;">ขอเอกสารเพิ่มเติม</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" style="font-size:0.85rem;">15/05/2024 09:45</td>
+                                <td class="text-dark" style="font-size:0.85rem;">นาย ภาคภูมิ แสงทอง</td>
+                                <td class="text-dark" style="font-size:0.85rem;">โทรติดตามหนี้</td>
+                                <td class="text-muted" style="font-size:0.85rem;">CT-6705-000456</td>
+                                <td class="text-dark" style="font-size:0.85rem;">จิราภรณ์ วงศ์ดี</td>
+                                <td><span class="pc-result-badge paid">รับปากชำระ</span></td>
+                                <td class="text-muted" style="font-size:0.82rem;">ชำระภายใน 18/05/2024</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" style="font-size:0.85rem;">14/05/2024 16:30</td>
+                                <td class="text-dark" style="font-size:0.85rem;">นางสาว ศิริพร มิลดี</td>
+                                <td class="text-dark" style="font-size:0.85rem;">โทรติดตามหนี้</td>
+                                <td class="text-muted" style="font-size:0.85rem;">CT-6705-000789</td>
+                                <td class="text-dark" style="font-size:0.85rem;">พนมกร คงดอน</td>
+                                <td><span class="pc-result-badge no-contact">ติดต่อไม่ได้</span></td>
+                                <td class="text-muted" style="font-size:0.82rem;">ไม่รับสาย</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" style="font-size:0.85rem;">13/05/2024 14:10</td>
+                                <td class="text-dark" style="font-size:0.85rem;">นาย สมชาย มันคง</td>
+                                <td class="text-dark" style="font-size:0.85rem;">โทรขายแคมเปญ</td>
+                                <td class="text-muted" style="font-size:0.85rem;">CMP-2024-0003</td>
+                                <td class="text-dark" style="font-size:0.85rem;">กิตติศักดิ์ ทองดี</td>
+                                <td><span class="pc-result-badge no-interest">ไม่สนใจ</span></td>
+                                <td class="text-muted" style="font-size:0.82rem;">ปฏิเสธข้อเสนอ</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted" style="font-size:0.85rem;">12/05/2024 11:05</td>
+                                <td class="text-dark" style="font-size:0.85rem;">น.ส. อมรรัตน์ ใจดี</td>
+                                <td class="text-dark" style="font-size:0.85rem;">โทรขายแคมเปญ</td>
+                                <td class="text-muted" style="font-size:0.85rem;">CMP-2024-0001</td>
+                                <td class="text-dark" style="font-size:0.85rem;">ระบบอัตโนมัติ</td>
+                                <td><span class="pc-result-badge sms">ส่ง SMS</span></td>
+                                <td class="text-muted" style="font-size:0.82rem;">แจ้งโปรโมชันใหม่</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top flex-shrink-0">
+                    <span class="text-muted" style="font-size:0.8rem;">1 - 5 จาก 128 รายการ</span>
+                    <ul class="pagination pagination-sm pc-pagination mb-0">
+                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link" href="#">...</a></li>
+                        <li class="page-item"><a class="page-link" href="#">13</a></li>
+                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        function switchTab(tabId) {
+            document.querySelectorAll('.pc-tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tabBtn' + tabId.replace('tab', '')).classList.add('active');
+            document.querySelectorAll('.pc-tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        }
+    </script>
+}

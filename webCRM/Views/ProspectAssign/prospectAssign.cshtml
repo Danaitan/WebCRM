@@ -1,0 +1,932 @@
+@{
+    ViewData["Title"] = "Prospect Assign";
+    ViewData["HeaderTitle"] = "Prospect Assign";
+    ViewData["HeaderSubtitle"] = "กำหนดผู้รับผิดชอบลูกค้า Propect ตาม Campaign";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/prospectAssign.css" asp-append-version="true" />
+}
+<div class="container-fluid p-4 h-100 d-flex flex-column" style="gap: 20px;">
+    
+    <!-- Top Section -->
+    <div class="row g-4">
+        
+        <!-- Left Side: Filter + Summary -->
+        <div class="col-xl-8 col-lg-7 d-flex flex-column" style="gap: 20px;">
+            
+            <!-- Filter Card -->
+            <div class="card-custom p-4">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label-custom">Product/Campaign Code</label>
+                        <input type="text" class="form-control form-control-custom" placeholder="เช่น CAM-202505">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label-custom">Product/Campaign Name</label>
+                        <input type="text" class="form-control form-control-custom" placeholder="เช่น สินเชื่อรถยนต์ พ.ศ. 2568">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label-custom">วันที่เริ่มต้น</label>
+                        <div class="position-relative">
+                            <i class="bi bi-calendar position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
+                            <input type="text" class="form-control form-control-custom" value="01/05/2568" style="padding-left: 35px;">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label-custom">วันที่สิ้นสุด</label>
+                        <div class="position-relative">
+                            <i class="bi bi-calendar position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
+                            <input type="text" class="form-control form-control-custom" value="31/05/2568" style="padding-left: 35px;">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-5">
+                        <label class="form-label-custom">หมายเหตุ</label>
+                        <input type="text" class="form-control form-control-custom" placeholder="ระบุหมายเหตุ (ถ้ามี)">
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label-custom">เลือกสาขา / Branch (เลือกได้หลายสาขา)</label>
+                        <div class="form-control form-control-custom d-flex align-items-center flex-wrap gap-2 py-1" style="min-height: 38px; height: auto;">
+                            <span class="branch-tag">00 สำนักงานใหญ่ <i class="bi bi-x"></i></span>
+                            <span class="branch-tag">06 ชลบุรี <i class="bi bi-x"></i></span>
+                            <span class="branch-tag">12 สุราษฎร์ธานี <i class="bi bi-x"></i></span>
+                            <div class="d-flex align-items-center flex-grow-1 ms-1">
+                                <i class="bi bi-search" style="font-size: 0.8rem; color: #94a3b8;"></i>
+                                <input type="text" class="border-0 shadow-none bg-transparent" placeholder="ค้นหาสาขา" style="outline: none; font-size: 0.85rem; width: 80px; margin-left: 5px;">
+                            </div>
+                            <i class="bi bi-chevron-down ms-auto" style="font-size: 0.8rem; color: #94a3b8;"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 mt-4 d-flex gap-2">
+                        <button class="btn-primary-custom d-flex align-items-center gap-2">
+                            <i class="bi bi-search"></i> Load Customer
+                        </button>
+                        <button class="btn-outline-custom d-flex align-items-center gap-2">
+                            <i class="bi bi-floppy"></i> Save Batch
+                        </button>
+                        <button class="btn-outline-custom d-flex align-items-center gap-2">
+                            <i class="bi bi-send"></i> Send Approve
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="summary-card">
+                        <div class="summary-icon blue"><i class="bi bi-people"></i></div>
+                        <div class="summary-info">
+                            <span class="summary-title">Prospect ทั้งหมด</span>
+                            <span class="summary-value">1,256</span>
+                            <span class="summary-unit">รายการ</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-card">
+                        <div class="summary-icon orange"><i class="bi bi-person-dash"></i></div>
+                        <div class="summary-info">
+                            <span class="summary-title">ยังไม่ Assign</span>
+                            <span class="summary-value">842</span>
+                            <span class="summary-unit">รายการ</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-card">
+                        <div class="summary-icon green"><i class="bi bi-person-check"></i></div>
+                        <div class="summary-info">
+                            <span class="summary-title">Assign แล้ว</span>
+                            <span class="summary-value">312</span>
+                            <span class="summary-unit">รายการ</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-card">
+                        <div class="summary-icon purple"><i class="bi bi-clock-history"></i></div>
+                        <div class="summary-info">
+                            <span class="summary-title">Waiting Approve</span>
+                            <span class="summary-value">102</span>
+                            <span class="summary-unit">รายการ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- Right Side: Assign Panel -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card-custom p-4 h-100">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="fw-medium text-dark">Assign Method</span>
+                    <i class="bi bi-info-circle text-gray" style="font-size: 0.9rem;"></i>
+                </div>
+                
+                <div class="d-flex gap-3 mb-4">
+                    <div class="assign-method-btn active">
+                        <i class="bi bi-person"></i>
+                        <span>Assign To<br>Staff</span>
+                    </div>
+                    <div class="assign-method-btn">
+                        <i class="bi bi-people"></i>
+                        <span>Assign To<br>Group</span>
+                    </div>
+                    <div class="assign-method-btn">
+                        <i class="bi bi-robot"></i>
+                        <span>Auto<br>Assign</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4 position-relative" id="responsibleSelectContainer">
+                    <label class="form-label-custom">เลือกผู้รับผิดชอบ</label>
+                    <div class="form-control form-control-custom d-flex align-items-center flex-wrap gap-2 py-1 bg-light border-0" style="min-height: 38px; height: auto; cursor: pointer;" id="responsibleSelectBox">
+                        <!-- Selected items will be appended here -->
+                        <div class="d-flex align-items-center flex-grow-1 ms-1">
+                            <input type="text" class="border-0 shadow-none bg-transparent" placeholder="ค้นหาพนักงาน" style="outline: none; font-size: 0.85rem; width: 100px;">
+                        </div>
+                        <i class="bi bi-chevron-down ms-auto" style="font-size: 0.8rem; color: #94a3b8;"></i>
+                    </div>
+                    
+                    <!-- Dropdown Menu -->
+                    <div class="dropdown-menu w-100 shadow-sm border mt-1 p-2" id="responsibleDropdownMenu" style="display: none; position: absolute; z-index: 1000; max-height: 200px; overflow-y: auto; background: white; border-radius: 8px;">
+                        <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="A">
+                            <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+                            <span>A</span>
+                        </div>
+                        <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="B">
+                            <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+                            <span>B</span>
+                        </div>
+                        <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="C">
+                            <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+                            <span>C</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="selected-count-box mb-4">
+                    <i class="bi bi-people text-primary fs-5"></i>
+                    <span class="fw-medium text-primary" id="selectedProspectCount">Selected: 0 รายการ</span>
+                </div>
+                
+                <button id="assignBtn" class="btn-primary-custom w-100 d-flex align-items-center justify-content-center gap-2 py-3 mt-auto" style="font-size: 1rem;">
+                    Assign
+                </button>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Bottom Section -->
+    <div class="row g-4 flex-grow-1" style="min-height: 400px;">
+        
+        <!-- Left: Batch List -->
+        <div class="col-xl-3 col-lg-4 d-flex flex-column h-100">
+            <div class="card-custom d-flex flex-column h-100">
+                <div class="batch-list-header">
+                    <span class="batch-list-title">Batch / ชุดข้อมูล</span>
+                    <button class="btn btn-sm btn-outline-custom py-1 px-2 d-flex align-items-center gap-1">
+                        <i class="bi bi-plus"></i> สร้าง Batch
+                    </button>
+                </div>
+                
+                <div class="p-3 border-bottom">
+                    <div class="position-relative">
+                        <i class="bi bi-search position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
+                        <input type="text" class="form-control form-control-custom bg-light border-0" placeholder="ค้นหา Batch" style="padding-left: 35px;">
+                    </div>
+                </div>
+                
+                <div class="flex-grow-1 overflow-auto" id="batchListContainer">
+                    <!-- Batch Items -->
+                    <div class="batch-item active" data-batch-index="0">
+                        <div class="batch-item-id">
+                            <span class="text-primary">APP-0007</span>
+                            <span class="batch-status waiting">waiting approve</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>31/05/2568 10:30</span>
+                            <span>842 รายการ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-item" data-batch-index="1">
+                        <div class="batch-item-id">
+                            <span>APP-0006</span>
+                            <span class="batch-status approved">approved</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>30/05/2568 16:45</span>
+                            <span>653 รายการ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-item" data-batch-index="2">
+                        <div class="batch-item-id">
+                            <span>APP-0005</span>
+                            <span class="batch-status approved">approved</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>29/05/2568 14:20</span>
+                            <span>521 รายการ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-item" data-batch-index="3">
+                        <div class="batch-item-id">
+                            <span>APP-0004</span>
+                            <span class="batch-status draft">draft</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>28/05/2568 09:15</span>
+                            <span>428 รายการ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-item" data-batch-index="4">
+                        <div class="batch-item-id">
+                            <span>APP-0003</span>
+                            <span class="batch-status waiting">waiting approve</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>27/05/2568 11:05</span>
+                            <span>312 รายการ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-item" data-batch-index="5">
+                        <div class="batch-item-id">
+                            <span>APP-0002</span>
+                            <span class="batch-status approved">approved</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>26/05/2568 15:40</span>
+                            <span>601 รายการ</span>
+                        </div>
+                    </div>
+
+                    <div class="batch-item" data-batch-index="6">
+                        <div class="batch-item-id">
+                            <span>APP-0001</span>
+                            <span class="batch-status approved">approved</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>25/05/2568 08:00</span>
+                            <span>389 รายการ</span>
+                        </div>
+                    </div>
+
+                    <div class="batch-item" data-batch-index="7">
+                        <div class="batch-item-id">
+                            <span>APP-0008</span>
+                            <span class="batch-status draft">draft</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>24/05/2568 13:10</span>
+                            <span>210 รายการ</span>
+                        </div>
+                    </div>
+
+                    <div class="batch-item" data-batch-index="8">
+                        <div class="batch-item-id">
+                            <span>APP-0009</span>
+                            <span class="batch-status waiting">waiting approve</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>23/05/2568 17:55</span>
+                            <span>475 รายการ</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-3 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
+                    <span id="batchPageInfo">1 - 6 จาก 9</span>
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-chevron-double-left" id="batchFirstBtn" style="cursor:pointer;"></i>
+                        <i class="bi bi-chevron-left" id="batchPrevBtn" style="cursor:pointer;"></i>
+                        <i class="bi bi-chevron-right" id="batchNextBtn" style="cursor:pointer;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right: Table -->
+        <div class="col-xl-9 col-lg-8 d-flex flex-column h-100">
+            <div class="card-custom d-flex flex-column h-100">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span class="fw-medium text-dark" style="font-size: 1rem;">Prospect ที่พร้อม Assign</span>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-custom bg-transparent d-flex align-items-center gap-2 py-1 px-3">
+                            <i class="bi bi-arrow-repeat"></i> รีเฟรชข้อมูล
+                        </button>
+                        <button class="btn btn-outline-custom bg-transparent text-dark border d-flex align-items-center gap-2 py-1 px-3">
+                            <i class="bi bi-sliders"></i> ตั้งค่าคอลัมน์
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex-grow-1 overflow-auto">
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;">
+                                    <input type="checkbox" class="form-check-input mt-0 border-primary">
+                                </th>
+                                <th>บริษัท/สาขา</th>
+                                <th>ชื่อ-นามสกุล / เลขบัตรประชาชน</th>
+                                <th>เลขที่สัญญา</th>
+                                <th>ประเภทลูกค้า</th>
+                                <th>อาชีพ</th>
+                                <th>ใช้รถที่</th>
+                                <th>ผู้รับผิดชอบ</th>
+                                <th>สถานะ</th>
+                                <th style="width: 40px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Row 1 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">บจก. กรุงเทพเทรดดิ้ง</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">จิตรกร เอ็นจิเนียริ่ง</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">0105543040732</div>
+                                </td>
+                                <td>CN-2568-000123</td>
+                                <td>นิติบุคคล</td>
+                                <td>เจ้าของกิจการ</td>
+                                <td>กรุงเทพฯ</td>
+                                <td>-</td>
+                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 2 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">หจก. สยามโลจิสติกส์</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">06 ชลบุรี</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">เอกชัย พงษ์พัฒน์</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">3101201234567</div>
+                                </td>
+                                <td>CN-2568-000124</td>
+                                <td>นิติบุคคล</td>
+                                <td>ผู้จัดการ</td>
+                                <td>ชลบุรี</td>
+                                <td>-</td>
+                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 3 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">บจก. ทีเอส แมนูแฟคเจอริ่ง</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">12 สุราษฎร์ธานี</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">กมลวรรณ ศรีสวัสดิ์</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">3840609876543</div>
+                                </td>
+                                <td>CN-2568-000125</td>
+                                <td>นิติบุคคล</td>
+                                <td>กรรมการผู้จัดการ</td>
+                                <td>สุราษฎร์ฯ</td>
+                                <td>-</td>
+                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 4 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">บจก. เอ็น.ที. เซอร์วิส</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">สมชาย ใจดี</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">1101600123456</div>
+                                </td>
+                                <td>CN-2568-000126</td>
+                                <td>นิติบุคคล</td>
+                                <td>เจ้าของกิจการ</td>
+                                <td>กรุงเทพฯ</td>
+                                <td>จิราพร แสงสว่าง</td>
+                                <td><span class="status-dot green"></span><span class="status-text green">Assign แล้ว</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 5 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">หจก. กิจเจริญทรัพย์</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">06 ชลบุรี</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">วินัย แซ่ตั้ง</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">3200500987654</div>
+                                </td>
+                                <td>CN-2568-000127</td>
+                                <td>บุคคลธรรมดา</td>
+                                <td>รับเหมา</td>
+                                <td>ชลบุรี</td>
+                                <td>-</td>
+                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 6 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">บจก. ไทยซัพพลาย กรุ๊ป</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">ปวีณา รัตนกุล</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">1119901234567</div>
+                                </td>
+                                <td>CN-2568-000128</td>
+                                <td>นิติบุคคล</td>
+                                <td>ผู้จัดการ</td>
+                                <td>กรุงเทพฯ</td>
+                                <td>อรรถพล ใจดี</td>
+                                <td><span class="status-dot green"></span><span class="status-text green">Assign แล้ว</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 7 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">หจก. ภูเก็ตทรานสปอร์ต</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">12 สุราษฎร์ธานี</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">ธีรยุทธ นาคธรณ์</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">3849901122334</div>
+                                </td>
+                                <td>CN-2568-000129</td>
+                                <td>นิติบุคคล</td>
+                                <td>เจ้าของกิจการ</td>
+                                <td>สุราษฎร์ฯ</td>
+                                <td>-</td>
+                                <td><span class="status-dot blue"></span><span class="status-text blue">รออนุมัติ</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                            <!-- Row 8 -->
+                            <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div class="fw-medium">บจก. สตาร์ มาร์เก็ตติ้ง</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">ดารินทร์ มณีวงศ์</div>
+                                    <div class="text-gray" style="font-size: 0.75rem;">1100200456789</div>
+                                </td>
+                                <td>CN-2568-000130</td>
+                                <td>นิติบุคคล</td>
+                                <td>การตลาด</td>
+                                <td>กรุงเทพฯ</td>
+                                <td>ศิริวัฒน์ จันทร์ดี</td>
+                                <td><span class="status-dot green"></span><span class="status-text green">Assign แล้ว</span></td>
+                                <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2 text-gray" style="font-size: 0.85rem;">
+                        <span>แสดง</span>
+                        <select id="rowsPerPageSelect" class="form-select form-select-sm border-0 bg-light" style="width: 60px;">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <span>รายการ / ทั้งหมด <span id="totalRowsInfo">0</span> รายการ</span>
+                    </div>
+                    
+                    <ul class="pagination pagination-sm pagination-custom mb-0 d-flex align-items-center gap-1" id="prospectPagination">
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- ReAssign Modal -->
+    <div class="modal fade" id="reAssignModal" tabindex="-1" aria-labelledby="reAssignModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow" style="border-radius: 12px;">
+                <div class="modal-header border-bottom-0 pb-0 mt-2">
+                    <h5 class="modal-title fw-bold" id="reAssignModalLabel" style="font-size: 1.1rem; color: #1e293b;">ระบุเหตุผลการ Re-Assign</h5>
+                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pb-0">
+                    <div class="mb-3 position-relative" id="newResponsibleSelectContainer">
+                        <label class="form-label-custom">เลือกผู้รับผิดชอบใหม่</label>
+                        <div class="form-control form-control-custom d-flex align-items-center flex-wrap gap-2 py-1 bg-light border-0" style="min-height: 38px; height: auto; cursor: pointer;" id="newResponsibleSelectBox">
+                            <div class="d-flex align-items-center flex-grow-1 ms-1">
+                                <input type="text" class="border-0 shadow-none bg-transparent" placeholder="ค้นหาพนักงาน" style="outline: none; font-size: 0.85rem; width: 100px;">
+                            </div>
+                            <i class="bi bi-chevron-down ms-auto" style="font-size: 0.8rem; color: #94a3b8;"></i>
+                        </div>
+                        
+                        <!-- Dropdown Menu -->
+                        <div class="dropdown-menu w-100 shadow-sm border mt-1 p-2" id="newResponsibleDropdownMenu" style="display: none; position: absolute; z-index: 1000; max-height: 200px; overflow-y: auto; background: white; border-radius: 8px;">
+                            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="A">
+                                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+                                <span>A</span>
+                            </div>
+                            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="B">
+                                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+                                <span>B</span>
+                            </div>
+                            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="C">
+                                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+                                <span>C</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label-custom">เหตุผล</label>
+                        <textarea class="form-control form-control-custom bg-light border-0" rows="3" placeholder="ระบุเหตุผลที่ต้องการเปลี่ยนผู้รับผิดชอบ..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0 pb-3 mt-2">
+                    <button type="button" class="btn btn-outline-custom bg-transparent border text-dark" data-bs-dismiss="modal" style="border-radius: 8px;">ยกเลิก</button>
+                    <button type="button" class="btn-primary-custom" style="border-radius: 8px; padding: 6px 24px;">ยืนยัน</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+
+    (function () {
+        const tbody = document.querySelector('.table-custom tbody');
+        if (!tbody) return;
+
+        const allRows = Array.from(tbody.querySelectorAll('tr'));
+        const totalRows = allRows.length;
+        document.getElementById('totalRowsInfo').textContent = totalRows;
+
+        const rowsPerPageSelect = document.getElementById('rowsPerPageSelect');
+        const paginationEl = document.getElementById('prospectPagination');
+
+        let currentPage = 1;
+
+        function getRowsPerPage() {
+            return parseInt(rowsPerPageSelect.value, 10);
+        }
+
+        function getTotalPages() {
+            return Math.max(1, Math.ceil(totalRows / getRowsPerPage()));
+        }
+
+        function renderRows() {
+            const rpp = getRowsPerPage();
+            const start = (currentPage - 1) * rpp;
+            const end = start + rpp;
+            allRows.forEach(function (row, i) {
+                row.style.display = (i >= start && i < end) ? '' : 'none';
+            });
+        }
+
+        function renderPagination() {
+            const total = getTotalPages();
+            paginationEl.innerHTML = '';
+
+            // Prev button
+            const prevLi = document.createElement('li');
+            prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
+            prevLi.innerHTML = '<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>';
+            prevLi.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (currentPage > 1) { currentPage--; update(); }
+            });
+            paginationEl.appendChild(prevLi);
+
+            // Page number buttons with ellipsis
+            const pages = buildPageRange(currentPage, total);
+            pages.forEach(function (p) {
+                const li = document.createElement('li');
+                if (p === '...') {
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link bg-transparent text-gray">...</span>';
+                } else {
+                    li.className = 'page-item' + (p === currentPage ? ' active' : '');
+                    li.innerHTML = '<a class="page-link" href="#">' + p + '</a>';
+                    li.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        currentPage = p;
+                        update();
+                    });
+                }
+                paginationEl.appendChild(li);
+            });
+
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.className = 'page-item' + (currentPage === total ? ' disabled' : '');
+            nextLi.innerHTML = '<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>';
+            nextLi.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (currentPage < total) { currentPage++; update(); }
+            });
+            paginationEl.appendChild(nextLi);
+        }
+
+        function buildPageRange(current, total) {
+            if (total <= 7) {
+                return Array.from({ length: total }, function (_, i) { return i + 1; });
+            }
+            var pages = [];
+            if (current <= 4) {
+                pages = [1, 2, 3, 4, 5, '...', total];
+            } else if (current >= total - 3) {
+                pages = [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+            } else {
+                pages = [1, '...', current - 1, current, current + 1, '...', total];
+            }
+            return pages;
+        }
+
+        function update() {
+            renderRows();
+            renderPagination();
+        }
+
+        rowsPerPageSelect.addEventListener('change', function () {
+            currentPage = 1;
+            update();
+        });
+
+        update();
+    })();
+
+    // =============================================
+    // BATCH LIST PAGINATION
+    // =============================================
+    (function () {
+        const batchItems = Array.from(document.querySelectorAll('#batchListContainer .batch-item'));
+        const totalBatch = batchItems.length;
+        const batchPerPage = 6;
+        let batchPage = 1;
+
+        function getTotalBatchPages() {
+            return Math.max(1, Math.ceil(totalBatch / batchPerPage));
+        }
+
+        function renderBatch() {
+            const start = (batchPage - 1) * batchPerPage;
+            const end = start + batchPerPage;
+            batchItems.forEach(function (item, i) {
+                item.style.display = (i >= start && i < end) ? '' : 'none';
+            });
+
+            const from = start + 1;
+            const to = Math.min(end, totalBatch);
+            document.getElementById('batchPageInfo').textContent =
+                from + ' - ' + to + ' จาก ' + totalBatch;
+
+            const totalPages = getTotalBatchPages();
+            const firstBtn = document.getElementById('batchFirstBtn');
+            const prevBtn = document.getElementById('batchPrevBtn');
+            const nextBtn = document.getElementById('batchNextBtn');
+
+            if (batchPage === 1) {
+                firstBtn.style.opacity = '0.35';
+                firstBtn.style.cursor = 'not-allowed';
+                prevBtn.style.opacity = '0.35';
+                prevBtn.style.cursor = 'not-allowed';
+            } else {
+                firstBtn.style.opacity = '1';
+                firstBtn.style.cursor = 'pointer';
+                prevBtn.style.opacity = '1';
+                prevBtn.style.cursor = 'pointer';
+            }
+
+            if (batchPage >= totalPages) {
+                nextBtn.style.opacity = '0.35';
+                nextBtn.style.cursor = 'not-allowed';
+            } else {
+                nextBtn.style.opacity = '1';
+                nextBtn.style.cursor = 'pointer';
+            }
+        }
+
+        document.getElementById('batchFirstBtn').addEventListener('click', function () {
+            if (batchPage > 1) { batchPage = 1; renderBatch(); }
+        });
+        document.getElementById('batchPrevBtn').addEventListener('click', function () {
+            if (batchPage > 1) { batchPage--; renderBatch(); }
+        });
+        document.getElementById('batchNextBtn').addEventListener('click', function () {
+            if (batchPage < getTotalBatchPages()) { batchPage++; renderBatch(); }
+        });
+
+        renderBatch();
+    })();
+
+    (function() {
+        const batchItems = document.querySelectorAll('.batch-item');
+        batchItems.forEach(item => {
+            item.addEventListener('click', function() {
+                // Remove active class from all
+                batchItems.forEach(b => b.classList.remove('active'));
+                // Add active class to clicked item
+                this.classList.add('active');
+            });
+        });
+    })();
+
+    // =============================================
+    // PROSPECT SELECTION COUNT
+    // =============================================
+    (function () {
+        const selectAllCheckbox = document.querySelector('.table-custom thead .form-check-input');
+        const prospectCheckboxes = document.querySelectorAll('.table-custom tbody .form-check-input');
+        const countDisplay = document.getElementById('selectedProspectCount');
+
+        function updateCount() {
+            const checkedCheckboxes = document.querySelectorAll('.table-custom tbody .form-check-input:checked');
+            const checkedCount = checkedCheckboxes.length;
+            if (countDisplay) {
+                countDisplay.textContent = `Selected: ${checkedCount} รายการ`;
+            }
+            
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = (checkedCount === prospectCheckboxes.length && prospectCheckboxes.length > 0);
+            }
+
+            let hasAssigned = false;
+            checkedCheckboxes.forEach(cb => {
+                const row = cb.closest('tr');
+                if (row) {
+                    const statusText = row.querySelector('.status-text');
+                    if (statusText && statusText.textContent.trim() === 'Assign แล้ว') {
+                        hasAssigned = true;
+                    }
+                }
+            });
+
+            const assignBtn = document.getElementById('assignBtn');
+            if (assignBtn) {
+                assignBtn.textContent = hasAssigned ? 'ReAssign' : 'Assign';
+            }
+        }
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                prospectCheckboxes.forEach(cb => {
+                    cb.checked = isChecked;
+                });
+                updateCount();
+            });
+        }
+
+        prospectCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateCount);
+        });
+
+        // Initialize
+        updateCount();
+    })();
+
+    // =============================================
+    // RESPONSIBLE PERSON MULTI-SELECT
+    // =============================================
+    (function () {
+        function initMultiSelect(containerId, selectBoxId, dropdownMenuId, optionClass) {
+            const container = document.getElementById(containerId);
+            const selectBox = document.getElementById(selectBoxId);
+            const dropdownMenu = document.getElementById(dropdownMenuId);
+            
+            if (!container || !selectBox || !dropdownMenu) return;
+
+            const searchInput = selectBox.querySelector('input[type="text"]');
+            const options = dropdownMenu.querySelectorAll('.' + optionClass);
+            
+            selectBox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'I' && e.target.classList.contains('bi-x')) return;
+                if (e.target === searchInput) {
+                    dropdownMenu.style.display = 'block';
+                    return;
+                }
+                dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!container.contains(e.target)) {
+                    dropdownMenu.style.display = 'none';
+                }
+            });
+
+            searchInput.addEventListener('input', function() {
+                const val = this.value.toLowerCase();
+                options.forEach(opt => {
+                    const text = opt.querySelector('span').textContent.toLowerCase();
+                    if (text.includes(val)) {
+                        opt.classList.remove('d-none');
+                    } else {
+                        opt.classList.add('d-none');
+                    }
+                });
+                dropdownMenu.style.display = 'block';
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', function(e) {
+                    const checkbox = this.querySelector('input[type="checkbox"]');
+                    const val = this.getAttribute('data-value');
+                    const text = this.querySelector('span').textContent;
+                    
+                    checkbox.checked = !checkbox.checked;
+                    
+                    if (checkbox.checked) {
+                        addTag(val, text);
+                    } else {
+                        removeTag(val);
+                    }
+                });
+            });
+
+            function addTag(val, text) {
+                if (selectBox.querySelector(`.branch-tag[data-value="${val}"]`)) return;
+                
+                const tag = document.createElement('span');
+                tag.className = 'branch-tag';
+                tag.setAttribute('data-value', val);
+                tag.innerHTML = `${text} <i class="bi bi-x" style="cursor: pointer;"></i>`;
+                
+                tag.querySelector('.bi-x').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    removeTag(val);
+                    const opt = Array.from(options).find(o => o.getAttribute('data-value') === val);
+                    if (opt) {
+                        opt.querySelector('input[type="checkbox"]').checked = false;
+                    }
+                });
+                
+                selectBox.insertBefore(tag, selectBox.querySelector('.d-flex'));
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+            }
+
+            function removeTag(val) {
+                const tag = selectBox.querySelector(`.branch-tag[data-value="${val}"]`);
+                if (tag) {
+                    tag.remove();
+                }
+            }
+        }
+
+        // Initialize for Main Assign Panel
+        initMultiSelect('responsibleSelectContainer', 'responsibleSelectBox', 'responsibleDropdownMenu', 'responsible-option');
+        
+        // Initialize for Re-Assign Modal
+        initMultiSelect('newResponsibleSelectContainer', 'newResponsibleSelectBox', 'newResponsibleDropdownMenu', 'new-responsible-option');
+    })();
+
+    // =============================================
+    // ASSIGN / RE-ASSIGN BUTTON CLICK
+    // =============================================
+    (function () {
+        const assignBtn = document.getElementById('assignBtn');
+        if (assignBtn) {
+            assignBtn.addEventListener('click', function(e) {
+                if (this.textContent.trim() === 'ReAssign') {
+                    const modalElement = document.getElementById('reAssignModal');
+                    if (modalElement && typeof bootstrap !== 'undefined') {
+                        const bsModal = new bootstrap.Modal(modalElement);
+                        bsModal.show();
+                    } else if (typeof $ !== 'undefined') {
+                        $('#reAssignModal').modal('show');
+                    }
+                } else {
+                    showAlert('success', 'Assign เรียบร้อยแล้ว', 'ทำการ Assign เรียบร้อยแล้ว', function() {
+                        window.location.reload();
+                    });
+                }
+            });
+        }
+    })();
+</script>
+}

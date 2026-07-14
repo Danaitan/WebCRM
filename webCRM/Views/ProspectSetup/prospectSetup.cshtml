@@ -1,0 +1,783 @@
+@{
+    ViewData["Title"] = "Prospect Setup";
+    ViewData["HeaderTitle"] = "Prospect Setup";
+    ViewData["HeaderSubtitle"] = "จัดการและตั้งค่าชุดข้อมูลลูกค้าเป้าหมาย (Prospect)";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/prospectSetup.css" asp-append-version="true" />
+}
+<!-- Main Layout -->
+<div class="prospect-layout">
+    
+    <!-- Left Panel -->
+    <div class="panel-left">
+        <div class="d-flex gap-2 mb-3">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control form-control-custom w-100" placeholder="ค้นหา Batch / Product">
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-dark fw-medium" style="font-size: 0.9rem;">พบ 12 รายการ</span>
+            <i class="bi bi-arrow-down-up text-secondary" style="cursor:pointer; font-size: 0.9rem;"></i>
+        </div>
+        
+        <div class="flex-grow-1 overflow-auto pe-1" id="batchListContainer">
+            <!-- Rendered by JS -->
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+            <span class="text-muted" style="font-size: 0.75rem;" id="batchListText">แสดง 1 - 5 จาก 12 รายการ</span>
+            <ul class="pagination pagination-sm pagination-custom mb-0" id="batchPagination">
+            </ul>
+        </div>
+    </div>
+
+    <div class="panel-main">
+
+        <div class="card-custom mb-4">
+            <div class="card-header-custom">
+                <h3 class="card-title-custom">
+                    <i class="bi bi-funnel-fill text-primary"></i> เงื่อนไขการคัดเลือกลูกค้าเป้าหมาย
+                </h3>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-xxl-4 col-xl-6 col-md-6">
+                        <label class="form-label-custom">ประเภทลูกค้า</label>
+                        <select class="form-select form-select-custom" id="filterCustType">
+                            <option value="">ทุกประเภท</option>
+                            <option value="บุคคลธรรมดา">บุคคลธรรมดา</option>
+                            <option value="นิติบุคคล">นิติบุคคล</option>
+                        </select>
+                    </div>
+                    <div class="col-xxl-4 col-xl-6 col-md-6">
+                        <label class="form-label-custom">เพศ</label>
+                        <select class="form-select form-select-custom" id="filterGender">
+                            <option value="">ทุกเพศ</option>
+                            <option value="ชาย">ชาย</option>
+                            <option value="หญิง">หญิง</option>
+                        </select>
+                    </div>
+                    <div class="col-xxl-4 col-xl-6 col-md-6">
+                        <label class="form-label-custom">ช่วงอายุ</label>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="number" class="form-control form-control-custom text-center" value="25" style="width: 70px;" id="filterAgeMin">
+                            <span class="text-muted" style="font-size: 0.85rem;">ถึง</span>
+                            <input type="number" class="form-control form-control-custom text-center" value="60" style="width: 70px;" id="filterAgeMax">
+                            <span class="text-muted ms-1" style="font-size: 0.85rem;">ปี</span>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xxl-4 col-xl-6 col-md-6">
+                        <label class="form-label-custom">อาชีพ</label>
+                        <select class="form-select form-select-custom" id="filterJob">
+                            <option value="">ทุกอาชีพ</option>
+                            <option value="พนักงานบริษัท">พนักงานบริษัท</option>
+                            <option value="ธุรกิจส่วนตัว">ธุรกิจส่วนตัว</option>
+                            <option value="เจ้าของกิจการ">เจ้าของกิจการ</option>
+                            <option value="ฟรีแลนซ์">ฟรีแลนซ์</option>
+                        </select>
+                    </div>
+                    <div class="col-xxl-8 col-xl-12 col-md-12">
+                        <label class="form-label-custom">สถานะลูกค้า</label>
+                        <select class="form-select form-select-custom" id="filterStatus">
+                            <option value="">ทุกสถานะ</option>
+                            <option value="รอการอนุมัติ">รอการอนุมัติ</option>
+                            <option value="อนุมัติแล้ว">อนุมัติแล้ว</option>
+                            <option value="ไม่อนุมัติ">ไม่อนุมัติ</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-xxl-4 col-xl-6 col-md-6">
+                        <label class="form-label-custom">พื้นที่ / สาขา</label>
+                        <select class="form-select form-select-custom" id="filterBranch">
+                            <option value="">ทุกสาขา</option>
+                            <option value="สาขานครราชสีมา">สาขานครราชสีมา</option>
+                            <option value="สาขาขอนแก่น">สาขาขอนแก่น</option>
+                            <option value="สาขาอุดรธานี">สาขาอุดรธานี</option>
+                            <option value="สาขาเชียงใหม่">สาขาเชียงใหม่</option>
+                            <option value="สาขาภูเก็ต">สาขาภูเก็ต</option>
+                        </select>
+                    </div>
+                    <div class="col-xxl-8 col-xl-12 col-md-12">
+                        <label class="form-label-custom">ช่วงวันที่สร้างข้อมูล</label>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <div class="position-relative" style="width: 150px;">
+                                <input type="date" class="form-control form-control-custom" value="2024-05-01" id="filterDateStart">
+                            </div>
+                            <span class="text-muted" style="font-size: 0.85rem;">ถึง</span>
+                            <div class="position-relative" style="width: 150px;">
+                                <input type="date" class="form-control form-control-custom" value="2024-05-12" id="filterDateEnd">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 mt-4 d-flex gap-2 flex-wrap">
+                        @* <button class="btn btn-primary px-4 py-2" style="border-radius: 8px; font-size: 0.9rem; font-weight: 500;" id="btnApplyFilters">
+                            <i class="bi bi-search me-1"></i> ค้นหา
+                        </button> *@
+                        <button class="btn btn-outline-secondary px-4 py-2" style="border-radius: 8px; font-size: 0.9rem; font-weight: 500;" id="btnClearFilters">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> ล้างเงื่อนไข
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-custom mb-0">
+
+                <div class="card-header-custom border-0 pb-0">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h3 class="card-title-custom mb-0 text-primary fs-5 text-nowrap">ข้อมูล Batch</h3>
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="font-size: 0.85rem; white-space: nowrap;">เลือกแล้ว</span>
+                        <span class="badge badge-blue">0</span>
+                        <span style="font-size: 0.85rem; white-space: nowrap;">รายการ</span>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <button class="btn btn-outline-primary btn-sm px-3 d-flex align-items-center gap-1" style="border-radius: 6px; font-weight: 500; font-size: 0.85rem; white-space: nowrap;" id="btnExportExcel">
+                        <i class="bi bi-download"></i> ส่งออก Excel
+                    </button>
+                    <button class="btn btn-light btn-sm text-secondary border" style="border-radius: 6px;">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="card-body-custom pt-3">
+                    <div class="fw-medium mb-2" style="font-size: 0.9rem;" id="totalFoundText">รายการลูกค้า (พบ 228 รายการ)</div>
+                    <div class="table-responsive border rounded-3">
+                        <table class="table table-hover table-custom mb-0" id="dataTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">
+                                        <div class="form-check d-flex justify-content-center m-0">
+                                            <input class="form-check-input" type="checkbox" id="checkAll">
+                                        </div>
+                                    </th>
+                                    <th>บริษัท / สาขา</th>
+                                    <th>ชื่อลูกค้า</th>
+                                    <th>เลขที่สัญญา</th>
+                                    <th>ประเภทรถ</th>
+                                    <th>ผู้รับผิดชอบ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody">
+                                <!-- Rendered by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted" style="font-size: 0.85rem;">แสดง</span>
+                            <select class="form-select form-select-sm" id="rowsPerPage" style="width: 70px; border-radius: 6px;">
+                                <option value="2">2</option>
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                            <span class="text-muted" style="font-size: 0.85rem;">รายการ</span>
+                        </div>
+                        
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <ul class="pagination pagination-sm pagination-custom mb-0 flex-wrap" id="tablePagination">
+                            </ul>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted" style="font-size: 0.85rem;">ไปที่</span>
+                                <input type="text" class="form-control form-control-sm text-center" id="goToPageInput" value="1" style="width: 40px; border-radius: 6px;">
+                                <span class="text-muted" style="font-size: 0.85rem;">หน้า</span>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+        </div> 
+
+    </div>
+
+    <div class="panel-right">
+            
+        <!-- Action Buttons -->
+        <div>
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <label class="form-label-custom mb-0 w-auto text-nowrap">เลือกสถานะ</label>
+                <select class="form-select form-select-custom">
+                    <option>รอการอนุมัติ</option>
+                </select>
+            </div>
+            
+            <button class="action-btn btn-primary-green">
+                <i class="bi bi-file-earmark-text"></i>
+                <div>
+                    <span class="action-btn-title">บันทึกชุดข้อมูล</span>
+                    <span class="action-btn-sub">บันทึกชุดข้อมูลนี้</span>
+                </div>
+            </button>
+            
+            <button class="action-btn btn-primary-purple">
+                <i class="bi bi-send"></i>
+                <div>
+                    <span class="action-btn-title">ส่งอนุมัติ</span>
+                    <span class="action-btn-sub">ส่งชุดข้อมูลเพื่อขออนุมัติ</span>
+                </div>
+            </button>
+        </div>
+        
+        <!-- Selected Items -->
+        <div class="mt-4 pt-3 border-top">
+            <div class="selected-list-header">
+                <span class="selected-list-title" id="selectedCountText">รายการที่เลือก (0 รายการ)</span>
+                @* <button class="btn-clear" id="btnClearSelection">
+                    <i class="bi bi-trash3"></i> ล้างรายการ
+                </button> *@
+            </div>
+            
+            <div class="table-responsive rounded border mb-3">
+                <table class="table table-borderless selected-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;" class="text-center">ลำดับ</th>
+                            <th>ชื่อลูกค้า</th>
+                            <th>เลขที่สัญญา</th>
+                            <th style="width: 30px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="selectedTableBody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="text-muted" style="font-size: 0.8rem;" id="selectedTotalText">
+                รวมทั้งหมด 0 รายการ
+            </div>
+        </div>
+            
+    </div>
+
+</div>
+
+@section Scripts {
+    <!-- Include SheetJS (xlsx-js-style) for Excel Export with Styling -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const checkAll = document.getElementById('checkAll');
+            let rowCheckboxes; // Will be set after generating table
+            const selectedTableBody = document.getElementById('selectedTableBody');
+            const selectedCountText = document.getElementById('selectedCountText');
+            const selectedTotalText = document.getElementById('selectedTotalText');
+            const btnClearSelection = document.getElementById('btnClearSelection');
+            const dataTable = document.getElementById('dataTable');
+
+            // --- 0. Generate Mock Data Arrays ---
+            const batchListContainer = document.getElementById('batchListContainer');
+            const allBatches = [];
+            if (batchListContainer) {
+                const batchTemplates = [
+                    { title: "แคมเปญออกรถใหม่ Q2/2567", author: "นันทนา ใจดี", date: "12 พ.ค. 2567", count: 250, color: "blue" },
+                    { title: "แคมเปญลูกค้าเก่า (ต่อสัญญา)", author: "วรวิช ศรีสุข", date: "10 พ.ค. 2567", count: 186, color: "green" },
+                    { title: "ลูกค้าสนใจรถไฟฟ้า EV", author: "ปริญญา สนิท", date: "9 พ.ค. 2567", count: 98, color: "orange" },
+                    { title: "แคมเปญประกันภัยชั้น 1", author: "กนกวรรณ เพิ่มสุข", date: "8 พ.ค. 2567", count: 142, color: "purple" },
+                    { title: "ลูกค้าธุรกิจ SME", author: "ณัฐพงศ์ คำดี", date: "6 พ.ค. 2567", count: 67, color: "cyan" }
+                ];
+                
+                for (let i = 0; i < 12; i++) {
+                    let tpl = batchTemplates[i % batchTemplates.length];
+                    
+                    const card = document.createElement('div');
+                    card.className = `batch-card ${i === 0 ? 'active' : ''} color-${tpl.color}`;
+                    card.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <div class="batch-id color-${tpl.color}">BATCH-202405-${String(i+1).padStart(3, '0')}</div>
+                            ${i === 0 ? '<i class="bi bi-check-circle-fill check-circle"></i>' : ''}
+                        </div>
+                        <div class="batch-title">${tpl.title}${i > 4 ? ` (${i+1})` : ''}</div>
+                        <div class="d-flex justify-content-between align-items-end">
+                            <div class="batch-meta">
+                                <div>สร้างโดย: ${tpl.author}</div>
+                                <div>${tpl.date}</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="batch-count">${tpl.count} ราย</span>
+                                <div class="text-secondary mt-1"><i class="bi bi-file-earmark-text"></i></div>
+                            </div>
+                        </div>
+                    `;
+                    allBatches.push(card);
+                }
+            }
+
+            const tbody = document.getElementById('dataTableBody');
+            if (tbody) {
+                const prospectTemplates = [
+                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขานครราชสีมา", name: "คุณสมชาย ใจดี", contract: "LC-6705-000123", car: "TOYOTA HILUX REVO 2.4", responsible: "ชนนภัทร วงศ์จันทร์", type: "บุคคลธรรมดา", gender: "ชาย", age: 30, job: "พนักงานบริษัท", status: "รอการอนุมัติ", date: "2024-05-02" },
+                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาขอนแก่น", name: "คุณวิภาวี รัตนากร", contract: "LC-6704-009876", car: "HONDA CIVIC 1.8 EL", responsible: "ชนนภัทร วงศ์จันทร์", type: "บุคคลธรรมดา", gender: "หญิง", age: 45, job: "ธุรกิจส่วนตัว", status: "รอการอนุมัติ", date: "2024-05-05" },
+                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาอุดรธานี", name: "คุณนฤพล ศรีบุญเรือง", contract: "LC-6704-008765", car: "ISUZU D-MAX 1.9 DDI", responsible: "สมชาย รุ่งเรือง", type: "นิติบุคคล", gender: "ชาย", age: 50, job: "เจ้าของกิจการ", status: "อนุมัติแล้ว", date: "2024-05-08" },
+                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาเชียงใหม่", name: "คุณปาริชาติ แสนสุข", contract: "LC-6703-007654", car: "MAZDA CX-30 2.0 SP", responsible: "กัญญภัค อินทรใจ", type: "บุคคลธรรมดา", gender: "หญิง", age: 28, job: "พนักงานบริษัท", status: "ไม่อนุมัติ", date: "2024-05-10" },
+                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาภูเก็ต", name: "คุณเจษฎา ทองดี", contract: "LC-6703-006543", car: "TOYOTA YARIS ATIV 1.2", responsible: "กัญญภัค อินทรใจ", type: "นิติบุคคล", gender: "ชาย", age: 35, job: "ฟรีแลนซ์", status: "รอการอนุมัติ", date: "2024-05-11" }
+                ];
+                
+                for (let i = 0; i < 228; i++) {
+                    let tpl = prospectTemplates[i % prospectTemplates.length];
+                    const tr = document.createElement('tr');
+                    tr.setAttribute('data-custtype', tpl.type);
+                    tr.setAttribute('data-gender', tpl.gender);
+                    tr.setAttribute('data-age', tpl.age);
+                    tr.setAttribute('data-job', tpl.job);
+                    tr.setAttribute('data-status', tpl.status);
+                    tr.setAttribute('data-date', tpl.date);
+                    
+                    tr.innerHTML = `
+                        <td class="text-center">
+                            <div class="form-check d-flex justify-content-center m-0">
+                                <input class="form-check-input row-checkbox" type="checkbox">
+                            </div>
+                        </td>
+                        <td>
+                            <div class="company-name">${tpl.company}</div>
+                            <div class="branch-name">${tpl.branch}</div>
+                        </td>
+                        <td>${tpl.name}${i > 4 ? ` (${i+1})` : ''}</td>
+                        <td>LC-670${(i%5)+1}-${String(i+1).padStart(6, '0')}</td>
+                        <td>${tpl.car}</td>
+                        <td>${tpl.responsible}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            }
+            
+            rowCheckboxes = document.querySelectorAll('.row-checkbox');
+
+            // --- 1. Filter Logic & Pagination ---
+            const btnLoadCustomers = document.getElementById('btnLoadCustomers');
+            const btnClearFilters = document.getElementById('btnClearFilters');
+            
+            let filteredRows = [];
+            let currentPage = 1;
+            let rowsPerPage = 10;
+
+            function applyFilters() {
+                const fCustType = document.getElementById('filterCustType').value;
+                const fGender = document.getElementById('filterGender').value;
+                const fAgeMin = parseInt(document.getElementById('filterAgeMin').value) || 0;
+                const fAgeMax = parseInt(document.getElementById('filterAgeMax').value) || 999;
+                const fJob = document.getElementById('filterJob').value;
+                const fStatus = document.getElementById('filterStatus').value;
+                const fBranch = document.getElementById('filterBranch').value.toLowerCase();
+                const fDateStart = document.getElementById('filterDateStart').value;
+                const fDateEnd = document.getElementById('filterDateEnd').value;
+                
+                filteredRows = [];
+                const rows = dataTable.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const branchName = row.querySelector('.branch-name').textContent.toLowerCase();
+                    const custType = row.getAttribute('data-custtype') || '';
+                    const gender = row.getAttribute('data-gender') || '';
+                    const age = parseInt(row.getAttribute('data-age')) || 0;
+                    const job = row.getAttribute('data-job') || '';
+                    const status = row.getAttribute('data-status') || '';
+                    const date = row.getAttribute('data-date') || '';
+                    
+                    let match = true;
+                    if (fBranch !== "" && !branchName.includes(fBranch)) match = false;
+                    if (fCustType !== "" && custType !== fCustType) match = false;
+                    if (fGender !== "" && gender !== fGender) match = false;
+                    if (age < fAgeMin || age > fAgeMax) match = false;
+                    if (fJob !== "" && job !== fJob) match = false;
+                    if (fStatus !== "" && status !== fStatus) match = false;
+                    
+                    if (fDateStart !== "" && date !== "" && date < fDateStart) match = false;
+                    if (fDateEnd !== "" && date !== "" && date > fDateEnd) match = false;
+                    
+                    if (match) {
+                        filteredRows.push(row);
+                    } else {
+                        row.classList.add('d-none');
+                        row.style.display = 'none';
+                        const cb = row.querySelector('.row-checkbox');
+                        if (cb) cb.checked = false;
+                    }
+                });
+                
+                const totalFoundText = document.getElementById('totalFoundText');
+                if (totalFoundText) {
+                    totalFoundText.textContent = `รายการลูกค้า (พบ ${filteredRows.length} รายการ)`;
+                }
+                currentPage = 1;
+                updatePagination();
+            }
+
+            function updatePagination() {
+                const rppSelect = document.getElementById('rowsPerPage');
+                if (rppSelect) {
+                    rowsPerPage = parseInt(rppSelect.value) || 10;
+                }
+                const totalPages = Math.ceil(filteredRows.length / rowsPerPage) || 1;
+                
+                if (currentPage > totalPages) currentPage = totalPages;
+                if (currentPage < 1) currentPage = 1;
+                
+                filteredRows.forEach(row => {
+                    row.classList.add('d-none');
+                    row.style.display = 'none';
+                });
+                
+                const startIndex = (currentPage - 1) * rowsPerPage;
+                const endIndex = startIndex + rowsPerPage;
+                for (let i = startIndex; i < endIndex && i < filteredRows.length; i++) {
+                    filteredRows[i].classList.remove('d-none');
+                    filteredRows[i].style.display = '';
+                }
+                
+                renderPaginationUI(totalPages);
+                updateSelectedList();
+                updateCheckAllStatus();
+            }
+
+            function renderPaginationUI(totalPages) {
+                const paginationContainer = document.getElementById('tablePagination');
+                if (!paginationContainer) return;
+                
+                let html = '';
+                
+                // Previous button
+                html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="prev"><i class="bi bi-chevron-left"></i></a></li>`;
+                
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, currentPage + 2);
+                
+                if (startPage > 1) {
+                    html += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
+                    if (startPage > 2) {
+                        html += `<li class="page-item disabled"><a class="page-link" href="#">...</a></li>`;
+                    }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    html += `<li class="page-item ${currentPage === i ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        html += `<li class="page-item disabled"><a class="page-link" href="#">...</a></li>`;
+                    }
+                    html += `<li class="page-item"><a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a></li>`;
+                }
+                
+                // Next button
+                html += `<li class="page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="next"> <i class="bi bi-chevron-right"></i></a></li>`;
+                
+                paginationContainer.innerHTML = html;
+                
+                paginationContainer.querySelectorAll('.page-link').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        if (this.parentElement.classList.contains('disabled')) return;
+                        
+                        const page = this.getAttribute('data-page');
+                        if (!page) return;
+                        
+                        if (page === 'prev') {
+                            currentPage--;
+                        } else if (page === 'next') {
+                            currentPage++;
+                        } else {
+                            currentPage = parseInt(page);
+                        }
+                        updatePagination();
+                    });
+                });
+                
+                const goToInput = document.getElementById('goToPageInput');
+                if (goToInput) goToInput.value = currentPage;
+            }
+
+            const rowsPerPageSelect = document.getElementById('rowsPerPage');
+            if (rowsPerPageSelect) {
+                rowsPerPageSelect.addEventListener('change', function() {
+                    currentPage = 1;
+                    updatePagination();
+                });
+            }
+
+            const goToPageInput = document.getElementById('goToPageInput');
+            if (goToPageInput) {
+                goToPageInput.addEventListener('change', function() {
+                    const page = parseInt(this.value);
+                    if (!isNaN(page) && page > 0) {
+                        currentPage = page;
+                        updatePagination();
+                    }
+                });
+            }
+
+            if(btnLoadCustomers) {
+                btnLoadCustomers.addEventListener('click', applyFilters);
+            }
+
+            // Apply Filters button inside the filter card
+            const btnApplyFilters = document.getElementById('btnApplyFilters');
+            if(btnApplyFilters) {
+                btnApplyFilters.addEventListener('click', applyFilters);
+            }
+            
+            if(btnClearFilters) {
+                btnClearFilters.addEventListener('click', function() {
+                    document.getElementById('filterCustType').value = '';
+                    document.getElementById('filterGender').value = '';
+                    document.getElementById('filterJob').value = '';
+                    document.getElementById('filterStatus').value = '';
+                    document.getElementById('filterBranch').value = '';
+                    document.getElementById('filterAgeMin').value = '25';
+                    document.getElementById('filterAgeMax').value = '60';
+                    document.getElementById('filterDateStart').value = '2024-05-01';
+                    document.getElementById('filterDateEnd').value = '2024-05-12';
+                    applyFilters();
+                });
+            }
+
+            // Real-time filtering — trigger on every change
+            const filterSelects = ['filterCustType', 'filterGender', 'filterJob', 'filterStatus', 'filterBranch'];
+            filterSelects.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', applyFilters);
+            });
+
+            const filterInputs = ['filterAgeMin', 'filterAgeMax', 'filterDateStart', 'filterDateEnd'];
+            filterInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', applyFilters);
+            });
+
+            // --- 2. Checkbox & Right Panel Logic ---
+            function updateSelectedList() {
+                selectedTableBody.innerHTML = '';
+                let selectedCount = 0;
+
+                rowCheckboxes.forEach((checkbox, index) => {
+                    if (checkbox.checked && !checkbox.closest('tr').classList.contains('d-none')) {
+                        selectedCount++;
+                        const tr = checkbox.closest('tr');
+                        const customerName = tr.cells[2].textContent.trim();
+                        const contractNo = tr.cells[3].textContent.trim();
+
+                        const newRow = document.createElement('tr');
+                        newRow.innerHTML = `
+                            <td class="text-center text-muted">${selectedCount}</td>
+                            <td>${customerName}</td>
+                            <td class="text-muted">${contractNo}</td>
+                            <td class="text-center"><i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${index}"></i></td>
+                        `;
+                        selectedTableBody.appendChild(newRow);
+                    }
+                });
+
+                selectedCountText.textContent = `รายการที่เลือก (${selectedCount} รายการ)`;
+                selectedTotalText.textContent = `รวมทั้งหมด ${selectedCount} รายการ`;
+
+                // Add event listeners to remove buttons
+                document.querySelectorAll('.remove-item').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const targetIndex = this.getAttribute('data-index');
+                        rowCheckboxes[targetIndex].checked = false;
+                        updateSelectedList();
+                        updateCheckAllStatus();
+                    });
+                });
+                
+                // Update header badge if exists
+                const badgeBlue = document.querySelector('.badge-blue');
+                if(badgeBlue) badgeBlue.textContent = selectedCount;
+            }
+
+            function updateCheckAllStatus() {
+                const visibleCheckboxes = Array.from(rowCheckboxes).filter(cb => !cb.closest('tr').classList.contains('d-none'));
+                const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
+                const someChecked = visibleCheckboxes.some(cb => cb.checked);
+                
+                checkAll.checked = allChecked;
+                checkAll.indeterminate = !allChecked && someChecked;
+            }
+
+            checkAll.addEventListener('change', function () {
+                const isChecked = this.checked;
+                rowCheckboxes.forEach(checkbox => {
+                    if (!checkbox.closest('tr').classList.contains('d-none')) {
+                        checkbox.checked = isChecked;
+                    }
+                });
+                updateSelectedList();
+            });
+
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    updateSelectedList();
+                    updateCheckAllStatus();
+                });
+            });
+
+            if (btnClearSelection) {
+                btnClearSelection.addEventListener('click', function () {
+                    rowCheckboxes.forEach(checkbox => checkbox.checked = false);
+                    updateSelectedList();
+                    updateCheckAllStatus();
+                });
+            }
+
+            // Initialize filter, pagination, and selected list on load
+            applyFilters();
+
+            // --- 3. Export to Excel Logic ---
+            const btnExportExcel = document.getElementById('btnExportExcel');
+            if (btnExportExcel) {
+                btnExportExcel.addEventListener('click', function () {
+                    // Create a clone of the table to manipulate before export
+                    let tableClone = dataTable.cloneNode(true);
+                    
+                    // Remove the checkbox column (first column) from header and body
+                    tableClone.querySelectorAll('tr').forEach(row => {
+                        if(row.cells.length > 0) {
+                            row.deleteCell(0);
+                        }
+                    });
+
+                    // Remove hidden rows from clone
+                    Array.from(tableClone.querySelectorAll('tbody tr')).forEach(row => {
+                       if(row.style.display === 'none' || row.classList.contains('d-none')) {
+                           row.parentNode.removeChild(row);
+                       }
+                    });
+                    
+                    // Clean up formatting in cells for export (e.g. branch names)
+                    tableClone.querySelectorAll('.company-name').forEach(el => {
+                        el.textContent = el.textContent + ' ';
+                    });
+
+                    // Convert table to workbook
+                    let wb = XLSX.utils.table_to_book(tableClone, { sheet: "Prospects" });
+                    
+                    // Auto-fit columns and apply styles
+                    let ws = wb.Sheets["Prospects"];
+                    if (ws) {
+                        const colWidths = [];
+                        const range = XLSX.utils.decode_range(ws['!ref']);
+                        for (let C = range.s.c; C <= range.e.c; ++C) {
+                            let maxWidth = 10; // Default minimum width
+                            for (let R = range.s.r; R <= range.e.r; ++R) {
+                                const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
+                                let cell = ws[cellRef];
+                                
+                                // Ensure cell exists to apply styling even if empty
+                                if (!cell) {
+                                    cell = { t: 's', v: '' };
+                                    ws[cellRef] = cell;
+                                }
+
+                                // Add styling
+                                if (!cell.s) cell.s = {};
+
+                                // Make header bold and center aligned
+                                if (R === range.s.r) {
+                                    cell.s.font = { bold: true };
+                                    cell.s.alignment = { horizontal: "center", vertical: "center" };
+                                } else {
+                                    cell.s.alignment = { vertical: "center" };
+                                }
+
+                                // Add table border styling for all cells
+                                if (!cell.s.border) {
+                                    cell.s.border = {
+                                        top: { style: "thin", color: { rgb: "000000" } },
+                                        bottom: { style: "thin", color: { rgb: "000000" } },
+                                        left: { style: "thin", color: { rgb: "000000" } },
+                                        right: { style: "thin", color: { rgb: "000000" } }
+                                    };
+                                }
+
+                                if (cell.v !== undefined && cell.v !== null) {
+                                    const length = cell.v.toString().length;
+                                    if (length > maxWidth) {
+                                        maxWidth = length;
+                                    }
+                                }
+                            }
+                            // Set width with some extra padding for fonts
+                            colWidths.push({ wch: maxWidth + 5 });
+                        }
+                        ws['!cols'] = colWidths;
+                    }
+
+                    // Save to file
+                    XLSX.writeFile(wb, "Prospect_Data.xlsx");
+                });
+            }
+            
+            // --- 4. Batch List Pagination (Left Panel) ---
+            const batchPagination = document.getElementById('batchPagination');
+            const batchListText = document.getElementById('batchListText');
+            
+            if (batchListContainer && batchPagination && batchListText) {
+                let currentBatchPage = 1;
+                const batchesPerPage = 5;
+                const totalBatchItems = allBatches.length;
+                const totalBatchPages = Math.ceil(totalBatchItems / batchesPerPage);
+                
+                function renderBatchPage() {
+                    batchListContainer.innerHTML = '';
+                    const startIdx = (currentBatchPage - 1) * batchesPerPage;
+                    const endIdx = Math.min(startIdx + batchesPerPage, totalBatchItems);
+                    
+                    for (let i = startIdx; i < endIdx; i++) {
+                        batchListContainer.appendChild(allBatches[i]);
+                    }
+                    
+                    batchListText.textContent = `แสดง ${startIdx + 1} - ${endIdx} จาก ${totalBatchItems} รายการ`;
+                    
+                    // Render Pagination
+                    let html = '';
+                    html += `<li class="page-item ${currentBatchPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-bpage="prev"><i class="bi bi-chevron-left"></i></a></li>`;
+                    for (let i = 1; i <= totalBatchPages; i++) {
+                        html += `<li class="page-item ${currentBatchPage === i ? 'active' : ''}"><a class="page-link" href="#" data-bpage="${i}">${i}</a></li>`;
+                    }
+                    html += `<li class="page-item ${currentBatchPage === totalBatchPages ? 'disabled' : ''}"><a class="page-link" href="#" data-bpage="next"><i class="bi bi-chevron-right"></i></a></li>`;
+                    
+                    batchPagination.innerHTML = html;
+                    
+                    batchPagination.querySelectorAll('.page-link').forEach(link => {
+                        link.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            if (this.parentElement.classList.contains('disabled')) return;
+                            const page = this.getAttribute('data-bpage');
+                            if (page === 'prev') {
+                                currentBatchPage--;
+                            } else if (page === 'next') {
+                                currentBatchPage++;
+                            } else {
+                                currentBatchPage = parseInt(page);
+                            }
+                            renderBatchPage();
+                        });
+                    });
+                    
+                    // Add click event for cards to be active
+                    batchListContainer.querySelectorAll('.batch-card').forEach(card => {
+                        card.addEventListener('click', function() {
+                            batchListContainer.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
+                            this.classList.add('active');
+                        });
+                    });
+                }
+                
+                renderBatchPage();
+            }
+        });
+    </script>
+}

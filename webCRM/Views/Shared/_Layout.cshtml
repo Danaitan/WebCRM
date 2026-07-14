@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <!-- Add Google Fonts (Prompt and Kanit for standard Thai UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Add Bootstrap for layout/utilities -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Add Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+    
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+
+        /* @@keyframes bell-ring {
+            0%, 100% { transform: rotate(0); }
+            10%, 30%, 50% { transform: rotate(15deg); }
+            20%, 40%, 60% { transform: rotate(-15deg); }
+            70% { transform: rotate(0); }
+        }
+        .hover-ring:hover {
+            animation: bell-ring 0.8s ease-in-out both;
+            transform-origin: top center;
+        } */
+
+           @@keyframes bell-ring {
+            0%   { transform: rotate(0deg); }
+            50%  { transform: rotate(15deg); }
+            100% { transform: rotate(-15deg); }
+        }
+
+        .hover-ring {
+            transform-origin: top center;
+        }
+
+        .hover-ring:hover {
+            animation: bell-ring 1.2s ease-in-out infinite;
+        }
+
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="crm-body">
+    @{
+        bool hideSidebar = ViewData["HideSidebar"] as bool? == true;
+        var currentPath = Context.Request.Path.Value ?? "/";
+        string GetActiveClass(string path)
+        {
+            if (path == "/" || path == "/Home/Index")
+            {
+                return (currentPath == "/" || currentPath.Equals("/Home/Index", StringComparison.OrdinalIgnoreCase)) ? "active-menu text-primary" : "text-secondary";
+            }
+            return (path != "#" && currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase)) ? "active-menu text-primary" : "text-secondary";
+        }
+    }
+
+    <div class="d-flex" style="min-height: 100vh;">
+        @if (!hideSidebar)
+        {
+            <!-- Sidebar -->
+            <aside class="sidebar bg-white border-end d-flex flex-column flex-shrink-0" style="width: 260px; transition: all 0.3s;" id="crmSidebar">
+                <!-- Hide Menu Button at Top -->
+                <div class="px-3 py-3 border-bottom d-flex justify-content-end">
+                    <button class="btn text-secondary d-flex align-items-center gap-2 p-0 border-0 mt-1" id="hideSidebarBtn" style="font-size: 14px;">
+                        <i class="bi bi-chevron-double-left fs-6" id="hideSidebarIcon"></i>
+                    </button>
+                </div>
+                
+                <!-- Menu Items -->
+                <nav class="sidebar-nav flex-grow-1 px-2 py-3 d-flex flex-column gap-1 overflow-auto">
+                    <a href="/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-house fs-5"></i> <span class="fw-medium sidebar-text">หน้าหลัก</span>
+                    </a>
+                    
+                    <a href="/CustomerDetail" class="nav-link @GetActiveClass("/CustomerDetail") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-person fs-5"></i> <span class="fw-medium sidebar-text">ข้อมูลลูกค้า</span>
+                    </a>
+                    
+                    <a href="/Suggestions" class="nav-link @GetActiveClass("/Suggestions") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-chat-dots fs-5"></i> <span class="fw-medium sidebar-text">ข้อเสนอแนะ/ร้องเรียน</span>
+                    </a>
+
+                    <a href="/Campain" class="nav-link @GetActiveClass("/Campain") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-megaphone fs-5"></i> <span class="fw-medium sidebar-text">Campaign Create</span>
+                    </a>
+                    
+                    <a href="/ProspectSetup" class="nav-link @GetActiveClass("/ProspectSetup") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-people-fill fs-5"></i> <span class="fw-medium sidebar-text">Prospect Setup</span>
+                    </a>
+                    
+                    <a href="/ProductApprove" class="nav-link @GetActiveClass("/ProductApprove") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-shield-check fs-5"></i> <span class="fw-medium sidebar-text">Product Approve</span>
+                    </a>
+                    
+                    <a href="/ProspectAssign" class="nav-link @GetActiveClass("/ProspectAssign") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-people fs-5"></i> <span class="fw-medium sidebar-text">Prospect Assign</span>
+                    </a>
+                    
+                    <a href="/ProspectCall" class="nav-link @GetActiveClass("/ProspectCall") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                        <i class="bi bi-telephone fs-5"></i> <span class="fw-medium sidebar-text">Call management</span>
+                    </a>
+                    
+                </nav>
+            </aside>
+        }
+
+        <!-- Main Content Area -->
+        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0; background-color: #f8fafc;">
+            @{
+                bool hideHeader = ViewData["HideHeader"] as bool? == true;
+            }
+            @if (!hideHeader)
+            {
+            <!-- Header -->
+            <header class="crm-header d-flex align-items-center justify-content-between px-4 py-3 bg-white shadow-sm border-bottom">
+                <div class="d-flex align-items-center gap-3">
+                    @* <div class="header-icon-box text-white rounded p-2 d-flex align-items-center justify-content-center" style="background-color: var(--bs-primary, #0d6efd);">
+                        <i class="bi bi-people-fill fs-5"></i>
+                    </div>
+                    <button class="btn btn-link text-secondary p-0 border-0 ms-2" id="toggleSidebarBtn">
+                        <i class="bi bi-list fs-3"></i>
+                    </button> *@
+                    <div class="ms-2">
+                        <h4 class="mb-0 fw-bold text-dark-blue">@(ViewData["HeaderTitle"] ?? "เมนูระบบ CRM 2.0")</h4>
+                        @if (ViewData["HeaderSubtitle"] != null)
+                        {
+                            <p class="text-muted small mb-0 mt-1">@ViewData["HeaderSubtitle"]</p>
+                        }
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="user-company text-end d-none d-md-block">
+                        <div class="fw-bold text-dark" style="font-size: 0.95rem;">Micro Leasing Public Company Limited</div>
+                        <div class="text-muted" style="font-size: 0.85rem;">ยินดีต้อนรับ <span class="fw-bold text-primary">@(Context.Session.GetString("profile_welcome") ?? "")</span></div>
+                    </div>
+                    <div class="dropdown me-2">
+                        <div class="position-relative d-flex align-items-center justify-content-center" style="cursor: pointer; width: 40px; height: 40px;" id="bellNotification" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bell fs-5 text-secondary hover-ring d-inline-block"></i>
+                            <span id="notificationBadge" class="position-absolute badge rounded-pill bg-danger shadow-sm" style="top: 2px; right: 0px; font-size: 0.6rem; padding: 0.25em 0.4em; display: none;">
+                                0
+                            </span>
+                        </div>
+                        <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0" aria-labelledby="bellNotification" style="width: 320px; border-radius: 12px; overflow: hidden; margin-top: 10px;">
+                            <div class="p-3 text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%);">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-bell-fill me-2"></i>การแจ้งเตือน</h6>
+                                <span class="badge bg-white text-primary rounded-pill shadow-sm" id="notificationHeaderCount">0</span>
+                            </div>
+                            <div id="notificationList" class="overflow-auto bg-white" style="max-height: 350px;">
+                                <!-- Notification items will be appended here -->
+                            </div>
+                            <div class="p-2 text-center border-top" style="background-color: #f8fafc;">
+                                <a href="#" class="text-primary text-decoration-none small fw-medium" data-bs-toggle="modal" data-bs-target="#allNotificationsModal">ดูการแจ้งเตือนทั้งหมด</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            }
+
+            <div class="content-wrapper flex-grow-1 overflow-auto">
+                @RenderBody()
+            </div>
+        </div>
+    </div>
+
+    <!-- All Notifications Modal -->
+    <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+                <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%); border-radius: 12px 12px 0 0;">
+                    <h5 class="modal-title fw-bold" id="allNotificationsModalLabel"><i class="bi bi-bell-fill me-2"></i>การแจ้งเตือนทั้งหมด</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0" id="allNotificationsModalBody" style="background-color: #f8fafc;">
+                    <!-- Modal notifications will be appended here -->
+                </div>
+                <div class="modal-footer border-top-0 bg-white" style="border-radius: 0 0 12px 12px;">
+                    <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Loading Overlay -->
+    <div id="globalLoadingOverlay" class="loading-overlay">
+        <div class="loading-card">
+            <div class="spinner-border text-primary loading-spinner" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 class="fw-bold text-dark-blue mb-2" id="loadingTitle">กำลังบันทึกข้อมูล</h5>
+            <p class="text-muted small mb-0" id="loadingDescription">ระบบกำลังดำเนินการบันทึกข้อมูลของคุณ กรุณารอสักครู่...</p>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        $(document).ready(function() {
+            // สร้าง array ข้อมูลแจ้งเตือน
+            const notifications = [
+                { topic: 'noti1', content: 'testnoti1' },
+                { topic: 'noti2', content: 'testnoti2' },
+                { topic: 'noti3', content: 'testnoti3' }
+            ];
+
+            // เอาความยาวของ array (length) มาเป็นตัวเลขแสดงการแจ้งเตือนบนกระดิ่ง
+            const notiCount = notifications.length;
+            if (notiCount > 0) {
+                $('#notificationBadge').text(notiCount).show();
+                $('#notificationHeaderCount').text(notiCount);
+            } else {
+                $('#notificationBadge').hide();
+                $('#notificationHeaderCount').text('0');
+            }
+            
+            // นำข้อมูล array มาแสดงผลเป็นรายการใน popup card และใน modal
+            const notiListContainer = $('#notificationList');
+            const allNotiModalBody = $('#allNotificationsModalBody');
+            notiListContainer.empty();
+            allNotiModalBody.empty();
+            
+            if (notiCount > 0) {
+                notifications.forEach((noti, index) => {
+                    // HTML สำหรับ dropdown
+                    const itemHtml = `
+                        <div class="p-3 border-bottom position-relative bg-white" style="transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='#fff'">
+                            <div class="d-flex gap-3">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                        <i class="bi bi-info-circle-fill"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1" style="cursor: pointer;">
+                                    <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">${noti.topic}</h6>
+                                    <p class="mb-1 text-muted small" style="font-size: 0.8rem; line-height: 1.4;">${noti.content}</p>
+                                    <small class="text-primary" style="font-size: 0.7rem;"><i class="bi bi-clock me-1"></i>เมื่อสักครู่</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    notiListContainer.append(itemHtml);
+
+                    // HTML สำหรับ Modal 
+                    const modalItemHtml = `
+                        <div class="p-3 border-bottom bg-white" style="transition: all 0.3s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='#fff'">
+                            <div class="d-flex gap-3">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                        <i class="bi bi-bell fs-5"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <h6 class="mb-0 fw-bold text-dark fs-6">${noti.topic}</h6>
+                                        <small class="text-primary fw-medium" style="font-size: 0.8rem;"><i class="bi bi-clock me-1"></i>เมื่อสักครู่</small>
+                                    </div>
+                                    <p class="mb-0 text-muted" style="font-size: 0.95rem;">${noti.content}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    allNotiModalBody.append(modalItemHtml);
+                });
+            } else {
+                const emptyHtml = `
+                    <div class="p-5 text-center text-muted bg-white">
+                        <i class="bi bi-bell-slash display-4 mb-3 d-block opacity-25"></i>
+                        <p class="mb-0 fw-medium">ไม่มีการแจ้งเตือนใหม่</p>
+                    </div>
+                `;
+                notiListContainer.append(emptyHtml);
+                allNotiModalBody.append(emptyHtml);
+            }
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

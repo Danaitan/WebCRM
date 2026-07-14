@@ -1,0 +1,14 @@
+@model webCRM.Models.MenuCardViewModel
+
+<div class="col-12 col-md-6 col-lg-3">
+    <a href="@Model.Url" class="text-decoration-none">
+        <div class="crm-card bg-white rounded-4 p-4 position-relative shadow-sm h-100 text-center">
+            <span class="card-number bg-@(Model.Color)-light text-@Model.Color fw-bold rounded px-2 py-1 position-absolute top-0 start-0 m-3">@Model.Number</span>
+            <div class="icon-circle bg-@(Model.Color)-light mx-auto mb-3 mt-4 d-flex align-items-center justify-content-center">
+                <i class="bi @Model.Icon fs-1 text-@Model.Color"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-2 mt-4">@Model.Title</h5>
+            <p class="text-muted small mb-0 px-2">@Model.Description</p>
+        </div>
+    </a>
+</div>

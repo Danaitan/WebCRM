@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "เมนูระบบ CRM 2.0";
+    ViewData["HideSidebar"] = true;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/home.css" />
+}
+
+<!-- Main Content -->
+<main class="crm-main p-4 p-md-5">
+    <div class="container-fluid max-w-custom">
+        <div class="mb-5 mt-2">
+            <h2 class="fw-bold text-dark mb-2">ยินดีต้อนรับสู่ระบบ <span class="text-dark-blue">CRM 2.0</span></h2>
+            <p class="text-muted fs-6">เลือกเมนูที่ต้องการเพื่อจัดการข้อมูลลูกค้าและกระบวนการทำงานของคุณ</p>
+        </div>
+
+        <div class="row g-4">
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/CustomerDetail", Number = "01", Color = "blue", Icon = "bi-person", Title = "ข้อมูลลูกค้า", Description = "จัดการข้อมูลลูกค้า ค้นหา และดูประวัติข้อมูลลูกค้า" })
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/Suggestions", Number = "02", Color = "purple", Icon = "bi-chat-dots", Title = "ข้อเสนอแนะ/ร้องเรียน", Description = "บันทึกและติดตามข้อเสนอแนะ หรือเรื่องร้องเรียนจากลูกค้า" })
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/Campain", Number = "03", Color = "green", Icon = "bi-megaphone", Title = "Campaign Create", Description = "สร้างและจัดการ Campaign หรือ Product/Campaign" })
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/ProspectSetup", Number = "04", Color = "teal", Icon = "bi-people-fill", Title = "Prospect Setup", Description = "สร้างกลุ่มลูกค้า (Prospect) และเตรียมข้อมูลเพื่อทำการอนุมัติ" })
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/ProductApprove", Number = "05", Color = "blue", Icon = "bi-shield-check", Title = "Product Approve", Description = "อนุมัติ Product/Campaign เพื่อสร้างงานให้พนักงาน" })
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/ProspectAssign", Number = "06", Color = "orange", Icon = "bi-people", Title = "Prospect Assign", Description = "มอบหมายงานให้พนักงาน หรือกลุ่มพนักงาน" })
+            @await Html.PartialAsync("_MenuCard", new webCRM.Models.MenuCardViewModel { Url = "/ProspectCall", Number = "07", Color = "blue", Icon = "bi-telephone", Title = "Call management", Description = "บันทึกผลการโทรและติดตามการติดต่อกับลูกค้า" })
+        </div>
+    </div>
+</main>

@@ -1,0 +1,599 @@
+@model List<webCRM.Models.ResponseSuggestion>
+@{
+    ViewData["Title"] = "ข้อเสนอแนะ / ร้องเรียน - CRM";
+    ViewData["HeaderTitle"] = "ข้อเสนอแนะ / ร้องเรียน";
+    ViewData["HeaderSubtitle"] = "บันทึกและติดตามข้อเสนอแนะ ข้อร้องเรียน หรือความสนใจผลิตภัณฑ์จากลูกค้า";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/suggestions.css" />
+}
+
+
+    <div class="container-fluid p-4 max-w-custom crm-main">
+                <!-- Search Card -->
+                <div class="bg-white rounded-4 p-4 shadow-sm mb-4 border border-light">
+                    <div class="d-flex flex-column flex-md-row align-items-md-center gap-4">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold text-dark-blue mb-2">ค้นหาข้อเสนอแนะ</h6>
+                            <div class="d-flex flex-column flex-md-row gap-3">
+                                <select id="filterTopic" class="form-select rounded-3 text-muted" style="width: auto; min-width: 160px;">
+                                    <option value="">หัวข้อ (ทั้งหมด)</option>
+                                    <option value="ข้อเสนอแนะ">ข้อเสนอแนะ</option>
+                                    <option value="สนใจผลิตภัณฑ์">สนใจผลิตภัณฑ์</option>
+                                    <option value="ร้องเรียน">ร้องเรียน</option>
+                                </select>
+                                <select id="filterStatus" class="form-select rounded-3 text-muted" style="width: auto; min-width: 140px;">
+                                    <option value="">สถานะ (ทั้งหมด)</option>
+                                    <option value="Close">Close</option>
+                                    <option value="Pending">Pending</option>
+                                </select>
+                                <div class="position-relative flex-grow-1">
+                                    <input type="text" id="customSearchInput" class="form-control rounded-3 py-2 ps-3 pe-5" placeholder="ค้นหาโดย หัวข้อ / ชื่อ-นามสกุล / สถานะ" />
+                                    <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+        <div class="row g-4">
+            <!-- Left Column: Table -->
+            <div class="col-12 col-xl-8">
+
+                <div class="bg-white rounded-4 p-4 shadow-sm border border-light h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-list-ul text-primary fs-5"></i>
+                            <h6 class="fw-bold text-dark-blue mb-0">รายการข้อเสนอแนะ / ร้องเรียน</h6>
+                        </div>
+                        <div>
+                            <button 
+                                type="button" 
+                                class="btn btn-primary px-4 py-2 fw-medium d-flex align-items-center gap-2 rounded-3 shadow-sm" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#complaintModal"
+                            >
+                                <i class="bi bi-plus-circle fs-5"></i>
+                                <span>เพิ่มข้อเสนอแนะ / ร้องเรียน</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table id="suggestionsTable" class="table table-hover table-borderless align-middle w-100">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="fw-semibold text-muted py-3 text-center rounded-start" style="white-space: nowrap;">หัวข้อ</th>
+                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">ชื่อ-นามสกุล</th>
+                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">วัน-เวลาติดต่อกลับ</th>
+                                    <th class="fw-semibold text-muted py-3 text-center rounded-end" style="white-space: nowrap;">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suggestionResultBody">
+                                @if (Model != null && Model.Any())
+                                {
+                                    foreach (var item in Model)
+                                    {
+                                        <tr style="cursor: pointer;" onclick="showDetails(this)"
+                                            data-phone="@(item.PhoneProvider ?? "-")"
+                                            data-contact="@(item.DateSugges?.ToString("dd/MM/yyyy") ?? "-") @(item.TimeSugges?.ToString("HH:mm") ?? "")"
+                                            data-email="@(item.EmailProvider ?? "-")"
+                                            data-line="@(item.LineProvider ?? "-")"
+                                            data-idno="@(item.Idno ?? "-")"
+                                            data-status="@(item.StatusTask ?? "-")"
+                                            data-address="@(item.AddressProvider ?? "-")"
+                                            data-date="@(item.UpDate?.ToString("dd/MM/yyyy HH:mm") ?? "-")"
+                                            data-recordedby="@(item.PersonalName ?? "-")"
+                                            data-reply="@(item.Reply ?? "-")"
+                                            data-nameprovider="@(item.NameProvider ?? "-")"
+                                            data-guid="@(item.Guid ?? "-")"
+                                            data-updby="@(item.UpdBy ?? "-")"
+                                            >
+                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.SuggestionTitle ?? "-")</div></td>
+                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.NameProvider ?? "-")</div></td>
+                                            <td class="text-center py-2">
+                                                <div class="fw-medium text-dark">
+                                                    @(item.DateSugges?.ToString("dd/MM/yyyy") ?? "-") @(item.TimeSugges?.ToString("HH:mm") ?? "")
+                                                </div>
+                                            </td>
+                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.StatusTask ?? "-")</div></td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                </div>
+            </div>
+
+            <!-- Right Column: Summary -->
+            <div class="col-12 col-xl-4">
+                <div class="bg-white rounded-4 p-4 shadow-sm border border-light h-100 d-flex flex-column">
+                    <h6 class="fw-bold text-dark-blue ">รายละเอียด</h6>
+
+                    <hr class="text-muted opacity-25 mb-2">
+
+                    <div class="d-flex flex-column gap-3 flex-grow-1">
+                        <div class="row g-4 mb-4 mt-2 border-bottom pb-5">
+                        
+                            <div class="col-12">
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">เบอร์โทร</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-phone">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">ติดต่อกลับ</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-contact-back">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">E-mail</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-email">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">Line ID</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-line">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">เลขประจำตัวประชาชน</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-idno">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">สถานะเคส</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-status">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">ที่อยู่ในการติดต่อ</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-address">-</div>
+                                </div>
+                                <div class="d-flex mb-4 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">วันที่บันทึก</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-date">-</div>
+                                </div>
+
+                                <h6 style="text-decoration: underline; text-decoration-style: double;" class="text-dark-blue mb-4 fw-bold">
+                                    ข้อมูลการตอบกลับ
+                                </h6>
+
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">บันทึกโดย</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-recorded-by">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">Reply</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-reply">-</div>
+                                </div>
+                                <span id="detail-guid" class="d-none"></span>
+                                <span id="detail-updBy" class="d-none"></span>
+                            </div>
+
+                            <h6 style="text-decoration: underline; text-decoration-style: double;" class="mb-0">
+                                บันทึกข้อมูล
+                            </h6>
+                            
+                            <div class="col-12 mt-2">
+                                <div class="border p-3 bg-white" style="border-radius: 4px; border-color: #e2e8f0;">
+                                    <div class="mb-2" style="font-size: 0.95rem; word-break: break-word; overflow-wrap: break-word;">
+                                        <span class="fw-bold" style="color: #0f5132;">ข้อความตอบกลับ:</span>
+                                        <span class="text-dark" id="detail-nameprovider">-</span>
+                                    </div>
+                                    <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;"></textarea>
+                                    <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
+                                        <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
+                                        <span>@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button type="button" class="btn btn-primary px-4 fw-bold" onclick="UpdateSuggestion()" style="border-radius: 4px;">บันทึก</button>
+                                        <button type="button" class="btn btn-secondary px-4 fw-bold" onclick="$('#reply-input').val('')" style="border-radius: 4px;">ยกเลิก</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    @* <div class="mt-4">
+                        <button class="btn btn-outline-primary w-100 rounded-3 py-2 fw-medium d-flex align-items-center justify-content-center gap-2" style="background-color: #f8faff; border-color: #d1def0; color: #1f3b60;">
+                            <i class="bi bi-file-earmark-text text-primary"></i> ดูประวัติการติดต่อ
+                        </button>
+                    </div> *@
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+@section Scripts {
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+
+        $(document).ready(function () {
+            var table = $('#suggestionsTable').DataTable({
+                searching: true,
+                dom: "lrtip", // ซ่อนช่องค้นหาเริ่มต้นของ DataTables แต่ยังคงเปิดฟังก์ชันค้นหาไว้
+                language: {
+                    lengthMenu: "แสดง _MENU_ รายการ",
+                    info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
+                    infoEmpty: "แสดง 0 ถึง 0 จาก 0 รายการ",
+                    infoFiltered: "(กรองข้อมูลจาก _MAX_ รายการทั้งหมด)",
+                    paginate: {
+                        first: "หน้าแรก",
+                        last: "หน้าสุดท้าย",
+                        next: "ถัดไป",
+                        previous: "ก่อนหน้า"
+                    }
+                }
+            });
+
+            // ค้นหาเมื่อพิมพ์
+            $('#customSearchInput').on('keyup', function () {
+                table.search(this.value).draw();
+            });
+
+            // กรองตามหัวข้อ
+            $('#filterTopic').on('change', function () {
+                // ค้นหาในคอลัมน์ที่ 0 (หัวข้อ)
+                table.column(0).search(this.value).draw();
+            });
+
+            // กรองตามสถานะ
+            $('#filterStatus').on('change', function () {
+                // ค้นหาในคอลัมน์ที่ 3 (สถานะ)
+                table.column(3).search(this.value).draw();
+            });
+        });
+
+        function showDetails(row) {
+            const $row = $(row);
+            $('#detail-phone').text($row.data('phone'));
+            $('#detail-contact-back').text($row.data('contact'));
+            $('#detail-email').text($row.data('email'));
+            $('#detail-line').text($row.data('line'));
+            $('#detail-idno').text($row.data('idno'));
+            $('#detail-status').text($row.data('status'));
+            $('#detail-address').text($row.data('address'));
+            $('#detail-date').text($row.data('date'));
+            $('#detail-recorded-by').text($row.data('recordedby'));
+            $('#detail-reply').text($row.data('reply'));
+
+            $('#detail-nameprovider').text($row.data('nameprovider'));
+
+            $('#detail-guid').text($row.data('guid'));
+            $('#detail-updBy').text($row.data('updby'));
+        }
+
+    async function UpdateSuggestion()
+    {
+        var guid = $("#detail-guid").text();
+        var reply = $("#reply-input").val();
+        var updBy = '@(Context.Session.GetString("email") ?? "")';
+        
+        if (!guid || guid.trim() === "-" || guid.trim() === "") {
+            showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการที่ต้องการบันทึกข้อความตอบกลับ');
+            return;
+        }
+
+        try {
+            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
+            
+            var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`);
+            
+            if (!response.ok) {
+                throw new Error("HTTP error " + response.status);
+            }
+            
+            var msg = await response.json();
+            if (msg && msg.status === "error") {
+                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+            }
+            
+            hideLoading();
+            $("#reply-input").val("");
+            
+            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function() {
+                window.location.reload();
+            });
+        } catch (error) {
+            console.error(error);
+            hideLoading();
+            showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
+        }
+    }
+
+    async function AddSuggestion()
+    {
+        var requestData = {
+            suggesCde: $("#post-title").val(),
+            nameProvider: $("#post-personal-name").val(),
+            emailProvider: $("#post-personal-email").val(),
+            addressProvider: $("#post-address").val(),
+            phoneProvider: $("#post-phone").val(),
+            lineProvider: $("#post-line-id").val(),
+            department: $("#post-department").val() === "" ? null : $("#post-department").val(),
+            sendTo: $("#post-send-to").val() === "" ? null : $("#post-send-to").val(),
+            dateSugges: $("#post-contact-date").val() || null,
+            timeSugges: $("#post-contact-time").val() ? $("#post-contact-time").val() + ":00" : null,
+            chanelProvider: $("#post-additional-contact").val(),
+            suggestion: $("#post-reply").val(),
+            cc: $("#post-cc").val() ? $("#post-cc").val().join(',') : null
+        };
+
+        if (!requestData.suggesCde || requestData.suggesCde === "เลือกหัวข้อ" || requestData.suggesCde.trim() === "") {
+            showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกหัวข้อ');
+            return;
+        }
+        if (!requestData.nameProvider || requestData.nameProvider.trim() === "") {
+            showAlert('warning', 'แจ้งเตือน', 'กรุณากรอกชื่อ-นามสกุล');
+            return;
+        }
+        if (!requestData.sendTo || requestData.sendTo.trim() === "") {
+            showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบ');
+            return;
+        }
+        if (!requestData.suggestion || requestData.suggestion.trim() === "") {
+            showAlert('warning', 'แจ้งเตือน', 'กรุณากรอกบันทึกข้อเสนอแนะ / ร้องเรียน');
+            return;
+        }
+
+        try {
+            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูลข้อเสนอแนะ / ร้องเรียนของคุณ กรุณารอสักครู่...');
+            
+            var response = await fetch(`/Suggestions/PostSuggestion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            if (!response.ok) {
+                throw new Error("HTTP error " + response.status);
+            }
+            
+            var msg = await response.json();
+            if (msg && msg.status === "error") {
+                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+            }
+            
+            hideLoading();
+            
+            // Clear fields
+            $("#post-title").val("เลือกหัวข้อ");
+            $("#post-personal-name").val("");
+            $("#post-personal-email").val("");
+            $("#post-address").val("");
+            $("#post-phone").val("");
+            $("#post-line-id").val("");
+            $("#post-department").val("");
+            $("#post-send-to").val("");
+            $("#post-contact-date").val("");
+            $("#post-contact-time").val("00:00");
+            $("#post-additional-contact").val("");
+            $("#post-reply").val("");
+            
+            // Close Modal if using bootstrap
+            var modalEl = document.getElementById('complaintModal');
+            var modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) {
+                modal.hide();
+            }
+            
+            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function() {
+                window.location.reload();
+            });
+        } catch (error) {
+            console.error(error);
+            hideLoading();
+            showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
+        }
+    }
+
+        $(document).ready(function() {
+            function updateCcDisplay() {
+                var selected = [];
+                $('#post-cc').empty();
+                $('.cc-checkbox:checked').each(function() {
+                    var val = $(this).val();
+                    selected.push(val);
+                    $('#post-cc').append('<option value="' + val + '" selected>' + val + '</option>');
+                });
+                
+                var display = $('#cc-tags-container');
+                display.find('.badge').remove();
+                
+                if (selected.length === 0) {
+                    $('#cc-placeholder').show();
+                } else {
+                    $('#cc-placeholder').hide();
+                    selected.forEach(function(item) {
+                        var badge = $('<span class="badge bg-primary text-white d-flex align-items-center gap-1"></span>').text(item);
+                        var closeBtn = $('<i class="bi bi-x" style="cursor: pointer; font-size: 1.1em;"></i>');
+                        closeBtn.on('click', function(e) {
+                            e.stopPropagation();
+                            $('.cc-checkbox[value="' + item + '"]').prop('checked', false);
+                            updateCcDisplay();
+                        });
+                        badge.append(closeBtn);
+                        display.prepend(badge);
+                    });
+                }
+            }
+            
+            $('.cc-checkbox').on('change', function() {
+                updateCcDisplay();
+            });
+        });
+    </script>
+}
+
+    <!-- Complaint Modal -->
+    <div class="modal fade" id="complaintModal" tabindex="-1" aria-labelledby="complaintModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 p-md-5 pt-0">
+                    <!-- Form Card -->
+                    <div class="d-flex align-items-center gap-2 mb-4">
+                        <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                        <h6 class="fw-bold text-dark-blue mb-0">รายละเอียดข้อเสนอแนะ / ร้องเรียน</h6>
+                    </div>
+
+                    <form>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">หัวข้อ <span class="text-danger">*</span></label>
+                                <select class="form-select text-muted" aria-label="Topic" id="post-title">
+                                    <option selected>เลือกหัวข้อ</option>
+                                    <option value="1">เสนอแนะ</option>
+                                    <option value="2">ร้องเรียน</option>
+                                    <option value="3">สนใจผลิตภัณฑ์</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">ชื่อ นามสกุล (ผู้ให้ข้อมูล) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="post-personal-name" placeholder="กรุณากรอกชื่อ-นามสกุล">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">E-Mail (ของผู้ให้ข้อมูล)</label>
+                                <input type="email" class="form-control" id="post-personal-email" placeholder="ตัวอย่าง: example@email.com">
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">ที่อยู่ในการติดต่อ</label>
+                                <textarea class="form-control" rows="4" id="post-address" placeholder="กรุณากรอกที่อยู่ในการติดต่อ"></textarea>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-medium small">เบอร์โทรศัพท์</label>
+                                        <input type="text" class="form-control" id="post-phone" placeholder="ตัวอย่าง: 081-234-5678">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-medium small">Line ID</label>
+                                        <div class="position-relative">
+                                            <input type="text" id="post-line-id" class="form-control" placeholder="ตัวอย่าง: @@username">
+                                            <i class="bi position-absolute top-50 end-0 translate-middle-y me-3 text-muted small pointer-events-none"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-medium small">Department</label>
+                                        <select class="form-select text-muted" id="post-department">
+                                            <option value="" selected>เลือกแผนก</option>
+                                            <option value="พัฒนาระบบสารสนเทศ">พัฒนาระบบสารสนเทศ</option>
+                                            <option value="ฝ่ายบริการลูกค้า">ฝ่ายบริการลูกค้า</option>
+                                            <option value="ฝ่ายการตลาด">ฝ่ายการตลาด</option>
+                                            <option value="ฝ่ายสินเชื่อ">ฝ่ายสินเชื่อ</option>
+                                            <option value="ฝ่ายบัญชีและการเงิน">ฝ่ายบัญชีและการเงิน</option>
+                                            <option value="ฝ่ายทรัพยากรบุคคล">ฝ่ายทรัพยากรบุคคล</option>
+                                            @if (Model != null)
+                                            {
+                                                var depts = Model.Where(d => !string.IsNullOrEmpty(d.Department) 
+                                                    && d.Department != "พัฒนาระบบสารสนเทศ" 
+                                                    && d.Department != "ฝ่ายบริการลูกค้า" 
+                                                    && d.Department != "ฝ่ายการตลาด" 
+                                                    && d.Department != "ฝ่ายสินเชื่อ" 
+                                                    && d.Department != "ฝ่ายบัญชีและการเงิน" 
+                                                    && d.Department != "ฝ่ายทรัพยากรบุคคล")
+                                                    .Select(d => d.Department).Distinct();
+                                                foreach (var dept in depts)
+                                                {
+                                                    <option value="@dept">@dept</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-medium small">Send To <span class="text-danger">*</span></label>
+                                        <select class="form-select text-muted" id="post-send-to">
+                                            <option value="" selected>เลือกผู้รับผิดชอบ</option>
+                                            @if (Context.Session.GetString("fullNameEn") != null)
+                                            {
+                                                <option value="@Context.Session.GetString("fullNameEn")">@Context.Session.GetString("fullNameEn") (คุณ)</option>
+                                            }
+                                            @if (Model != null)
+                                            {
+                                                var loggedInUser = Context.Session.GetString("fullNameEn") ?? "";
+                                                var users = Model.Where(s => !string.IsNullOrEmpty(s.SendTo) && s.SendTo != loggedInUser).Select(s => s.SendTo).Distinct().OrderBy(s => s);
+                                                foreach (var user in users)
+                                                {
+                                                    <option value="@user">@user</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">วันที่และเวลา (ให้ติดต่อกลับ)</label>
+                                <div class="d-flex gap-2">
+                                    <div class="position-relative flex-grow-1">
+                                        <input type="date" class="form-control" id="post-contact-date">
+                                    </div>
+                                    <div class="position-relative" style="width: 120px;">
+                                        <input type="time" class="form-control text-center" id="post-contact-time" value="00:00">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">ช่องทางติดต่อ (เพิ่มเติม)</label>
+                                <input type="text" class="form-control" id="post-additional-contact" placeholder="เช่น Facebook, IG, Website, อื่นๆ">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium small">CC</label>
+                                <div class="dropdown custom-multi-select">
+                                    <div class="form-select d-flex align-items-center" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="cc-display" style="cursor: pointer; min-height: 38px;">
+                                        <div id="cc-tags-container" class="d-flex flex-wrap gap-1 w-100">
+                                            <span class="text-muted" id="cc-placeholder">เลือก CC</span>
+                                        </div>
+                                    </div>
+                                    <ul class="dropdown-menu w-100 p-2 shadow-sm" id="cc-dropdown-menu">
+                                        <li>
+                                            <div class="form-check mb-1">
+                                                <input class="form-check-input cc-checkbox" type="checkbox" value="ผู้จัดการสาขา" id="cc-chk-manager">
+                                                <label class="form-check-label w-100" for="cc-chk-manager" style="cursor:pointer">ผู้จัดการสาขา</label>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <div class="form-check">
+                                                <input class="form-check-input cc-checkbox" type="checkbox" value="หัวหน้าแผนก" id="cc-chk-head">
+                                                <label class="form-check-label w-100" for="cc-chk-head" style="cursor:pointer">หัวหน้าแผนก</label>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <select id="post-cc" multiple="multiple" class="d-none"></select>
+                            </div>
+
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-medium small">บันทึกข้อเสนอแนะ / ร้องเรียน <span class="text-danger">*</span></label>
+                            <textarea class="form-control" rows="3" id="post-reply" placeholder="กรุณาระบุรายละเอียดของข้อเสนอแนะ / ร้องเรียน"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-3 border-top pt-4">
+                            <button type="button" class="btn btn-outline-secondary px-4 fw-medium bg-white btn-no-hover" data-bs-dismiss="modal">
+                                <i class="bi bi-x-lg small me-1"></i> ยกเลิก
+                            </button>
+                            <button type="button" class="btn btn-primary px-4 fw-medium text-white d-flex align-items-center gap-2" style="background-color: #0b3d91; border-color: #0b3d91;" onclick="AddSuggestion()">
+                                <i class="bi bi-save"></i> บันทึก
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+

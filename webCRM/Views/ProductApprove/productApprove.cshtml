@@ -1,0 +1,438 @@
+@{
+    ViewData["Title"] = "รายการแคมเปญรออนุมัติ";
+    ViewData["HeaderTitle"] = "รายละเอียด Product Approve";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/productApprove.css" asp-append-version="true" />
+}
+
+<div class="pa-layout">
+    <!-- Left Sidebar -->
+    <div class="pa-sidebar-left">
+        <div class="pa-sidebar-header">
+            <h5>รายการแคมเปญรออนุมัติ</h5>
+            <div class="badge-count" id="campaignCount">4</div>
+        </div>
+
+        <div class="pa-search-box">
+            <div class="pa-search-input-group">
+                <i class="bi bi-search"></i>
+                <input type="text" id="campaignSearch" placeholder="ค้นหาแคมเปญ / รหัสแคมเปญ">
+            </div>
+        </div>
+
+        <div class="pa-campaign-list" id="campaignList">
+            <!-- Card 1 -->
+            <div class="pa-card active"
+                 data-id="CMP-2024-0001"
+                 data-name="โปรโมชัน ดอกเบี้ยพิเศษ 2.99%"
+                 data-start="2024-05-01"
+                 data-end="2024-07-31"
+                 data-status="กำลังพิจารณา">
+                <div class="pa-card-icon blue"><i class="bi bi-megaphone"></i></div>
+                <div class="pa-card-content">
+                    <div class="pa-card-title-row">
+                        <div class="pa-card-id">CMP-2024-0001</div>
+                        <div class="pa-status-badge status-blue">กำลังพิจารณา</div>
+                    </div>
+                    <div class="pa-card-name">โปรโมชัน ดอกเบี้ยพิเศษ 2.99%</div>
+                    <div class="pa-card-date">วันที่เริ่ม: 01/05/2024 &bull; วันที่สิ้นสุด: 31/07/2024</div>
+                </div>
+            </div>
+            
+            <!-- Card 2 -->
+            <div class="pa-card"
+                 data-id="CMP-2024-0002"
+                 data-name="แคมเปญ ฟรีประกันชั้น 1"
+                 data-start="2024-05-15"
+                 data-end="2024-06-30"
+                 data-status="กำลังพิจารณา">
+                <div class="pa-card-icon green"><i class="bi bi-megaphone"></i></div>
+                <div class="pa-card-content">
+                    <div class="pa-card-title-row">
+                        <div class="pa-card-id">CMP-2024-0002</div>
+                        <div class="pa-status-badge status-green">กำลังพิจารณา</div>
+                    </div>
+                    <div class="pa-card-name">แคมเปญ ฟรีประกันชั้น 1</div>
+                    <div class="pa-card-date">วันที่เริ่ม: 15/05/2024 &bull; วันที่สิ้นสุด: 30/06/2024</div>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="pa-card"
+                 data-id="CMP-2024-0003"
+                 data-name="โปรแกรม ขับดี มีคืน"
+                 data-start="2024-06-01"
+                 data-end="2024-08-31"
+                 data-status="รอข้อมูลเพิ่มเติม">
+                <div class="pa-card-icon yellow"><i class="bi bi-megaphone"></i></div>
+                <div class="pa-card-content">
+                    <div class="pa-card-title-row">
+                        <div class="pa-card-id">CMP-2024-0003</div>
+                        <div class="pa-status-badge status-yellow">รอข้อมูลเพิ่มเติม</div>
+                    </div>
+                    <div class="pa-card-name">โปรแกรม ขับดี มีคืน</div>
+                    <div class="pa-card-date">วันที่เริ่ม: 01/06/2024 &bull; วันที่สิ้นสุด: 31/08/2024</div>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="pa-card"
+                 data-id="CMP-2024-0004"
+                 data-name="โปรโมชัน ผ่อนสบาย 0% 6 เดือน"
+                 data-start="2024-06-10"
+                 data-end="2024-09-10"
+                 data-status="รออนุมัติ">
+                <div class="pa-card-icon purple"><i class="bi bi-megaphone"></i></div>
+                <div class="pa-card-content">
+                    <div class="pa-card-title-row">
+                        <div class="pa-card-id">CMP-2024-0004</div>
+                        <div class="pa-status-badge status-purple">รออนุมัติ</div>
+                    </div>
+                    <div class="pa-card-name">โปรโมชัน ผ่อนสบาย 0% 6 เดือน</div>
+                    <div class="pa-card-date">วันที่เริ่ม: 10/06/2024 &bull; วันที่สิ้นสุด: 10/09/2024</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pa-pagination-small">
+            <span id="campaignPaginationText">1 - 4 จาก 4 รายการ</span>
+            <div class="pa-page-controls">
+                <button class="pa-page-btn"><i class="bi bi-chevron-left"></i></button>
+                <button class="pa-page-btn active">1</button>
+                <button class="pa-page-btn"><i class="bi bi-chevron-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Container -->
+    <div class="pa-right-container">
+        <!-- Content Wrapper (Main Area + Right Sidebar) -->
+        <div class="pa-content-wrapper">
+            
+            <!-- Main Area -->
+            <div class="pa-main-area">
+                <div class="pa-section">
+                    <div class="pa-section-title">
+                        <i class="bi bi-clipboard2-check"></i> รายละเอียด Product / Campaign
+                    </div>
+                    <div class="row g-4">
+                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>รหัส Product / Campaign</label>
+                            <input type="text" class="pa-form-control" value="CMP-2024-0001" readonly>
+                        </div>
+                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>ชื่อ Product / Campaign</label>
+                            <input type="text" class="pa-form-control" value="โปรโมชัน ดอกเบี้ยพิเศษ 2.99%" readonly>
+                        </div>
+                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>วันที่เริ่มต้น</label>
+                            <div class="pa-form-control-icon">
+                                <input type="text" class="pa-form-control" value="01/05/2024" readonly>
+                                <i class="bi bi-calendar"></i>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>วันที่สิ้นสุด</label>
+                            <div class="pa-form-control-icon">
+                                <input type="text" class="pa-form-control" value="31/07/2024" readonly>
+                                <i class="bi bi-calendar"></i>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>หมายเหตุ</label>
+                            <input type="text" class="pa-form-control" value="แคมเปญสำหรับลูกค้าใหม่และลูกค้าปัจจุบัน" readonly>
+                        </div>
+                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>สถานะปัจจุบัน</label>
+                            <div>
+                                <span class="pa-status-box">กำลังพิจารณา</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pa-section d-flex flex-column" style="flex-grow: 1;">
+                    <div class="pa-prospect-header">
+                        <div class="pa-section-title mb-0">
+                            <i class="bi bi-people"></i> รายละเอียด Prospect
+                        </div>
+                        <div class="pa-table-controls" style="flex-grow: 1; max-width: 320px;">
+                            <div class="pa-search-input-group" style="width: 100%;">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="prospectSearch" placeholder="ค้นหา ชื่อ-นามสกุล, เลขที่สัญญา, บริษัท/สาขา">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x: auto; flex-grow: 1;">
+                        <table class="pa-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px; text-align: center;">ลำดับ</th>
+                                    <th>บริษัท/สาขา</th>
+                                    <th>ชื่อ-นามสกุล</th>
+                                    <th>เลขที่สัญญา</th>
+                                    <th>ใช้รถที่</th>
+                                    <th>วันที่เลือกข้อมูล</th>
+                                    <th>โดย</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prospectTableBody">
+                                <tr data-branch="ไมโครลิสซิ่ง สาขาเชียงใหม่" data-name="คุณณัฐวรรณ ใจดี" data-contract="CT-6705-000123" data-by="พงศกร คนสอน">
+                                    <td style="text-align: center;">1</td>
+                                    <td>ไมโครลิสซิ่ง สาขาเชียงใหม่</td>
+                                    <td>คุณณัฐวรรณ ใจดี</td>
+                                    <td>CT-6705-000123</td>
+                                    <td>เชียงใหม่</td>
+                                    <td>15/05/2024 10:15</td>
+                                    <td>พงศกร คนสอน</td>
+                                </tr>
+                                <tr data-branch="ไมโครลิสซิ่ง สาขาขอนแก่น" data-name="คุณกิตติพงษ์ วงศ์สวัสดิ์" data-contract="CT-6705-000124" data-by="พงศกร คนสอน">
+                                    <td style="text-align: center;">2</td>
+                                    <td>ไมโครลิสซิ่ง สาขาขอนแก่น</td>
+                                    <td>คุณกิตติพงษ์ วงศ์สวัสดิ์</td>
+                                    <td>CT-6705-000124</td>
+                                    <td>ขอนแก่น</td>
+                                    <td>15/05/2024 10:22</td>
+                                    <td>พงศกร คนสอน</td>
+                                </tr>
+                                <tr data-branch="ไมโครลิสซิ่ง สาขาอุดรธานี" data-name="คุณสุนิสา โพธิ์ทอง" data-contract="CT-6705-000125" data-by="จิราภรณ์ วงษ์ดี">
+                                    <td style="text-align: center;">3</td>
+                                    <td>ไมโครลิสซิ่ง สาขาอุดรธานี</td>
+                                    <td>คุณสุนิสา โพธิ์ทอง</td>
+                                    <td>CT-6705-000125</td>
+                                    <td>อุดรธานี</td>
+                                    <td>15/05/2024 10:35</td>
+                                    <td>จิราภรณ์ วงษ์ดี</td>
+                                </tr>
+                                <tr data-branch="ไมโครลิสซิ่ง สาขาสงขลา" data-name="คุณอำพล เพชรเกษม" data-contract="CT-6705-000126" data-by="จิราภรณ์ วงษ์ดี">
+                                    <td style="text-align: center;">4</td>
+                                    <td>ไมโครลิสซิ่ง สาขาสงขลา</td>
+                                    <td>คุณอำพล เพชรเกษม</td>
+                                    <td>CT-6705-000126</td>
+                                    <td>สงขลา</td>
+                                    <td>15/05/2024 10:40</td>
+                                    <td>จิราภรณ์ วงษ์ดี</td>
+                                </tr>
+                                <tr data-branch="ไมโครลิสซิ่ง สาขาภูเก็ต" data-name="คุณปวีณ์ลดา ศรีสุข" data-contract="CT-6705-000127" data-by="พงศกร คนสอน">
+                                    <td style="text-align: center;">5</td>
+                                    <td>ไมโครลิสซิ่ง สาขาภูเก็ต</td>
+                                    <td>คุณปวีณ์ลดา ศรีสุข</td>
+                                    <td>CT-6705-000127</td>
+                                    <td>ภูเก็ต</td>
+                                    <td>15/05/2024 10:55</td>
+                                    <td>พงศกร คนสอน</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="pa-table-pagination">
+                        <span id="prospectPaginationText">แสดง 1 - 5 จาก 5 รายการ</span>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pa-page-controls">
+                                <button class="pa-page-btn"><i class="bi bi-chevron-left"></i></button>
+                                <button class="pa-page-btn active">1</button>
+                                <button class="pa-page-btn"><i class="bi bi-chevron-right"></i></button>
+                            </div>
+                            <select class="pa-form-control" style="width: auto; padding: 0.25rem 2rem 0.25rem 0.75rem;">
+                                <option>10 / หน้า</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar (Filter) -->
+            <div class="pa-sidebar-right">
+                <div class="pa-filter-title">
+                    <i class="bi bi-funnel"></i> เงื่อนไขการกรอง
+                </div>
+
+                <div class="pa-filter-item">
+                    <span class="pa-filter-label">วันที่เริ่มต้น</span>
+                    <div class="pa-form-control-icon">
+                        <input type="date" id="filterStartDate" class="pa-form-control bg-white" value="2024-05-01">
+                        <i class="bi bi-calendar"></i>
+                    </div>
+                </div>
+
+                <div class="pa-filter-item">
+                    <span class="pa-filter-label">วันที่สิ้นสุด</span>
+                    <div class="pa-form-control-icon">
+                        <input type="date" id="filterEndDate" class="pa-form-control bg-white" value="2024-07-31">
+                        <i class="bi bi-calendar"></i>
+                    </div>
+                </div>
+
+                <div class="pa-filter-item">
+                    <span class="pa-filter-label">สถานะ</span>
+                    <select id="filterStatus" class="pa-form-control bg-white">
+                        <option value="">ทั้งหมด</option>
+                        <option value="กำลังพิจารณา">กำลังพิจารณา</option>
+                        <option value="รอข้อมูลเพิ่มเติม">รอข้อมูลเพิ่มเติม</option>
+                        <option value="รออนุมัติ">รออนุมัติ</option>
+                        <option value="อนุมัติแล้ว">อนุมัติแล้ว</option>
+                        <option value="ไม่อนุมัติ">ไม่อนุมัติ</option>
+                    </select>
+                </div>
+
+                <div class="pa-filter-item">
+                    <span class="pa-filter-label">บริษัท/สาขา</span>
+                    <select id="filterBranch" class="pa-form-control bg-white">
+                        <option value="">ทั้งหมด</option>
+                        <option value="ไมโครลิสซิ่ง สาขาเชียงใหม่">สาขาเชียงใหม่</option>
+                        <option value="ไมโครลิสซิ่ง สาขาขอนแก่น">สาขาขอนแก่น</option>
+                        <option value="ไมโครลิสซิ่ง สาขาอุดรธานี">สาขาอุดรธานี</option>
+                        <option value="ไมโครลิสซิ่ง สาขาสงขลา">สาขาสงขลา</option>
+                        <option value="ไมโครลิสซิ่ง สาขาภูเก็ต">สาขาภูเก็ต</option>
+                    </select>
+                </div>
+
+                <div class="pa-filter-item">
+                    <span class="pa-filter-label">โดย</span>
+                    <div class="pa-search-input-group">
+                        <i class="bi bi-search"></i>
+                        <input type="text" id="filterBy" class="pa-form-control bg-white" placeholder="พิมพ์ชื่อเพื่อค้นหา...">
+                    </div>
+                </div>
+
+                <button class="btn-pa-search" id="btnApplyFilter">
+                    <i class="bi bi-search"></i> ค้นหา
+                </button>
+
+                <button class="btn-pa-clear" id="btnClearFilter">
+                    <i class="bi bi-arrow-repeat"></i> ล้างเงื่อนไข
+                </button>
+            </div>
+            
+        </div>
+
+        <!-- Action Footer -->
+        <div class="pa-action-bar">
+            <button class="btn-pa btn-pa-cancel">ยกเลิก</button>
+            <button class="btn-pa btn-pa-approve"><i class="bi bi-check2"></i> อนุมัติ</button>
+            <button class="btn-pa btn-pa-reject"><i class="bi bi-x-lg"></i> ไม่อนุมัติ</button>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var campaignSearchInput = document.getElementById('campaignSearch');
+    var prospectSearchInput = document.getElementById('prospectSearch');
+
+    // Campaign search: real-time
+    campaignSearchInput.addEventListener('input', filterCampaigns);
+
+    // Prospect search: real-time
+    prospectSearchInput.addEventListener('input', filterProspectTable);
+
+    // Date & status affect campaign cards
+    ['filterStartDate', 'filterEndDate', 'filterStatus'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', applyAllFilters);
+    });
+
+    // Branch (select) & By (text input) affect prospect table
+    document.getElementById('filterBranch').addEventListener('change', filterProspectTable);
+    document.getElementById('filterBy').addEventListener('input', filterProspectTable);
+
+    // Search button
+    document.getElementById('btnApplyFilter').addEventListener('click', applyAllFilters);
+
+    // Clear button
+    document.getElementById('btnClearFilter').addEventListener('click', clearAllFilters);
+
+    function filterCampaigns() {
+        var query      = campaignSearchInput.value.trim().toLowerCase();
+        var startDate  = document.getElementById('filterStartDate').value;
+        var endDate    = document.getElementById('filterEndDate').value;
+        var status     = document.getElementById('filterStatus').value;
+
+        var cards   = document.querySelectorAll('#campaignList .pa-card');
+        var visible = 0;
+
+        cards.forEach(function (card) {
+            var id         = (card.dataset.id   || '').toLowerCase();
+            var name       = (card.dataset.name || '').toLowerCase();
+            var cardStart  = card.dataset.start  || '';
+            var cardEnd    = card.dataset.end    || '';
+            var cardStatus = card.dataset.status || '';
+
+            var matchText   = !query  || id.includes(query) || name.includes(query);
+            var matchStart  = !startDate || cardStart >= startDate;
+            var matchEnd    = !endDate   || cardEnd   <= endDate;
+            var matchStatus = !status    || cardStatus === status;
+
+            var show = matchText && matchStart && matchEnd && matchStatus;
+            card.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        document.getElementById('campaignCount').textContent = visible;
+        document.getElementById('campaignPaginationText').textContent =
+            visible > 0 ? '1 - ' + visible + ' จาก ' + visible + ' รายการ' : '0 รายการ';
+    }
+
+    function filterProspectTable() {
+        var query  = prospectSearchInput.value.trim().toLowerCase();
+        var branch = document.getElementById('filterBranch').value;
+        var byUser = document.getElementById('filterBy').value;
+
+        var rows    = document.querySelectorAll('#prospectTableBody tr');
+        var visible = 0;
+
+        rows.forEach(function (row) {
+            var rowBranch   = row.dataset.branch   || '';
+            var rowName     = row.dataset.name     || '';
+            var rowContract = row.dataset.contract || '';
+            var rowBy       = row.dataset.by       || '';
+
+            var matchText   = !query  ||
+                rowBranch.toLowerCase().includes(query)   ||
+                rowName.toLowerCase().includes(query)     ||
+                rowContract.toLowerCase().includes(query);
+            var matchBranch = !branch || rowBranch === branch;
+            var matchBy     = !byUser || rowBy.toLowerCase().includes(byUser.toLowerCase());
+
+            var show = matchText && matchBranch && matchBy;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        var seq = 1;
+        rows.forEach(function (row) {
+            if (row.style.display !== 'none') {
+                row.cells[0].textContent = seq++;
+            }
+        });
+
+        var total = rows.length;
+        document.getElementById('prospectPaginationText').textContent =
+            visible > 0
+                ? 'แสดง 1 - ' + visible + ' จาก ' + total + ' รายการ'
+                : 'แสดง 0 จาก ' + total + ' รายการ';
+    }
+
+    function applyAllFilters() {
+        filterCampaigns();
+        filterProspectTable();
+    }
+
+    function clearAllFilters() {
+        document.getElementById('filterStartDate').value = '';
+        document.getElementById('filterEndDate').value   = '';
+        document.getElementById('filterStatus').value   = '';
+        document.getElementById('filterBranch').value   = '';
+        document.getElementById('filterBy').value       = '';
+        campaignSearchInput.value = '';
+        prospectSearchInput.value = '';
+        applyAllFilters();
+    }
+})();
+</script>
+}

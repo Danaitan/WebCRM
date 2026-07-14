@@ -1,8 +1,8 @@
 name: CRM_BUILD
 on: workflow_dispatch
 jobs:
-  hello:
+  hellotest:
     runs-on: ubuntu-latest
     steps:
-      - name: Hellotest Step
+      - name: Hello Step
         run: echo "Welcome To Shell WorkFlow"

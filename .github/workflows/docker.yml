@@ -121,12 +121,12 @@ jobs:
 
       - name: Pull latest image
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-dev
 
       - name: Deploy application
         run: |
           echo "Deploying CRM application..."
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-dev"
 
       - name: Verify deployment
         run: |

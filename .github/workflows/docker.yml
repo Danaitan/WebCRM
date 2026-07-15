@@ -9,6 +9,10 @@ on:
     branches:
       - staging-dev
 
+concurrency:
+  group: crm-build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -16,12 +20,16 @@ env:
 jobs:
   Build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     permissions:
       contents: read
       packages: write
+
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
+
     steps:
       - name: Convert repository name to lowercase
         run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -56,6 +64,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          pull: true
+          provenance: false
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -64,10 +74,14 @@ jobs:
 
   Test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     needs: Build
+
     permissions:
       contents: read
       packages: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,35 +96,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run tests in Docker
-        run: |
-          docker build \
-            --target test \
-            -t webcrm:test \
-            .
-          docker run --rm webcrm:test
+      - name: Build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: test
+          load: true
+          tags: webcrm:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Run linting
+      - name: Run tests
+        run: docker run --rm webcrm:test
+
+      - name: Build lint image
+        continue-on-error: true
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: lint
+          load: true
+          tags: webcrm:lint
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run lint
         run: |
-          docker build \
-            --target lint \
-            -t webcrm:lint \
-            . || echo "Lint stage not configured"
+          docker image inspect webcrm:lint >/dev/null 2>&1 || {
+            echo "Lint stage not configured"
+            exit 0
+          }
+
           docker run --rm webcrm:lint || echo "Lint tests skipped"
 
   Deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     needs: Test
+
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging-dev'
+
     permissions:
       contents: read
       packages: read
+
     steps:
       - name: Convert repository name to lowercase
         run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3

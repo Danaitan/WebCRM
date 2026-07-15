@@ -78,9 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: WebCRM
-
     needs: Build
-
     permissions:
       contents: read
       packages: read
@@ -135,10 +133,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: WebCRM
-
     env:
       IMAGE_NAME: danaitanwidtaya/webcrm
-
     needs: Test
 
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging-dev'

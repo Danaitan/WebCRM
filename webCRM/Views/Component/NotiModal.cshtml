@@ -1,0 +1,48 @@
+<script>
+    const AlertComponent = {
+        success: function (title, text, timer = null) {
+            let options = { title: title, text: text, icon: "success" };
+            if (timer) {
+                options.timer = timer;
+                options.showConfirmButton = false;
+            }
+            return Swal.fire(options);
+        },
+        info: function (title, text, timer = null) {
+            let options = { title: title, text: text, icon: "info" };
+            if (timer) {
+                options.timer = timer;
+                options.showConfirmButton = false;
+            }
+            return Swal.fire(options);
+        },
+        warning: function (title, text) {
+            return Swal.fire({ title: title, text: text, icon: "warning" });
+        },
+        confirmDelete: function (campaignCode) {
+            return Swal.fire({
+                title: "ยืนยันการลบ?",
+                text: `ต้องการลบรหัสแคมเปญ ${campaignCode} หรือไม่?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "ยืนยัน",
+                cancelButtonText: "ยกเลิก"
+            });
+        },
+        confirmSave: function (text) {
+            return Swal.fire({
+                title: "ยืนยันการบันทึก",
+                text: text,
+                icon: "info",
+                showCancelButton: true,
+                confirmButtonColor: "#28a745",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "ยืนยัน",
+                cancelButtonText: "ยกเลิก"
+            });
+        }
+
+    };
+</script>

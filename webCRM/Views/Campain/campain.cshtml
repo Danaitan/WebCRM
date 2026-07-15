@@ -332,6 +332,7 @@
     </div>
 </main>
 @section Scripts {
+    <partial name="~/Views/Component/NotiModal.cshtml" />
     <script>
         $(document).ready(function () {
             // Mock Campaigns Data (Exactly 18 items to match mockup)
@@ -373,11 +374,11 @@
             ];
 
             // UI State Variables
-            let selectedCampaignCode = "100323050026"; // Default active campaign code
             let currentFilteredCampaigns = [...campaigns];
             let currentPage = 1;
             const itemsPerPage = 5;
             let selectedBranches = [];
+            let selectedCampaignCode = "";
 
             // Sorting State Variables
             let activeSortField = "endDate"; // Default to product_end (checked in mockup)
@@ -425,9 +426,11 @@
                 $("#campaignCode").val(newCode);
                 
                 // If editing a campaign, update its code
-                const activeCard = campaigns.find(c => c.code === selectedCampaignCode);
                 if (activeCard) {
                     activeCard.code = newCode;
+                    selectedCampaignCode = newCode;
+                    renderCampaignsList();
+                } else {
                     selectedCampaignCode = newCode;
                     renderCampaignsList();
                 }
@@ -667,13 +670,6 @@
                 paginatedCampaigns.forEach((campaign, index) => {
                     const isActive = campaign.code === selectedCampaignCode;
                     
-                    let rightIconHtml = "";
-                    if (isActive) {
-                        rightIconHtml = `<div class="card-indicator"><i class="bi bi-check-circle-fill"></i></div>`;
-                    } else if (index === 1) { // Mock document icon on second card to match the image
-                        rightIconHtml = `<div class="card-doc-icon"><i class="bi bi-file-earmark-text"></i></div>`;
-                    }
-                    
                     const cardHtml = `
                         <div class="campaign-card ${isActive ? 'active' : ''}" data-code="${campaign.code}">
                             <div class="card-code">${campaign.code}</div>
@@ -682,7 +678,6 @@
                                 <span>สถานะ:</span>
                                 <span class="badge-status-normal">${campaign.status}</span>
                             </div>
-                            ${rightIconHtml}
                         </div>
                     `;
                     $campaignsContainer.append(cardHtml);
@@ -813,24 +808,12 @@
                 applySorting();
                 currentPage = 1;
                 renderCampaignsList();
-                Swal.fire({
-                    title: "รีเฟรชข้อมูลสำเร็จ",
-                    text: "อัปเดตข้อมูลรายการแคมเปญเรียบร้อยแล้ว",
-                    icon: "success",
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+                AlertComponent.success("รีเฟรชข้อมูลสำเร็จ", "อัปเดตข้อมูลรายการแคมเปญเรียบร้อยแล้ว", 1500);
             });
 
             // Refresh Filters Button Action
             $("#refreshFiltersBtn").on("click", function () {
-                Swal.fire({
-                    title: "รีเฟรช Filter สำเร็จ",
-                    text: "ไม่พบเงื่อนไขการกรองเพิ่มเติม",
-                    icon: "info",
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+                AlertComponent.info("รีเฟรช Filter สำเร็จ", "ไม่พบเงื่อนไขการกรองเพิ่มเติม", 1500);
             });
 
             // Home / Back Actions
@@ -843,13 +826,7 @@
             });
 
             $("#prospectActionBtn").on("click", function () {
-                Swal.fire({
-                    title: "เมนู Prospect Setup",
-                    text: "กำลังย้ายไปเมนูการตั้งค่ากลุ่มลูกค้า Prospect",
-                    icon: "info",
-                    timer: 1200,
-                    showConfirmButton: false
-                });
+                AlertComponent.info("เมนู Prospect Setup", "กำลังย้ายไปเมนูการตั้งค่ากลุ่มลูกค้า Prospect", 1200);
             });
 
             // Variables for Modal
@@ -1010,89 +987,63 @@
                 const note = $("#modalRemarks").val().trim();
                 
                 if (!name || !start || !end) {
-                    Swal.fire({
-                        title: "กรอกข้อมูลไม่ครบถ้วน",
-                        text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด",
-                        icon: "warning"
-                    });
+                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด");
                     return;
                 }
                 
                 if (modalSelectedBranches.length === 0) {
-                    Swal.fire({
-                        title: "กรอกข้อมูลไม่ครบถ้วน",
-                        text: "กรุณาเลือกสาขาอย่างน้อย 1 สาขา",
-                        icon: "warning"
-                    });
+                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณาเลือกสาขาอย่างน้อย 1 สาขา");
                     return;
                 }
 
-                // Hide modal
-                bootstrap.Modal.getInstance(document.getElementById('createCampaignModal')).hide();
+                AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then((result) => {
+                    if (result.isConfirmed) {
+                        // Hide modal
+                        bootstrap.Modal.getInstance(document.getElementById('createCampaignModal')).hide();
 
-                // Show Global Loading Overlay
-                const $overlay = $("#globalLoadingOverlay");
-                $overlay.addClass("show");
-                $("#loadingTitle").text("กำลังสร้างแคมเปญใหม่");
-                $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูล...");
+                        // Show Global Loading Overlay
+                        const $overlay = $("#globalLoadingOverlay");
+                        $overlay.addClass("show");
+                        $("#loadingTitle").text("กำลังสร้างแคมเปญใหม่");
+                        $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูล...");
 
-                setTimeout(function () {
-                    $overlay.removeClass("show");
-                    
-                    const campaignData = {
-                        code: code,
-                        name: name,
-                        status: "ปกติ",
-                        startDate: start,
-                        endDate: end,
-                        branches: [...modalSelectedBranches],
-                        remarks: note
-                    };
+                        setTimeout(function () {
+                            $overlay.removeClass("show");
+                            
+                            const campaignData = {
+                                code: code,
+                                name: name,
+                                status: "ปกติ",
+                                startDate: start,
+                                endDate: end,
+                                branches: [...modalSelectedBranches],
+                                remarks: note
+                            };
 
-                    campaigns.unshift(campaignData);
-                    selectedCampaignCode = code;
-                    currentFilteredCampaigns = [...campaigns];
-                    
-                    Swal.fire({
-                        title: "สร้างสำเร็จ",
-                        text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`,
-                        icon: "success"
-                    });
-                    
-                    loadCampaignToForm(code);
-                }, 1500);
+                            campaigns.unshift(campaignData);
+                            selectedCampaignCode = code;
+                            currentFilteredCampaigns = [...campaigns];
+                            
+                            AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
+                            loadCampaignToForm(code);
+                        }, 1500);
+                    }
+                });
             });
 
             // Click Delete Button
             $("#deleteActionBtn").on("click", function () {
                 if (!selectedCampaignCode) {
-                    Swal.fire({
-                        title: "ไม่สามารถลบได้",
-                        text: "กรุณาเลือกแคมเปญที่ต้องการลบจากรายการด้านซ้ายก่อน",
-                        icon: "warning"
-                    });
+                    AlertComponent.warning("ไม่สามารถลบได้", "กรุณาเลือกแคมเปญที่ต้องการลบจากรายการด้านซ้ายก่อน");
                     return;
                 }
                 
-                Swal.fire({
-                    title: "ยืนยันการลบ?",
-                    text: `ต้องการลบรหัสแคมเปญ ${selectedCampaignCode} หรือไม่?`,
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#d33",
-                    cancelButtonColor: "#3085d6",
-                    confirmButtonText: "ยืนยัน",
-                    cancelButtonText: "ยกเลิก"
-                }).then((result) => {
+                AlertComponent.confirmDelete(selectedCampaignCode).then((result) => {
                     if (result.isConfirmed) {
                         campaigns = campaigns.filter(c => c.code !== selectedCampaignCode);
                         currentFilteredCampaigns = currentFilteredCampaigns.filter(c => c.code !== selectedCampaignCode);
                         
-                        Swal.fire(
-                            "ลบสำเร็จ!",
-                            "แคมเปญถูกลบออกจากระบบแล้ว",
-                            "success"
-                        );
+                        AlertComponent.success("ลบสำเร็จ!", "แคมเปญถูกลบออกจากระบบแล้ว");
                         
                         // Load first campaign left in list
                         if (currentFilteredCampaigns.length > 0) {
@@ -1110,13 +1061,7 @@
                 if (selectedCampaignCode) {
                     // Reload original
                     loadCampaignToForm(selectedCampaignCode);
-                    Swal.fire({
-                        title: "ยกเลิกการแก้ไข",
-                        text: "คืนค่าข้อมูลเดิมเรียบร้อย",
-                        icon: "info",
-                        timer: 1000,
-                        showConfirmButton: false
-                    });
+                    AlertComponent.info("ยกเลิกการแก้ไข", "คืนค่าข้อมูลเดิมเรียบร้อย", 1000);
                 } else {
                     $("#newActionBtn").trigger("click");
                 }
@@ -1131,20 +1076,12 @@
                 const note = $remarks.val().trim();
                 
                 if (!name || !start || !end) {
-                    Swal.fire({
-                        title: "กรอกข้อมูลไม่ครบถ้วน",
-                        text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด",
-                        icon: "warning"
-                    });
+                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด");
                     return;
                 }
                 
                 if (selectedBranches.length === 0) {
-                    Swal.fire({
-                        title: "กรอกข้อมูลไม่ครบถ้วน",
-                        text: "กรุณาเลือกสาขาอย่างน้อย 1 สาขา",
-                        icon: "warning"
-                    });
+                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณาเลือกสาขาอย่างน้อย 1 สาขา");
                     return;
                 }
 
@@ -1170,19 +1107,19 @@
                     };
 
                     if (existingIdx > -1) {
-                        campaigns[existingIdx] = campaignData;
-                        Swal.fire({
-                            title: "บันทึกข้อมูลสำเร็จ",
-                            text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`,
-                            icon: "success"
+                        AlertComponent.confirmSave(`ต้องการบันทึกข้อมูลแคมเปญรหัส ${code} ใช่หรือไม่`).then((result) => {
+                            if (result.isConfirmed) {
+                                campaigns[existingIdx] = campaignData;
+                                AlertComponent.success("บันทึกข้อมูลสำเร็จ", `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`);
+                            }
                         });
                     } else {
-                        campaigns.unshift(campaignData);
-                        selectedCampaignCode = code;
-                        Swal.fire({
-                            title: "สร้างสำเร็จ",
-                            text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`,
-                            icon: "success"
+                        AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then((result) => {
+                            if (result.isConfirmed) {
+                                campaigns.unshift(campaignData);
+                                selectedCampaignCode = code;
+                                AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
+                            }
                         });
                     }
                     
@@ -1196,7 +1133,10 @@
             renderModalBranchCheckboxes();
             currentFilteredCampaigns = [...campaigns];
             applySorting();
-            loadCampaignToForm(selectedCampaignCode);
+            renderCampaignsList();
+            if (selectedCampaignCode) {
+                loadCampaignToForm(selectedCampaignCode);
+            }
         });
     </script>
 }

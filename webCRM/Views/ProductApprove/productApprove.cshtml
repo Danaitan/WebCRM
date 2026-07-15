@@ -29,7 +29,8 @@
                  data-name="โปรโมชัน ดอกเบี้ยพิเศษ 2.99%"
                  data-start="2024-05-01"
                  data-end="2024-07-31"
-                 data-status="กำลังพิจารณา">
+                 data-status="กำลังพิจารณา"
+                 data-note="แคมเปญสำหรับลูกค้าใหม่และลูกค้าปัจจุบัน">
                 <div class="pa-card-icon blue"><i class="bi bi-megaphone"></i></div>
                 <div class="pa-card-content">
                     <div class="pa-card-title-row">
@@ -47,7 +48,8 @@
                  data-name="แคมเปญ ฟรีประกันชั้น 1"
                  data-start="2024-05-15"
                  data-end="2024-06-30"
-                 data-status="กำลังพิจารณา">
+                 data-status="กำลังพิจารณา"
+                 data-note="แคมเปญสำหรับลูกค้าที่ทำสัญญาใหม่">
                 <div class="pa-card-icon green"><i class="bi bi-megaphone"></i></div>
                 <div class="pa-card-content">
                     <div class="pa-card-title-row">
@@ -65,7 +67,8 @@
                  data-name="โปรแกรม ขับดี มีคืน"
                  data-start="2024-06-01"
                  data-end="2024-08-31"
-                 data-status="รอข้อมูลเพิ่มเติม">
+                 data-status="รอข้อมูลเพิ่มเติม"
+                 data-note="คืนเงิน 5% เมื่อชำระค่างวดตรงเวลาติดต่อกัน 6 เดือน">
                 <div class="pa-card-icon yellow"><i class="bi bi-megaphone"></i></div>
                 <div class="pa-card-content">
                     <div class="pa-card-title-row">
@@ -83,7 +86,8 @@
                  data-name="โปรโมชัน ผ่อนสบาย 0% 6 เดือน"
                  data-start="2024-06-10"
                  data-end="2024-09-10"
-                 data-status="รออนุมัติ">
+                 data-status="รออนุมัติ"
+                 data-note="สำหรับลูกค้าประวัติดี">
                 <div class="pa-card-icon purple"><i class="bi bi-megaphone"></i></div>
                 <div class="pa-card-content">
                     <div class="pa-card-title-row">
@@ -120,34 +124,34 @@
                     <div class="row g-4">
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>รหัส Product / Campaign</label>
-                            <input type="text" class="pa-form-control" value="CMP-2024-0001" readonly>
+                            <input type="text" id="detailId" class="pa-form-control" value="CMP-2024-0001" readonly>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>ชื่อ Product / Campaign</label>
-                            <input type="text" class="pa-form-control" value="โปรโมชัน ดอกเบี้ยพิเศษ 2.99%" readonly>
+                            <input type="text" id="detailName" class="pa-form-control" value="โปรโมชัน ดอกเบี้ยพิเศษ 2.99%" readonly>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>วันที่เริ่มต้น</label>
                             <div class="pa-form-control-icon">
-                                <input type="text" class="pa-form-control" value="01/05/2024" readonly>
+                                <input type="text" id="detailStart" class="pa-form-control" value="01/05/2024" readonly>
                                 <i class="bi bi-calendar"></i>
                             </div>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>วันที่สิ้นสุด</label>
                             <div class="pa-form-control-icon">
-                                <input type="text" class="pa-form-control" value="31/07/2024" readonly>
+                                <input type="text" id="detailEnd" class="pa-form-control" value="31/07/2024" readonly>
                                 <i class="bi bi-calendar"></i>
                             </div>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>หมายเหตุ</label>
-                            <input type="text" class="pa-form-control" value="แคมเปญสำหรับลูกค้าใหม่และลูกค้าปัจจุบัน" readonly>
+                            <input type="text" id="detailNote" class="pa-form-control" value="แคมเปญสำหรับลูกค้าใหม่และลูกค้าปัจจุบัน" readonly>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>สถานะปัจจุบัน</label>
                             <div>
-                                <span class="pa-status-box">กำลังพิจารณา</span>
+                                <span id="detailStatus" class="pa-status-box">กำลังพิจารณา</span>
                             </div>
                         </div>
                     </div>
@@ -299,9 +303,9 @@
                     </div>
                 </div>
 
-                <button class="btn-pa-search" id="btnApplyFilter">
+                @* <button class="btn-pa-search" id="btnApplyFilter">
                     <i class="bi bi-search"></i> ค้นหา
-                </button>
+                </button> *@
 
                 <button class="btn-pa-clear" id="btnClearFilter">
                     <i class="bi bi-arrow-repeat"></i> ล้างเงื่อนไข
@@ -346,6 +350,70 @@
 
     // Clear button
     document.getElementById('btnClearFilter').addEventListener('click', clearAllFilters);
+
+    // Card selection
+    var campaignList = document.getElementById('campaignList');
+    if (campaignList) {
+        campaignList.addEventListener('click', function(e) {
+            var card = e.target.closest('.pa-card');
+            if (!card) return;
+
+            // Remove active class from all cards
+            document.querySelectorAll('.pa-card').forEach(function(c) {
+                c.classList.remove('active');
+            });
+
+            // Add active class to clicked card
+            card.classList.add('active');
+
+            // Update right panel data
+            var id = card.dataset.id || '';
+            var name = card.dataset.name || '';
+            var start = card.dataset.start || '';
+            var end = card.dataset.end || '';
+            var status = card.dataset.status || '';
+            var note = card.dataset.note || '-';
+
+            // format date from YYYY-MM-DD to DD/MM/YYYY
+            function formatDate(dateStr) {
+                if (!dateStr) return '';
+                var parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    return parts[2] + '/' + parts[1] + '/' + parts[0];
+                }
+                return dateStr;
+            }
+
+            var detailId = document.getElementById('detailId');
+            if (detailId) detailId.value = id;
+
+            var detailName = document.getElementById('detailName');
+            if (detailName) detailName.value = name;
+
+            var detailStart = document.getElementById('detailStart');
+            if (detailStart) detailStart.value = formatDate(start);
+
+            var detailEnd = document.getElementById('detailEnd');
+            if (detailEnd) detailEnd.value = formatDate(end);
+
+            var detailNote = document.getElementById('detailNote');
+            if (detailNote) detailNote.value = note;
+
+            var detailStatus = document.getElementById('detailStatus');
+            if (detailStatus) {
+                detailStatus.textContent = status;
+                
+                // Get styling from the badge if needed
+                detailStatus.className = 'pa-status-box'; // Reset
+                var badge = card.querySelector('.pa-status-badge');
+                if (badge) {
+                    detailStatus.className = 'pa-status-box';
+                    // We could apply specific colors here if we wanted to match exactly, 
+                    // but keeping it simple as standard box with updated text.
+                }
+            }
+        });
+    }
 
     function filterCampaigns() {
         var query      = campaignSearchInput.value.trim().toLowerCase();

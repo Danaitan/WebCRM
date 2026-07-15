@@ -60,9 +60,9 @@
                     </div>
                     
                     <div class="col-12 mt-4 d-flex gap-2">
-                        <button class="btn-primary-custom d-flex align-items-center gap-2">
+                        @* <button class="btn-primary-custom d-flex align-items-center gap-2">
                             <i class="bi bi-search"></i> Load Customer
-                        </button>
+                        </button> *@
                         <button class="btn-outline-custom d-flex align-items-center gap-2">
                             <i class="bi bi-floppy"></i> Save Batch
                         </button>
@@ -756,9 +756,16 @@
         });
     })();
 
-    // =============================================
-    // PROSPECT SELECTION COUNT
-    // =============================================
+    (function () {
+        const assignMethodBtns = document.querySelectorAll('.assign-method-btn');
+        assignMethodBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                assignMethodBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    })();
+
     (function () {
         const selectAllCheckbox = document.querySelector('.table-custom thead .form-check-input');
         const prospectCheckboxes = document.querySelectorAll('.table-custom tbody .form-check-input');

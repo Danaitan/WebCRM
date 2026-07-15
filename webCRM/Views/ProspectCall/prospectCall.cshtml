@@ -635,7 +635,7 @@
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3 justify-content-end">
-                    <button class="btn btn-primary btn-sm px-3"><i class="bi bi-search me-2"></i>ค้นหารายงาน</button>
+                    @* <button class="btn btn-primary btn-sm px-3"><i class="bi bi-search me-2"></i>ค้นหารายงาน</button> *@
                     <button class="btn btn-outline-secondary btn-sm px-3"><i class="bi bi-arrow-counterclockwise me-2"></i>ล้างตัวกรอง</button>
                     <button class="btn btn-sm px-3" style="background:#1D6F42;color:white;"><i class="bi bi-file-earmark-excel-fill me-2"></i>Export Excel</button>
                 </div>
@@ -903,5 +903,27 @@
             document.querySelectorAll('.pc-tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Make Campaign cards selectable
+            const campaignCards = document.querySelectorAll('.pc-campaign-card');
+            campaignCards.forEach(card => {
+                card.style.cursor = 'pointer';
+                card.addEventListener('click', function () {
+                    campaignCards.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Make Debt tracker cards selectable
+            const debtCards = document.querySelectorAll('.pc-debt-card');
+            debtCards.forEach(card => {
+                card.style.cursor = 'pointer';
+                card.addEventListener('click', function () {
+                    debtCards.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        });
     </script>
 }

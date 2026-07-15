@@ -23,7 +23,7 @@ jobs:
     environment: WebCRM
 
     env:
-      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/webcrm
+      IMAGE_NAME: danaitanwidtaya/webcrm
 
     permissions:
       contents: read
@@ -137,7 +137,7 @@ jobs:
     environment: WebCRM
 
     env:
-      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/webcrm
+      IMAGE_NAME: danaitanwidtaya/webcrm
 
     needs: Test
 

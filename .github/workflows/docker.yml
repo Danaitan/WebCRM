@@ -140,47 +140,22 @@ jobs:
       packages: read
 
     steps:
-      - name: Skip convert
-        run: echo "Using predefined IMAGE_NAME"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: docker login -u "danaitanwidtaya@gmail.com" -p "0810090508a"
 
-      - name: Pull latest image
+      - name: Build and Push image
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-dev
+          docker build -t danaitanwidtaya/webcrm:staging-dev .
+          docker push danaitanwidtaya/webcrm:staging-dev
 
       - name: Deploy application
         run: |
           echo "Deploying CRM application..."
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging-dev"
+          echo "Image: danaitanwidtaya/webcrm:staging-dev"
 
       - name: Verify deployment
         run: |
           echo "Verifying deployment..."
-
-# Deploy:
-#   runs-on: ubuntu-latest
-#   needs: Test
-
-#   if: github.event_name == 'push' && github.ref == 'refs/heads/staging-dev'
-
-#   steps:
-#     - name: Deploy to Server
-#       uses: appleboy/ssh-action@v1.2.0
-#       with:
-#         host: ${{ secrets.SERVER_HOST }}
-#         username: ${{ secrets.SERVER_USER }}
-#         key: ${{ secrets.SERVER_SSH_KEY }}
-#         script: |
-#           cd /home/ubuntu/webcrm
-
-#           docker login \
-#             -u ${{ secrets.DOCKERHUB_USERNAME }} \
-#             -p ${{ secrets.DOCKERHUB_TOKEN }}
-
-#           docker compose pull
-#           docker compose up -d

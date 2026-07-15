@@ -6,4 +6,6 @@ services:
       - "8088:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Staging
+      ApiSettings__BearerToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhZG1pbiIsInVzZXJuYW1lIjoiYWRtaW4iLCJpYXQiOjE3ODI5NjQ3OTMsImV4cCI6MTgxNDUwMDc5M30.z-ptiYjqMog8NIHjpX4yD4lbkaVFCs6RD_w2axiq5lE"
+      ApiSettings__APIDomain: "https://172.16.17.78:7102"
     restart: unless-stopped

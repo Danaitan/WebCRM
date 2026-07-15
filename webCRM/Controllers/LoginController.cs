@@ -45,6 +45,10 @@ namespace webCRM.Controllers
                     Encoding.UTF8,
                     "application/json");
 
+                // var response = await client.PostAsync(
+                //     $"{domain}/login",
+                //     content);
+
                 var response = await client.PostAsync(
                     "https://172.16.17.78:7102/login",
                     content);

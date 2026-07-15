@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 COPY . .
 RUN dotnet restore "webCRM/webCRM.csproj"
-RUN dotnet build "webCRM/webCRM.csproj" -c Release -o /app/build
+RUN dotnet publish "webCRM/webCRM.csproj" -c Release -o /app/publish
 
 # Test stage (optional - used by workflow)
 FROM build AS test
@@ -18,7 +18,6 @@ RUN echo "Lint stage placeholder" || true
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-COPY --from=build /app/build .
-EXPOSE 80
-EXPOSE 443
+COPY --from=build /app/publish .
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "webCRM.dll"]

@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/webcrm
 
 jobs:
   Build:
@@ -31,8 +31,8 @@ jobs:
       image-digest: ${{ steps.build.outputs.digest }}
 
     steps:
-      - name: Convert repository name to lowercase
-        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+      - name: Skip convert
+        run: echo "Using predefined IMAGE_NAME"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,12 +40,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -89,12 +88,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build test image
         uses: docker/build-push-action@v5
@@ -142,15 +140,14 @@ jobs:
       packages: read
 
     steps:
-      - name: Convert repository name to lowercase
-        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+      - name: Skip convert
+        run: echo "Using predefined IMAGE_NAME"
 
-      - name: Log in to Container Registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Pull latest image
         run: |
@@ -164,3 +161,26 @@ jobs:
       - name: Verify deployment
         run: |
           echo "Verifying deployment..."
+
+# Deploy:
+#   runs-on: ubuntu-latest
+#   needs: Test
+
+#   if: github.event_name == 'push' && github.ref == 'refs/heads/staging-dev'
+
+#   steps:
+#     - name: Deploy to Server
+#       uses: appleboy/ssh-action@v1.2.0
+#       with:
+#         host: ${{ secrets.SERVER_HOST }}
+#         username: ${{ secrets.SERVER_USER }}
+#         key: ${{ secrets.SERVER_SSH_KEY }}
+#         script: |
+#           cd /home/ubuntu/webcrm
+
+#           docker login \
+#             -u ${{ secrets.DOCKERHUB_USERNAME }} \
+#             -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+#           docker compose pull
+#           docker compose up -d

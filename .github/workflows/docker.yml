@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - staging-dev
+      - main
   pull_request:
     branches:
-      - staging-dev
+      - main
 
 env:
   REGISTRY: ghcr.io

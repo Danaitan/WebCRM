@@ -21,4 +21,4 @@ WORKDIR /app
 COPY --from=build /app/build .
 EXPOSE 80
 EXPOSE 443
-ENTRYPOINT ["dotnet", "WebCRM.dll"]
+ENTRYPOINT ["dotnet", "webCRM.dll"]

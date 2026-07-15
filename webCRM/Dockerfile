@@ -2,13 +2,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 COPY . .
-RUN dotnet restore
-RUN dotnet build -c Release -o /app/build
+RUN dotnet restore "webCRM/webCRM.csproj"
+RUN dotnet build "webCRM/webCRM.csproj" -c Release -o /app/build
 
 # Test stage (optional - used by workflow)
 FROM build AS test
 WORKDIR /app
-RUN dotnet test || true
+RUN dotnet test "webCRM/webCRM.csproj" || true
 
 # Lint stage (optional - used by workflow)
 FROM build AS lint

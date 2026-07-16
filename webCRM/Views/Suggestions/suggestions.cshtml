@@ -204,6 +204,8 @@
     </div>
 
 @section Scripts {
+    <partial name="~/Views/Component/NotiModal.cshtml" />
+    <script src="~/js/suggestions.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
@@ -276,25 +278,25 @@
         }
 
         try {
-            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
+            var result = await AlertComponent.confirmSave(`ต้องการบันทึกข้อความตอบกลับหรือไม่`);     
             
-            var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`);
-            
-            if (!response.ok) {
-                throw new Error("HTTP error " + response.status);
+            if (result.isConfirmed) {
+                showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
+                var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`);
+                if (!response.ok) {
+                    throw new Error("HTTP error " + response.status);
+                }
+                var msg = await response.json();
+                if (msg && msg.status === "error") {
+                    throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+                }
+                hideLoading();
+                $("#reply-input").val("");
+                showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function() {
+                    window.location.reload();
+                });
             }
-            
-            var msg = await response.json();
-            if (msg && msg.status === "error") {
-                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
-            }
-            
-            hideLoading();
-            $("#reply-input").val("");
-            
-            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function() {
-                window.location.reload();
-            });
+
         } catch (error) {
             console.error(error);
             hideLoading();
@@ -346,51 +348,58 @@
         }
 
         try {
-            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูลข้อเสนอแนะ / ร้องเรียนของคุณ กรุณารอสักครู่...');
-            
-            var response = await fetch(`/Suggestions/PostSuggestion`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            if (!response.ok) {
-                throw new Error("HTTP error " + response.status);
+
+            var result = await AlertComponent.confirmSave(`ต้องการบันทึกข้อความตอบกลับหรือไม่`);     
+            if (result.isConfirmed) {
+
+                showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูลข้อเสนอแนะ / ร้องเรียนของคุณ กรุณารอสักครู่...');
+                
+                var response = await fetch(`/Suggestions/PostSuggestion`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error("HTTP error " + response.status);
+                }
+                
+                var msg = await response.json();
+                if (msg && msg.status === "error") {
+                    throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+                }
+                
+                hideLoading();
+                
+                // Clear fields
+                $("#post-title").val("เลือกหัวข้อ");
+                $("#post-personal-name").val("");
+                $("#post-personal-email").val("");
+                $("#post-address").val("");
+                $("#post-phone").val("");
+                $("#post-line-id").val("");
+                $("#post-department").val("");
+                $("#post-send-to").val("");
+                $("#post-contact-date").val("");
+                $("#post-contact-time").val("00:00");
+                $("#post-additional-contact").val("");
+                $("#post-reply").val("");
+                
+                // Close Modal if using bootstrap
+                var modalEl = document.getElementById('complaintModal');
+                var modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) {
+                    modal.hide();
+                }
+                
+                showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function() {
+                    window.location.reload();
+                });
+
             }
-            
-            var msg = await response.json();
-            if (msg && msg.status === "error") {
-                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
-            }
-            
-            hideLoading();
-            
-            // Clear fields
-            $("#post-title").val("เลือกหัวข้อ");
-            $("#post-personal-name").val("");
-            $("#post-personal-email").val("");
-            $("#post-address").val("");
-            $("#post-phone").val("");
-            $("#post-line-id").val("");
-            $("#post-department").val("");
-            $("#post-send-to").val("");
-            $("#post-contact-date").val("");
-            $("#post-contact-time").val("00:00");
-            $("#post-additional-contact").val("");
-            $("#post-reply").val("");
-            
-            // Close Modal if using bootstrap
-            var modalEl = document.getElementById('complaintModal');
-            var modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) {
-                modal.hide();
-            }
-            
-            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function() {
-                window.location.reload();
-            });
+
         } catch (error) {
             console.error(error);
             hideLoading();

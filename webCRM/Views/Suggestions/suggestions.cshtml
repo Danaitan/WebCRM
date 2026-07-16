@@ -305,19 +305,23 @@
     async function AddSuggestion()
     {
         var requestData = {
-            suggesCde: $("#post-title").val(),
-            nameProvider: $("#post-personal-name").val(),
-            emailProvider: $("#post-personal-email").val(),
-            addressProvider: $("#post-address").val(),
-            phoneProvider: $("#post-phone").val(),
-            lineProvider: $("#post-line-id").val(),
-            department: $("#post-department").val() === "" ? null : $("#post-department").val(),
-            sendTo: $("#post-send-to").val() === "" ? null : $("#post-send-to").val(),
-            dateSugges: $("#post-contact-date").val() || null,
-            timeSugges: $("#post-contact-time").val() ? $("#post-contact-time").val() + ":00" : null,
-            chanelProvider: $("#post-additional-contact").val(),
-            suggestion: $("#post-reply").val(),
-            cc: $("#post-cc").val() ? $("#post-cc").val().join(',') : null
+            suggesCde: $("#post-title").val()?.toString(),
+            nameProvider: $("#post-personal-name").val()?.toString(),
+            emailProvider: $("#post-personal-email").val()?.toString(),
+            addressProvider: $("#post-address").val()?.toString(),
+            phoneProvider: $("#post-phone").val()?.toString(),
+            lineProvider: $("#post-line-id").val()?.toString(),
+            department: $("#post-department").val() ? $("#post-department").val().toString() : null,
+            sendTo: $("#post-send-to").val() ? $("#post-send-to").val().toString() : null,
+            dateSugges: $("#post-contact-date").val()?.toString(),
+            timeSugges: $("#post-contact-time").val()
+                ? $("#post-contact-time").val().toString() + ":00"
+                : null,
+            chanelProvider: $("#post-additional-contact").val()?.toString(),
+            suggestion: $("#post-reply").val()?.toString(),
+            cc: $("#post-cc").val()
+                ? $("#post-cc").val().join(",")
+                : null
         };
 
         if (!requestData.suggesCde || requestData.suggesCde === "เลือกหัวข้อ" || requestData.suggesCde.trim() === "") {
@@ -334,6 +338,10 @@
         }
         if (!requestData.suggestion || requestData.suggestion.trim() === "") {
             showAlert('warning', 'แจ้งเตือน', 'กรุณากรอกบันทึกข้อเสนอแนะ / ร้องเรียน');
+            return;
+        }
+        if (!requestData.dateSugges || requestData.dateSugges.trim() === "") {
+            showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกวันที่และเวลาให้ติดต่อกลับ');
             return;
         }
 
@@ -533,7 +541,7 @@
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
-                                <label class="form-label fw-medium small">วันที่และเวลา (ให้ติดต่อกลับ)</label>
+                                <label class="form-label fw-medium small">วันที่และเวลา (ให้ติดต่อกลับ)<span class="text-danger">*</span></label>
                                 <div class="d-flex gap-2">
                                     <div class="position-relative flex-grow-1">
                                         <input type="date" class="form-control" id="post-contact-date">

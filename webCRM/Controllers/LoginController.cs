@@ -32,7 +32,7 @@ namespace webCRM.Controllers
                 using var client = new HttpClient(handler);
                 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                var domain = configuration["ApiSettings:APIDomain"];
+                var domain = configuration["ApiSettings:APILogin"];
 
                 var request = new
                 {
@@ -45,12 +45,8 @@ namespace webCRM.Controllers
                     Encoding.UTF8,
                     "application/json");
 
-                // var response = await client.PostAsync(
-                //     $"{domain}/login",
-                //     content);
-
                 var response = await client.PostAsync(
-                    "https://172.16.17.78:7102/login",
+                    $"{domain}/login",
                     content);
 
                 response.EnsureSuccessStatusCode();

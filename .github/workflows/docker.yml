@@ -167,9 +167,9 @@ jobs:
         run: |
           echo "Verifying deployment..."
 
-      # - name: run compose
-      #   run: |
-      #     docker-compose down
-      #     docker-compose pull
-      #     docker-compose up -d
-      #     docker image prune -f
+      - name: run compose
+        run: |
+          docker-compose down
+          docker-compose pull
+          docker-compose up -d
+          docker image prune -f

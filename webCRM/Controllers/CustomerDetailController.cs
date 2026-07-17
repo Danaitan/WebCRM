@@ -7,6 +7,9 @@ namespace webCRM.Controllers
 {
     public class CustomerDetailController(IConfiguration configuration) : Controller
     {
+        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
         public async Task<IActionResult> Index()
         {
             var fullNameEn = HttpContext.Session.GetString("fullNameEn");
@@ -34,8 +37,7 @@ namespace webCRM.Controllers
                 };
                 using (var client = new HttpClient(handler))
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                    var domain = configuration["ApiSettings:APIDomain"];
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var response = await client.GetAsync($"{domain}/crm/api/v1/customerLists/{idno}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
@@ -76,8 +78,7 @@ namespace webCRM.Controllers
                         "MIB"
                     };
 
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                    var domain = configuration["ApiSettings:APIDomain"];
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                     ResponseContactList result = new ResponseContactList();
 
@@ -155,7 +156,7 @@ namespace webCRM.Controllers
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
 
-            var domain = configuration["ApiSettings:APIDomain"];
+            var domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
             var response = await client.GetAsync($"{domain}/crm/api/v1/contactInfo/{idno}/{company}");
             response.EnsureSuccessStatusCode();
             string data = await response.Content.ReadAsStringAsync();
@@ -181,8 +182,7 @@ namespace webCRM.Controllers
                 };
                 using (var client = new HttpClient(handler))
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                    var domain = configuration["ApiSettings:APIDomain"];
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var response = await client.GetAsync($"{domain}/crm/api/v1/receiveInfo/{idno}/{company}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
@@ -215,8 +215,7 @@ namespace webCRM.Controllers
                 };
                 using (var client = new HttpClient(handler))
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                    var domain = configuration["ApiSettings:APIDomain"];
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var response = await client.GetAsync($"{domain}/crm/api/v1/claimInfo/{tracking}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();

@@ -10,6 +10,9 @@ namespace webCRM.Controllers
 {
     public class CampainController(IConfiguration configuration) : Controller
     {
+        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
         public async Task<IActionResult> Index()
         {
             return View("campain");
@@ -26,8 +29,7 @@ namespace webCRM.Controllers
                 };
                 using (var client = new HttpClient(handler))
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                    var domain = configuration["ApiSettings:APIDomain"];
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     string getCase = "ownerview";
                     var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProducts/{userId}/{getCase}");
                     response.EnsureSuccessStatusCode();
@@ -64,8 +66,7 @@ namespace webCRM.Controllers
                 };
                 using (var client = new HttpClient(handler))
                 {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                    var domain = configuration["ApiSettings:APIDomain"];
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var response = await client.GetAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}");
                 }
 
@@ -92,9 +93,7 @@ namespace webCRM.Controllers
                     ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
                 };
                 using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                var domain = configuration["ApiSettings:APIDomain"];
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 var content = new StringContent(
                     JsonSerializer.Serialize(request),

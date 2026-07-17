@@ -13,6 +13,9 @@ namespace webCRM.Controllers
 {
     public class SuggestionsController(IConfiguration configuration) : Controller
     {
+        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
         private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
         {
             PropertyNameCaseInsensitive = true,
@@ -37,8 +40,7 @@ namespace webCRM.Controllers
                 };
                 using var client = new HttpClient(handler);
 
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                var domain = configuration["ApiSettings:APIDomain"];
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                 var response = await client.PostAsJsonAsync($"{domain}/crm/api/v1/suggestionDetail", request);
                 if (response.IsSuccessStatusCode)
                 {
@@ -65,8 +67,7 @@ namespace webCRM.Controllers
                 };
                 using var client = new HttpClient(handler);
 
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                var domain = configuration["ApiSettings:APIDomain"];
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                 var response = await client.GetAsync($"{domain}/crm/api/v1/suggestions/0/{personalId}");
                 response.EnsureSuccessStatusCode();
                 string data = await response.Content.ReadAsStringAsync();
@@ -95,8 +96,7 @@ namespace webCRM.Controllers
                 };
                 using var client = new HttpClient(handler);
 
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                var domain = configuration["ApiSettings:APIDomain"];
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 var request = new
                 {
@@ -152,8 +152,7 @@ namespace webCRM.Controllers
                 };
                 using var client = new HttpClient(handler);
 
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
-                var domain = configuration["ApiSettings:APIDomain"];
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 request.Guid = Guid.NewGuid().ToString();
 

@@ -34,6 +34,11 @@ namespace webCRM.Controllers
                 var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
                 var domain = Environment.GetEnvironmentVariable("ApiSettings__APILogin") ?? configuration["ApiSettings:APILogin"];
 
+                if (string.IsNullOrEmpty(domain))
+                {
+                    return Unauthorized(new { message = "Login failed: API Domain is not configured. (ApiSettings:APILogin is null)" });
+                }
+
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 var request = new

@@ -86,9 +86,9 @@ namespace webCRM.Controllers
 
                 return Ok(result);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return Unauthorized(new { message = "Login failed" });
+                return Unauthorized(new { message = $"Login failed: {ex.Message}" });
             }
         }
 

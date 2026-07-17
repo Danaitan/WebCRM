@@ -178,12 +178,13 @@
                                     </div>
                                 </div>
                             </div>
+
                         </div>
                     </form>
                 </div>
                 
                 <!-- Bottom Grids: Filter Name & Selected -->
-                <div class="row g-4 mb-4">
+                <div class="row g-4 mb-4" id="filterSelectedRow">
                     <!-- Filter Name Panel -->
                     <div class="col-12 col-md-8">
                         <div class="sub-panel-card">
@@ -320,6 +321,16 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="chkImportExcel" name="chkImportExcel">
+                                    <label class="form-check-label" for="chkImportExcel">
+                                        ดึงข้อมูลจาก Excel
+                                    </label>
+                                </div>
+                            </div>
+                            
                         </div>
                     </form>
                 </div>
@@ -337,24 +348,24 @@
         $(document).ready(function () {
             // Mock Campaigns Data (Exactly 18 items to match mockup)
             let campaigns = [
-                { code: "100323050026", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-07-31", branches: ["99", "06", "07", "12"], remarks: "แคมเปญเช่าซื้อรถยนต์ ดอกเบี้ยพิเศษ" },
-                { code: "100917120016", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-06-15", endDate: "2026-08-15", branches: ["99"], remarks: "สำหรับลูกค้าประวัติดี" },
-                { code: "100919040159", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-10", endDate: "2026-10-10", branches: ["01", "02"], remarks: "ทดสอบสาขาภาคกลาง" },
-                { code: "100921050320", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-05-01", endDate: "2026-12-31", branches: ["00"], remarks: "เฉพาะสำนักงานใหญ่เท่านั้น" },
-                { code: "101001150078", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-05", endDate: "2026-09-05", branches: ["06", "12"], remarks: "โปรโมชั่นสาขาภาคตะวันออกและใต้" },
-                { code: "101002220192", name: "สินเชื่อรถหมุนเงิน", status: "ปกติ", startDate: "2026-01-01", endDate: "2026-12-31", branches: ["99"], remarks: "สินเชื่อทะเบียนรถยนต์" },
-                { code: "101104330283", name: "สินเชื่อจำนำทะเบียนมอเตอร์ไซค์", status: "ปกติ", startDate: "2026-03-01", endDate: "2026-09-30", branches: ["03", "08", "09"], remarks: "แคมเปญรถจักรยานยนต์" },
-                { code: "101205440374", name: "โปรโมชั่นดอกเบี้ยต่ำสุด 0.59%", status: "ปกติ", startDate: "2026-02-15", endDate: "2026-05-15", branches: ["00", "01"], remarks: "แคมเปญพิเศษจำกัดระยะเวลา (สิ้นสุดแล้ว)" },
-                { code: "101306550465", name: "แคมเปญฝนนี้มีเคลียร์", status: "ปกติ", startDate: "2026-06-01", endDate: "2026-08-31", branches: ["99"], remarks: "ช่วยเคลียร์ค่างวดค้างชำระ" },
-                { code: "101407660556", name: "สินเชื่อเพื่อการพาณิชย์", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-12-31", branches: ["02", "06", "10"], remarks: "เครื่องจักรอุตสาหกรรมและรถบรรทุก" },
-                { code: "101508770647", name: "แคมเปญลูกค้าเก่าประวัติดี", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-12-31", branches: ["99"], remarks: "ลดดอกเบี้ย 0.1% สำหรับลูกค้าต่อสัญญา" },
-                { code: "101609880738", name: "สินเชื่อส่วนบุคคลสู้ภัยแล้ง", status: "ปกติ", startDate: "2026-04-01", endDate: "2026-08-31", branches: ["07", "08", "10", "11"], remarks: "สำหรับเกษตรกรกลุ่มลูกค้าเดิม" },
-                { code: "101710990829", name: "แคมเปญวันแม่ สิงหาพาแม่เที่ยว", status: "ปกติ", startDate: "2026-08-01", endDate: "2026-08-31", branches: ["99"], remarks: "รับบัตรของขวัญพิเศษท่องเที่ยว" },
-                { code: "101811000910", name: "สินเชื่อข้าราชการและรัฐวิสาหกิจ", status: "ปกติ", startDate: "2026-01-01", endDate: "2027-12-31", branches: ["00", "11"], remarks: "อัตราดอกเบี้ยพิเศษสำหรับบุคลากรภาครัฐ" },
-                { code: "101912111001", name: "แคมเปญฉลองครบรอบบริษัท", status: "ปกติ", startDate: "2026-09-01", endDate: "2026-09-30", branches: ["99"], remarks: "ลุ้นรางวัลใหญ่ทองคำแท่ง" },
-                { code: "102013221092", name: "สินเชื่อรถยนต์พลังงานไฟฟ้า EV", status: "ปกติ", startDate: "2026-07-01", endDate: "2027-06-30", branches: ["99"], remarks: "แคมเปญสนับสนุนพลังงานสะอาด" },
-                { code: "102114331183", name: "สินเชื่อรถกะบะทำเงิน", status: "ปกติ", startDate: "2026-05-15", endDate: "2026-11-15", branches: ["01", "02", "03", "06"], remarks: "สำหรับรถเชิงพาณิชย์ขนาดเล็ก" },
-                { code: "102215441274", name: "แคมเปญปิดท้ายปีทอง", status: "ปกติ", startDate: "2026-11-01", endDate: "2026-12-31", branches: ["99"], remarks: "ของขวัญปีใหม่ส่งท้ายปีสำหรับทุกคน" }
+                { code: "100323050026", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-07-31", branches: ["99", "06", "07", "12"], remarks: "แคมเปญเช่าซื้อรถยนต์ ดอกเบี้ยพิเศษ", isImportFromExcel: false },
+                { code: "100917120016", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-06-15", endDate: "2026-08-15", branches: ["99"], remarks: "สำหรับลูกค้าประวัติดี", isImportFromExcel: false },
+                { code: "100919040159", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-10", endDate: "2026-10-10", branches: ["01", "02"], remarks: "ทดสอบสาขาภาคกลาง", isImportFromExcel: false },
+                { code: "100921050320", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-05-01", endDate: "2026-12-31", branches: ["00"], remarks: "เฉพาะสำนักงานใหญ่เท่านั้น", isImportFromExcel: false },
+                { code: "101001150078", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-05", endDate: "2026-09-05", branches: ["06", "12"], remarks: "โปรโมชั่นสาขาภาคตะวันออกและใต้", isImportFromExcel: false },
+                { code: "101002220192", name: "สินเชื่อรถหมุนเงิน", status: "ปกติ", startDate: "2026-01-01", endDate: "2026-12-31", branches: ["99"], remarks: "สินเชื่อทะเบียนรถยนต์", isImportFromExcel: false },
+                { code: "101104330283", name: "สินเชื่อจำนำทะเบียนมอเตอร์ไซค์", status: "ปกติ", startDate: "2026-03-01", endDate: "2026-09-30", branches: ["03", "08", "09"], remarks: "แคมเปญรถจักรยานยนต์", isImportFromExcel: false },
+                { code: "101205440374", name: "โปรโมชั่นดอกเบี้ยต่ำสุด 0.59%", status: "ปกติ", startDate: "2026-02-15", endDate: "2026-05-15", branches: ["00", "01"], remarks: "แคมเปญพิเศษจำกัดระยะเวลา (สิ้นสุดแล้ว)", isImportFromExcel: false },
+                { code: "101306550465", name: "แคมเปญฝนนี้มีเคลียร์", status: "ปกติ", startDate: "2026-06-01", endDate: "2026-08-31", branches: ["99"], remarks: "ช่วยเคลียร์ค่างวดค้างชำระ", isImportFromExcel: false },
+                { code: "101407660556", name: "สินเชื่อเพื่อการพาณิชย์", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-12-31", branches: ["02", "06", "10"], remarks: "เครื่องจักรอุตสาหกรรมและรถบรรทุก", isImportFromExcel: false },
+                { code: "101508770647", name: "แคมเปญลูกค้าเก่าประวัติดี", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-12-31", branches: ["99"], remarks: "ลดดอกเบี้ย 0.1% สำหรับลูกค้าต่อสัญญา", isImportFromExcel: false },
+                { code: "101609880738", name: "สินเชื่อส่วนบุคคลสู้ภัยแล้ง", status: "ปกติ", startDate: "2026-04-01", endDate: "2026-08-31", branches: ["07", "08", "10", "11"], remarks: "สำหรับเกษตรกรกลุ่มลูกค้าเดิม", isImportFromExcel: false },
+                { code: "101710990829", name: "แคมเปญวันแม่ สิงหาพาแม่เที่ยว", status: "ปกติ", startDate: "2026-08-01", endDate: "2026-08-31", branches: ["99"], remarks: "รับบัตรของขวัญพิเศษท่องเที่ยว", isImportFromExcel: false },
+                { code: "101811000910", name: "สินเชื่อข้าราชการและรัฐวิสาหกิจ", status: "ปกติ", startDate: "2026-01-01", endDate: "2027-12-31", branches: ["00", "11"], remarks: "อัตราดอกเบี้ยพิเศษสำหรับบุคลากรภาครัฐ", isImportFromExcel: false },
+                { code: "101912111001", name: "แคมเปญฉลองครบรอบบริษัท", status: "ปกติ", startDate: "2026-09-01", endDate: "2026-09-30", branches: ["99"], remarks: "ลุ้นรางวัลใหญ่ทองคำแท่ง", isImportFromExcel: false },
+                { code: "102013221092", name: "สินเชื่อรถยนต์พลังงานไฟฟ้า EV", status: "ปกติ", startDate: "2026-07-01", endDate: "2027-06-30", branches: ["99"], remarks: "แคมเปญสนับสนุนพลังงานสะอาด", isImportFromExcel: false },
+                { code: "102114331183", name: "สินเชื่อรถกะบะทำเงิน", status: "ปกติ", startDate: "2026-05-15", endDate: "2026-11-15", branches: ["01", "02", "03", "06"], remarks: "สำหรับรถเชิงพาณิชย์ขนาดเล็ก", isImportFromExcel: false },
+                { code: "102215441274", name: "แคมเปญปิดท้ายปีทอง", status: "ปกติ", startDate: "2026-11-01", endDate: "2026-12-31", branches: ["99"], remarks: "ของขวัญปีใหม่ส่งท้ายปีสำหรับทุกคน", isImportFromExcel: false }
             ];
 
             // Mock Branches Data
@@ -770,6 +781,13 @@
                 syncCheckboxesState();
                 updateBranchDisplay();
                 
+                // Show/hide Filter Name & Selected panels based on isImportFromExcel
+                if (campaign.isImportFromExcel) {
+                    $("#filterSelectedRow").hide();
+                } else {
+                    $("#filterSelectedRow").show();
+                }
+                
                 // Re-render list to update active card styling
                 renderCampaignsList();
             }
@@ -973,6 +991,9 @@
                 syncModalCheckboxesState();
                 updateModalBranchDisplay();
                 
+                // Reset isImportFromExcel checkbox
+                $("#chkImportExcel").prop("checked", false);
+                
                 // Show modal
                 var myModal = new bootstrap.Modal(document.getElementById('createCampaignModal'));
                 myModal.show();
@@ -1010,6 +1031,8 @@
                         setTimeout(function () {
                             $overlay.removeClass("show");
                             
+                            const isImportFromExcel = $("#chkImportExcel").is(":checked");
+
                             const campaignData = {
                                 code: code,
                                 name: name,
@@ -1017,7 +1040,8 @@
                                 startDate: start,
                                 endDate: end,
                                 branches: [...modalSelectedBranches],
-                                remarks: note
+                                remarks: note,
+                                isImportFromExcel: isImportFromExcel
                             };
 
                             campaigns.unshift(campaignData);

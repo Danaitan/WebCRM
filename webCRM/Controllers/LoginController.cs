@@ -64,7 +64,7 @@ namespace webCRM.Controllers
                 }
                 catch (JsonException)
                 {
-                    return Unauthorized(new { message = "Login failed" });
+                    return Unauthorized(new { message = "Login failed: Invalid API Response format" });
                 }
 
                 ProfileData result = apiResponse?.data?.FirstOrDefault() ?? new ProfileData();

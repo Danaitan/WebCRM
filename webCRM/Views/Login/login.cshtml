@@ -143,6 +143,16 @@
             }
             window.location.href = "/Home/Index";
         } else {
+            try {
+                const errData = await response.json();
+                if (errData && errData.message) {
+                    errorMessage.innerText = errData.message;
+                } else {
+                    errorMessage.innerText = "รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง";
+                }
+            } catch (e) {
+                errorMessage.innerText = "รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง";
+            }
             errorMessage.style.display = "block";
         }
     }

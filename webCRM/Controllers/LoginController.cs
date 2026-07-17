@@ -31,9 +31,9 @@ namespace webCRM.Controllers
                 };
                 using var client = new HttpClient(handler);
                 
-                var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+                var bearerToken = configuration["ApiSettings:BearerToken"];
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                var domain = Environment.GetEnvironmentVariable("ApiSettings__APILogin") ?? configuration["ApiSettings:APILogin"];
+                var domain = configuration["ApiSettings:APILogin"];
 
                 var request = new
                 {

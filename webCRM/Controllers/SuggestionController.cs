@@ -13,8 +13,8 @@ namespace webCRM.Controllers
 {
     public class SuggestionsController(IConfiguration configuration) : Controller
     {
-        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
-        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings_BearerToken") ?? configuration["ApiSettings:BearerToken"];
+        string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
         private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
         {

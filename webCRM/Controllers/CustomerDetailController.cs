@@ -237,5 +237,43 @@ namespace webCRM.Controllers
             return new List<ResponseClaim>();
         }
 
+        public async Task<pdpaResponse> GetPDPA(string search, string company)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/spCheckPDPA/{search}/{company}");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode)
+                    {
+                        if (data.TrimStart().StartsWith("["))
+                        {
+                            var apiResponseList = System.Text.Json.JsonSerializer.Deserialize<List<pdpaResponse>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            return apiResponseList?.FirstOrDefault() ?? new pdpaResponse();
+                        }
+                        else
+                        {
+                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<pdpaResponse>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            return apiResponse ?? new pdpaResponse();
+                        }
+                    }
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+            }
+
+            return new pdpaResponse();
+        }
+        
     }
 }

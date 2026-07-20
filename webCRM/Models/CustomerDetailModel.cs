@@ -519,57 +519,72 @@ namespace webCRM.Models
     }
 
     public class ResponseClaim
-        {
-            [JsonPropertyName("Policy_No")]
-            public string? PolicyNo { get; set; }
+    {
+        [JsonPropertyName("Policy_No")]
+        public string? PolicyNo { get; set; }
 
-            [JsonPropertyName("Claim_Date")]
-            public string? ClaimDate { get; set; }
+        [JsonPropertyName("Claim_Date")]
+        public string? ClaimDate { get; set; }
 
-            [JsonPropertyName("Claim_No")]
-            public string? ClaimNo { get; set; }
+        [JsonPropertyName("Claim_No")]
+        public string? ClaimNo { get; set; }
 
-            [JsonPropertyName("idno")]
-            public string? IdNo { get; set; }
+        [JsonPropertyName("idno")]
+        public string? IdNo { get; set; }
 
-            [JsonPropertyName("Cust_Name")]
-            public string? CustName { get; set; }
+        [JsonPropertyName("Cust_Name")]
+        public string? CustName { get; set; }
 
-            [JsonPropertyName("companyInsur")]
-            public string? CompanyInsur { get; set; }
+        [JsonPropertyName("companyInsur")]
+        public string? CompanyInsur { get; set; }
 
-            [JsonPropertyName("Register")]
-            public string? Register { get; set; }
+        [JsonPropertyName("Register")]
+        public string? Register { get; set; }
 
-            [JsonPropertyName("Claim_Status")]
-            public string? ClaimStatus { get; set; }
+        [JsonPropertyName("Claim_Status")]
+        public string? ClaimStatus { get; set; }
 
-            [JsonPropertyName("appNoMicro")]
-            public string? AppNoMicro { get; set; }
+        [JsonPropertyName("appNoMicro")]
+        public string? AppNoMicro { get; set; }
 
-            [JsonPropertyName("Venue")]
-            public string? Venue { get; set; }
+        [JsonPropertyName("Venue")]
+        public string? Venue { get; set; }
 
-            [JsonPropertyName("Cause")]
-            public string? Cause { get; set; }
+        [JsonPropertyName("Cause")]
+        public string? Cause { get; set; }
 
-            [JsonPropertyName("Claim_Desc")]
-            public string? ClaimDesc { get; set; }
+        [JsonPropertyName("Claim_Desc")]
+        public string? ClaimDesc { get; set; }
 
-            [JsonPropertyName("Remark")]
-            public string? Remark { get; set; }
+        [JsonPropertyName("Remark")]
+        public string? Remark { get; set; }
 
-            [JsonPropertyName("Claim_Total")]
-            public string? ClaimTotal { get; set; }
+        [JsonPropertyName("Claim_Total")]
+        public string? ClaimTotal { get; set; }
 
-            [JsonPropertyName("Contact_Name")]
-            public string? ContactName { get; set; }
+        [JsonPropertyName("Contact_Name")]
+        public string? ContactName { get; set; }
 
-            [JsonPropertyName("Contact_Tel")]
-            public string? ContactTel { get; set; }
+        [JsonPropertyName("Contact_Tel")]
+        public string? ContactTel { get; set; }
 
-            [JsonPropertyName("Tracking_Ins")]
-            public string? TrackingIns { get; set; }
-        }
+        [JsonPropertyName("Tracking_Ins")]
+        public string? TrackingIns { get; set; }
+    }
+
+    public class pdpaResponse
+    {
+        [JsonPropertyName("Identifier")]
+        public string? Identifier { get; set; }
+        
+        [JsonPropertyName("MS1")]
+        public string? MS1 { get; set; }
+
+        [JsonPropertyName("MS2")]
+        public string? MS2 { get; set; }
+
+        [JsonPropertyName("company")]
+        public string? Company { get; set; }
+    }
 
 }

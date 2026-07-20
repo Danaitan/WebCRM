@@ -854,12 +854,12 @@
 
                     <!-- PDPA Section -->
                     <div class="p-4 p-lg-5 bg-light rounded-bottom-4 flex-grow-1 border-top">
-                        <h6 class="fw-bold mb-4 text-dark">การยินยอมเพื่อการตลาดและสิทธิพิเศษ (✅ = ยินยอม, ❌ =ไม่ยินยอม</h6>
+                        <h6 class="fw-bold mb-4 text-dark">การยินยอมเพื่อการตลาดและสิทธิพิเศษ (✅ = ยินยอม, ❌ = ไม่ยินยอม</h6>
                         เพื่อการประชาสัมพันธ์ แนะนำ ให้ข้อมูลหรือข้อเสนอเกี่ยวกับผลิตภัณฑ์และบริการ รวมถึงสิทธิพิเศษที่เป็นประโยชน์และอาจเหมาะสมแก่
                         <div class="d-flex flex-wrap gap-3 mb-4">
 
                             <div class="consent-box bg-white border rounded p-3 p-xl-4 d-flex align-items-center shadow-sm">
-                                <span class="consent-icon me-3">✅</span>
+                                <span class="consent-icon me-3" id="isCheck1"></span>
 
                                 <div class="flex-grow-1">
                                     ข้าพเจ้า (<span class="cus-name-consent"></span>) ของบริษัทฯ ซึ่งอาจเกินความคาดหมายของข้าพเจ้า
@@ -867,7 +867,7 @@
                             </div>
 
                             <div class="consent-box bg-white border rounded p-3 p-xl-4 d-flex align-items-center shadow-sm">
-                                <span class="consent-icon me-3">❌</span>
+                                <span class="consent-icon me-3" id="isCheck2"></span>
 
                                 <div class="flex-grow-1">
                                     ข้าพเจ้า (<span class="cus-name-consent"></span>) ของบริษัทฯ และยินยอมให้แบ่งปันข้อมูลแก่บริษัทในเครือของบริษัทฯ ซึ่งอาจเกินความคาดหมายของข้าพเจ้า
@@ -876,10 +876,6 @@
 
                         </div>
 
-                        @* <div class="d-flex align-items-center gap-2 text-primary small">
-                            <i class="bi bi-info-circle"></i>
-                            <span id="detail-pdpa-date"></span>
-                        </div> *@
                     </div>
                 </div>
             </div>
@@ -895,6 +891,15 @@
         const searchBtn = document.getElementById("searchBtn");
         const clearBtn = document.getElementById("clearBtn");
 
+        function isCheck (isCheck)
+        {
+            if (isCheck == '1'){
+                return '✅';
+            }else if (isCheck == '0'){
+                return '❌';
+            }
+        }
+
         function allowCard(status) {
             if (status === true){
                 return '<span class="badge bg-success-light text-success px-3 py-2 rounded">ยินยอม</span>';
@@ -905,7 +910,10 @@
             }
         }
         
-        function displayCustomerDetails(customer) {
+        async function displayCustomerDetails(customer) {
+            const response = await fetch(`/CustomerDetail/GetPDPA?search=${customer.idno}&company=${customer.companyCde}`);
+            const pdpaData = await response.json();
+
             const pdpaCheckEl = document.getElementById("detail-pdpaCheck");
             if (pdpaCheckEl) pdpaCheckEl.innerText = customer.pdpaCheck || '-';
             const detailIdnoEl = document.getElementById("detail-idno");
@@ -929,6 +937,8 @@
             document.getElementById("detail-phone2").innerText = customer.phone2 || '-';
             document.getElementById("detail-occupation").innerText = customer.occupation || '-';
             document.getElementById("detail-email").innerText = customer.mail || '-';
+            document.getElementById("isCheck1").innerText = isCheck(pdpaData.MS1);
+            document.getElementById("isCheck2").innerText = isCheck(pdpaData.MS2);
 
             const panelBg = document.getElementById("customer-detail-panel-bg");
             if (panelBg) {

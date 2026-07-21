@@ -6,6 +6,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/campain.css?v=3" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
 }
 
 <main class="crm-main p-4">
@@ -72,19 +73,23 @@
                     <!-- List Header & Refresh -->
                     <div class="list-header">
                         <span>ทั้งหมด <span id="totalCampaignsCount">0</span> รายการ</span>
-                        @* <button class="btn-refresh-list" id="refreshCampaignsListBtn" title="รีเฟรชข้อมูล">
-                            <i class="bi bi-arrow-clockwise"></i>
-                        </button> *@
                     </div>
                     
-                    <!-- Scrollable Cards Container -->
-                    <div class="campaign-list-container" id="campaignsContainer">
-                        <!-- Campaign Cards will render here dynamically -->
-                    </div>
-                    
-                    <!-- Pagination Controls -->
-                    <div class="campaign-pagination" id="campaignPagination">
-                        <!-- Pagination buttons will render here dynamically -->
+                    <div class="campaign-list-container">
+                        <table id="campaignsTable" class="table table-borderless" style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th>Campaign</th>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -115,9 +120,6 @@
                                 <label class="form-label" for="campaignCode">รหัส Product / Campaign</label>
                                 <div class="input-container-icon">
                                     <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;">
-                                    <button type="button" class="input-icon-right" id="syncCampaignCodeBtn" title="สุ่มรหัส">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </button>
                                 </div>
                             </div>
                             
@@ -262,9 +264,6 @@
                                 <label class="form-label" for="modalCampaignCode">รหัส Product / Campaign</label>
                                 <div class="input-container-icon">
                                     <input type="text" id="modalCampaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;">
-                                    <button type="button" class="input-icon-right" id="modalSyncCampaignCodeBtn" title="สุ่มรหัส">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </button>
                                 </div>
                             </div>
                             
@@ -342,53 +341,63 @@
         </div>
     </div>
 </main>
+
 @section Scripts {
     <partial name="~/Views/Component/NotiModal.cshtml" />
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
         
-        $(document).ready(function () {
-            // Mock Campaigns Data (Exactly 18 items to match mockup)
-            let campaigns = [
-                { code: "100323050026", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-07-31", branches: ["99", "06", "07", "12"], remarks: "แคมเปญเช่าซื้อรถยนต์ ดอกเบี้ยพิเศษ", isImportFromExcel: false },
-                { code: "100917120016", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-06-15", endDate: "2026-08-15", branches: ["99"], remarks: "สำหรับลูกค้าประวัติดี", isImportFromExcel: false },
-                { code: "100919040159", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-10", endDate: "2026-10-10", branches: ["01", "02"], remarks: "ทดสอบสาขาภาคกลาง", isImportFromExcel: false },
-                { code: "100921050320", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-05-01", endDate: "2026-12-31", branches: ["00"], remarks: "เฉพาะสำนักงานใหญ่เท่านั้น", isImportFromExcel: false },
-                { code: "101001150078", name: "สัญญาเช่าซื้อรถยนต์", status: "ปกติ", startDate: "2026-07-05", endDate: "2026-09-05", branches: ["06", "12"], remarks: "โปรโมชั่นสาขาภาคตะวันออกและใต้", isImportFromExcel: false },
-                { code: "101002220192", name: "สินเชื่อรถหมุนเงิน", status: "ปกติ", startDate: "2026-01-01", endDate: "2026-12-31", branches: ["99"], remarks: "สินเชื่อทะเบียนรถยนต์", isImportFromExcel: false },
-                { code: "101104330283", name: "สินเชื่อจำนำทะเบียนมอเตอร์ไซค์", status: "ปกติ", startDate: "2026-03-01", endDate: "2026-09-30", branches: ["03", "08", "09"], remarks: "แคมเปญรถจักรยานยนต์", isImportFromExcel: false },
-                { code: "101205440374", name: "โปรโมชั่นดอกเบี้ยต่ำสุด 0.59%", status: "ปกติ", startDate: "2026-02-15", endDate: "2026-05-15", branches: ["00", "01"], remarks: "แคมเปญพิเศษจำกัดระยะเวลา (สิ้นสุดแล้ว)", isImportFromExcel: false },
-                { code: "101306550465", name: "แคมเปญฝนนี้มีเคลียร์", status: "ปกติ", startDate: "2026-06-01", endDate: "2026-08-31", branches: ["99"], remarks: "ช่วยเคลียร์ค่างวดค้างชำระ", isImportFromExcel: false },
-                { code: "101407660556", name: "สินเชื่อเพื่อการพาณิชย์", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-12-31", branches: ["02", "06", "10"], remarks: "เครื่องจักรอุตสาหกรรมและรถบรรทุก", isImportFromExcel: false },
-                { code: "101508770647", name: "แคมเปญลูกค้าเก่าประวัติดี", status: "ปกติ", startDate: "2026-07-01", endDate: "2026-12-31", branches: ["99"], remarks: "ลดดอกเบี้ย 0.1% สำหรับลูกค้าต่อสัญญา", isImportFromExcel: false },
-                { code: "101609880738", name: "สินเชื่อส่วนบุคคลสู้ภัยแล้ง", status: "ปกติ", startDate: "2026-04-01", endDate: "2026-08-31", branches: ["07", "08", "10", "11"], remarks: "สำหรับเกษตรกรกลุ่มลูกค้าเดิม", isImportFromExcel: false },
-                { code: "101710990829", name: "แคมเปญวันแม่ สิงหาพาแม่เที่ยว", status: "ปกติ", startDate: "2026-08-01", endDate: "2026-08-31", branches: ["99"], remarks: "รับบัตรของขวัญพิเศษท่องเที่ยว", isImportFromExcel: false },
-                { code: "101811000910", name: "สินเชื่อข้าราชการและรัฐวิสาหกิจ", status: "ปกติ", startDate: "2026-01-01", endDate: "2027-12-31", branches: ["00", "11"], remarks: "อัตราดอกเบี้ยพิเศษสำหรับบุคลากรภาครัฐ", isImportFromExcel: false },
-                { code: "101912111001", name: "แคมเปญฉลองครบรอบบริษัท", status: "ปกติ", startDate: "2026-09-01", endDate: "2026-09-30", branches: ["99"], remarks: "ลุ้นรางวัลใหญ่ทองคำแท่ง", isImportFromExcel: false },
-                { code: "102013221092", name: "สินเชื่อรถยนต์พลังงานไฟฟ้า EV", status: "ปกติ", startDate: "2026-07-01", endDate: "2027-06-30", branches: ["99"], remarks: "แคมเปญสนับสนุนพลังงานสะอาด", isImportFromExcel: false },
-                { code: "102114331183", name: "สินเชื่อรถกะบะทำเงิน", status: "ปกติ", startDate: "2026-05-15", endDate: "2026-11-15", branches: ["01", "02", "03", "06"], remarks: "สำหรับรถเชิงพาณิชย์ขนาดเล็ก", isImportFromExcel: false },
-                { code: "102215441274", name: "แคมเปญปิดท้ายปีทอง", status: "ปกติ", startDate: "2026-11-01", endDate: "2026-12-31", branches: ["99"], remarks: "ของขวัญปีใหม่ส่งท้ายปีสำหรับทุกคน", isImportFromExcel: false }
-            ];
+        async function getCampainList()
+        {
+            try {
+                Swal.fire({
+                    title: 'กำลังโหลดข้อมูล...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
 
-            // Mock Branches Data
-            const branchesData = [
-                { code: "99", name: "ทุกสาขา" },
-                { code: "00", name: "สำนักงานใหญ่" },
-                { code: "01", name: "นครปฐม" },
-                { code: "02", name: "ราชบุรี" },
-                { code: "03", name: "กาญจนบุรี" },
-                { code: "06", name: "ชลบุรี" },
-                { code: "07", name: "ขอนแก่น" },
-                { code: "08", name: "พิษณุโลก" },
-                { code: "09", name: "สระบุรี" },
-                { code: "10", name: "อุบลราชธานี" },
-                { code: "11", name: "นครสวรรค์" },
-                { code: "12", name: "สุราษฎร์ธานี" }
-            ];
+                const response = await fetch(`/Campain/GetCampainList`);
+                const data = await response.json();
+                const mapped = data.map(item => ({
+                    code: item.product_code || "",
+                    name: item.product_name || "",
+                    status: item.product_status || "ปกติ",
+                    startDate: item.product_start ? item.product_start.substring(0, 10) : "",
+                    endDate: item.product_end ? item.product_end.substring(0, 10) : "",
+                    branches: item.offcde ? item.offcde.split(',') : [],
+                    remarks: item.product_remark || "",
+                    isImportFromExcel: false
+                }));
+                
+                return mapped;
+            }
+            catch(error){
+                console.error(error);
+                Swal.close();
+                return [];
+            }
+        }
+
+        $(document).ready(async function () {
+            // Fetch Campaigns Data
+            let campaigns = await getCampainList();
+            // Fetch Branches Data
+            let branchesData = [];
+            try {
+                const branchRes = await fetch(`/Campain/getBranchListForCRM`);
+                const branchList = await branchRes.json();
+                branchesData = branchList.map(b => ({
+                    code: b.offcde || b.Offcde || "",
+                    name: b.branch_name || b.branchName || b.bname || b.Bname || "ไม่ทราบชื่อ"
+                }));
+            } catch (err) {
+                console.error("Failed to load branches:", err);
+            }
 
             // UI State Variables
-            let currentFilteredCampaigns = [...campaigns];
-            let currentPage = 1;
-            const itemsPerPage = 5;
             let selectedBranches = [];
             let selectedCampaignCode = "";
 
@@ -401,20 +410,16 @@
             const $sortBtn = $("#sortBtn");
             const $sortDropdownPanel = $("#sortDropdownPanel");
 
-            function applySorting() {
-                currentFilteredCampaigns.sort((a, b) => {
-                    let valA = a[activeSortField] ? a[activeSortField].toString().toLowerCase() : "";
-                    let valB = b[activeSortField] ? b[activeSortField].toString().toLowerCase() : "";
-                    
-                    if (valA < valB) return activeSortOrder === "asc" ? -1 : 1;
-                    if (valA > valB) return activeSortOrder === "asc" ? 1 : -1;
-                    return 0;
-                });
-            }
+            const sortFieldToColumnIdx = {
+                "code": 1,
+                "name": 2,
+                "status": 3,
+                "startDate": 4,
+                "endDate": 5
+            };
 
             // DOM Elements
-            const $campaignsContainer = $("#campaignsContainer");
-            const $campaignPagination = $("#campaignPagination");
+            const $campaignsTable = $("#campaignsTable");
             const $totalCampaignsCount = $("#totalCampaignsCount");
             const $campaignSearchInput = $("#campaignSearchInput");
             const $branchSearchInput = $("#branchSearchInput");
@@ -424,29 +429,6 @@
             const $chkSelectAllBranches = $("#chkSelectAllBranches");
             const $remarks = $("#remarks");
             const $remarksCharCounter = $("#remarksCharCounter");
-            
-            // Generate Random Code function
-            function generateRandomCode() {
-                const prefix = "100";
-                const randomDigits = Math.floor(100000000 + Math.random() * 900000000).toString();
-                return prefix + randomDigits;
-            }
-
-            // Sync Code Button Action
-            $("#syncCampaignCodeBtn").on("click", function () {
-                const newCode = generateRandomCode();
-                $("#campaignCode").val(newCode);
-                
-                // If editing a campaign, update its code
-                if (activeCard) {
-                    activeCard.code = newCode;
-                    selectedCampaignCode = newCode;
-                    renderCampaignsList();
-                } else {
-                    selectedCampaignCode = newCode;
-                    renderCampaignsList();
-                }
-            });
 
             // Initialize Branch Checkbox List
             function renderBranchCheckboxes() {
@@ -455,7 +437,7 @@
                     const itemHtml = `
                         <div class="branch-item" data-code="${branch.code}">
                             <input type="checkbox" id="chk_branch_${branch.code}" class="branch-chk" value="${branch.code}">
-                            <label for="chk_branch_${branch.code}" class="m-0 cursor-pointer w-100">${branch.code}-${branch.name}</label>
+                            <label for="chk_branch_${branch.code}" class="m-0 cursor-pointer w-100">${branch.name}</label>
                         </div>
                     `;
                     $branchesListContainer.append(itemHtml);
@@ -542,7 +524,7 @@
                     selectedBranches.forEach(code => {
                         const branchObj = branchesData.find(b => b.code === code);
                         if (branchObj) {
-                            const labelText = `${branchObj.code}-${branchObj.name}`;
+                            const labelText = `${branchObj.name}`;
                             // Special blue styling for specific selected tags
                             const tagHtml = `
                                 <div class="branch-tag branch-tag-blue" data-code="${code}">
@@ -625,9 +607,9 @@
                 activeSortField = tempSortField;
                 activeSortOrder = tempSortOrder;
                 
-                applySorting();
-                currentPage = 1;
-                renderCampaignsList();
+                if (campaignTable) {
+                    campaignTable.order([sortFieldToColumnIdx[activeSortField], activeSortOrder]).draw();
+                }
                 
                 $sortDropdownPanel.removeClass("show");
             });
@@ -659,104 +641,63 @@
                 });
             });
 
-            // Render Campaign Cards
-            function renderCampaignsList() {
-                $campaignsContainer.empty();
-                
-                const startIdx = (currentPage - 1) * itemsPerPage;
-                const endIdx = startIdx + itemsPerPage;
-                const paginatedCampaigns = currentFilteredCampaigns.slice(startIdx, endIdx);
-                
-                $totalCampaignsCount.text(currentFilteredCampaigns.length);
-                
-                if (paginatedCampaigns.length === 0) {
-                    $campaignsContainer.append(`
-                        <div class="text-center py-4 text-muted" style="font-size: 0.85rem;">
-                            <i class="bi bi-emoji-neutral fs-4 d-block mb-1"></i>
-                            ไม่พบรายการ
-                        </div>
-                    `);
-                    return;
-                }
-                
-                paginatedCampaigns.forEach((campaign, index) => {
-                    const isActive = campaign.code === selectedCampaignCode;
-                    
-                    const cardHtml = `
-                        <div class="campaign-card ${isActive ? 'active' : ''}" data-code="${campaign.code}">
-                            <div class="card-code">${campaign.code}</div>
-                            <div class="card-name">${campaign.name}</div>
-                            <div class="card-status-row">
-                                <span>สถานะ:</span>
-                                <span class="badge-status-normal">${campaign.status}</span>
-                            </div>
-                        </div>
-                    `;
-                    $campaignsContainer.append(cardHtml);
+            let campaignTable;
+
+            function initDataTables() {
+                campaignTable = $campaignsTable.DataTable({
+                    data: campaigns,
+                    pageLength: 5,
+                    ordering: true,
+                    dom: '<"campaign-list-container"t><"d-flex justify-content-center mt-3"p>',
+                    language: {
+                        infoEmpty: "ไม่พบรายการ",
+                        emptyTable: `<div class="text-center py-4 text-muted" style="font-size: 0.85rem;">
+                                        <i class="bi bi-emoji-neutral fs-4 d-block mb-1"></i>
+                                        ไม่พบรายการ
+                                    </div>`,
+                        paginate: {
+                            previous: '<i class="bi bi-chevron-left"></i>',
+                            next: '<i class="bi bi-chevron-right"></i>'
+                        }
+                    },
+                    columns: [
+                        { 
+                            data: null,
+                            orderable: false,
+                            render: function (data, type, row) {
+                                const isActive = row.code === selectedCampaignCode;
+                                return `
+                                    <div class="campaign-card ${isActive ? 'active' : ''}" data-code="${row.code}">
+                                        <div class="card-code">${row.code}</div>
+                                        <div class="card-name">${row.name}</div>
+                                        <div class="card-status-row">
+                                            <span>สถานะ:</span>
+                                            <span class="badge-status-normal">${row.status}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        },
+                        { data: 'code', visible: false },
+                        { data: 'name', visible: false },
+                        { data: 'status', visible: false },
+                        { data: 'startDate', visible: false },
+                        { data: 'endDate', visible: false },
+                        { data: 'remarks', visible: false }
+                    ],
+                    order: [[sortFieldToColumnIdx[activeSortField], activeSortOrder]],
+                    drawCallback: function(settings) {
+                        $totalCampaignsCount.text(settings.fnRecordsDisplay());
+                    }
                 });
-                
-                renderPagination();
+            
+                Swal.close();
             }
 
-            // Render Pagination Buttons
-            function renderPagination() {
-                $campaignPagination.empty();
-                const totalPages = Math.ceil(currentFilteredCampaigns.length / itemsPerPage);
-                
-                if (totalPages <= 1) return;
-                
-                // Back Button
-                $campaignPagination.append(`
-                    <button class="page-btn" id="prevPageBtn" ${currentPage === 1 ? 'disabled' : ''}>
-                        <i class="bi bi-chevron-left"></i>
-                    </button>
-                `);
-                
-                // Render Page numbers
-                // Since total items is 18 and page size is 5, we have 4 pages. Matches pagination in mockup: 1, 2, 3, ..., 4
-                for (let i = 1; i <= totalPages; i++) {
-                    if (totalPages > 3 && i === 4) {
-                        $campaignPagination.append(`<span class="text-muted px-1" style="font-size: 0.8rem;">...</span>`);
-                    }
-                    if (i <= 3 || i === totalPages) {
-                        $campaignPagination.append(`
-                            <button class="page-btn ${currentPage === i ? 'active' : ''}" data-page="${i}">
-                                ${i}
-                            </button>
-                        `);
-                    }
+            function renderCampaignsList() {
+                if (campaignTable) {
+                    campaignTable.clear().rows.add(campaigns).draw();
                 }
-                
-                // Next Button
-                $campaignPagination.append(`
-                    <button class="page-btn" id="nextPageBtn" ${currentPage === totalPages ? 'disabled' : ''}>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                `);
-
-                // Pagination click handlers
-                $(".page-btn").on("click", function () {
-                    const pageVal = $(this).data("page");
-                    if (pageVal) {
-                        currentPage = pageVal;
-                        renderCampaignsList();
-                    }
-                });
-
-                $("#prevPageBtn").on("click", function () {
-                    if (currentPage > 1) {
-                        currentPage--;
-                        renderCampaignsList();
-                    }
-                });
-
-                $("#nextPageBtn").on("click", function () {
-                    const totalPages = Math.ceil(currentFilteredCampaigns.length / itemsPerPage);
-                    if (currentPage < totalPages) {
-                        currentPage++;
-                        renderCampaignsList();
-                    }
-                });
             }
 
             // Load Campaign into Form
@@ -794,7 +735,7 @@
             }
 
             // Click Campaign Card event handler (using event delegation)
-            $campaignsContainer.on("click", ".campaign-card", function () {
+            $campaignsTable.on("click", ".campaign-card", function () {
                 const code = String($(this).data("code"));
                 loadCampaignToForm(code);
             });
@@ -807,26 +748,18 @@
 
             // Search/Filter Campaigns in Sidebar List
             $campaignSearchInput.on("input", function () {
-                const query = $(this).val().toLowerCase().trim();
-                
-                currentFilteredCampaigns = campaigns.filter(c => {
-                    return c.code.toLowerCase().includes(query) || 
-                           c.name.toLowerCase().includes(query) ||
-                           c.remarks.toLowerCase().includes(query);
-                });
-                
-                applySorting();
-                currentPage = 1;
-                renderCampaignsList();
+                const query = $(this).val().trim();
+                if (campaignTable) {
+                    campaignTable.search(query).draw();
+                }
             });
 
             // Refresh List Buttons Action
             $("#refreshCampaignsListBtn").on("click", function () {
                 $campaignSearchInput.val("");
-                currentFilteredCampaigns = [...campaigns];
-                applySorting();
-                currentPage = 1;
-                renderCampaignsList();
+                if (campaignTable) {
+                    campaignTable.search("").draw();
+                }
                 AlertComponent.success("รีเฟรชข้อมูลสำเร็จ", "อัปเดตข้อมูลรายการแคมเปญเรียบร้อยแล้ว", 1500);
             });
 
@@ -862,7 +795,7 @@
                     const itemHtml = `
                         <div class="branch-item" data-code="${branch.code}">
                             <input type="checkbox" id="modal_chk_branch_${branch.code}" class="modal-branch-chk" value="${branch.code}">
-                            <label for="modal_chk_branch_${branch.code}" class="m-0 cursor-pointer w-100">${branch.code}-${branch.name}</label>
+                            <label for="modal_chk_branch_${branch.code}" class="m-0 cursor-pointer w-100">${branch.name}</label>
                         </div>
                     `;
                     $modalBranchesListContainer.append(itemHtml);
@@ -927,7 +860,7 @@
                     modalSelectedBranches.forEach(code => {
                         const branchObj = branchesData.find(b => b.code === code);
                         if (branchObj) {
-                            const labelText = `${branchObj.code}-${branchObj.name}`;
+                            const labelText = `${branchObj.name}`;
                             const tagHtml = `
                                 <div class="branch-tag branch-tag-blue" data-code="${code}">
                                     <span>${labelText}</span>
@@ -973,14 +906,10 @@
                 $("#modalRemarksCharCounter").text(`${currentLen} / 500`);
             });
 
-            $("#modalSyncCampaignCodeBtn").on("click", function () {
-                $("#modalCampaignCode").val(generateRandomCode());
-            });
-
             // Click "+ New" Button to open modal
             $("#newActionBtn").on("click", function () {
                 // Clear Modal Form
-                $("#modalCampaignCode").val(generateRandomCode());
+                $("#modalCampaignCode").val("");
                 $("#modalCampaignName").val("");
                 $("#modalStartDate").val("");
                 $("#modalEndDate").val("");
@@ -1018,7 +947,7 @@
                     return;
                 }
 
-                AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then((result) => {
+                AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then(async (result) => {
                     if (result.isConfirmed) {
                         // Hide modal
                         bootstrap.Modal.getInstance(document.getElementById('createCampaignModal')).hide();
@@ -1029,29 +958,64 @@
                         $("#loadingTitle").text("กำลังสร้างแคมเปญใหม่");
                         $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูล...");
 
-                        setTimeout(function () {
-                            $overlay.removeClass("show");
-                            
-                            const isImportFromExcel = $("#chkImportExcel").is(":checked");
-
-                            const campaignData = {
-                                code: code,
-                                name: name,
-                                status: "ปกติ",
-                                startDate: start,
-                                endDate: end,
-                                branches: [...modalSelectedBranches],
-                                remarks: note,
-                                isImportFromExcel: isImportFromExcel
+                        try {
+                            const postData = {
+                                productInfo: {
+                                    product_code: code,
+                                    product_name: name,
+                                    product_start: start,
+                                    product_end: end,
+                                    product_remark: note,
+                                    product_guid: crypto.randomUUID(),
+                                    createrd_by: '@(Context.Session.GetString("personalId") ?? "system")',
+                                    product_company: "MICRO",
+                                    offcde: modalSelectedBranches.join(",")
+                                },
+                                filtersInfo: [
+                                    { fcode: "custype" },
+                                    { fcode: "age" },
+                                    { fcode: "category" }
+                                ]
                             };
 
-                            campaigns.unshift(campaignData);
-                            selectedCampaignCode = code;
-                            currentFilteredCampaigns = [...campaigns];
+                            const response = await fetch(`/Campain/PostCampain`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(postData)
+                            });
                             
-                            AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
-                            loadCampaignToForm(code);
-                        }, 1500);
+                            const data = await response.json();
+                            $overlay.removeClass("show");
+                            
+                            if (data.status === "success") {
+                                const isImportFromExcel = $("#chkImportExcel").is(":checked");
+
+                                const campaignData = {
+                                    code: code,
+                                    name: name,
+                                    status: "ปกติ",
+                                    startDate: start,
+                                    endDate: end,
+                                    branches: [...modalSelectedBranches],
+                                    remarks: note,
+                                    isImportFromExcel: isImportFromExcel
+                                };
+
+                                campaigns.unshift(campaignData);
+                                selectedCampaignCode = code;
+                                
+                                AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
+                                loadCampaignToForm(code);
+                            } else {
+                                AlertComponent.error("เกิดข้อผิดพลาด", data.message || "ไม่สามารถสร้างแคมเปญได้");
+                            }
+                        } catch (error) {
+                            $overlay.removeClass("show");
+                            console.error(error);
+                            AlertComponent.error("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+                        }
                     }
                 });
                 
@@ -1064,19 +1028,30 @@
                     return;
                 }
                 
-                AlertComponent.confirmDelete(selectedCampaignCode).then((result) => {
+                AlertComponent.confirmDelete(selectedCampaignCode).then(async (result) => {
                     if (result.isConfirmed) {
-                        campaigns = campaigns.filter(c => c.code !== selectedCampaignCode);
-                        currentFilteredCampaigns = currentFilteredCampaigns.filter(c => c.code !== selectedCampaignCode);
-                        
-                        AlertComponent.success("ลบสำเร็จ!", "แคมเปญถูกลบออกจากระบบแล้ว");
-                        
-                        // Load first campaign left in list
-                        if (currentFilteredCampaigns.length > 0) {
-                            loadCampaignToForm(currentFilteredCampaigns[0].code);
-                        } else {
-                            // Reset form
-                            $("#newActionBtn").trigger("click");
+                        try {
+                            const response = await fetch(`/Campain/DeleteCampain?productId=${selectedCampaignCode}`);
+                            const resultText = await response.text();
+                            
+                            if (response.ok && resultText.includes("Success")) {
+                                campaigns = campaigns.filter(c => c.code !== selectedCampaignCode);
+                                
+                                AlertComponent.success("ลบสำเร็จ!", "แคมเปญถูกลบออกจากระบบแล้ว");
+                                
+                                // Load first campaign left in list
+                                if (campaigns.length > 0) {
+                                    loadCampaignToForm(campaigns[0].code);
+                                } else {
+                                    // Reset form
+                                    $("#newActionBtn").trigger("click");
+                                }
+                            } else {
+                                AlertComponent.error("ลบไม่สำเร็จ", resultText || "เกิดข้อผิดพลาดในการลบแคมเปญ");
+                            }
+                        } catch (error) {
+                            console.error(error);
+                            AlertComponent.error("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
                         }
                     }
                 });
@@ -1111,55 +1086,81 @@
                     return;
                 }
 
-                // Show Global Loading Overlay from _Layout.cshtml
-                const $overlay = $("#globalLoadingOverlay");
-                $overlay.addClass("show");
-                $("#loadingTitle").text("กำลังบันทึกข้อมูล");
-                $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูลแคมเปญและจัดเตรียมกลุ่มเป้าหมาย...");
+                const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
+                const campaignData = {
+                    code: code,
+                    name: name,
+                    status: "ปกติ",
+                    startDate: start,
+                    endDate: end,
+                    branches: [...selectedBranches],
+                    remarks: note
+                };
 
-                setTimeout(function () {
-                    $overlay.removeClass("show");
-                    
-                    // Update or Add to campaigns array
-                    const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
-                    const campaignData = {
-                        code: code,
-                        name: name,
-                        status: "ปกติ",
-                        startDate: start,
-                        endDate: end,
-                        branches: [...selectedBranches],
-                        remarks: note
-                    };
+                if (existingIdx > -1) {
+                    AlertComponent.confirmSave(`ต้องการบันทึกข้อมูลแคมเปญรหัส ${code} ใช่หรือไม่`).then((result) => {
+                        if (result.isConfirmed) {
+                            campaigns[existingIdx] = campaignData;
+                            AlertComponent.success("บันทึกข้อมูลสำเร็จ", `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`);
+                            loadCampaignToForm(code);
+                        }
+                    });
+                } else {
+                    AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then(async (result) => {
+                        if (result.isConfirmed) {
+                            // Show Global Loading Overlay
+                            const $overlay = $("#globalLoadingOverlay");
+                            $overlay.addClass("show");
+                            $("#loadingTitle").text("กำลังบันทึกข้อมูล");
+                            $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูลแคมเปญและจัดเตรียมกลุ่มเป้าหมาย...");
 
-                    if (existingIdx > -1) {
-                        AlertComponent.confirmSave(`ต้องการบันทึกข้อมูลแคมเปญรหัส ${code} ใช่หรือไม่`).then((result) => {
-                            if (result.isConfirmed) {
-                                campaigns[existingIdx] = campaignData;
-                                AlertComponent.success("บันทึกข้อมูลสำเร็จ", `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`);
+                            try {
+                                const postData = {
+                                    productInfo: {
+                                        product_code: code,
+                                        product_name: name,
+                                        product_start: start,
+                                        product_end: end,
+                                        product_remark: note,
+                                        product_guid: crypto.randomUUID(),
+                                        createrd_by: '@(Context.Session.GetString("personalId") ?? "system")'
+                                    },
+                                    filtersInfo: selectedBranches.map(branch => ({ fcode: branch }))
+                                };
+
+                                const response = await fetch(`/Campain/PostCampain`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(postData)
+                                });
+                                
+                                const data = await response.json();
+                                $overlay.removeClass("show");
+                                
+                                if (data.status === "success") {
+                                    campaigns.unshift(campaignData);
+                                    selectedCampaignCode = code;
+                                    AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
+                                    loadCampaignToForm(code);
+                                } else {
+                                    AlertComponent.error("เกิดข้อผิดพลาด", data.message || "ไม่สามารถสร้างแคมเปญได้");
+                                }
+                            } catch (error) {
+                                $overlay.removeClass("show");
+                                console.error(error);
+                                AlertComponent.error("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
                             }
-                        });
-                    } else {
-                        AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then((result) => {
-                            if (result.isConfirmed) {
-                                campaigns.unshift(campaignData);
-                                selectedCampaignCode = code;
-                                AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
-                            }
-                        });
-                    }
-                    
-                    currentFilteredCampaigns = [...campaigns];
-                    loadCampaignToForm(code);
-                }, 1500);
+                        }
+                    });
+                }
             });
 
             // Initial Execution on Load
             renderBranchCheckboxes();
             renderModalBranchCheckboxes();
-            currentFilteredCampaigns = [...campaigns];
-            applySorting();
-            renderCampaignsList();
+            initDataTables();
             if (selectedCampaignCode) {
                 loadCampaignToForm(selectedCampaignCode);
             }

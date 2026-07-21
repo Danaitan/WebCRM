@@ -20,12 +20,11 @@
         </div>
         
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="text-dark fw-medium" style="font-size: 0.9rem;">พบ 12 รายการ</span>
+            <span class="text-dark fw-medium" id="batchFoundCount" style="font-size: 0.9rem;">พบ 0 รายการ</span>
             <i class="bi bi-arrow-down-up text-secondary" style="cursor:pointer; font-size: 0.9rem;"></i>
         </div>
         
-        <div class="flex-grow-1 overflow-auto pe-1" id="batchListContainer">
-            <!-- Rendered by JS -->
+        <div class="flex-grow-1 overflow-auto pe-1" id="dataTable">
         </div>
         
         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
@@ -153,7 +152,7 @@
             <div class="card-body-custom pt-3">
                     <div class="fw-medium mb-2" style="font-size: 0.9rem;" id="totalFoundText">รายการลูกค้า (พบ 228 รายการ)</div>
                     <div class="table-responsive border rounded-3">
-                        <table class="table table-hover table-custom mb-0" id="dataTable">
+                        <table class="table table-hover table-custom mb-0" id="batchListContainer">
                             <thead>
                                 <tr>
                                     <th style="width: 40px; text-align: center;">
@@ -161,15 +160,15 @@
                                             <input class="form-check-input" type="checkbox" id="checkAll">
                                         </div>
                                     </th>
-                                    <th>บริษัท / สาขา</th>
-                                    <th>ชื่อลูกค้า</th>
-                                    <th>เลขที่สัญญา</th>
-                                    <th>ประเภทรถ</th>
-                                    <th>ผู้รับผิดชอบ</th>
+                                    <th>บริษัท / รหัส Campaign</th>
+                                    <th>ชื่อ Campaign</th>
+                                    <th>รหัส Product</th>
+                                    <th>ช่วงเวลา</th>
+                                    <th>สถานะ</th>
                                 </tr>
                             </thead>
                             <tbody id="dataTableBody">
-                                <!-- Rendered by JS -->
+                                <!-- Rendered by DataTables -->
                             </tbody>
                         </table>
                     </div>
@@ -265,10 +264,45 @@
 </div>
 
 @section Scripts {
-    <!-- Include SheetJS (xlsx-js-style) for Excel Export with Styling -->
+
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+
+        async function getCampainList()
+        {
+            try {
+                Swal.fire({
+                    title: 'กำลังโหลดข้อมูล...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const response = await fetch(`/Campain/GetCampainList`);
+                const data = await response.json();
+                const mapped = data.map(item => ({
+                    code:      item.product_code  || "",
+                    name:      item.product_name  || "",
+                    status:    item.product_status || "ปกติ",
+                    startDate: item.product_start ? item.product_start.substring(0, 10) : "",
+                    endDate:   item.product_end   ? item.product_end.substring(0, 10)   : "",
+                    remark:    item.product_remark || "",
+                    createdBy: item.createrd_by   || item.created_by || "",
+                    created:   item.created       ? item.created.substring(0, 10)       : ""
+                }));
+                return mapped;
+            }
+            catch(error){
+                console.error(error);
+                Swal.close();
+                return [];
+            }
+        }
+    
+        document.addEventListener('DOMContentLoaded', async function () {
             const checkAll = document.getElementById('checkAll');
             let rowCheckboxes; // Will be set after generating table
             const selectedTableBody = document.getElementById('selectedTableBody');
@@ -277,246 +311,147 @@
             const btnClearSelection = document.getElementById('btnClearSelection');
             const dataTable = document.getElementById('dataTable');
 
-            // --- 0. Generate Mock Data Arrays ---
+            // --- 0. Load Campaign (Batch) List from API ---
             const batchListContainer = document.getElementById('batchListContainer');
             const allBatches = [];
-            if (batchListContainer) {
-                const batchTemplates = [
-                    { title: "แคมเปญออกรถใหม่ Q2/2567", author: "นันทนา ใจดี", date: "12 พ.ค. 2567", count: 250, color: "blue" },
-                    { title: "แคมเปญลูกค้าเก่า (ต่อสัญญา)", author: "วรวิช ศรีสุข", date: "10 พ.ค. 2567", count: 186, color: "green" },
-                    { title: "ลูกค้าสนใจรถไฟฟ้า EV", author: "ปริญญา สนิท", date: "9 พ.ค. 2567", count: 98, color: "orange" },
-                    { title: "แคมเปญประกันภัยชั้น 1", author: "กนกวรรณ เพิ่มสุข", date: "8 พ.ค. 2567", count: 142, color: "purple" },
-                    { title: "ลูกค้าธุรกิจ SME", author: "ณัฐพงศ์ คำดี", date: "6 พ.ค. 2567", count: 67, color: "cyan" }
-                ];
-                
-                for (let i = 0; i < 12; i++) {
-                    let tpl = batchTemplates[i % batchTemplates.length];
-                    
+
+            const campainData = await getCampainList();
+            Swal.close();
+
+            const foundCountEl = document.getElementById('batchFoundCount');
+            if (foundCountEl) foundCountEl.textContent = `พบ ${campainData.length} รายการ`;
+
+            const colorPalette = ['blue', 'green', 'orange', 'purple', 'cyan'];
+
+                campainData.forEach((item, i) => {
+                    const color = colorPalette[i % colorPalette.length];
                     const card = document.createElement('div');
-                    card.className = `batch-card color-${tpl.color}`;
+                    card.className = `batch-card color-${color}`;
+                    card.dataset.code = item.code;
                     card.innerHTML = `
                         <div class="d-flex justify-content-between">
-                            <div class="batch-id color-${tpl.color}">BATCH-202405-${String(i+1).padStart(3, '0')}</div>
+                            <div class="batch-id color-${color}">${item.code || `BATCH-${String(i+1).padStart(3,'0')}`}</div>
                         </div>
-                        <div class="batch-title">${tpl.title}${i > 4 ? ` (${i+1})` : ''}</div>
+                        <div class="batch-title">${item.name || '(ไม่มีชื่อ)'}</div>
                         <div class="d-flex justify-content-between align-items-end">
                             <div class="batch-meta">
-                                <div>สร้างโดย: ${tpl.author}</div>
-                                <div>${tpl.date}</div>
+                                <div>สร้างโดย: ${item.createdBy || '-'}</div>
+                                <div>${item.created || '-'}</div>
                             </div>
                             <div class="text-end">
-                                <span class="batch-count">${tpl.count} ราย</span>
+                                <span class="badge rounded-pill ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'} mb-1">${item.status}</span>
                                 <div class="text-secondary mt-1"><i class="bi bi-file-earmark-text"></i></div>
                             </div>
                         </div>
                     `;
                     allBatches.push(card);
-                }
-            }
+                });
 
-            const tbody = document.getElementById('dataTableBody');
-            if (tbody) {
-                const prospectTemplates = [
-                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขานครราชสีมา", name: "คุณสมชาย ใจดี", contract: "LC-6705-000123", car: "TOYOTA HILUX REVO 2.4", responsible: "ชนนภัทร วงศ์จันทร์", type: "บุคคลธรรมดา", gender: "ชาย", age: 30, job: "พนักงานบริษัท", status: "รอการอนุมัติ", date: "2024-05-02" },
-                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาขอนแก่น", name: "คุณวิภาวี รัตนากร", contract: "LC-6704-009876", car: "HONDA CIVIC 1.8 EL", responsible: "ชนนภัทร วงศ์จันทร์", type: "บุคคลธรรมดา", gender: "หญิง", age: 45, job: "ธุรกิจส่วนตัว", status: "รอการอนุมัติ", date: "2024-05-05" },
-                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาอุดรธานี", name: "คุณนฤพล ศรีบุญเรือง", contract: "LC-6704-008765", car: "ISUZU D-MAX 1.9 DDI", responsible: "สมชาย รุ่งเรือง", type: "นิติบุคคล", gender: "ชาย", age: 50, job: "เจ้าของกิจการ", status: "อนุมัติแล้ว", date: "2024-05-08" },
-                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาเชียงใหม่", name: "คุณปาริชาติ แสนสุข", contract: "LC-6703-007654", car: "MAZDA CX-30 2.0 SP", responsible: "กัญญภัค อินทรใจ", type: "บุคคลธรรมดา", gender: "หญิง", age: 28, job: "พนักงานบริษัท", status: "ไม่อนุมัติ", date: "2024-05-10" },
-                    { company: "บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน)", branch: "สาขาภูเก็ต", name: "คุณเจษฎา ทองดี", contract: "LC-6703-006543", car: "TOYOTA YARIS ATIV 1.2", responsible: "กัญญภัค อินทรใจ", type: "นิติบุคคล", gender: "ชาย", age: 35, job: "ฟรีแลนซ์", status: "รอการอนุมัติ", date: "2024-05-11" }
-                ];
-                
-                for (let i = 0; i < 228; i++) {
-                    let tpl = prospectTemplates[i % prospectTemplates.length];
-                    const tr = document.createElement('tr');
-                    tr.setAttribute('data-custtype', tpl.type);
-                    tr.setAttribute('data-gender', tpl.gender);
-                    tr.setAttribute('data-age', tpl.age);
-                    tr.setAttribute('data-job', tpl.job);
-                    tr.setAttribute('data-status', tpl.status);
-                    tr.setAttribute('data-date', tpl.date);
-                    
-                    tr.innerHTML = `
-                        <td class="text-center">
-                            <div class="form-check d-flex justify-content-center m-0">
-                                <input class="form-check-input row-checkbox" type="checkbox">
-                            </div>
-                        </td>
-                        <td>
-                            <div class="company-name">${tpl.company}</div>
-                            <div class="branch-name">${tpl.branch}</div>
-                        </td>
-                        <td>${tpl.name}${i > 4 ? ` (${i+1})` : ''}</td>
-                        <td>LC-670${(i%5)+1}-${String(i+1).padStart(6, '0')}</td>
-                        <td>${tpl.car}</td>
-                        <td>${tpl.responsible}</td>
-                    `;
-                    tbody.appendChild(tr);
+            const $dt = $('#dataTable').DataTable({
+                data: campainData,
+                autoWidth: false,
+                language: {
+                    emptyTable:     "ไม่มีข้อมูล",
+                    info:           "แสดง _START_ - _END_ จาก _TOTAL_ รายการ",
+                    infoEmpty:      "แสดง 0 - 0 จาก 0 รายการ",
+                    infoFiltered:   "(กรองจาก _MAX_ รายการทั้งหมด)",
+                    lengthMenu:     "แสดง _MENU_ รายการ",
+                    loadingRecords: "กำลังโหลด...",
+                    processing:     "กำลังประมวลผล...",
+                    search:         "ค้นหา:",
+                    zeroRecords:    "ไม่พบข้อมูลที่ตรงกัน",
+                    paginate: {
+                        first:    "หน้าแรก",
+                        last:     "หน้าสุดท้าย",
+                        next:     "ถัดไป",
+                        previous: "ก่อนหน้า"
+                    }
+                },
+                columns: [
+                    {
+                        // Checkbox column — not sortable
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center',
+                        render: () => `<div class="form-check d-flex justify-content-center m-0"><input class="form-check-input row-checkbox" type="checkbox"></div>`
+                    },
+                    {
+                        // บริษัท / สาขา
+                        data: null,
+                        render: (d) => `<div class="company-name">${d.name || '-'}</div><div class="branch-name">${d.code || '-'}</div>`
+                    },
+                    {
+                        // ชื่อ Campaign
+                        data: 'name',
+                        defaultContent: '-'
+                    },
+                    {
+                        // รหัส Product
+                        data: 'code',
+                        defaultContent: '-'
+                    },
+                    {
+                        // ประเภท / ช่วงเวลา
+                        data: null,
+                        render: (d) => `${d.startDate || '-'} ~ ${d.endDate || '-'}`
+                    },
+                    {
+                        // สถานะ
+                        data: 'status',
+                        defaultContent: '-',
+                        render: (d) => {
+                            const cls = d === 'Active' ? 'bg-success' : 'bg-secondary';
+                            return `<span class="badge rounded-pill ${cls}">${d}</span>`;
+                        }
+                    }
+                ],
+                columnDefs: [
+                    { targets: 0, width: '40px' }
+                ],
+                drawCallback: function() {
+                    // Re-bind row checkboxes after each draw
+                    rowCheckboxes = document.querySelectorAll('.row-checkbox');
+                    rowCheckboxes.forEach(cb => {
+                        cb.addEventListener('change', function () {
+                            updateSelectedList();
+                            updateCheckAllStatus();
+                        });
+                    });
+                    updateSelectedList();
+                    updateCheckAllStatus();
+
+                    // Update total found text
+                    const totalFoundText = document.getElementById('totalFoundText');
+                    if (totalFoundText) {
+                        totalFoundText.textContent = `รายการ Campaign (พบ ${$dt.rows({ search: 'applied' }).count()} รายการ จากทั้งหมด ${campainData.length} รายการ)`;
+                    }
                 }
-            }
-            
+            });
+
             rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
-            // --- 1. Filter Logic & Pagination ---
+            // --- 1. Filter Logic (DataTables-based) ---
             const btnLoadCustomers = document.getElementById('btnLoadCustomers');
             const btnClearFilters = document.getElementById('btnClearFilters');
-            
-            let filteredRows = [];
-            let currentPage = 1;
-            let rowsPerPage = 10;
+
+            // Custom DataTables search filter for status dropdown
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                if (settings.nTable.id !== 'batchListContainer') return true;
+                const fStatus = document.getElementById('filterStatus')?.value || '';
+                if (!fStatus) return true;
+                // Column 5 = status text (strip HTML tags)
+                const rowStatus = $('<div>').html(data[5]).text().trim();
+                return rowStatus === fStatus;
+            });
 
             function applyFilters() {
-                const fCustType = document.getElementById('filterCustType').value;
-                const fGender = document.getElementById('filterGender').value;
-                const fAgeMin = parseInt(document.getElementById('filterAgeMin').value) || 0;
-                const fAgeMax = parseInt(document.getElementById('filterAgeMax').value) || 999;
-                const fJob = document.getElementById('filterJob').value;
-                const fStatus = document.getElementById('filterStatus').value;
-                const fBranch = document.getElementById('filterBranch').value.toLowerCase();
-                const fDateStart = document.getElementById('filterDateStart').value;
-                const fDateEnd = document.getElementById('filterDateEnd').value;
-                
-                filteredRows = [];
-                const rows = dataTable.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const branchName = row.querySelector('.branch-name').textContent.toLowerCase();
-                    const custType = row.getAttribute('data-custtype') || '';
-                    const gender = row.getAttribute('data-gender') || '';
-                    const age = parseInt(row.getAttribute('data-age')) || 0;
-                    const job = row.getAttribute('data-job') || '';
-                    const status = row.getAttribute('data-status') || '';
-                    const date = row.getAttribute('data-date') || '';
-                    
-                    let match = true;
-                    if (fBranch !== "" && !branchName.includes(fBranch)) match = false;
-                    if (fCustType !== "" && custType !== fCustType) match = false;
-                    if (fGender !== "" && gender !== fGender) match = false;
-                    if (age < fAgeMin || age > fAgeMax) match = false;
-                    if (fJob !== "" && job !== fJob) match = false;
-                    if (fStatus !== "" && status !== fStatus) match = false;
-                    
-                    if (fDateStart !== "" && date !== "" && date < fDateStart) match = false;
-                    if (fDateEnd !== "" && date !== "" && date > fDateEnd) match = false;
-                    
-                    if (match) {
-                        filteredRows.push(row);
-                    } else {
-                        row.classList.add('d-none');
-                        row.style.display = 'none';
-                        const cb = row.querySelector('.row-checkbox');
-                        if (cb) cb.checked = false;
-                    }
-                });
-                
-                const totalFoundText = document.getElementById('totalFoundText');
-                if (totalFoundText) {
-                    totalFoundText.textContent = `รายการลูกค้า (พบ ${filteredRows.length} รายการ)`;
-                }
-                currentPage = 1;
-                updatePagination();
+                const fStatus = document.getElementById('filterStatus')?.value || '';
+                // Use DataTables global search for the status; redraw triggers ext.search
+                $dt.draw();
             }
 
-            function updatePagination() {
-                const rppSelect = document.getElementById('rowsPerPage');
-                if (rppSelect) {
-                    rowsPerPage = parseInt(rppSelect.value) || 10;
-                }
-                const totalPages = Math.ceil(filteredRows.length / rowsPerPage) || 1;
-                
-                if (currentPage > totalPages) currentPage = totalPages;
-                if (currentPage < 1) currentPage = 1;
-                
-                filteredRows.forEach(row => {
-                    row.classList.add('d-none');
-                    row.style.display = 'none';
-                });
-                
-                const startIndex = (currentPage - 1) * rowsPerPage;
-                const endIndex = startIndex + rowsPerPage;
-                for (let i = startIndex; i < endIndex && i < filteredRows.length; i++) {
-                    filteredRows[i].classList.remove('d-none');
-                    filteredRows[i].style.display = '';
-                }
-                
-                renderPaginationUI(totalPages);
-                updateSelectedList();
-                updateCheckAllStatus();
-            }
-
-            function renderPaginationUI(totalPages) {
-                const paginationContainer = document.getElementById('tablePagination');
-                if (!paginationContainer) return;
-                
-                let html = '';
-                
-                // Previous button
-                html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="prev"><i class="bi bi-chevron-left"></i></a></li>`;
-                
-                let startPage = Math.max(1, currentPage - 2);
-                let endPage = Math.min(totalPages, currentPage + 2);
-                
-                if (startPage > 1) {
-                    html += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
-                    if (startPage > 2) {
-                        html += `<li class="page-item disabled"><a class="page-link" href="#">...</a></li>`;
-                    }
-                }
-                
-                for (let i = startPage; i <= endPage; i++) {
-                    html += `<li class="page-item ${currentPage === i ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
-                }
-                
-                if (endPage < totalPages) {
-                    if (endPage < totalPages - 1) {
-                        html += `<li class="page-item disabled"><a class="page-link" href="#">...</a></li>`;
-                    }
-                    html += `<li class="page-item"><a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a></li>`;
-                }
-                
-                // Next button
-                html += `<li class="page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="next"> <i class="bi bi-chevron-right"></i></a></li>`;
-                
-                paginationContainer.innerHTML = html;
-                
-                paginationContainer.querySelectorAll('.page-link').forEach(link => {
-                    link.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        if (this.parentElement.classList.contains('disabled')) return;
-                        
-                        const page = this.getAttribute('data-page');
-                        if (!page) return;
-                        
-                        if (page === 'prev') {
-                            currentPage--;
-                        } else if (page === 'next') {
-                            currentPage++;
-                        } else {
-                            currentPage = parseInt(page);
-                        }
-                        updatePagination();
-                    });
-                });
-                
-                const goToInput = document.getElementById('goToPageInput');
-                if (goToInput) goToInput.value = currentPage;
-            }
-
-            const rowsPerPageSelect = document.getElementById('rowsPerPage');
-            if (rowsPerPageSelect) {
-                rowsPerPageSelect.addEventListener('change', function() {
-                    currentPage = 1;
-                    updatePagination();
-                });
-            }
-
-            const goToPageInput = document.getElementById('goToPageInput');
-            if (goToPageInput) {
-                goToPageInput.addEventListener('change', function() {
-                    const page = parseInt(this.value);
-                    if (!isNaN(page) && page > 0) {
-                        currentPage = page;
-                        updatePagination();
-                    }
-                });
-            }
+            function updatePagination() { /* no-op: DataTables handles pagination */ }
 
             if(btnLoadCustomers) {
                 btnLoadCustomers.addEventListener('click', applyFilters);
@@ -539,7 +474,7 @@
                     document.getElementById('filterAgeMax').value = '60';
                     document.getElementById('filterDateStart').value = '2024-05-01';
                     document.getElementById('filterDateEnd').value = '2024-05-12';
-                    applyFilters();
+                    $dt.search('').draw();
                 });
             }
 
@@ -562,17 +497,17 @@
                 let selectedCount = 0;
 
                 rowCheckboxes.forEach((checkbox, index) => {
-                    if (checkbox.checked && !checkbox.closest('tr').classList.contains('d-none')) {
+                    if (checkbox.checked) {
                         selectedCount++;
                         const tr = checkbox.closest('tr');
-                        const customerName = tr.cells[2].textContent.trim();
-                        const contractNo = tr.cells[3].textContent.trim();
+                        const campaignName = tr.cells[2]?.textContent.trim() || '-';
+                        const productCode  = tr.cells[3]?.textContent.trim() || '-';
 
                         const newRow = document.createElement('tr');
                         newRow.innerHTML = `
                             <td class="text-center text-muted">${selectedCount}</td>
-                            <td>${customerName}</td>
-                            <td class="text-muted">${contractNo}</td>
+                            <td>${campaignName}</td>
+                            <td class="text-muted">${productCode}</td>
                             <td class="text-center"><i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${index}"></i></td>
                         `;
                         selectedTableBody.appendChild(newRow);
@@ -598,7 +533,7 @@
             }
 
             function updateCheckAllStatus() {
-                const visibleCheckboxes = Array.from(rowCheckboxes).filter(cb => !cb.closest('tr').classList.contains('d-none'));
+                const visibleCheckboxes = Array.from(rowCheckboxes);
                 const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
                 const someChecked = visibleCheckboxes.some(cb => cb.checked);
                 
@@ -609,9 +544,7 @@
             checkAll.addEventListener('change', function () {
                 const isChecked = this.checked;
                 rowCheckboxes.forEach(checkbox => {
-                    if (!checkbox.closest('tr').classList.contains('d-none')) {
-                        checkbox.checked = isChecked;
-                    }
+                    checkbox.checked = isChecked;
                 });
                 updateSelectedList();
             });
@@ -631,8 +564,7 @@
                 });
             }
 
-            // Initialize filter, pagination, and selected list on load
-            applyFilters();
+            // DataTables renders the initial draw; no manual applyFilters() call needed.
 
             // --- 3. Export to Excel Logic ---
             const btnExportExcel = document.getElementById('btnExportExcel');
@@ -723,19 +655,19 @@
             const batchPagination = document.getElementById('batchPagination');
             const batchListText = document.getElementById('batchListText');
             
-            if (batchListContainer && batchPagination && batchListText) {
+            if (dataTable && batchPagination && batchListText) {
                 let currentBatchPage = 1;
                 const batchesPerPage = 5;
                 const totalBatchItems = allBatches.length;
                 const totalBatchPages = Math.ceil(totalBatchItems / batchesPerPage);
                 
                 function renderBatchPage() {
-                    batchListContainer.innerHTML = '';
+                    dataTable.innerHTML = '';
                     const startIdx = (currentBatchPage - 1) * batchesPerPage;
                     const endIdx = Math.min(startIdx + batchesPerPage, totalBatchItems);
                     
                     for (let i = startIdx; i < endIdx; i++) {
-                        batchListContainer.appendChild(allBatches[i]);
+                        dataTable.appendChild(allBatches[i]);
                     }
                     
                     batchListText.textContent = `แสดง ${startIdx + 1} - ${endIdx} จาก ${totalBatchItems} รายการ`;
@@ -767,9 +699,9 @@
                     });
                     
                     // Add click event for cards to be active
-                    batchListContainer.querySelectorAll('.batch-card').forEach(card => {
+                    dataTable.querySelectorAll('.batch-card').forEach(card => {
                         card.addEventListener('click', function() {
-                            batchListContainer.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
+                            dataTable.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
                             this.classList.add('active');
                         });
                     });
@@ -778,5 +710,6 @@
                 renderBatchPage();
             }
         });
+    
     </script>
 }

@@ -22,10 +22,10 @@ namespace webCRM.Models
         public string? ProductName { get; set; }
 
         [JsonPropertyName("product_start")]
-        public DateTime ProductStart { get; set; }
+        public string? ProductStart { get; set; }
 
         [JsonPropertyName("product_end")]
-        public DateTime ProductEnd { get; set; }
+        public string? ProductEnd { get; set; }
 
         [JsonPropertyName("product_remark")]
         public string? ProductRemark { get; set; }
@@ -35,6 +35,12 @@ namespace webCRM.Models
 
         [JsonPropertyName("createrd_by")]
         public string? CreatedBy { get; set; }
+
+        [JsonPropertyName("product_company")]
+        public string? ProductCompany { get; set; }
+
+        [JsonPropertyName("offcde")]
+        public string? Offcde { get; set; }
     }
 
     public class FilterInfo
@@ -55,10 +61,10 @@ namespace webCRM.Models
         public string? ProductName { get; set; }
 
         [JsonPropertyName("product_start")]
-        public DateTime ProductStart { get; set; }
+        public DateTime? ProductStart { get; set; }
 
         [JsonPropertyName("product_end")]
-        public DateTime ProductEnd { get; set; }
+        public DateTime? ProductEnd { get; set; }
 
         [JsonPropertyName("product_remark")]
         public string? ProductRemark { get; set; }
@@ -76,16 +82,31 @@ namespace webCRM.Models
         public string? Offcde { get; set; }
 
         [JsonPropertyName("created")]
-        public DateTime Created { get; set; }
+        public DateTime? Created { get; set; }
 
         [JsonPropertyName("createrd_by")]
         public string? CreatedBy { get; set; }
 
         [JsonPropertyName("updated")]
-        public DateTime Updated { get; set; }
+        public DateTime? Updated { get; set; }
 
         [JsonPropertyName("updated_by")]
         public string? UpdatedBy { get; set; }
     }
-        
+
+    public class Branch
+    {
+        [JsonPropertyName("offcde")]
+        public string? Offcde { get; set; }
+
+        [JsonPropertyName("branch_name")]
+        public string? BranchName { get; set; }
+
+        [JsonPropertyName("Hub")]
+        public string? Hub { get; set; }
+
+        [JsonPropertyName("Bname")]
+        public string? Bname { get; set; }
+    }
+
 }

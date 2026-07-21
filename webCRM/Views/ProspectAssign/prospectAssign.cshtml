@@ -815,6 +815,30 @@
 
         // Initialize
         updateCount();
+
+        async function getCampainList()
+        {
+            try {
+                Swal.fire({
+                    title: 'กำลังโหลดข้อมูล...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const response = await fetch(`/Campain/GetCampainList`);
+                const data = await response.json();
+                Swal.close();
+                return data;
+            }
+            catch(error){
+                console.error(error);
+                Swal.close();
+                return [];
+            }
+        }
+
     })();
 
     // =============================================

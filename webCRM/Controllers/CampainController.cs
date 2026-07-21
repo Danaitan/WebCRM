@@ -11,14 +11,14 @@ namespace webCRM.Controllers
     public class CampainController(IConfiguration configuration) : Controller
     {
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings_BearerToken") ?? configuration["ApiSettings:BearerToken"];
-        string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
-
+        // string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
+        string? domain = "https://localhost:7103";
         public async Task<IActionResult> Index()
         {
             return View("campain");
         }
 
-        public async Task<List<ProductGet>> GetCampainList(string userId)
+        public async Task<List<ProductGet>> GetCampainList()
         {
 
             try
@@ -31,6 +31,7 @@ namespace webCRM.Controllers
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     string getCase = "ownerview";
+                    string userId = HttpContext.Session.GetString("personalId") ?? "";
                     var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProducts/{userId}/{getCase}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
@@ -50,8 +51,8 @@ namespace webCRM.Controllers
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
                 return new List<ProductGet>();
             }
-           
-           return new List<ProductGet>();
+
+            return new List<ProductGet>();
 
         }
 
@@ -76,18 +77,16 @@ namespace webCRM.Controllers
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการลบข้อมูล: " + ex.Message;
                 return "Remove Failed";
             }
-           
-           return "Remove Success";
+
+            return "Remove Success";
 
         }
 
         [HttpPost]
-        public async Task<IActionResult> PostCampain(PostCampaign request)
+        public async Task<IActionResult> PostCampain([FromBody] PostCampaign request)
         {
-
             try
             {
-
                 var handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
@@ -96,7 +95,7 @@ namespace webCRM.Controllers
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 var content = new StringContent(
-                    JsonSerializer.Serialize(request),
+                    JsonSerializer.Serialize(new[] { request }),
                     Encoding.UTF8,
                     "application/json");
 
@@ -112,7 +111,6 @@ namespace webCRM.Controllers
                 string json = await response.Content.ReadAsStringAsync();
 
                 return Ok(new { status = "success" });
-
             }
             catch (System.Exception ex)
             {
@@ -121,6 +119,43 @@ namespace webCRM.Controllers
 
         }
 
+        public async Task<List<Branch>> getBranchListForCRM()
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getBranchListForCRM");
 
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string data = await response.Content.ReadAsStringAsync();
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<Branch>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var result = apiResponse;
+
+                        return result ?? new List<Branch>();
+                    }
+                    else
+                    {
+                        // Handle non-success status codes (like 404) gracefully
+                        Console.WriteLine($"API Error: {response.StatusCode}");
+                        return new List<Branch>();
+                    }
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return new List<Branch>();
+            }
+        }
+    
+    
     }
 }

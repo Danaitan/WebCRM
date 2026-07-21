@@ -94,6 +94,8 @@ body.crm-body {
     max-height: calc(100vh - 280px);
     overflow-y: auto;
     padding-right: 4px;
+    background-color: transparent !important;  
+    border-color: transparent !important;
 }
 
 .campaign-list-container::-webkit-scrollbar {
@@ -105,7 +107,8 @@ body.crm-body {
 }
 
 .campaign-list-container::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background-color: transparent !important;  
+    border-color: transparent !important;
     border-radius: 4px;
 }
 
@@ -758,4 +761,66 @@ body.crm-body {
 
 .btn-sort-trigger:hover {
     color: #3b82f6;
+}
+
+/* Hide DataTables default sorting icon on our single column */
+table.dataTable thead th, table.dataTable thead td {
+    border-bottom: none;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+.dataTables_wrapper .dataTables_paginate {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+}
+.page-item .page-link {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.page-item:not(.disabled) .page-link:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+.page-item.active .page-link {
+    background: #2563eb;
+    color: #fff;
+    font-weight: 600;
+}
+.page-item.disabled .page-link {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+}
+#campaignsTable {
+    border-collapse: collapse;
+    background-color: transparent !important;
+    --bs-table-bg: transparent;
+}
+#campaignsTable > :not(caption) > * > * {
+    background-color: transparent !important;
+}
+#campaignsTable td {
+    border: none !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+}
+#campaignsTable thead {
+    display: none;
 }

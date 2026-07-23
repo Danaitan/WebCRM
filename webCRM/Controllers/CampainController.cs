@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Runtime.CompilerServices;
 
 namespace webCRM.Controllers
 {
@@ -155,7 +156,120 @@ namespace webCRM.Controllers
                 return new List<Branch>();
             }
         }
-    
+
+        public async Task<List<MasterFilter>> GetMasterFilter()
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var company = HttpContext.Session.GetString("company");
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getMasterFilter/{company}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string data = await response.Content.ReadAsStringAsync();
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<MasterFilter>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var result = apiResponse;
+
+                        return result ?? new List<MasterFilter>();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"API Error: {response.StatusCode}");
+                        return new List<MasterFilter>();
+                    }
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return new List<MasterFilter>();
+            }
+
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> InsertFilter([FromBody] List<PostFilter> request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync(
+                    $"{domain}/crm/api/v1/p2/postNewProductFilter",
+                    content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+
+                string json = await response.Content.ReadAsStringAsync();
+
+                return Ok(new { status = "success" });
+            }
+            catch (System.Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+
+        }
+
+        [HttpGet]
+        public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var company = HttpContext.Session.GetString("company");
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductFilterByGuid/{fguid}/{company}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string data = await response.Content.ReadAsStringAsync();
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<GetFilterByGuid>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var result = apiResponse;
+
+                        return result ?? new List<GetFilterByGuid>();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"API Error: {response.StatusCode}");
+                        return new List<GetFilterByGuid>();
+                    }
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return new List<GetFilterByGuid>();
+            }
+        }
     
     }
 }

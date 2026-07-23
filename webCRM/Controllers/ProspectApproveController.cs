@@ -18,5 +18,10 @@ namespace webCRM.Controllers
             return View("productApprove");
         }
 
+        //public async Task<> Get()
+        //{
+        //    return null;
+        //}
+        
     }
 }

@@ -19,6 +19,9 @@
         warning: function (title, text) {
             return Swal.fire({ title: title, text: text, icon: "warning" });
         },
+        error: function (title, text) {
+            return Swal.fire({ title: title, text: text, icon: "error" });
+        },
         confirmDelete: function (campaignCode) {
             return Swal.fire({
                 title: "ยืนยันการลบ?",

@@ -45,8 +45,14 @@ namespace webCRM.Models
 
     public class FilterInfo
     {
+        [JsonPropertyName("fguid")]
+        public string? FGuid { get; set; }
+
         [JsonPropertyName("fcode")]
         public string? FCode { get; set; }
+
+        [JsonPropertyName("fcompany")]
+        public string? FCompany { get; set; }
     }
 
     public class ProductGet
@@ -109,4 +115,76 @@ namespace webCRM.Models
         public string? Bname { get; set; }
     }
 
+    public class MasterFilter
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("fcode")]
+        public string? FCode { get; set; }
+
+        [JsonPropertyName("fname")]
+        public string? FName { get; set; }
+
+        [JsonPropertyName("fremark")]
+        public string? FRemark { get; set; }
+
+        [JsonPropertyName("ftype")]
+        public string? FType { get; set; }
+
+        [JsonPropertyName("fcompany")]
+        public string? FCompany { get; set; }
+
+        [JsonPropertyName("fstatus")]
+        public string? FStatus { get; set; }
+
+        [JsonPropertyName("fremark2")]
+        public string? FRemark2 { get; set; }
+    }
+
+    public class PostFilter
+    {
+        [JsonPropertyName("fguid")]
+        public string? fguid { get; set; }
+
+        [JsonPropertyName("fcode")]
+        public string? fcode { get; set; }
+
+        [JsonPropertyName("fcompany")]
+        public string? fcompany { get; set; }
+    }
+
+    public class GetFilterByGuid
+    {
+        [JsonPropertyName("fguid")]
+        public string? fguid { get; set; }
+        [JsonPropertyName("fcode")]
+        public string? fcode { get; set; }
+        [JsonPropertyName("fname")]
+        public string? fname { get; set; }
+        [JsonPropertyName("fremark")]
+        public string? fremark { get; set; }
+        [JsonPropertyName("fremark2")]
+        public string? fremark2 { get; set; }
+        [JsonPropertyName("ftype")]
+        public string? ftype { get; set; }
+        [JsonPropertyName("fcompany")]
+        public string? fcompany { get; set; }
+        [JsonPropertyName("subOptions")]
+        public List<subOptions>? subOptions { get; set; }
+    }
+
+    public class subOptions
+    {
+        [JsonPropertyName("cde")]
+        public string? cde { get; set; }
+        [JsonPropertyName("name")]
+        public string? name { get; set; }
+        [JsonPropertyName("fname")]
+        public string? fname { get; set; }
+        [JsonPropertyName("company")]
+        public string? company { get; set; }
+              
+    }
+    
 }

@@ -20,30 +20,30 @@
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label-custom">Product/Campaign Code</label>
-                        <input type="text" class="form-control form-control-custom" placeholder="เช่น CAM-202505">
+                        <input type="text" id="filterCampaignCode" class="form-control form-control-custom" placeholder="เช่น CAM-202505">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">Product/Campaign Name</label>
-                        <input type="text" class="form-control form-control-custom" placeholder="เช่น สินเชื่อรถยนต์ พ.ศ. 2568">
+                        <input type="text" id="filterCampaignName" class="form-control form-control-custom" placeholder="เช่น สินเชื่อรถยนต์ พ.ศ. 2568">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">วันที่เริ่มต้น</label>
                         <div class="position-relative">
                             <i class="bi bi-calendar position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
-                            <input type="text" class="form-control form-control-custom" value="01/05/2568" style="padding-left: 35px;">
+                            <input type="text" id="filterStartDate" class="form-control form-control-custom" value="" style="padding-left: 35px;">
                         </div>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">วันที่สิ้นสุด</label>
                         <div class="position-relative">
                             <i class="bi bi-calendar position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
-                            <input type="text" class="form-control form-control-custom" value="31/05/2568" style="padding-left: 35px;">
+                            <input type="text" id="filterEndDate" class="form-control form-control-custom" value="" style="padding-left: 35px;">
                         </div>
                     </div>
                     
                     <div class="col-md-5">
                         <label class="form-label-custom">หมายเหตุ</label>
-                        <input type="text" class="form-control form-control-custom" placeholder="ระบุหมายเหตุ (ถ้ามี)">
+                        <input type="text" id="filterRemark" class="form-control form-control-custom" placeholder="ระบุหมายเหตุ (ถ้ามี)">
                     </div>
                     <div class="col-md-7">
                         <label class="form-label-custom">เลือกสาขา / Branch (เลือกได้หลายสาขา)</label>
@@ -128,14 +128,6 @@
                 </div>
                 
                 <div class="d-flex gap-3 mb-4">
-                    <div class="assign-method-btn active">
-                        <i class="bi bi-person"></i>
-                        <span>Assign To<br>Staff</span>
-                    </div>
-                    <div class="assign-method-btn">
-                        <i class="bi bi-people"></i>
-                        <span>Assign To<br>Group</span>
-                    </div>
                     <div class="assign-method-btn">
                         <i class="bi bi-robot"></i>
                         <span>Auto<br>Assign</span>
@@ -177,6 +169,7 @@
                 <button id="assignBtn" class="btn-primary-custom w-100 d-flex align-items-center justify-content-center gap-2 py-3 mt-auto" style="font-size: 1rem;">
                     Assign
                 </button>
+                
             </div>
         </div>
         
@@ -188,120 +181,16 @@
         <!-- Left: Batch List -->
         <div class="col-xl-3 col-lg-4 d-flex flex-column h-100">
             <div class="card-custom d-flex flex-column h-100">
-                <div class="batch-list-header">
-                    <span class="batch-list-title">Batch / ชุดข้อมูล</span>
-                    <button class="btn btn-sm btn-outline-custom py-1 px-2 d-flex align-items-center gap-1">
-                        <i class="bi bi-plus"></i> สร้าง Batch
-                    </button>
-                </div>
                 
                 <div class="p-3 border-bottom">
                     <div class="position-relative">
                         <i class="bi bi-search position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
-                        <input type="text" class="form-control form-control-custom bg-light border-0" placeholder="ค้นหา Batch" style="padding-left: 35px;">
+                        <input type="text" id="batchSearchInput" class="form-control form-control-custom bg-light border-0" placeholder="ค้นหา" style="padding-left: 35px;">
                     </div>
                 </div>
                 
                 <div class="flex-grow-1 overflow-auto" id="batchListContainer">
-                    <!-- Batch Items -->
-                    <div class="batch-item active" data-batch-index="0">
-                        <div class="batch-item-id">
-                            <span class="text-primary">APP-0007</span>
-                            <span class="batch-status waiting">waiting approve</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>31/05/2568 10:30</span>
-                            <span>842 รายการ</span>
-                        </div>
-                    </div>
-                    
-                    <div class="batch-item" data-batch-index="1">
-                        <div class="batch-item-id">
-                            <span>APP-0006</span>
-                            <span class="batch-status approved">approved</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>30/05/2568 16:45</span>
-                            <span>653 รายการ</span>
-                        </div>
-                    </div>
-                    
-                    <div class="batch-item" data-batch-index="2">
-                        <div class="batch-item-id">
-                            <span>APP-0005</span>
-                            <span class="batch-status approved">approved</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>29/05/2568 14:20</span>
-                            <span>521 รายการ</span>
-                        </div>
-                    </div>
-                    
-                    <div class="batch-item" data-batch-index="3">
-                        <div class="batch-item-id">
-                            <span>APP-0004</span>
-                            <span class="batch-status draft">draft</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>28/05/2568 09:15</span>
-                            <span>428 รายการ</span>
-                        </div>
-                    </div>
-                    
-                    <div class="batch-item" data-batch-index="4">
-                        <div class="batch-item-id">
-                            <span>APP-0003</span>
-                            <span class="batch-status waiting">waiting approve</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>27/05/2568 11:05</span>
-                            <span>312 รายการ</span>
-                        </div>
-                    </div>
-                    
-                    <div class="batch-item" data-batch-index="5">
-                        <div class="batch-item-id">
-                            <span>APP-0002</span>
-                            <span class="batch-status approved">approved</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>26/05/2568 15:40</span>
-                            <span>601 รายการ</span>
-                        </div>
-                    </div>
-
-                    <div class="batch-item" data-batch-index="6">
-                        <div class="batch-item-id">
-                            <span>APP-0001</span>
-                            <span class="batch-status approved">approved</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>25/05/2568 08:00</span>
-                            <span>389 รายการ</span>
-                        </div>
-                    </div>
-
-                    <div class="batch-item" data-batch-index="7">
-                        <div class="batch-item-id">
-                            <span>APP-0008</span>
-                            <span class="batch-status draft">draft</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>24/05/2568 13:10</span>
-                            <span>210 รายการ</span>
-                        </div>
-                    </div>
-
-                    <div class="batch-item" data-batch-index="8">
-                        <div class="batch-item-id">
-                            <span>APP-0009</span>
-                            <span class="batch-status waiting">waiting approve</span>
-                        </div>
-                        <div class="batch-item-details">
-                            <span>23/05/2568 17:55</span>
-                            <span>475 รายการ</span>
-                        </div>
-                    </div>
+                    <!-- Batch items rendered dynamically -->
                 </div>
                 
                 <div class="p-3 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
@@ -578,6 +467,36 @@
 @section Scripts {
 <script>
 
+    async function getCampainList() {
+        try {
+            Swal.fire({
+                title: 'กำลังโหลดข้อมูล...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            const response = await fetch(`/Campain/GetCampainList`);
+            const data = await response.json();
+            const mapped = data.map(item => ({
+                code:      item.product_code   || '',
+                name:      item.product_name   || '',
+                status:    item.product_status || 'ปกติ',
+                startDate: item.product_start  ? item.product_start.substring(0, 10) : '',
+                endDate:   item.product_end    ? item.product_end.substring(0, 10)   : '',
+                remark:    item.product_remark || '',
+                createdBy: item.createrd_by    || item.created_by || '',
+                created:   item.created        ? item.created.substring(0, 10)       : ''
+            }));
+            Swal.close();
+            return mapped;
+        } catch (error) {
+            console.error(error);
+            Swal.close();
+            return [];
+        }
+    }
+
     (function () {
         const tbody = document.querySelector('.table-custom tbody');
         if (!tbody) return;
@@ -681,79 +600,196 @@
     })();
 
     // =============================================
-    // BATCH LIST PAGINATION
+    // BATCH LIST & CAMPAIGN DATA LOADING
     // =============================================
     (function () {
-        const batchItems = Array.from(document.querySelectorAll('#batchListContainer .batch-item'));
-        const totalBatch = batchItems.length;
-        const batchPerPage = 6;
+        let allCampaigns = [];
+        let filteredCampaigns = [];
         let batchPage = 1;
+        const batchPerPage = 6;
+        let selectedIndex = 0;
+
+        function getStatusClass(status) {
+            if (!status) return 'approved';
+            const s = status.toLowerCase();
+            if (s.includes('wait') || s.includes('รอ')) return 'waiting';
+            if (s.includes('draft') || s.includes('ร่าง')) return 'draft';
+            return 'approved';
+        }
 
         function getTotalBatchPages() {
-            return Math.max(1, Math.ceil(totalBatch / batchPerPage));
+            return Math.max(1, Math.ceil(filteredCampaigns.length / batchPerPage));
+        }
+
+        function selectCampaign(index) {
+            selectedIndex = index;
+            const container = document.getElementById('batchListContainer');
+            if (!container) return;
+
+            const items = container.querySelectorAll('.batch-item');
+            items.forEach((el, i) => {
+                const globalIdx = (batchPage - 1) * batchPerPage + i;
+                const isSelected = globalIdx === selectedIndex;
+                el.classList.toggle('active', isSelected);
+                const codeSpan = el.querySelector('.batch-item-id span:first-child');
+                if (codeSpan) {
+                    codeSpan.classList.toggle('text-primary', isSelected);
+                }
+            });
+
+            const campaign = filteredCampaigns[selectedIndex];
+            if (campaign) {
+                const codeInput = document.getElementById('filterCampaignCode');
+                const nameInput = document.getElementById('filterCampaignName');
+                const startInput = document.getElementById('filterStartDate');
+                const endInput = document.getElementById('filterEndDate');
+                const remarkInput = document.getElementById('filterRemark');
+
+                if (codeInput) codeInput.value = campaign.code;
+                if (nameInput) nameInput.value = campaign.name;
+                if (startInput) startInput.value = campaign.startDate;
+                if (endInput) endInput.value = campaign.endDate;
+                if (remarkInput) remarkInput.value = campaign.remark;
+            }
         }
 
         function renderBatch() {
-            const start = (batchPage - 1) * batchPerPage;
-            const end = start + batchPerPage;
-            batchItems.forEach(function (item, i) {
-                item.style.display = (i >= start && i < end) ? '' : 'none';
-            });
+            const container = document.getElementById('batchListContainer');
+            if (!container) return;
 
-            const from = start + 1;
-            const to = Math.min(end, totalBatch);
-            document.getElementById('batchPageInfo').textContent =
-                from + ' - ' + to + ' จาก ' + totalBatch;
+            const total = filteredCampaigns.length;
+
+            if (total === 0) {
+                container.innerHTML = '<div class="p-3 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูล Campaign</div>';
+                document.getElementById('batchPageInfo').textContent = '0 - 0 จาก 0';
+                updatePaginationButtons(1, 1);
+                return;
+            }
 
             const totalPages = getTotalBatchPages();
+            if (batchPage > totalPages) batchPage = totalPages;
+
+            const start = (batchPage - 1) * batchPerPage;
+            const end = Math.min(start + batchPerPage, total);
+            const pageItems = filteredCampaigns.slice(start, end);
+
+            let html = '';
+            pageItems.forEach((item, idx) => {
+                const globalIdx = start + idx;
+                const isSelected = globalIdx === selectedIndex;
+                const statusClass = getStatusClass(item.status);
+                const displayCode = item.code || item.name || 'N/A';
+                const displayDate = item.created || item.startDate || '';
+                const displayName = item.name || item.remark || '';
+
+                html += `
+                    <div class="batch-item ${isSelected ? 'active' : ''}" data-batch-index="${globalIdx}">
+                        <div class="batch-item-id">
+                            <span class="${isSelected ? 'text-primary' : ''}">${displayCode}</span>
+                            <span class="batch-status ${statusClass}">${item.status}</span>
+                        </div>
+                        <div class="batch-item-details">
+                            <span>${displayDate}</span>
+                            <span>${displayName}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Add click events to rendered batch items
+            container.querySelectorAll('.batch-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    const idx = parseInt(this.getAttribute('data-batch-index'), 10);
+                    selectCampaign(idx);
+                });
+            });
+
+            // Update page info
+            const from = start + 1;
+            const to = end;
+            document.getElementById('batchPageInfo').textContent = `${from} - ${to} จาก ${total}`;
+
+            updatePaginationButtons(batchPage, totalPages);
+        }
+
+        function updatePaginationButtons(currentPage, totalPages) {
             const firstBtn = document.getElementById('batchFirstBtn');
             const prevBtn = document.getElementById('batchPrevBtn');
             const nextBtn = document.getElementById('batchNextBtn');
 
-            if (batchPage === 1) {
-                firstBtn.style.opacity = '0.35';
-                firstBtn.style.cursor = 'not-allowed';
-                prevBtn.style.opacity = '0.35';
-                prevBtn.style.cursor = 'not-allowed';
-            } else {
-                firstBtn.style.opacity = '1';
-                firstBtn.style.cursor = 'pointer';
-                prevBtn.style.opacity = '1';
-                prevBtn.style.cursor = 'pointer';
-            }
+            if (firstBtn && prevBtn && nextBtn) {
+                if (currentPage === 1) {
+                    firstBtn.style.opacity = '0.35';
+                    firstBtn.style.cursor = 'not-allowed';
+                    prevBtn.style.opacity = '0.35';
+                    prevBtn.style.cursor = 'not-allowed';
+                } else {
+                    firstBtn.style.opacity = '1';
+                    firstBtn.style.cursor = 'pointer';
+                    prevBtn.style.opacity = '1';
+                    prevBtn.style.cursor = 'pointer';
+                }
 
-            if (batchPage >= totalPages) {
-                nextBtn.style.opacity = '0.35';
-                nextBtn.style.cursor = 'not-allowed';
-            } else {
-                nextBtn.style.opacity = '1';
-                nextBtn.style.cursor = 'pointer';
+                if (currentPage >= totalPages) {
+                    nextBtn.style.opacity = '0.35';
+                    nextBtn.style.cursor = 'not-allowed';
+                } else {
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
+                }
             }
         }
 
-        document.getElementById('batchFirstBtn').addEventListener('click', function () {
+        // Search listener
+        const searchInput = document.getElementById('batchSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const q = this.value.toLowerCase().trim();
+                if (!q) {
+                    filteredCampaigns = [...allCampaigns];
+                } else {
+                    filteredCampaigns = allCampaigns.filter(item =>
+                        (item.code && item.code.toLowerCase().includes(q)) ||
+                        (item.name && item.name.toLowerCase().includes(q)) ||
+                        (item.status && item.status.toLowerCase().includes(q)) ||
+                        (item.remark && item.remark.toLowerCase().includes(q))
+                    );
+                }
+                batchPage = 1;
+                selectedIndex = 0;
+                renderBatch();
+                if (filteredCampaigns.length > 0) {
+                    selectCampaign(0);
+                }
+            });
+        }
+
+        // Pagination buttons
+        document.getElementById('batchFirstBtn')?.addEventListener('click', function () {
             if (batchPage > 1) { batchPage = 1; renderBatch(); }
         });
-        document.getElementById('batchPrevBtn').addEventListener('click', function () {
+        document.getElementById('batchPrevBtn')?.addEventListener('click', function () {
             if (batchPage > 1) { batchPage--; renderBatch(); }
         });
-        document.getElementById('batchNextBtn').addEventListener('click', function () {
+        document.getElementById('batchNextBtn')?.addEventListener('click', function () {
             if (batchPage < getTotalBatchPages()) { batchPage++; renderBatch(); }
         });
 
-        renderBatch();
-    })();
+        // Initialize Campaign List
+        async function init() {
+            allCampaigns = await getCampainList();
+            filteredCampaigns = [...allCampaigns];
+            batchPage = 1;
+            selectedIndex = 0;
+            renderBatch();
+            if (filteredCampaigns.length > 0) {
+                selectCampaign(0);
+            }
+        }
 
-    (function() {
-        const batchItems = document.querySelectorAll('.batch-item');
-        batchItems.forEach(item => {
-            item.addEventListener('click', function() {
-                // Remove active class from all
-                batchItems.forEach(b => b.classList.remove('active'));
-                // Add active class to clicked item
-                this.classList.add('active');
-            });
-        });
+        init();
     })();
 
     (function () {
@@ -795,7 +831,13 @@
 
             const assignBtn = document.getElementById('assignBtn');
             if (assignBtn) {
-                assignBtn.textContent = hasAssigned ? 'ReAssign' : 'Assign';
+                if (hasAssigned) {
+                    assignBtn.textContent = 'ReAssign';
+                } else if (checkedCount > 1) {
+                    assignBtn.textContent = 'Assign To Group';
+                } else {
+                    assignBtn.textContent = 'Assign';
+                }
             }
         }
 
@@ -815,30 +857,6 @@
 
         // Initialize
         updateCount();
-
-        async function getCampainList()
-        {
-            try {
-                Swal.fire({
-                    title: 'กำลังโหลดข้อมูล...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-                const response = await fetch(`/Campain/GetCampainList`);
-                const data = await response.json();
-                Swal.close();
-                return data;
-            }
-            catch(error){
-                console.error(error);
-                Swal.close();
-                return [];
-            }
-        }
-
     })();
 
     // =============================================

@@ -129,14 +129,6 @@
         <div class="card-custom mb-0">
 
                 <div class="card-header-custom border-0 pb-0">
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <h3 class="card-title-custom mb-0 text-primary fs-5 text-nowrap">ข้อมูล Batch</h3>
-                    <div class="d-flex align-items-center gap-2">
-                        <span style="font-size: 0.85rem; white-space: nowrap;">เลือกแล้ว</span>
-                        <span class="badge badge-blue">0</span>
-                        <span style="font-size: 0.85rem; white-space: nowrap;">รายการ</span>
-                    </div>
-                </div>
 
                 <div class="d-flex gap-2 flex-shrink-0">
                     <button class="btn btn-outline-primary btn-sm px-3 d-flex align-items-center gap-1" style="border-radius: 6px; font-weight: 500; font-size: 0.85rem; white-space: nowrap;" id="btnExportExcel">
@@ -150,9 +142,11 @@
             </div>
 
             <div class="card-body-custom pt-3">
-                    <div class="fw-medium mb-2" style="font-size: 0.9rem;" id="totalFoundText">รายการลูกค้า (พบ 228 รายการ)</div>
+                    <div class="fw-medium mb-2" style="font-size: 0.9rem;" id="totalFoundText">รายการลูกค้า (พบ <span id="totalFound">0</span> รายการ)</div>
                     <div class="table-responsive border rounded-3">
-                        <table class="table table-hover table-custom mb-0" id="batchListContainer">
+                        <table class="table table-hover table-custom mb-0" 
+                        id="batchListContainer"
+                        >
                             <thead>
                                 <tr>
                                     <th style="width: 40px; text-align: center;">
@@ -347,88 +341,6 @@
                     allBatches.push(card);
                 });
 
-            const $dt = $('#dataTable').DataTable({
-                data: campainData,
-                autoWidth: false,
-                language: {
-                    emptyTable:     "ไม่มีข้อมูล",
-                    info:           "แสดง _START_ - _END_ จาก _TOTAL_ รายการ",
-                    infoEmpty:      "แสดง 0 - 0 จาก 0 รายการ",
-                    infoFiltered:   "(กรองจาก _MAX_ รายการทั้งหมด)",
-                    lengthMenu:     "แสดง _MENU_ รายการ",
-                    loadingRecords: "กำลังโหลด...",
-                    processing:     "กำลังประมวลผล...",
-                    search:         "ค้นหา:",
-                    zeroRecords:    "ไม่พบข้อมูลที่ตรงกัน",
-                    paginate: {
-                        first:    "หน้าแรก",
-                        last:     "หน้าสุดท้าย",
-                        next:     "ถัดไป",
-                        previous: "ก่อนหน้า"
-                    }
-                },
-                columns: [
-                    {
-                        // Checkbox column — not sortable
-                        data: null,
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-center',
-                        render: () => `<div class="form-check d-flex justify-content-center m-0"><input class="form-check-input row-checkbox" type="checkbox"></div>`
-                    },
-                    {
-                        // บริษัท / สาขา
-                        data: null,
-                        render: (d) => `<div class="company-name">${d.name || '-'}</div><div class="branch-name">${d.code || '-'}</div>`
-                    },
-                    {
-                        // ชื่อ Campaign
-                        data: 'name',
-                        defaultContent: '-'
-                    },
-                    {
-                        // รหัส Product
-                        data: 'code',
-                        defaultContent: '-'
-                    },
-                    {
-                        // ประเภท / ช่วงเวลา
-                        data: null,
-                        render: (d) => `${d.startDate || '-'} ~ ${d.endDate || '-'}`
-                    },
-                    {
-                        // สถานะ
-                        data: 'status',
-                        defaultContent: '-',
-                        render: (d) => {
-                            const cls = d === 'Active' ? 'bg-success' : 'bg-secondary';
-                            return `<span class="badge rounded-pill ${cls}">${d}</span>`;
-                        }
-                    }
-                ],
-                columnDefs: [
-                    { targets: 0, width: '40px' }
-                ],
-                drawCallback: function() {
-                    // Re-bind row checkboxes after each draw
-                    rowCheckboxes = document.querySelectorAll('.row-checkbox');
-                    rowCheckboxes.forEach(cb => {
-                        cb.addEventListener('change', function () {
-                            updateSelectedList();
-                            updateCheckAllStatus();
-                        });
-                    });
-                    updateSelectedList();
-                    updateCheckAllStatus();
-
-                    // Update total found text
-                    const totalFoundText = document.getElementById('totalFoundText');
-                    if (totalFoundText) {
-                        totalFoundText.textContent = `รายการ Campaign (พบ ${$dt.rows({ search: 'applied' }).count()} รายการ จากทั้งหมด ${campainData.length} รายการ)`;
-                    }
-                }
-            });
-
             rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
             // --- 1. Filter Logic (DataTables-based) ---
@@ -437,10 +349,8 @@
 
             // Custom DataTables search filter for status dropdown
             $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                if (settings.nTable.id !== 'batchListContainer') return true;
                 const fStatus = document.getElementById('filterStatus')?.value || '';
                 if (!fStatus) return true;
-                // Column 5 = status text (strip HTML tags)
                 const rowStatus = $('<div>').html(data[5]).text().trim();
                 return rowStatus === fStatus;
             });

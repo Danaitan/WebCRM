@@ -88,6 +88,7 @@ namespace webCRM.Controllers
                 HttpContext.Session.SetString("fullNameEn", $"{result.personalNameEn} {result.personalLastNameEn}");
                 HttpContext.Session.SetString("personalId", result.adAccount);
                 HttpContext.Session.SetString("email", result.eMail ?? "");
+                HttpContext.Session.SetString("company", company);
 
                 return Ok(result);
             }

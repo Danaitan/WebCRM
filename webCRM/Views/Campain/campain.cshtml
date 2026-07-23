@@ -185,32 +185,33 @@
                     </form>
                 </div>
                 
-                <!-- Bottom Grids: Filter Name & Selected -->
                 <div class="row g-4 mb-4" id="filterSelectedRow">
                     <!-- Filter Name Panel -->
                     <div class="col-12 col-md-8">
                         <div class="sub-panel-card">
                             <div class="sub-panel-header">
                                 <div class="sub-panel-title">
-                                    Filter Name
-                                    @* <button class="btn-refresh-list" id="refreshFiltersBtn" title="รีเฟรชตัวกรอง">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </button> *@
+                                    Filter
                                 </div>
-                                <div class="sub-panel-meta">Rows: 0</div>
+                                <div class="sub-panel-meta" id="filterNameRowsCount">Rows: 0</div>
                             </div>
                             
-                            <div style="font-size: 0.85rem; font-weight: 600; display: flex; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-                                <div style="width: 50%; color: #64748b;">Filter Name</div>
-                                <div style="width: 50%; color: #64748b;">อธิบาย</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; display: flex; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
+                                <div style="width: 8%; text-align: center;">
+                                    <input type="checkbox" id="chkSelectAllFilters" style="cursor: pointer;" title="เลือกทั้งหมด">
+                                </div>
+                                <div style="width: 50%; color: #000000;">หัวข้อ Filter</div>
                             </div>
                             
-                            <div class="empty-state-container">
+                            <div class="empty-state-container" id="filterNameEmptyState">
                                 <div class="empty-state-icon">
                                     <i class="bi bi-folder-symlink" style="font-size: 3rem;"></i>
                                 </div>
                                 <div class="empty-state-title">ไม่พบข้อมูล</div>
-                                <div class="empty-state-desc">ยังไม่มี Filter Name</div>
+                                <div class="empty-state-desc">ยังไม่มี Filter</div>
+                            </div>
+
+                            <div id="filterNameListContainer" class="d-none" style="max-height: 250px; overflow-y: auto;">
                             </div>
                         </div>
                     </div>
@@ -219,20 +220,23 @@
                     <div class="col-12 col-md-4">
                         <div class="sub-panel-card">
                             <div class="sub-panel-header">
-                                <div class="sub-panel-title">Selected</div>
+                                <div class="sub-panel-title">Filter ที่ถูกเลือก</div>
+                                <div class="sub-panel-meta" id="selectedFiltersRowsCount">Rows: 0</div>
                             </div>
                             
                             <div style="font-size: 0.85rem; font-weight: 600; display: flex; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-                                <div style="width: 60%; color: #64748b;">Filter Name</div>
-                                <div style="width: 40%; color: #64748b;">Company</div>
+                                <div style="width: 100%; color: #64748b;">ชื่อ Filter</div>
                             </div>
                             
-                            <div class="empty-state-container">
+                            <div class="empty-state-container" id="selectedFiltersEmptyState">
                                 <div class="empty-state-icon">
                                     <i class="bi bi-file-earmark-text" style="font-size: 3rem;"></i>
                                 </div>
                                 <div class="empty-state-title">ไม่พบข้อมูล</div>
                                 <div class="empty-state-desc">ยังไม่มีข้อมูลที่เลือก</div>
+                            </div>
+
+                            <div id="selectedFiltersListContainer" class="d-none" style="max-height: 250px; overflow-y: auto;">
                             </div>
                         </div>
                     </div>
@@ -348,6 +352,243 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
         
+        async function GetFilterByGuid(productGuid)
+        {
+            const guid = productGuid || selectedCampaignGuid || "";
+            if (!guid) return [];
+            try {
+                const response = await fetch(`/Campain/GetFilterByGuid?fguid=${guid}`);
+                if (!response.ok) return [];
+                const data = await response.json();
+                return data || [];
+            } catch (error) {
+                console.error("Error in GetFilterByGuid:", error);
+                return [];
+            }
+        }
+
+        function showFilterLoadingState() {
+            const loadingHtml = `
+                <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    <span style="font-size: 0.85rem;">กำลังโหลดข้อมูล Filter...</span>
+                </div>
+            `;
+
+            $("#selectedFiltersRowsCount").text("Loading...");
+            $("#selectedFiltersEmptyState").addClass("d-none").attr("style", "display: none !important;");
+            $("#selectedFiltersListContainer").removeClass("d-none").show().html(loadingHtml);
+
+            $(".filter-chk, #chkSelectAllFilters").prop("disabled", true);
+        }
+
+        function updateFilterSelectionUI() {
+            $(".filter-chk, #chkSelectAllFilters").prop("disabled", false);
+
+            $(".filter-chk").each(function () {
+                const code = $(this).attr("data-fcode") || $(this).val();
+                $(this).prop("checked", selectedFilterCodes.includes(code));
+            });
+            updateSelectAllFiltersState();
+            updateSelectedFiltersDisplay();
+        }
+
+        async function postFilter(productGuid)
+        {
+            const guid = productGuid || selectedCampaignGuid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
+            const company = '@(Context.Session.GetString("company") ?? "MICRO")';
+
+            const postData = (selectedFilterCodes && selectedFilterCodes.length > 0)
+                ? selectedFilterCodes.map(code => ({
+                    fguid: guid,
+                    fcode: code,
+                    fcompany: company
+                }))
+                : [];
+
+            if (postData.length === 0) {
+                console.warn("No filters selected to post.");
+                return { status: "warning", message: "ยังไม่ได้เลือก Filter" };
+            }
+
+            try {
+                const response = await fetch(`/Campain/InsertFilter`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(postData)
+                });
+                const data = await response.json();
+                console.log("postFilter response:", data);
+                return data;
+            } catch (error) {
+                console.error("Error in postFilter:", error);
+                return { status: "error", message: error.message };
+            }
+        }
+
+        async function getMasterFilter()
+        {
+            try {
+                const response = await fetch(`/Campain/GetMasterFilter`);
+                const data = await response.json();
+                
+                const mappedData = (data || [])
+                    .filter(item => {
+                        const code = (item.fcode || item.fCode || item.FCode || "").toString().toUpperCase();
+                        const name = (item.fname || item.fName || item.FName || "").toString().toLowerCase();
+                        return code !== "F999" && name !== "import";
+                    })
+                    .map(item => ({
+                        id: item.id ?? item.Id ?? 0,
+                        fcode: item.fcode || item.fCode || item.FCode || item.f_code || "",
+                        fname: item.fname || item.fName || item.FName || item.f_name || "",
+                        fremark: item.fremark || item.fRemark || item.FRemark || item.f_remark || "",
+                        ftype: item.ftype || item.fType || item.FType || item.f_type || "",
+                        fcompany: item.fcompany || item.fCompany || item.FCompany || item.f_company || "",
+                        fstatus: item.fstatus || item.fStatus || item.FStatus || item.f_status || "",
+                        fremark2: item.fremark2 || item.fRemark2 || item.FRemark2 || item.f_remark2 || ""
+                    }));
+                
+                console.log("Master Filter Data:", mappedData);
+                return mappedData;
+            } catch (error) {
+                console.error('Error fetching master filter data:', error);
+                return [];
+            }
+        }
+
+        let masterFiltersData = [];
+        let selectedFilterCodes = [];
+
+        async function renderMasterFilters() {
+            try {
+                const $rowsCount = $("#filterNameRowsCount");
+                const $emptyState = $("#filterNameEmptyState");
+                const $container = $("#filterNameListContainer");
+
+                $rowsCount.text("Loading...");
+                $emptyState.addClass("d-none").attr("style", "display: none !important;");
+                $container.removeClass("d-none").show().html(`
+                    <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        <span style="font-size: 0.85rem;">กำลังโหลดหัวข้อ Filter...</span>
+                    </div>
+                `);
+
+                const filters = await getMasterFilter();
+                masterFiltersData = filters || [];
+                $container.empty();
+
+                if (!masterFiltersData || masterFiltersData.length === 0) {
+                    $rowsCount.text("Rows: 0");
+                    $emptyState.removeClass("d-none").attr("style", "display: flex !important;");
+                    $container.addClass("d-none").hide();
+                    updateSelectedFiltersDisplay();
+                    return;
+                }
+
+                $rowsCount.text(`Rows: ${masterFiltersData.length}`);
+                $emptyState.addClass("d-none").attr("style", "display: none !important;");
+                $container.removeClass("d-none").show();
+
+                masterFiltersData.forEach(item => {
+                    const filterName = item.fname || item.fcode || "-";
+                    const description = item.fremark || item.fremark2 || item.ftype || "-";
+                    const isChecked = selectedFilterCodes.includes(item.fcode) ? "checked" : "";
+                    const rowHtml = `
+                        <div class="filter-name-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; cursor: pointer;" data-id="${item.id}" data-fcode="${item.fcode}">
+                            <div style="width: 8%; text-align: center;">
+                                <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" ${isChecked} style="cursor: pointer;">
+                            </div>
+                            <div style="width: 50%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
+                        </div>
+                    `;
+                    $container.append(rowHtml);
+                });
+
+                // Attach checkbox change event
+                $(".filter-chk").off("change").on("change", function (e) {
+                    e.stopPropagation();
+                    const code = $(this).attr("data-fcode") || $(this).val();
+                    if ($(this).is(":checked")) {
+                        if (!selectedFilterCodes.includes(code)) {
+                            selectedFilterCodes.push(code);
+                        }
+                    } else {
+                        selectedFilterCodes = selectedFilterCodes.filter(c => c !== code);
+                    }
+                    updateSelectAllFiltersState();
+                    updateSelectedFiltersDisplay();
+                });
+
+                // Click row toggles checkbox
+                $(".filter-name-row").off("click").on("click", function (e) {
+                    if ($(e.target).is("input[type='checkbox']")) return;
+                    const $chk = $(this).find(".filter-chk");
+                    $chk.prop("checked", !$chk.is(":checked")).trigger("change");
+                });
+
+                // Select All Filters Checkbox handler
+                $("#chkSelectAllFilters").off("change").on("change", function () {
+                    const isChecked = $(this).is(":checked");
+                    if (isChecked) {
+                        selectedFilterCodes = masterFiltersData.map(f => f.fcode);
+                    } else {
+                        selectedFilterCodes = [];
+                    }
+                    $(".filter-chk").prop("checked", isChecked);
+                    updateSelectedFiltersDisplay();
+                });
+
+                updateSelectAllFiltersState();
+                updateSelectedFiltersDisplay();
+
+            } catch (err) {
+                console.error("Error rendering master filters:", err);
+            }
+        }
+
+        function updateSelectAllFiltersState() {
+            const total = masterFiltersData.length;
+            const checkedCount = selectedFilterCodes.length;
+            $("#chkSelectAllFilters").prop("checked", total > 0 && checkedCount === total);
+        }
+
+        function updateSelectedFiltersDisplay() {
+            const $rowsCount = $("#selectedFiltersRowsCount");
+            const $emptyState = $("#selectedFiltersEmptyState");
+            const $container = $("#selectedFiltersListContainer");
+
+            $container.empty();
+
+            if (!selectedFilterCodes || selectedFilterCodes.length === 0) {
+                $rowsCount.text("Rows: 0");
+                $emptyState.removeClass("d-none").attr("style", "display: flex !important;");
+                $container.addClass("d-none").hide();
+                return;
+            }
+
+            $rowsCount.text(`Rows: ${selectedFilterCodes.length}`);
+            $emptyState.addClass("d-none").attr("style", "display: none !important;");
+            $container.removeClass("d-none").show();
+
+            selectedFilterCodes.forEach(code => {
+                const filterObj = masterFiltersData.find(f => f.fcode === code);
+                const filterName = filterObj ? (filterObj.fname || filterObj.fcode) : code;
+                const description = filterObj ? (filterObj.fremark || filterObj.fremark2 || filterObj.fname || filterObj.ftype || code) : code;
+                const company = filterObj ? (filterObj.fcompany || "MICRO") : "MICRO";
+
+                const rowHtml = `
+                    <div class="selected-filter-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;">
+                        <div style="width: 100%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
+                    </div>
+                `;
+                $container.append(rowHtml);
+            });
+        }
+
         async function getCampainList()
         {
             try {
@@ -362,6 +603,7 @@
                 const response = await fetch(`/Campain/GetCampainList`);
                 const data = await response.json();
                 const mapped = data.map(item => ({
+                    guid: item.product_guid || "",
                     code: item.product_code || "",
                     name: item.product_name || "",
                     status: item.product_status || "ปกติ",
@@ -400,6 +642,7 @@
             // UI State Variables
             let selectedBranches = [];
             let selectedCampaignCode = "";
+            let selectedCampaignGuid = "";
 
             // Sorting State Variables
             let activeSortField = "endDate"; // Default to product_end (checked in mockup)
@@ -701,11 +944,12 @@
             }
 
             // Load Campaign into Form
-            function loadCampaignToForm(code) {
+            async function loadCampaignToForm(code) {
                 const campaign = campaigns.find(c => c.code === code);
                 if (!campaign) return;
                 
                 selectedCampaignCode = code;
+                selectedCampaignGuid = campaign.guid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
                 
                 // Populate inputs
                 $("#campaignCode").val(campaign.code);
@@ -728,6 +972,30 @@
                     $("#filterSelectedRow").hide();
                 } else {
                     $("#filterSelectedRow").show();
+
+                    // Show loading state while fetching filters
+                    showFilterLoadingState();
+
+                    // Fetch assigned filters for selected campaign via GetFilterByGuid
+                    if (selectedCampaignGuid) {
+                        try {
+                            const filterData = await GetFilterByGuid(selectedCampaignGuid);
+                            if (Array.isArray(filterData)) {
+                                selectedFilterCodes = filterData
+                                    .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
+                                    .filter(c => c !== "");
+                            } else {
+                                selectedFilterCodes = [];
+                            }
+                        } catch (err) {
+                            console.error("Error loading filters by guid:", err);
+                            selectedFilterCodes = [];
+                        }
+                    } else {
+                        selectedFilterCodes = [];
+                    }
+
+                    updateFilterSelectionUI();
                 }
                 
                 // Re-render list to update active card styling
@@ -735,9 +1003,9 @@
             }
 
             // Click Campaign Card event handler (using event delegation)
-            $campaignsTable.on("click", ".campaign-card", function () {
+            $campaignsTable.on("click", ".campaign-card", async function () {
                 const code = String($(this).data("code"));
-                loadCampaignToForm(code);
+                await loadCampaignToForm(code);
             });
 
             // Character Counter for Remarks Textarea
@@ -755,30 +1023,45 @@
             });
 
             // Refresh List Buttons Action
-            $("#refreshCampaignsListBtn").on("click", function () {
+            $("#refreshCampaignsListBtn").off("click").on("click", function () {
                 $campaignSearchInput.val("");
                 if (campaignTable) {
                     campaignTable.search("").draw();
                 }
-                AlertComponent.success("รีเฟรชข้อมูลสำเร็จ", "อัปเดตข้อมูลรายการแคมเปญเรียบร้อยแล้ว", 1500);
+                Swal.fire({ title: "รีเฟรชข้อมูลสำเร็จ", text: "อัปเดตข้อมูลรายการแคมเปญเรียบร้อยแล้ว", icon: "success", timer: 1500, showConfirmButton: false });
             });
 
             // Refresh Filters Button Action
-            $("#refreshFiltersBtn").on("click", function () {
-                AlertComponent.info("รีเฟรช Filter สำเร็จ", "ไม่พบเงื่อนไขการกรองเพิ่มเติม", 1500);
+            $("#refreshFiltersBtn").off("click").on("click", async function () {
+                showFilterLoadingState();
+                await renderMasterFilters();
+                if (selectedCampaignGuid) {
+                    try {
+                        const filterData = await GetFilterByGuid(selectedCampaignGuid);
+                        if (Array.isArray(filterData)) {
+                            selectedFilterCodes = filterData
+                                .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
+                                .filter(c => c !== "");
+                        }
+                    } catch (e) {
+                        console.error("Error refreshing filters:", e);
+                    }
+                }
+                updateFilterSelectionUI();
+                Swal.fire({ title: "รีเฟรช Filter สำเร็จ", text: "อัปเดตข้อมูล Filter เรียบร้อยแล้ว", icon: "success", timer: 1500, showConfirmButton: false });
             });
 
             // Home / Back Actions
-            $("#homeActionBtn").on("click", function () {
+            $("#homeActionBtn").off("click").on("click", function () {
                 window.location.href = "/";
             });
 
-            $("#backActionBtn").on("click", function () {
+            $("#backActionBtn").off("click").on("click", function () {
                 window.location.href = "/";
             });
 
-            $("#prospectActionBtn").on("click", function () {
-                AlertComponent.info("เมนู Prospect Setup", "กำลังย้ายไปเมนูการตั้งค่ากลุ่มลูกค้า Prospect", 1200);
+            $("#prospectActionBtn").off("click").on("click", function () {
+                Swal.fire({ title: "เมนู Prospect Setup", text: "กำลังย้ายไปเมนูการตั้งค่ากลุ่มลูกค้า Prospect", icon: "info", timer: 1200, showConfirmButton: false });
             });
 
             // Variables for Modal
@@ -930,7 +1213,7 @@
             });
 
             // Modal Submit Button
-            $("#modalSubmitBtn").on("click", function () {
+            $("#modalSubmitBtn").off("click").on("click", function () {
                 const name = $("#modalCampaignName").val().trim();
                 const code = $("#modalCampaignCode").val().trim();
                 const start = $("#modalStartDate").val();
@@ -938,16 +1221,25 @@
                 const note = $("#modalRemarks").val().trim();
                 
                 if (!name || !start || !end) {
-                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด");
+                    Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด", icon: "warning" });
                     return;
                 }
                 
                 if (modalSelectedBranches.length === 0) {
-                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณาเลือกสาขาอย่างน้อย 1 สาขา");
+                    Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณาเลือกสาขาอย่างน้อย 1 สาขา", icon: "warning" });
                     return;
                 }
 
-                AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then(async (result) => {
+                Swal.fire({
+                    title: "ยืนยันการสร้าง",
+                    text: `ต้องการสร้างแคมเปญ "${name}" หรือไม่`,
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonColor: "#28a745",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "ยืนยัน",
+                    cancelButtonText: "ยกเลิก"
+                }).then(async (result) => {
                     if (result.isConfirmed) {
                         // Hide modal
                         bootstrap.Modal.getInstance(document.getElementById('createCampaignModal')).hide();
@@ -959,6 +1251,8 @@
                         $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูล...");
 
                         try {
+                            const newGuid = crypto.randomUUID();
+                            const company = '@(Context.Session.GetString("company") ?? "MICRO")';
                             const postData = {
                                 productInfo: {
                                     product_code: code,
@@ -966,16 +1260,16 @@
                                     product_start: start,
                                     product_end: end,
                                     product_remark: note,
-                                    product_guid: crypto.randomUUID(),
+                                    product_guid: newGuid,
                                     createrd_by: '@(Context.Session.GetString("personalId") ?? "system")',
-                                    product_company: "MICRO",
+                                    product_company: company,
                                     offcde: modalSelectedBranches.join(",")
                                 },
-                                filtersInfo: [
-                                    { fcode: "custype" },
-                                    { fcode: "age" },
-                                    { fcode: "category" }
-                                ]
+                                filtersInfo: selectedFilterCodes.map(c => ({
+                                    fguid: newGuid,
+                                    fcode: c,
+                                    fcompany: company
+                                }))
                             };
 
                             const response = await fetch(`/Campain/PostCampain`, {
@@ -993,6 +1287,7 @@
                                 const isImportFromExcel = $("#chkImportExcel").is(":checked");
 
                                 const campaignData = {
+                                    guid: newGuid,
                                     code: code,
                                     name: name,
                                     status: "ปกติ",
@@ -1005,16 +1300,17 @@
 
                                 campaigns.unshift(campaignData);
                                 selectedCampaignCode = code;
+                                selectedCampaignGuid = newGuid;
                                 
-                                AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
+                                Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                                 loadCampaignToForm(code);
                             } else {
-                                AlertComponent.error("เกิดข้อผิดพลาด", data.message || "ไม่สามารถสร้างแคมเปญได้");
+                                Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
                             }
                         } catch (error) {
                             $overlay.removeClass("show");
                             console.error(error);
-                            AlertComponent.error("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+                            Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", icon: "error" });
                         }
                     }
                 });
@@ -1022,13 +1318,22 @@
             });
 
             // Click Delete Button
-            $("#deleteActionBtn").on("click", function () {
+            $("#deleteActionBtn").off("click").on("click", function () {
                 if (!selectedCampaignCode) {
-                    AlertComponent.warning("ไม่สามารถลบได้", "กรุณาเลือกแคมเปญที่ต้องการลบจากรายการด้านซ้ายก่อน");
+                    Swal.fire({ title: "ไม่สามารถลบได้", text: "กรุณาเลือกแคมเปญที่ต้องการลบจากรายการด้านซ้ายก่อน", icon: "warning" });
                     return;
                 }
                 
-                AlertComponent.confirmDelete(selectedCampaignCode).then(async (result) => {
+                Swal.fire({
+                    title: "ยืนยันการลบ?",
+                    text: `ต้องการลบรหัสแคมเปญ ${selectedCampaignCode} หรือไม่?`,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "ยืนยัน",
+                    cancelButtonText: "ยกเลิก"
+                }).then(async (result) => {
                     if (result.isConfirmed) {
                         try {
                             const response = await fetch(`/Campain/DeleteCampain?productId=${selectedCampaignCode}`);
@@ -1037,7 +1342,7 @@
                             if (response.ok && resultText.includes("Success")) {
                                 campaigns = campaigns.filter(c => c.code !== selectedCampaignCode);
                                 
-                                AlertComponent.success("ลบสำเร็จ!", "แคมเปญถูกลบออกจากระบบแล้ว");
+                                Swal.fire({ title: "ลบสำเร็จ!", text: "แคมเปญถูกลบออกจากระบบแล้ว", icon: "success" });
                                 
                                 // Load first campaign left in list
                                 if (campaigns.length > 0) {
@@ -1047,29 +1352,29 @@
                                     $("#newActionBtn").trigger("click");
                                 }
                             } else {
-                                AlertComponent.error("ลบไม่สำเร็จ", resultText || "เกิดข้อผิดพลาดในการลบแคมเปญ");
+                                Swal.fire({ title: "ลบไม่สำเร็จ", text: resultText || "เกิดข้อผิดพลาดในการลบแคมเปญ", icon: "error" });
                             }
                         } catch (error) {
                             console.error(error);
-                            AlertComponent.error("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+                            Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", icon: "error" });
                         }
                     }
                 });
             });
 
             // Cancel Form Button
-            $("#cancelFormBtn").on("click", function () {
+            $("#cancelFormBtn").off("click").on("click", function () {
                 if (selectedCampaignCode) {
                     // Reload original
                     loadCampaignToForm(selectedCampaignCode);
-                    AlertComponent.info("ยกเลิกการแก้ไข", "คืนค่าข้อมูลเดิมเรียบร้อย", 1000);
+                    Swal.fire({ title: "ยกเลิกการแก้ไข", text: "คืนค่าข้อมูลเดิมเรียบร้อย", icon: "info", timer: 1000, showConfirmButton: false });
                 } else {
                     $("#newActionBtn").trigger("click");
                 }
             });
 
             // Submit Form Button
-            $("#submitFormBtn").on("click", function () {
+            $("#submitFormBtn").off("click").on("click", function () {
                 const name = $("#campaignName").val().trim();
                 const code = $("#campaignCode").val().trim();
                 const start = $("#startDate").val();
@@ -1077,17 +1382,18 @@
                 const note = $remarks.val().trim();
                 
                 if (!name || !start || !end) {
-                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด");
+                    Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด", icon: "warning" });
                     return;
                 }
                 
                 if (selectedBranches.length === 0) {
-                    AlertComponent.warning("กรอกข้อมูลไม่ครบถ้วน", "กรุณาเลือกสาขาอย่างน้อย 1 สาขา");
+                    Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณาเลือกสาขาอย่างน้อย 1 สาขา", icon: "warning" });
                     return;
                 }
 
                 const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
                 const campaignData = {
+                    guid: selectedCampaignGuid,
                     code: code,
                     name: name,
                     status: "ปกติ",
@@ -1098,15 +1404,38 @@
                 };
 
                 if (existingIdx > -1) {
-                    AlertComponent.confirmSave(`ต้องการบันทึกข้อมูลแคมเปญรหัส ${code} ใช่หรือไม่`).then((result) => {
+                    Swal.fire({
+                        title: "ยืนยันการบันทึก",
+                        text: `ต้องการบันทึกข้อมูลแคมเปญรหัส ${code} ใช่หรือไม่`,
+                        icon: "question",
+                        showCancelButton: true,
+                        confirmButtonColor: "#28a745",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "ยืนยัน",
+                        cancelButtonText: "ยกเลิก"
+                    }).then(async (result) => {
                         if (result.isConfirmed) {
-                            campaigns[existingIdx] = campaignData;
-                            AlertComponent.success("บันทึกข้อมูลสำเร็จ", `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`);
-                            loadCampaignToForm(code);
+                            const filterRes = await postFilter(selectedCampaignGuid);
+                            if (filterRes && (filterRes.status === "success" || filterRes.status === "warning")) {
+                                campaigns[existingIdx] = campaignData;
+                                Swal.fire({ title: "บันทึกข้อมูลสำเร็จ", text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
+                                loadCampaignToForm(code);
+                            } else {
+                                Swal.fire({ title: "เกิดข้อผิดพลาด", text: filterRes?.message || "ไม่สามารถบันทึก Filter ได้", icon: "error" });
+                            }
                         }
                     });
                 } else {
-                    AlertComponent.confirmSave(`ต้องการสร้างแคมเปญ "${name}" หรือไม่`).then(async (result) => {
+                    Swal.fire({
+                        title: "ยืนยันการสร้าง",
+                        text: `ต้องการสร้างแคมเปญ "${name}" หรือไม่`,
+                        icon: "question",
+                        showCancelButton: true,
+                        confirmButtonColor: "#28a745",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "ยืนยัน",
+                        cancelButtonText: "ยกเลิก"
+                    }).then(async (result) => {
                         if (result.isConfirmed) {
                             // Show Global Loading Overlay
                             const $overlay = $("#globalLoadingOverlay");
@@ -1115,6 +1444,8 @@
                             $("#loadingDescription").text("ระบบกำลังบันทึกข้อมูลแคมเปญและจัดเตรียมกลุ่มเป้าหมาย...");
 
                             try {
+                                const newGuid = crypto.randomUUID();
+                                const company = '@(Context.Session.GetString("company") ?? "MICRO")';
                                 const postData = {
                                     productInfo: {
                                         product_code: code,
@@ -1122,10 +1453,16 @@
                                         product_start: start,
                                         product_end: end,
                                         product_remark: note,
-                                        product_guid: crypto.randomUUID(),
-                                        createrd_by: '@(Context.Session.GetString("personalId") ?? "system")'
+                                        product_guid: newGuid,
+                                        createrd_by: '@(Context.Session.GetString("personalId") ?? "system")',
+                                        product_company: company,
+                                        offcde: selectedBranches.join(",")
                                     },
-                                    filtersInfo: selectedBranches.map(branch => ({ fcode: branch }))
+                                    filtersInfo: selectedFilterCodes.map(c => ({
+                                        fguid: newGuid,
+                                        fcode: c,
+                                        fcompany: company
+                                    }))
                                 };
 
                                 const response = await fetch(`/Campain/PostCampain`, {
@@ -1140,17 +1477,19 @@
                                 $overlay.removeClass("show");
                                 
                                 if (data.status === "success") {
+                                    campaignData.guid = newGuid;
                                     campaigns.unshift(campaignData);
                                     selectedCampaignCode = code;
-                                    AlertComponent.success("สร้างสำเร็จ", `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`);
+                                    selectedCampaignGuid = newGuid;
+                                    Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                                     loadCampaignToForm(code);
                                 } else {
-                                    AlertComponent.error("เกิดข้อผิดพลาด", data.message || "ไม่สามารถสร้างแคมเปญได้");
+                                    Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
                                 }
                             } catch (error) {
                                 $overlay.removeClass("show");
                                 console.error(error);
-                                AlertComponent.error("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+                                Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", icon: "error" });
                             }
                         }
                     });
@@ -1160,9 +1499,12 @@
             // Initial Execution on Load
             renderBranchCheckboxes();
             renderModalBranchCheckboxes();
+            await renderMasterFilters();
             initDataTables();
             if (selectedCampaignCode) {
-                loadCampaignToForm(selectedCampaignCode);
+                await loadCampaignToForm(selectedCampaignCode);
+            } else if (campaigns && campaigns.length > 0) {
+                await loadCampaignToForm(campaigns[0].code);
             }
         });
     

@@ -3,6 +3,21 @@
 
 // Write your JavaScript code.
 
+let loadingCount = 0;
+
+function startLoading(title = 'กำลังโหลดข้อมูล...', description = 'ระบบกำลังดำเนินการ กรุณารอสักครู่...') {
+    loadingCount++;
+    showLoading(title, description);
+}
+
+function stopLoading(force = false) {
+    loadingCount--;
+    if (force || loadingCount <= 0) {
+        loadingCount = 0;
+        hideLoading();
+    }
+}
+
 function showLoading(title = 'กำลังบันทึกข้อมูล', description = 'ระบบกำลังดำเนินการบันทึกข้อมูลของคุณ กรุณารอสักครู่...') {
     const overlay = document.getElementById('globalLoadingOverlay');
     if (overlay) {

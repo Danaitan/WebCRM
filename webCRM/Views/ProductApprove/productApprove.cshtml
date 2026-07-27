@@ -5,6 +5,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/productApprove.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
 }
 
 <div class="pa-layout">
@@ -12,7 +13,7 @@
     <div class="pa-sidebar-left">
         <div class="pa-sidebar-header">
             <h5>รายการแคมเปญรออนุมัติ</h5>
-            <div class="badge-count" id="campaignCount">4</div>
+            <div class="badge-count" id="campaignCount">0</div>
         </div>
 
         <div class="pa-search-box">
@@ -22,17 +23,21 @@
             </div>
         </div>
 
-        <div class="pa-campaign-list" id="campaignList">
-            <!-- Cards will be rendered dynamically by JavaScript -->
-        </div>
-
-        <div class="pa-pagination-small">
-            <span id="campaignPaginationText">1 - 4 จาก 4 รายการ</span>
-            <div class="pa-page-controls">
-                <button class="pa-page-btn"><i class="bi bi-chevron-left"></i></button>
-                <button class="pa-page-btn active">1</button>
-                <button class="pa-page-btn"><i class="bi bi-chevron-right"></i></button>
-            </div>
+        <div class="campaign-list-container">
+            <table id="campaignsTable" class="table table-borderless" style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Campaign</th>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 
@@ -72,13 +77,11 @@
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>หมายเหตุ</label>
-                            <input type="text" id="detailNote" class="pa-form-control" value="แคมเปญสำหรับลูกค้าใหม่และลูกค้าปัจจุบัน" readonly>
+                            <input type="text" id="detailNote" class="pa-form-control" value="" readonly>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
-                            <label>สถานะปัจจุบัน</label>
-                            <div>
-                                <span id="detailStatus" class="pa-status-box">กำลังพิจารณา</span>
-                            </div>
+                            <label>วัตถุประสงค์</label>
+                            <input type="text" id="detailNote" class="pa-form-control" value="test" readonly>
                         </div>
                     </div>
                 </div>
@@ -238,7 +241,6 @@
 
         <!-- Action Footer -->
         <div class="pa-action-bar">
-            <button class="btn-pa btn-pa-cancel">ยกเลิก</button>
             <button class="btn-pa btn-pa-approve"><i class="bi bi-check2"></i> อนุมัติ</button>
             <button class="btn-pa btn-pa-reject"><i class="bi bi-x-lg"></i> ไม่อนุมัติ</button>
         </div>
@@ -249,5 +251,5 @@
 @section Scripts {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="~/Views/ProductApprove/productApprove.js" asp-append-version="true"></script>
+    <script src="~/js/productApprove.js" asp-append-version="true"></script>
 }

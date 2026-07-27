@@ -82,6 +82,7 @@ async function performSearch() {
     const val = searchInput.value;
     if (val) {
         try {
+            startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้า กรุณารอสักครู่...');
             const originalText = searchBtn.innerHTML;
             searchBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
             
@@ -118,44 +119,39 @@ async function performSearch() {
                     // Use Event Delegation for maximum click handling performance (O(1) event listeners instead of O(N))
                     tbody.onclick = function(e) {
                         const clickedRow = e.target.closest('tr');
-                        if (!clickedRow) return;
-
-                        // Optimization: Only update classes if we clicked a different row
-                        if (clickedRow.classList.contains('active-row')) return;
-
-                        // Remove active styling from previous active row
-                        const activeRow = tbody.querySelector('.active-row');
-                        if (activeRow) {
-                            activeRow.classList.remove('active-row');
-                            activeRow.classList.add('hover-row');
-                            const avatar = activeRow.querySelector('.avatar-sm');
-                            if(avatar) {
+                        if (!clickedRow || !clickedRow.dataset.index) return;
+                        
+                        // Handle row selection visually
+                        const allRows = tbody.querySelectorAll('tr');
+                        allRows.forEach(r => {
+                            r.classList.remove('active-row');
+                            r.classList.add('hover-row');
+                            const avatar = r.querySelector('.avatar-sm');
+                            if (avatar) {
                                 avatar.classList.remove('bg-blue-light', 'text-primary');
                                 avatar.classList.add('bg-light', 'text-muted');
                             }
-                            const nameSpan = activeRow.querySelector('.name-span');
-                            if(nameSpan) {
-                                nameSpan.classList.remove('fw-medium');
-                            }
-                        }
-
-                        // Add active styling to clicked row
+                            const nameSpan = r.querySelector('.name-span');
+                            if (nameSpan) nameSpan.classList.remove('fw-medium');
+                        });
+                        
                         clickedRow.classList.add('active-row');
                         clickedRow.classList.remove('hover-row');
                         const avatar = clickedRow.querySelector('.avatar-sm');
-                        if(avatar) {
+                        if (avatar) {
                             avatar.classList.remove('bg-light', 'text-muted');
                             avatar.classList.add('bg-blue-light', 'text-primary');
                         }
                         const nameSpan = clickedRow.querySelector('.name-span');
-                        if(nameSpan) {
-                            nameSpan.classList.add('fw-medium');
-                        }
+                        if (nameSpan) nameSpan.classList.add('fw-medium');
 
-                        const cust = data[clickedRow.getAttribute('data-index')];
-                        const idno = cust.idno || cust.Idno;
-                        displayCustomerDetails(cust);
-                        getContact(idno);
+                        const idx = parseInt(clickedRow.dataset.index);
+                        const selectedCust = data[idx];
+                        if (selectedCust) {
+                            displayCustomerDetails(selectedCust);
+                            const idno = selectedCust.idno || selectedCust.Idno;
+                            if (idno) getContact(idno);
+                        }
                     };
 
                     displayCustomerDetails(data[0]);
@@ -175,6 +171,8 @@ async function performSearch() {
         } catch (error) {
             console.error("Fetch error:", error);
             searchBtn.innerHTML = '<i class="bi bi-search"></i> ค้นหา';
+        } finally {
+            stopLoading();
         }
     }
 }

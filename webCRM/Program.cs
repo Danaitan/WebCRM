@@ -19,14 +19,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "Views")),
-    RequestPath = "/Views"
-});
+app.UseHttpsRedirection();
 app.UseRouting();
 
 app.UseSession();

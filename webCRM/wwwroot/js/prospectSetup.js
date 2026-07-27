@@ -1,17 +1,15 @@
-async function getCampainList()
+let currentBatchPage = 1;
+let currentBatchPageSize = 5;
+
+async function getCampainList(page = 1, pageSize = 20)
 {
     try {
-        Swal.fire({
-            title: 'กำลังโหลดข้อมูล...',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
+        startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
 
-        const response = await fetch(`/Campain/GetCampainList`);
-        const data = await response.json();
-        const mapped = data.map(item => ({
+        const response = await fetch(`/Campain/GetCampainList?page=${page}&pageSize=${pageSize}`);
+        const jsonResult = await response.json();
+        const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
+        const mapped = items.map(item => ({
             code:      item.product_code  || "",
             name:      item.product_name  || "",
             status:    item.product_status || "ปกติ",
@@ -21,36 +19,43 @@ async function getCampainList()
             createdBy: item.createrd_by   || item.created_by || "",
             created:   item.created       ? item.created.substring(0, 10)       : ""
         }));
-        return mapped;
+        stopLoading();
+        return {
+            page: jsonResult.page ?? (page ? parseInt(page) : 1),
+            pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
+            count: jsonResult.count ?? mapped.length,
+            data: mapped
+        };
     }
     catch(error){
         console.error(error);
-        Swal.close();
-        return [];
+        stopLoading();
+        return { page: 1, pageSize: 5, count: 0, data: [] };
     }
 }
 
-document.addEventListener('DOMContentLoaded', async function () {
-    const checkAll = document.getElementById('checkAll');
-    let rowCheckboxes; // Will be set after generating table
-    const selectedTableBody = document.getElementById('selectedTableBody');
-    const selectedCountText = document.getElementById('selectedCountText');
-    const selectedTotalText = document.getElementById('selectedTotalText');
-    const btnClearSelection = document.getElementById('btnClearSelection');
-    const dataTable = document.getElementById('dataTable');
+async function loadBatchList(page = 1, pageSize = 5) {
+    currentBatchPage = page;
+    currentBatchPageSize = pageSize;
 
-    // --- 0. Load Campaign (Batch) List from API ---
-    const batchListContainer = document.getElementById('batchListContainer');
-    const allBatches = [];
-
-    const campainData = await getCampainList();
-    Swal.close();
+    const res = await getCampainList(page, pageSize);
+    const campainData = res.data;
 
     const foundCountEl = document.getElementById('batchFoundCount');
-    if (foundCountEl) foundCountEl.textContent = `พบ ${campainData.length} รายการ`;
+    if (foundCountEl) foundCountEl.textContent = `พบ ${res.count} รายการ`;
 
-    const colorPalette = ['blue', 'green', 'orange', 'purple', 'cyan'];
+    const batchListTextEl = document.getElementById('batchListText');
+    if (batchListTextEl) {
+        const startItem = res.count > 0 ? (res.page - 1) * res.pageSize + 1 : 0;
+        const endItem = Math.min(res.page * res.pageSize, res.count);
+        const totalPages = Math.ceil(res.count / (res.pageSize || 1)) || 1;
+        batchListTextEl.textContent = `แสดง ${startItem} - ${endItem} จาก ${res.count} รายการ (หน้า ${res.page}/${totalPages}, ขนาด ${res.pageSize}/หน้า)`;
+    }
 
+    const dataTableContainer = document.getElementById('dataTable');
+    if (dataTableContainer) {
+        dataTableContainer.innerHTML = '';
+        const colorPalette = ['blue', 'green', 'orange', 'purple', 'cyan'];
         campainData.forEach((item, i) => {
             const color = colorPalette[i % colorPalette.length];
             const card = document.createElement('div');
@@ -72,8 +77,60 @@ document.addEventListener('DOMContentLoaded', async function () {
                     </div>
                 </div>
             `;
-            allBatches.push(card);
+            dataTableContainer.appendChild(card);
         });
+    }
+
+    renderBatchPaginationControls(res.page, res.pageSize, res.count);
+}
+
+function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
+    const paginationEl = document.getElementById('batchPagination');
+    if (!paginationEl) return;
+    paginationEl.innerHTML = '';
+    const totalPages = Math.max(1, Math.ceil(totalCount / (pageSize || 1)));
+
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>`;
+    prevLi.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage > 1) loadBatchList(currentPage - 1, pageSize);
+    });
+    paginationEl.appendChild(prevLi);
+
+    for (let p = 1; p <= totalPages; p++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${p === currentPage ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
+        li.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadBatchList(p, pageSize);
+        });
+        paginationEl.appendChild(li);
+    }
+
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>`;
+    nextLi.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage < totalPages) loadBatchList(currentPage + 1, pageSize);
+    });
+    paginationEl.appendChild(nextLi);
+}
+
+document.addEventListener('DOMContentLoaded', async function () {
+    const checkAll = document.getElementById('checkAll');
+    let rowCheckboxes; // Will be set after generating table
+    const selectedTableBody = document.getElementById('selectedTableBody');
+    const selectedCountText = document.getElementById('selectedCountText');
+    const selectedTotalText = document.getElementById('selectedTotalText');
+    const btnClearSelection = document.getElementById('btnClearSelection');
+    const dataTable = document.getElementById('dataTable');
+
+    // --- 0. Load Campaign (Batch) List from API ---
+    await loadBatchList(currentBatchPage, currentBatchPageSize);
 
     rowCheckboxes = document.querySelectorAll('.row-checkbox');
 

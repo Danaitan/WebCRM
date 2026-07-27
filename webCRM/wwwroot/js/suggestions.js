@@ -17,56 +17,80 @@ $(document).ready(function () {
     });
 
     // ค้นหาเมื่อพิมพ์
-    $('#customSearchInput').on('keyup', function () {
+    $('#customSearchInput').on('keyup input', function () {
         table.search(this.value).draw();
     });
 
     // กรองตามหัวข้อ
     $('#filterTopic').on('change', function () {
-        // ค้นหาในคอลัมน์ที่ 0 (หัวข้อ)
-        table.column(0).search(this.value).draw();
+        var val = $.fn.dataTable.util.escapeRegex($(this).val());
+        table.column(0).search(val ? val : '', true, false).draw();
     });
 
     // กรองตามสถานะ
     $('#filterStatus').on('change', function () {
-        // ค้นหาในคอลัมน์ที่ 3 (สถานะ)
-        table.column(3).search(this.value).draw();
+        var val = $.fn.dataTable.util.escapeRegex($(this).val());
+        table.column(3).search(val ? val : '', true, false).draw();
     });
+
+    // Event delegation สำหรับคลิกเลือกรายการในตาราง
+    $('#suggestionsTable tbody').on('click', 'tr', function () {
+        showDetails(this);
+    });
+
+    // เลือกรายการแรกโดยอัตโนมัติหากมีข้อมูล
+    const firstRow = $('#suggestionsTable tbody tr').first();
+    if (firstRow.length && firstRow.find('td').length > 1) {
+        showDetails(firstRow[0]);
+    }
 });
 
 function showDetails(row) {
     const $row = $(row);
-    $('#detail-phone').text($row.data('phone'));
-    $('#detail-contact-back').text($row.data('contact'));
-    $('#detail-email').text($row.data('email'));
-    $('#detail-line').text($row.data('line'));
-    $('#detail-idno').text($row.data('idno'));
-    $('#detail-status').text($row.data('status'));
-    $('#detail-address').text($row.data('address'));
-    $('#detail-date').text($row.data('date'));
-    $('#detail-recorded-by').text($row.data('recordedby'));
-    $('#detail-reply').text($row.data('reply'));
+    if (!$row.length) return;
 
-    $('#detail-nameprovider').text($row.data('nameprovider'));
+    // เพิ่ม class ไฮไลท์แถวที่เลือก
+    $('#suggestionsTable tbody tr').removeClass('table-active');
+    $row.addClass('table-active');
 
-    $('#detail-guid').text($row.data('guid'));
-    $('#detail-updBy').text($row.data('updby'));
+    const getVal = (attr) => {
+        const val = $row.attr('data-' + attr);
+        return (val !== undefined && val !== null && val.trim() !== '') ? val : '-';
+    };
+
+    $('#detail-nameprovider').text(getVal('nameprovider'));
+    $('#detail-phone').text(getVal('phone'));
+    $('#detail-contact-back').text(getVal('contact'));
+    $('#detail-email').text(getVal('email'));
+    $('#detail-line').text(getVal('line'));
+    $('#detail-idno').text(getVal('idno'));
+    $('#detail-status').text(getVal('status'));
+    $('#detail-address').text(getVal('address'));
+    $('#detail-date').text(getVal('date'));
+    $('#detail-recorded-by').text(getVal('recordedby'));
+    $('#detail-suggestion').text(getVal('suggestion'));
+    $('#detail-reply').text(getVal('reply'));
+
+    const replyVal = getVal('reply');
+    $('#reply-input').val(replyVal !== '-' ? replyVal : '');
+
+    $('#detail-guid').text(getVal('guid'));
+    $('#detail-updBy').text(getVal('updby'));
 }
 
-async function UpdateSuggestion()
-{
+async function UpdateSuggestion() {
     var guid = $("#detail-guid").text();
     var reply = $("#reply-input").val();
     var updBy = typeof currentUserEmail !== 'undefined' ? currentUserEmail : '';
-    
+
     if (!guid || guid.trim() === "-" || guid.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการที่ต้องการบันทึกข้อความตอบกลับ');
         return;
     }
 
     try {
-        var result = await AlertComponent.confirmSave(`ต้องการบันทึกข้อความตอบกลับหรือไม่`);     
-        
+        var result = await AlertComponent.confirmSave('ต้องการบันทึกข้อความตอบกลับหรือไม่');
+
         if (result.isConfirmed) {
             showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
             var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`);
@@ -79,7 +103,7 @@ async function UpdateSuggestion()
             }
             hideLoading();
             $("#reply-input").val("");
-            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function() {
+            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function () {
                 window.location.reload();
             });
         }
@@ -91,8 +115,21 @@ async function UpdateSuggestion()
     }
 }
 
-async function AddSuggestion()
-{
+async function AddSuggestion() {
+    var selectedCc = [];
+    $('#post-cc option:selected').each(function () {
+        selectedCc.push($(this).val());
+    });
+
+    let timeVal = $("#post-contact-time").val();
+    if (timeVal) {
+        if (timeVal.split(':').length === 2) {
+            timeVal += ":00";
+        }
+    } else {
+        timeVal = null;
+    }
+
     var requestData = {
         suggesCde: $("#post-title").val()?.toString(),
         nameProvider: $("#post-personal-name").val()?.toString(),
@@ -103,14 +140,10 @@ async function AddSuggestion()
         department: $("#post-department").val() ? $("#post-department").val().toString() : null,
         sendTo: $("#post-send-to").val() ? $("#post-send-to").val().toString() : null,
         dateSugges: $("#post-contact-date").val()?.toString(),
-        timeSugges: $("#post-contact-time").val()
-            ? $("#post-contact-time").val().toString() + ":00"
-            : null,
+        timeSugges: timeVal,
         chanelProvider: $("#post-additional-contact").val()?.toString(),
         suggestion: $("#post-reply").val()?.toString(),
-        cc: $("#post-cc").val()
-            ? $("#post-cc").val().join(",")
-            : null
+        cc: selectedCc.length > 0 ? selectedCc.join(",") : null
     };
 
     if (!requestData.suggesCde || requestData.suggesCde === "เลือกหัวข้อ" || requestData.suggesCde.trim() === "") {
@@ -135,12 +168,11 @@ async function AddSuggestion()
     }
 
     try {
-
-        var result = await AlertComponent.confirmSave(`ต้องการบันทึกข้อความตอบกลับหรือไม่`);     
+        var result = await AlertComponent.confirmSave('ต้องการบันทึกข้อเสนอแนะ / ร้องเรียนหรือไม่');
         if (result.isConfirmed) {
 
             showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูลข้อเสนอแนะ / ร้องเรียนของคุณ กรุณารอสักครู่...');
-            
+
             var response = await fetch(`/Suggestions/PostSuggestion`, {
                 method: 'POST',
                 headers: {
@@ -148,20 +180,20 @@ async function AddSuggestion()
                 },
                 body: JSON.stringify(requestData)
             });
-            
+
             if (!response.ok) {
                 throw new Error("HTTP error " + response.status);
             }
-            
+
             var msg = await response.json();
             if (msg && msg.status === "error") {
                 throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
             }
-            
+
             hideLoading();
-            
+
             // Clear fields
-            $("#post-title").val("เลือกหัวข้อ");
+            $("#post-title").val("");
             $("#post-personal-name").val("");
             $("#post-personal-email").val("");
             $("#post-address").val("");
@@ -173,15 +205,19 @@ async function AddSuggestion()
             $("#post-contact-time").val("00:00");
             $("#post-additional-contact").val("");
             $("#post-reply").val("");
-            
+            $('.cc-checkbox').prop('checked', false);
+            $('#post-cc').empty();
+            $('#cc-tags-container .badge').remove();
+            $('#cc-placeholder').show();
+
             // Close Modal if using bootstrap
             var modalEl = document.getElementById('complaintModal');
             var modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) {
                 modal.hide();
             }
-            
-            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function() {
+
+            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function () {
                 window.location.reload();
             });
 
@@ -194,27 +230,27 @@ async function AddSuggestion()
     }
 }
 
-$(document).ready(function() {
+$(document).ready(function () {
     function updateCcDisplay() {
         var selected = [];
         $('#post-cc').empty();
-        $('.cc-checkbox:checked').each(function() {
+        $('.cc-checkbox:checked').each(function () {
             var val = $(this).val();
             selected.push(val);
             $('#post-cc').append('<option value="' + val + '" selected>' + val + '</option>');
         });
-        
+
         var display = $('#cc-tags-container');
         display.find('.badge').remove();
-        
+
         if (selected.length === 0) {
             $('#cc-placeholder').show();
         } else {
             $('#cc-placeholder').hide();
-            selected.forEach(function(item) {
+            selected.forEach(function (item) {
                 var badge = $('<span class="badge bg-primary text-white d-flex align-items-center gap-1"></span>').text(item);
                 var closeBtn = $('<i class="bi bi-x" style="cursor: pointer; font-size: 1.1em;"></i>');
-                closeBtn.on('click', function(e) {
+                closeBtn.on('click', function (e) {
                     e.stopPropagation();
                     $('.cc-checkbox[value="' + item + '"]').prop('checked', false);
                     updateCcDisplay();
@@ -224,8 +260,9 @@ $(document).ready(function() {
             });
         }
     }
-    
-    $('.cc-checkbox').on('change', function() {
+
+    $('.cc-checkbox').on('change', function () {
         updateCcDisplay();
     });
 });
+

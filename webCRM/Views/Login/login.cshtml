@@ -12,6 +12,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="/css/site.css" rel="stylesheet" />
     <link href="/css/login.css" rel="stylesheet" />
 </head>
 <body>
@@ -105,6 +107,10 @@
         </div>
     </div>
 
+    <!-- Global Loading Overlay -->
+    <partial name="~/Views/Component/Loading.cshtml" />
+
+    <script src="/js/site.js"></script>
     <script>
         // Toggle Password Visibility
         const togglePassword = document.querySelector('#togglePassword');
@@ -131,28 +137,36 @@
         var errorMessage = document.getElementById("errorMessage");
 
         errorMessage.style.display = "none";
+        startLoading('กำลังเข้าสู่ระบบ...', 'ระบบกำลังตรวจสอบข้อมูลบัญชีของคุณ กรุณารอสักครู่...');
 
-        const response = await fetch(`/Login/GetProfile?username=${username}&password=${password}`);
-        if (response.ok) {
-            if (remember) {
-                localStorage.setItem("crm_username", username);
-                localStorage.setItem("crm_password", password);
-            } else {
-                localStorage.removeItem("crm_username");
-                localStorage.removeItem("crm_password");
-            }
-            window.location.href = "/Home/Index";
-        } else {
-            try {
-                const errData = await response.json();
-                if (errData && errData.message) {
-                    errorMessage.innerText = errData.message;
+        try {
+            const response = await fetch(`/Login/GetProfile?username=${username}&password=${password}`);
+            if (response.ok) {
+                if (remember) {
+                    localStorage.setItem("crm_username", username);
+                    localStorage.setItem("crm_password", password);
                 } else {
+                    localStorage.removeItem("crm_username");
+                    localStorage.removeItem("crm_password");
+                }
+                window.location.href = "/Home/Index";
+            } else {
+                stopLoading();
+                try {
+                    const errData = await response.json();
+                    if (errData && errData.message) {
+                        errorMessage.innerText = errData.message;
+                    } else {
+                        errorMessage.innerText = "รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง";
+                    }
+                } catch (e) {
                     errorMessage.innerText = "รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง";
                 }
-            } catch (e) {
-                errorMessage.innerText = "รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง";
+                errorMessage.style.display = "block";
             }
+        } catch (e) {
+            stopLoading();
+            errorMessage.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์";
             errorMessage.style.display = "block";
         }
     }

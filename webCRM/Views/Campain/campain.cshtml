@@ -119,7 +119,7 @@
                             <div class="col-md-6">
                                 <label class="form-label" for="campaignCode">รหัส Product / Campaign</label>
                                 <div class="input-container-icon">
-                                    <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;">
+                                    <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;" readonly>
                                 </div>
                             </div>
                             
@@ -199,13 +199,13 @@
 
                             <!-- หมายเหตุ -->
                             <div class="col-md-12">
-                                <label class="form-label" for="modalRemarks">หมายเหตุ</label>
-                                <textarea id="modalRemarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;"></textarea>
-                                <div class="char-counter" id="modalRemarksCharCounter">0 / 500</div>
+                                <label class="form-label" for="remarks">หมายเหตุ</label>
+                                <textarea id="remarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;"></textarea>
+                                <div class="char-counter" id="remarksCharCounter">0 / 500</div>
                             </div>
 
-                            <div class="col-md-6">
-                                <div class="form-check">
+                            <div class="col-md-6 d-flex align-items-center gap-3">
+                                <div class="form-check m-0">
                                     <input class="form-check-input" type="checkbox" id="chkImportExcel" name="chkImportExcel">
                                     <label class="form-check-label" for="chkImportExcel">
                                         ดึงข้อมูลจาก Excel
@@ -215,6 +215,13 @@
 
                         </div>
                     </form>
+                </div>
+                
+                <div class="row g-4 mb-4 col-2 pl-2">
+                    <button type="button" class="btn btn-sm px-3 d-none" id="btnImportExcel" style="background:#1D6F42; color:white; border-radius: 6px; font-weight: 500; height: 38px;">
+                        <i class="bi bi-file-earmark-excel-fill me-1"></i> นำเข้า Excel
+                    </button>
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;">
                 </div>
                 
                 <div class="row g-4 mb-4" id="filterSelectedRow">
@@ -384,10 +391,10 @@
                                 <div class="char-counter" id="modalRemarksCharCounter">0 / 500</div>
                             </div>
 
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="chkImportExcel" name="chkImportExcel">
-                                    <label class="form-check-label" for="chkImportExcel">
+                            <div class="col-md-6 d-flex align-items-center gap-3">
+                                <div class="form-check m-0">
+                                    <input class="form-check-input" type="checkbox" id="modalChkImportExcel" name="modalChkImportExcel">
+                                    <label class="form-check-label" for="modalChkImportExcel">
                                         ดึงข้อมูลจาก Excel
                                     </label>
                                 </div>
@@ -403,6 +410,7 @@
             </div>
         </div>
     </div>
+
 </main>
 
 @section Scripts {
@@ -413,5 +421,5 @@
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "MICRO")';
         window.CURRENT_USER_ID = '@(Context.Session.GetString("personalId") ?? "system")';
     </script>
-    <script src="~/Views/Campain/campaign.js" asp-append-version="true"></script>
+    <script src="~/js/campaign.js" asp-append-version="true"></script>
 }

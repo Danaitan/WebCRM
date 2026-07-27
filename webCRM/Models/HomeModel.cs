@@ -122,6 +122,102 @@ namespace webCRM.Models
         public string? Hub { get; set; }
     }
 
+public class GetProfileByPersonalCodeResponse
+{
+    [JsonPropertyName("personnel_id")]
+    public int? PersonnelId { get; set; }
+
+    [JsonPropertyName("personnel_code")]
+    public string? PersonnelCode { get; set; }
+
+    [JsonPropertyName("personnel_nickname")]
+    public string? PersonnelNickname { get; set; }
+
+    [JsonPropertyName("thname")]
+    public string? ThName { get; set; }
+
+    [JsonPropertyName("enname")]
+    public string? EnName { get; set; }
+
+    [JsonPropertyName("personnel_name_TH")]
+    public string? PersonnelNameTH { get; set; }
+
+    [JsonPropertyName("personnel_name_EN")]
+    public string? PersonnelNameEN { get; set; }
+
+    [JsonPropertyName("personnel_last_TH")]
+    public string? PersonnelLastTH { get; set; }
+
+    [JsonPropertyName("personnel_last_EN")]
+    public string? PersonnelLastEN { get; set; }
+
+    [JsonPropertyName("startdate")]
+    public string? StartDate { get; set; }
+
+    [JsonPropertyName("personnel_status")]
+    public int? PersonnelStatus { get; set; }
+
+    [JsonPropertyName("telephone")]
+    public string? Telephone { get; set; }
+
+    [JsonPropertyName("e_mail")]
+    public string? EMail { get; set; }
+
+    [JsonPropertyName("off_phone")]
+    public string? OffPhone { get; set; }
+
+    [JsonPropertyName("ad_account")]
+    public string? AdAccount { get; set; }
+
+    [JsonPropertyName("position_level_code")]
+    public string? PositionLevelCode { get; set; }
+
+    [JsonPropertyName("position_code")]
+    public string? PositionCode { get; set; }
+
+    [JsonPropertyName("position")]
+    public string? Position { get; set; }
+
+    [JsonPropertyName("depart_code")]
+    public string? DepartCode { get; set; }
+
+    [JsonPropertyName("department")]
+    public string? Department { get; set; }
+
+    [JsonPropertyName("branch_no")]
+    public string? BranchNo { get; set; }
+
+    [JsonPropertyName("branch")]
+    public string? Branch { get; set; }
+
+    [JsonPropertyName("abbreviation")]
+    public string? Abbreviation { get; set; }
+
+    [JsonPropertyName("section_code")]
+    public string? SectionCode { get; set; }
+
+    [JsonPropertyName("branch_code")]
+    public string? BranchCode { get; set; }
+
+    [JsonPropertyName("section")]
+    public string? Section { get; set; }
+
+    [JsonPropertyName("area_no")]
+    public string? AreaNo { get; set; }
+
+    [JsonPropertyName("loanoff")]
+    public string? LoanOff { get; set; }
+
+    [JsonPropertyName("create_date")]
+    public string? CreateDate { get; set; } 
+
+    [JsonPropertyName("resigned")]
+    public string? Resigned { get; set; } 
+
+    [JsonPropertyName("resigned_th")]
+    public string? ResignedTh { get; set; }
+}
+
     public class LoginResponse
     {
         public int status { get; set; }

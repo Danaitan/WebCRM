@@ -1,4 +1,6 @@
 // Campaign Management JavaScript
+const pageSize = 5;
+let page = 1;
 
 async function GetFilterByGuid(productGuid) {
     const guid = productGuid || selectedCampaignGuid || "";
@@ -28,17 +30,55 @@ function updateFilterSelectionUI() {
     updateSelectedFiltersDisplay();
 }
 
+let rawMasterFilters = [];
+
+async function fetchRawMasterFilters() {
+    if (rawMasterFilters && rawMasterFilters.length > 0) {
+        return rawMasterFilters;
+    }
+    try {
+        const response = await fetch(`/Campain/GetMasterFilter`);
+        if (!response.ok) return [];
+        const data = await response.json();
+        rawMasterFilters = data || [];
+        return rawMasterFilters;
+    } catch (e) {
+        console.error("Error fetching raw master filter:", e);
+        return [];
+    }
+}
+
+async function getImportFilter() {
+    const rawList = await fetchRawMasterFilters();
+    const importItem = rawList.find(item => {
+        const name = (item.fname || item.fName || item.FName || item.f_name || "").toString().toLowerCase();
+        return name === "import";
+    });
+    return importItem;
+}
+
 async function postFilter(productGuid) {
     const guid = productGuid || selectedCampaignGuid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
     const company = window.CURRENT_COMPANY || "MICRO";
+    const isImportFromExcel = $("#chkImportExcel").is(":checked");
 
-    const postData = (selectedFilterCodes && selectedFilterCodes.length > 0)
-        ? selectedFilterCodes.map(code => ({
-            fguid: guid,
-            fcode: code,
-            fcompany: company
-        }))
-        : [];
+    let filterCodesToPost = [...(selectedFilterCodes || [])];
+
+    if (isImportFromExcel) {
+        const importFilterObj = await getImportFilter();
+        if (importFilterObj) {
+            const importCode = importFilterObj.fcode || importFilterObj.fCode || importFilterObj.FCode || importFilterObj.f_code || "";
+            if (importCode && !filterCodesToPost.includes(importCode)) {
+                filterCodesToPost.push(importCode);
+            }
+        }
+    }
+
+    const postData = filterCodesToPost.map(code => ({
+        fguid: guid,
+        fcode: code,
+        fcompany: company
+    }));
 
     if (postData.length === 0) {
         console.warn("No filters selected to post.");
@@ -67,8 +107,7 @@ async function postFilter(productGuid) {
 async function getMasterFilter() {
     startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Filter...');
     try {
-        const response = await fetch(`/Campain/GetMasterFilter`);
-        const data = await response.json();
+        const data = await fetchRawMasterFilters();
         
         const mappedData = (data || [])
             .filter(item => {
@@ -100,6 +139,7 @@ let masterFiltersData = [];
 let selectedFilterCodes = [];
 let selectedCampaignCode = "";
 let selectedCampaignGuid = "";
+let selectedCampaignId = 0;
 
 async function renderMasterFilters() {
     try {
@@ -228,13 +268,18 @@ function updateSelectedFiltersDisplay() {
     });
 }
 
-async function getCampainList() {
+async function getCampainList(page, pageSize) {
     startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Product / Campaign...');
     try {
-        const response = await fetch(`/Campain/GetCampainList`);
+        const queryStr = (page !== undefined && pageSize !== undefined) 
+            ? `?page=${page}&pageSize=${pageSize}`
+            : '';
+        const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
-        const data = await response.json();
-        const mapped = data.map(item => ({
+        const jsonResult = await response.json();
+        const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
+        const mapped = items.map(item => ({
+            id: item.id ?? item.Id ?? 0,
             guid: item.product_guid || "",
             code: item.product_code || "",
             name: item.product_name || "",
@@ -246,20 +291,22 @@ async function getCampainList() {
             isImportFromExcel: false
         }));
         
-        return mapped;
+        return {
+            page: jsonResult.page ?? (page ? parseInt(page) : 1),
+            pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
+            count: jsonResult.count ?? mapped.length,
+            data: mapped
+        };
     }
     catch(error){
         console.error("Error in getCampainList:", error);
-        return [];
+        return { page: page, pageSize: pageSize, count: 0, data: [] };
     } finally {
         stopLoading();
     }
 }
-
 $(document).ready(async function () {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่ ระบบกำลังดึงข้อมูล Product / Campaign...');
-    // Fetch Campaigns Data
-    let campaigns = await getCampainList();
     // Fetch Branches Data
     let branchesData = [];
     try {
@@ -523,8 +570,9 @@ $(document).ready(async function () {
 
     function initDataTables() {
         campaignTable = $campaignsTable.DataTable({
-            data: campaigns,
-            pageLength: 5,
+            serverSide: true,
+            processing: false,
+            pageLength: pageSize,
             ordering: true,
             dom: '<"campaign-list-container"t><"d-flex justify-content-center mt-3"p>',
             language: {
@@ -538,11 +586,38 @@ $(document).ready(async function () {
                     next: '<i class="bi bi-chevron-right"></i>'
                 }
             },
+            ajax: async function (data, callback, settings) {
+                const requestedPage = Math.floor(data.start / data.length) + 1;
+                page = requestedPage;
+                try {
+                    const res = await getCampainList(page, pageSize);
+                    const rawItems = Array.isArray(res) ? res : (res.data || []);
+                    campaigns = rawItems;
+                    totalCampaignsCountValue = res.count !== undefined ? res.count : rawItems.length;
+                    $totalCampaignsCount.text(totalCampaignsCountValue);
+
+                    callback({
+                        draw: data.draw,
+                        recordsTotal: totalCampaignsCountValue,
+                        recordsFiltered: totalCampaignsCountValue,
+                        data: rawItems
+                    });
+                } catch (err) {
+                    console.error("Error fetching DataTables page:", err);
+                    callback({
+                        draw: data.draw,
+                        recordsTotal: 0,
+                        recordsFiltered: 0,
+                        data: []
+                    });
+                }
+            },
             columns: [
                 { 
                     data: null,
                     orderable: false,
                     render: function (data, type, row) {
+                        if (!row || !row.code) return '';
                         const isActive = row.code === selectedCampaignCode;
                         return `
                             <div class="campaign-card ${isActive ? 'active' : ''}" data-code="${row.code}">
@@ -563,16 +638,13 @@ $(document).ready(async function () {
                 { data: 'endDate', visible: false },
                 { data: 'remarks', visible: false }
             ],
-            order: [[sortFieldToColumnIdx[activeSortField], activeSortOrder]],
-            drawCallback: function(settings) {
-                $totalCampaignsCount.text(settings.fnRecordsDisplay());
-            }
+            order: [[sortFieldToColumnIdx[activeSortField], activeSortOrder]]
         });
     }
 
     function renderCampaignsList() {
         if (campaignTable) {
-            campaignTable.clear().rows.add(campaigns).draw();
+            campaignTable.draw(false);
         }
     }
 
@@ -585,6 +657,7 @@ $(document).ready(async function () {
         try {
             selectedCampaignCode = code;
             selectedCampaignGuid = campaign.guid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
+            selectedCampaignId = campaign.id || 0;
             
             // Populate inputs
             $("#campaignCode").val(campaign.code);
@@ -602,32 +675,49 @@ $(document).ready(async function () {
             syncCheckboxesState();
             updateBranchDisplay();
             
-            // Show/hide Filter Name & Selected panels based on isImportFromExcel
-            if (campaign.isImportFromExcel) {
-                $("#filterSelectedRow").hide();
-            } else {
-                $("#filterSelectedRow").show();
-                // Fetch assigned filters for selected campaign via GetFilterByGuid
-                if (selectedCampaignGuid) {
-                    try {
-                        const filterData = await GetFilterByGuid(selectedCampaignGuid);
-                        if (Array.isArray(filterData)) {
-                            selectedFilterCodes = filterData
-                                .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
-                                .filter(c => c !== "");
-                        } else {
-                            selectedFilterCodes = [];
-                        }
-                    } catch (err) {
-                        console.error("Error loading filters by guid:", err);
+            // Fetch assigned filters for selected campaign via GetFilterByGuid
+            if (selectedCampaignGuid) {
+                try {
+                    const filterData = await GetFilterByGuid(selectedCampaignGuid);
+                    const importFilterObj = await getImportFilter();
+                    const importCode = importFilterObj ? (importFilterObj.fcode || importFilterObj.fCode || importFilterObj.FCode || importFilterObj.f_code || "") : "";
+
+                    const hasImportFilter = Array.isArray(filterData) && filterData.some(item => {
+                        const fname = (item.fname || item.fName || item.FName || "").toString().toLowerCase();
+                        const fcode = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString();
+                        return fname === "import" || (importCode && fcode === importCode);
+                    });
+
+                    if (hasImportFilter) {
+                        campaign.isImportFromExcel = true;
+                    }
+
+                    if (campaign.isImportFromExcel) {
+                        $("#chkImportExcel").prop("checked", true);
+                        $("#btnImportExcel").removeClass("d-none").show();
+                        $("#filterSelectedRow").hide();
+                    } else {
+                        $("#chkImportExcel").prop("checked", false);
+                        $("#btnImportExcel").addClass("d-none").hide();
+                        $("#filterSelectedRow").show();
+                    }
+
+                    if (Array.isArray(filterData)) {
+                        selectedFilterCodes = filterData
+                            .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
+                            .filter(c => c !== "" && c !== importCode);
+                    } else {
                         selectedFilterCodes = [];
                     }
-                } else {
+                } catch (err) {
+                    console.error("Error loading filters by guid:", err);
                     selectedFilterCodes = [];
                 }
-
-                updateFilterSelectionUI();
+            } else {
+                selectedFilterCodes = [];
             }
+
+            updateFilterSelectionUI();
             
             // Re-render list to update active card styling
             renderCampaignsList();
@@ -661,7 +751,6 @@ $(document).ready(async function () {
         $campaignSearchInput.val("");
         startLoading('กำลังโหลดข้อมูล...', 'กำลังรีเฟรชรายการ Product / Campaign...');
         try {
-            campaigns = await getCampainList();
             renderCampaignsList();
             if (campaignTable) {
                 campaignTable.search("").draw();
@@ -851,8 +940,9 @@ $(document).ready(async function () {
         syncModalCheckboxesState();
         updateModalBranchDisplay();
         
-        // Reset isImportFromExcel checkbox
-        $("#chkImportExcel").prop("checked", false);
+        // Reset isImportFromExcel checkbox & button in modal
+        $("#modalChkImportExcel").prop("checked", false);
+        $("#btnModalImportExcel").addClass("d-none").hide();
         
         // Show modal
         var myModal = new bootstrap.Modal(document.getElementById('createCampaignModal'));
@@ -897,6 +987,20 @@ $(document).ready(async function () {
                 try {
                     const newGuid = crypto.randomUUID();
                     const company = window.CURRENT_COMPANY || "MICRO";
+                    const isImportFromExcel = $("#modalChkImportExcel").is(":checked");
+
+                    let filterCodesToPost = [];
+
+                    if (isImportFromExcel) {
+                        const importFilterObj = await getImportFilter();
+                        if (importFilterObj) {
+                            const importCode = importFilterObj.fcode || importFilterObj.fCode || importFilterObj.FCode || importFilterObj.f_code || "";
+                            if (importCode) {
+                                filterCodesToPost.push(importCode);
+                            }
+                        }
+                    }
+
                     const postData = {
                         productInfo: {
                             product_code: code,
@@ -909,7 +1013,7 @@ $(document).ready(async function () {
                             product_company: company,
                             offcde: modalSelectedBranches.join(",")
                         },
-                        filtersInfo: selectedFilterCodes.map(c => ({
+                        filtersInfo: filterCodesToPost.map(c => ({
                             fguid: newGuid,
                             fcode: c,
                             fcompany: company
@@ -927,8 +1031,6 @@ $(document).ready(async function () {
                     const data = await response.json();
                     
                     if (data.status === "success") {
-                        const isImportFromExcel = $("#chkImportExcel").is(":checked");
-
                         const campaignData = {
                             guid: newGuid,
                             code: code,
@@ -963,7 +1065,7 @@ $(document).ready(async function () {
 
     // Click Delete Button
     $("#deleteActionBtn").off("click").on("click", function () {
-        if (!selectedCampaignCode) {
+        if (!selectedCampaignId && !selectedCampaignCode) {
             Swal.fire({ title: "ไม่สามารถลบได้", text: "กรุณาเลือกแคมเปญที่ต้องการลบจากรายการด้านซ้ายก่อน", icon: "warning" });
             return;
         }
@@ -981,20 +1083,34 @@ $(document).ready(async function () {
             if (result.isConfirmed) {
                 startLoading("กำลังลบข้อมูล...", "ระบบกำลังลบ Product / Campaign...");
                 try {
-                    const response = await fetch(`/Campain/DeleteCampain?productId=${selectedCampaignCode}`);
+                    const response = await fetch(`/Campain/DeleteCampain?productId=${encodeURIComponent(selectedCampaignId)}`);
                     const resultText = await response.text();
                     
                     if (response.ok && resultText.includes("Success")) {
-                        campaigns = campaigns.filter(c => c.code !== selectedCampaignCode);
-                        
                         Swal.fire({ title: "ลบสำเร็จ!", text: "แคมเปญถูกลบออกจากระบบแล้ว", icon: "success" });
                         
-                        // Load first campaign left in list
+                        // Re-fetch fresh campaign list from server
+                        renderCampaignsList();
+                        
                         if (campaigns.length > 0) {
                             await loadCampaignToForm(campaigns[0].code);
                         } else {
-                            // Reset form
-                            $("#newActionBtn").trigger("click");
+                            // Reset form & UI state when list is empty
+                            selectedCampaignCode = "";
+                            selectedCampaignGuid = "";
+                            selectedCampaignId = 0;
+                            $("#campaignCode").val("");
+                            $("#campaignName").val("");
+                            $("#startDate").val("");
+                            $("#endDate").val("");
+                            $("#remarks").val("");
+                            $("#remarksCharCounter").text("0 / 500");
+                            selectedBranches = [];
+                            syncCheckboxesState();
+                            updateBranchDisplay();
+                            selectedFilterCodes = [];
+                            updateFilterSelectionUI();
+                            renderCampaignsList();
                         }
                     } else {
                         Swal.fire({ title: "ลบไม่สำเร็จ", text: resultText || "เกิดข้อผิดพลาดในการลบแคมเปญ", icon: "error" });
@@ -1022,21 +1138,11 @@ $(document).ready(async function () {
 
     // Submit Form Button
     $("#submitFormBtn").off("click").on("click", function () {
-        const name = $("#campaignName").val().trim();
-        const code = $("#campaignCode").val().trim();
-        const start = $("#startDate").val();
-        const end = $("#endDate").val();
-        const note = $remarks.val().trim();
-        
-        if (!name || !start || !end) {
-            Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด", icon: "warning" });
-            return;
-        }
-        
-        if (selectedBranches.length === 0) {
-            Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณาเลือกสาขาอย่างน้อย 1 สาขา", icon: "warning" });
-            return;
-        }
+        const name = ($("#campaignName").val() || "").trim();
+        const code = ($("#campaignCode").val() || "").trim();
+        const start = $("#startDate").val() || "";
+        const end = $("#endDate").val() || "";
+        const note = ($remarks && $remarks.length && $remarks.val()) ? $remarks.val().trim() : "";
 
         const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
         const campaignData = {
@@ -1153,11 +1259,49 @@ $(document).ready(async function () {
         renderModalBranchCheckboxes();
         await renderMasterFilters();
         initDataTables();
+        $("#chkImportExcel").off("change").on("change", function () {
+            if ($(this).is(":checked")) {
+                $("#filterSelectedRow").hide();
+                $("#btnImportExcel").removeClass("d-none").show();
+            } else {
+                $("#filterSelectedRow").show();
+                $("#btnImportExcel").addClass("d-none").hide();
+            }
+        });
+
+        $("#modalChkImportExcel").off("change").on("change", function () {
+            if ($(this).is(":checked")) {
+                $("#btnModalImportExcel").removeClass("d-none").show();
+            } else {
+                $("#btnModalImportExcel").addClass("d-none").hide();
+            }
+        });
+
+        $("#btnImportExcel").off("click").on("click", function () {
+            $("#excelFileInput").trigger("click");
+        });
+
+        $("#btnModalImportExcel").off("click").on("click", function () {
+            $("#modalExcelFileInput").trigger("click");
+        });
+
+        $("#excelFileInput, #modalExcelFileInput").off("change").on("change", function () {
+            const file = this.files[0];
+            if (file) {
+                Swal.fire({
+                    title: "เลือกไฟล์สำเร็จ",
+                    text: `ไฟล์ที่เลือก: ${file.name}`,
+                    icon: "success",
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        });
+
         if (selectedCampaignCode) {
             await loadCampaignToForm(selectedCampaignCode);
-        } else if (campaigns && campaigns.length > 0) {
-            await loadCampaignToForm(campaigns[0].code);
         }
+        // ไม่ auto-load campaign แรก — ให้ผู้ใช้เลือกเองจากรายการ
     } finally {
         stopLoading();
     }

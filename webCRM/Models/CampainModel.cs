@@ -184,7 +184,21 @@ namespace webCRM.Models
         public string? fname { get; set; }
         [JsonPropertyName("company")]
         public string? company { get; set; }
-              
     }
-    
+          
+    public class CampainPagedResult
+    {
+        [JsonPropertyName("page")]
+        public int Page { get; set; }
+
+        [JsonPropertyName("pageSize")]
+        public int PageSize { get; set; }
+
+        [JsonPropertyName("count")]
+        public int Count { get; set; }
+
+        [JsonPropertyName("data")]
+        public List<ProductGet> Data { get; set; } = new List<ProductGet>();
+    }
 }
+

@@ -18,7 +18,7 @@
                             <div class="d-flex flex-column flex-md-row gap-3">
                                 <select id="filterTopic" class="form-select rounded-3 text-muted" style="width: auto; min-width: 160px;">
                                     <option value="">หัวข้อ (ทั้งหมด)</option>
-                                    <option value="ข้อเสนอแนะ">ข้อเสนอแนะ</option>
+                                    <option value="เสนอแนะ">เสนอแนะ</option>
                                     <option value="สนใจผลิตภัณฑ์">สนใจผลิตภัณฑ์</option>
                                     <option value="ร้องเรียน">ร้องเรียน</option>
                                 </select>
@@ -86,6 +86,7 @@
                                             data-recordedby="@(item.PersonalName ?? "-")"
                                             data-reply="@(item.Reply ?? "-")"
                                             data-nameprovider="@(item.NameProvider ?? "-")"
+                                            data-suggestion="@(item.Suggestion ?? "-")"
                                             data-guid="@(item.Guid ?? "-")"
                                             data-updby="@(item.UpdBy ?? "-")"
                                             >
@@ -110,74 +111,82 @@
             <!-- Right Column: Summary -->
             <div class="col-12 col-xl-4">
                 <div class="bg-white rounded-4 p-4 shadow-sm border border-light h-100 d-flex flex-column">
-                    <h6 class="fw-bold text-dark-blue ">รายละเอียด</h6>
+                    <h6 class="fw-bold text-dark-blue mb-2">รายละเอียด</h6>
 
-                    <hr class="text-muted opacity-25 mb-2">
+                    <hr class="text-muted opacity-25 mb-3">
 
                     <div class="d-flex flex-column gap-3 flex-grow-1">
-                        <div class="row g-4 mb-4 mt-2 border-bottom pb-5">
+                        <div class="row g-3 mb-3 border-bottom pb-4">
                         
                             <div class="col-12">
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">เบอร์โทร</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">ชื่อ-นามสกุล</div>
+                                    <div class="fw-semibold text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-nameprovider">-</div>
+                                </div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">เบอร์โทร</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-phone">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">ติดต่อกลับ</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">ติดต่อกลับ</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-contact-back">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">E-mail</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">E-mail</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-email">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">Line ID</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">Line ID</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-line">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">เลขประจำตัวประชาชน</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">เลขประจำตัวประชาชน</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-idno">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">สถานะเคส</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">สถานะเคส</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-status">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">ที่อยู่ในการติดต่อ</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">ที่อยู่ในการติดต่อ</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-address">-</div>
                                 </div>
-                                <div class="d-flex mb-4 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">วันที่บันทึก</div>
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">วันที่บันทึก</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-date">-</div>
                                 </div>
 
-                                <h6 style="text-decoration: underline; text-decoration-style: double;" class="text-dark-blue mb-4 fw-bold">
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">ข้อความเสนอแนะ</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-suggestion">-</div>
+                                </div>
+
+                                <h6 style="text-decoration: underline; text-decoration-style: double;" class="text-dark-blue mb-3 fw-bold mt-4">
                                     ข้อมูลการตอบกลับ
                                 </h6>
 
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">บันทึกโดย</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">บันทึกโดย</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-recorded-by">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 160px; flex-shrink: 0;">Reply</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">Reply</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-reply">-</div>
                                 </div>
                                 <span id="detail-guid" class="d-none"></span>
                                 <span id="detail-updBy" class="d-none"></span>
                             </div>
 
-                            <h6 style="text-decoration: underline; text-decoration-style: double;" class="mb-0">
+                            <h6 style="text-decoration: underline; text-decoration-style: double;" class="mb-2 mt-2 fw-bold">
                                 บันทึกข้อมูล
                             </h6>
                             
-                            <div class="col-12 mt-2">
-                                <div class="border p-3 bg-white" style="border-radius: 4px; border-color: #e2e8f0;">
+                            <div class="col-12 mt-1">
+                                <div class="border p-3 bg-white" style="border-radius: 6px; border-color: #e2e8f0;">
                                     <div class="mb-2" style="font-size: 0.95rem; word-break: break-word; overflow-wrap: break-word;">
                                         <span class="fw-bold" style="color: #0f5132;">ข้อความตอบกลับ:</span>
-                                        <span class="text-dark" id="detail-nameprovider">-</span>
                                     </div>
-                                    <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;"></textarea>
+                                    <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;" placeholder="กรอกข้อความตอบกลับที่นี่..."></textarea>
                                     <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
                                         <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
                                         <span>@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</span>
@@ -192,11 +201,6 @@
                         </div>
                     </div>
 
-                    @* <div class="mt-4">
-                        <button class="btn btn-outline-primary w-100 rounded-3 py-2 fw-medium d-flex align-items-center justify-content-center gap-2" style="background-color: #f8faff; border-color: #d1def0; color: #1f3b60;">
-                            <i class="bi bi-file-earmark-text text-primary"></i> ดูประวัติการติดต่อ
-                        </button>
-                    </div> *@
                 </div>
             </div>
             
@@ -210,7 +214,7 @@
     <script>
         var currentUserEmail = '@(Context.Session.GetString("email") ?? "")';
     </script>
-    <script src="~/Views/Suggestions/suggestions.js" asp-append-version="true"></script>
+    <script src="~/js/suggestions.js" asp-append-version="true"></script>
 }
 
     <!-- Complaint Modal -->
@@ -232,7 +236,7 @@
                             <div class="col-md-4">
                                 <label class="form-label fw-medium small">หัวข้อ <span class="text-danger">*</span></label>
                                 <select class="form-select text-muted" aria-label="Topic" id="post-title">
-                                    <option selected>เลือกหัวข้อ</option>
+                                    <option value="" selected>เลือกหัวข้อ</option>
                                     <option value="01">เสนอแนะ</option>
                                     <option value="02">ร้องเรียน</option>
                                     <option value="03">สนใจผลิตภัณฑ์</option>

@@ -1,15 +1,18 @@
-async function getCampainList() {
+
+const pageSize = 10;
+let page = 1;
+
+async function getCampainList(page, pageSize) {
+    startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
-        Swal.fire({
-            title: 'กำลังโหลดข้อมูล...',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        const response = await fetch(`/Campain/GetCampainList`);
-        const data = await response.json();
-        const mapped = data.map(item => ({
+        const queryStr = (page !== undefined && pageSize !== undefined) 
+            ? `?page=${page}&pageSize=${pageSize}`
+            : '';
+        const response = await fetch(`/Campain/GetCampainList${queryStr}`);
+        if (!response.ok) throw new Error("Failed to fetch campaigns list");
+        const jsonResult = await response.json();
+        const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
+        const mapped = items.map(item => ({
             code:      item.product_code   || '',
             name:      item.product_name   || '',
             status:    item.product_status || 'ปกติ',
@@ -19,12 +22,17 @@ async function getCampainList() {
             createdBy: item.createrd_by    || item.created_by || '',
             created:   item.created        ? item.created.substring(0, 10)       : ''
         }));
-        Swal.close();
-        return mapped;
+        return {
+            page: jsonResult.page ?? (page ? parseInt(page) : 1),
+            pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
+            count: jsonResult.count ?? mapped.length,
+            data: mapped
+        };
     } catch (error) {
-        console.error(error);
-        Swal.close();
-        return [];
+        console.error("Error in getCampainList:", error);
+        return { page: page, pageSize: pageSize, count: 0, data: [] };
+    } finally {
+        stopLoading();
     }
 }
 
@@ -134,10 +142,11 @@ async function getCampainList() {
 // BATCH LIST & CAMPAIGN DATA LOADING
 // =============================================
 (function () {
-    let allCampaigns = [];
+    let campaigns = [];
     let filteredCampaigns = [];
     let batchPage = 1;
-    const batchPerPage = 6;
+    const batchPerPage = pageSize;
+    let totalBatchCount = 0;
     let selectedIndex = 0;
 
     function getStatusClass(status) {
@@ -149,7 +158,7 @@ async function getCampainList() {
     }
 
     function getTotalBatchPages() {
-        return Math.max(1, Math.ceil(filteredCampaigns.length / batchPerPage));
+        return Math.max(1, Math.ceil(totalBatchCount / batchPerPage));
     }
 
     function selectCampaign(index) {
@@ -159,8 +168,7 @@ async function getCampainList() {
 
         const items = container.querySelectorAll('.batch-item');
         items.forEach((el, i) => {
-            const globalIdx = (batchPage - 1) * batchPerPage + i;
-            const isSelected = globalIdx === selectedIndex;
+            const isSelected = i === selectedIndex;
             el.classList.toggle('active', isSelected);
             const codeSpan = el.querySelector('.batch-item-id span:first-child');
             if (codeSpan) {
@@ -188,11 +196,12 @@ async function getCampainList() {
         const container = document.getElementById('batchListContainer');
         if (!container) return;
 
-        const total = filteredCampaigns.length;
+        const total = totalBatchCount;
 
-        if (total === 0) {
+        if (total === 0 || filteredCampaigns.length === 0) {
             container.innerHTML = '<div class="p-3 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูล Campaign</div>';
-            document.getElementById('batchPageInfo').textContent = '0 - 0 จาก 0';
+            const pageInfo = document.getElementById('batchPageInfo');
+            if (pageInfo) pageInfo.textContent = '0 - 0 จาก 0';
             updatePaginationButtons(1, 1);
             return;
         }
@@ -200,21 +209,19 @@ async function getCampainList() {
         const totalPages = getTotalBatchPages();
         if (batchPage > totalPages) batchPage = totalPages;
 
-        const start = (batchPage - 1) * batchPerPage;
-        const end = Math.min(start + batchPerPage, total);
-        const pageItems = filteredCampaigns.slice(start, end);
+        const from = (batchPage - 1) * batchPerPage + 1;
+        const to = Math.min(batchPage * batchPerPage, total);
 
         let html = '';
-        pageItems.forEach((item, idx) => {
-            const globalIdx = start + idx;
-            const isSelected = globalIdx === selectedIndex;
+        filteredCampaigns.forEach((item, idx) => {
+            const isSelected = idx === selectedIndex;
             const statusClass = getStatusClass(item.status);
             const displayCode = item.code || item.name || 'N/A';
             const displayDate = item.created || item.startDate || '';
             const displayName = item.name || item.remark || '';
 
             html += `
-                <div class="batch-item ${isSelected ? 'active' : ''}" data-batch-index="${globalIdx}">
+                <div class="batch-item ${isSelected ? 'active' : ''}" data-batch-index="${idx}">
                     <div class="batch-item-id">
                         <span class="${isSelected ? 'text-primary' : ''}">${displayCode}</span>
                         <span class="batch-status ${statusClass}">${item.status}</span>
@@ -238,9 +245,8 @@ async function getCampainList() {
         });
 
         // Update page info
-        const from = start + 1;
-        const to = end;
-        document.getElementById('batchPageInfo').textContent = `${from} - ${to} จาก ${total}`;
+        const pageInfo = document.getElementById('batchPageInfo');
+        if (pageInfo) pageInfo.textContent = `${from} - ${to} จาก ${total}`;
 
         updatePaginationButtons(batchPage, totalPages);
     }
@@ -249,9 +255,10 @@ async function getCampainList() {
         const firstBtn = document.getElementById('batchFirstBtn');
         const prevBtn = document.getElementById('batchPrevBtn');
         const nextBtn = document.getElementById('batchNextBtn');
+        const pageNumbersContainer = document.getElementById('batchPageNumbers');
 
         if (firstBtn && prevBtn && nextBtn) {
-            if (currentPage === 1) {
+            if (currentPage <= 1) {
                 firstBtn.style.opacity = '0.35';
                 firstBtn.style.cursor = 'not-allowed';
                 prevBtn.style.opacity = '0.35';
@@ -271,6 +278,65 @@ async function getCampainList() {
                 nextBtn.style.cursor = 'pointer';
             }
         }
+
+        if (pageNumbersContainer) {
+            pageNumbersContainer.innerHTML = '';
+            
+            function buildBatchPageRange(curr, total) {
+                if (total <= 5) {
+                    return Array.from({ length: total }, (_, i) => i + 1);
+                }
+                if (curr <= 3) {
+                    return [1, 2, 3, '...', total];
+                } else if (curr >= total - 2) {
+                    return [1, '...', total - 2, total - 1, total];
+                } else {
+                    return [1, '...', curr, '...', total];
+                }
+            }
+
+            const pages = buildBatchPageRange(currentPage, totalPages);
+            pages.forEach(p => {
+                if (p === '...') {
+                    const span = document.createElement('span');
+                    span.className = 'px-1 text-muted';
+                    span.style.fontSize = '0.8rem';
+                    span.textContent = '...';
+                    pageNumbersContainer.appendChild(span);
+                } else {
+                    const btn = document.createElement('span');
+                    const isActive = p === currentPage;
+                    btn.className = `px-2 py-0.5 rounded ${isActive ? 'bg-primary text-white fw-bold' : 'text-dark'}`;
+                    btn.style.cursor = 'pointer';
+                    btn.style.fontSize = '0.8rem';
+                    btn.style.userSelect = 'none';
+                    if (!isActive) {
+                        btn.style.backgroundColor = '#f1f5f9';
+                    }
+                    btn.textContent = p;
+                    btn.addEventListener('click', function () {
+                        if (p !== currentPage) {
+                            loadBatch(p);
+                        }
+                    });
+                    pageNumbersContainer.appendChild(btn);
+                }
+            });
+        }
+    }
+
+    async function loadBatch(pageToLoad) {
+        batchPage = pageToLoad || 1;
+        const res = await getCampainList(batchPage, batchPerPage);
+        campaigns = res.data || [];
+        filteredCampaigns = [...campaigns];
+        totalBatchCount = res.count !== undefined ? res.count : campaigns.length;
+        batchPage = res.page || batchPage;
+        selectedIndex = 0;
+        renderBatch();
+        if (filteredCampaigns.length > 0) {
+            selectCampaign(0);
+        }
     }
 
     // Search listener
@@ -279,16 +345,15 @@ async function getCampainList() {
         searchInput.addEventListener('input', function () {
             const q = this.value.toLowerCase().trim();
             if (!q) {
-                filteredCampaigns = [...allCampaigns];
+                filteredCampaigns = [...campaigns];
             } else {
-                filteredCampaigns = allCampaigns.filter(item =>
+                filteredCampaigns = campaigns.filter(item =>
                     (item.code && item.code.toLowerCase().includes(q)) ||
                     (item.name && item.name.toLowerCase().includes(q)) ||
                     (item.status && item.status.toLowerCase().includes(q)) ||
                     (item.remark && item.remark.toLowerCase().includes(q))
                 );
             }
-            batchPage = 1;
             selectedIndex = 0;
             renderBatch();
             if (filteredCampaigns.length > 0) {
@@ -299,28 +364,17 @@ async function getCampainList() {
 
     // Pagination buttons
     document.getElementById('batchFirstBtn')?.addEventListener('click', function () {
-        if (batchPage > 1) { batchPage = 1; renderBatch(); }
+        if (batchPage > 1) { loadBatch(1); }
     });
     document.getElementById('batchPrevBtn')?.addEventListener('click', function () {
-        if (batchPage > 1) { batchPage--; renderBatch(); }
+        if (batchPage > 1) { loadBatch(batchPage - 1); }
     });
     document.getElementById('batchNextBtn')?.addEventListener('click', function () {
-        if (batchPage < getTotalBatchPages()) { batchPage++; renderBatch(); }
+        if (batchPage < getTotalBatchPages()) { loadBatch(batchPage + 1); }
     });
 
     // Initialize Campaign List
-    async function init() {
-        allCampaigns = await getCampainList();
-        filteredCampaigns = [...allCampaigns];
-        batchPage = 1;
-        selectedIndex = 0;
-        renderBatch();
-        if (filteredCampaigns.length > 0) {
-            selectCampaign(0);
-        }
-    }
-
-    init();
+    loadBatch(1);
 })();
 
 (function () {

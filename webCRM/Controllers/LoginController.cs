@@ -117,8 +117,7 @@ namespace webCRM.Controllers
                 using var client = new HttpClient(handler);
 
                 var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
-                //string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
-                string? domain = "https://localhost:7103";
+                string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
                 if (string.IsNullOrEmpty(domain))
                 {

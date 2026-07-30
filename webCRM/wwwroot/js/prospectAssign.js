@@ -41,34 +41,81 @@ async function getCampainList(page, pageSize) {
     if (!tbody) return;
 
     const allRows = Array.from(tbody.querySelectorAll('tr'));
-    const totalRows = allRows.length;
-    document.getElementById('totalRowsInfo').textContent = totalRows;
-
     const rowsPerPageSelect = document.getElementById('rowsPerPageSelect');
     const paginationEl = document.getElementById('prospectPagination');
+    const summaryCards = document.querySelectorAll('.summary-card');
 
     let currentPage = 1;
+    let activeStatusFilter = 'all';
+
+    // Summary card click filtering
+    summaryCards.forEach(function (card) {
+        card.addEventListener('click', function () {
+            summaryCards.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+
+            activeStatusFilter = this.getAttribute('data-status') || 'all';
+            currentPage = 1;
+            update();
+        });
+    });
+
+    function getFilteredRows() {
+        if (activeStatusFilter === 'all') {
+            return allRows;
+        }
+        return allRows.filter(function (row) {
+            const statusEl = row.querySelector('.status-text');
+            if (!statusEl) return true;
+            const text = statusEl.textContent.trim().toLowerCase();
+
+            if (activeStatusFilter === 'assign') {
+                return text.includes('assign') && !text.includes('ยังไม่') && !text.includes('reassign');
+            } else if (activeStatusFilter === 'reassign') {
+                return text.includes('reassign') || text.includes('re-assign');
+            } else if (activeStatusFilter === 'wait') {
+                return text.includes('wait') || text.includes('รอ') || text.includes('ยังไม่');
+            }
+            return true;
+        });
+    }
 
     function getRowsPerPage() {
         return parseInt(rowsPerPageSelect.value, 10);
     }
 
     function getTotalPages() {
-        return Math.max(1, Math.ceil(totalRows / getRowsPerPage()));
+        const filtered = getFilteredRows();
+        return Math.max(1, Math.ceil(filtered.length / getRowsPerPage()));
     }
 
     function renderRows() {
+        const filtered = getFilteredRows();
         const rpp = getRowsPerPage();
         const start = (currentPage - 1) * rpp;
         const end = start + rpp;
-        allRows.forEach(function (row, i) {
-            row.style.display = (i >= start && i < end) ? '' : 'none';
+
+        allRows.forEach(function (row) {
+            row.style.display = 'none';
         });
+
+        filtered.forEach(function (row, i) {
+            if (i >= start && i < end) {
+                row.style.display = '';
+            }
+        });
+
+        const totalRowsInfo = document.getElementById('totalRowsInfo');
+        if (totalRowsInfo) {
+            totalRowsInfo.textContent = filtered.length;
+        }
     }
 
     function renderPagination() {
         const total = getTotalPages();
         paginationEl.innerHTML = '';
+
+        if (total <= 0) return;
 
         // Prev button
         const prevLi = document.createElement('li');

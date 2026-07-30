@@ -164,7 +164,7 @@ namespace webCRM.Models
         public string? Custyp { get; set; }
 
         [JsonPropertyName("contnoOld")]
-        public int? ContnoOld { get; set; }
+        public string? ContnoOld { get; set; }
 
         [JsonPropertyName("applno")]
         public string? Applno { get; set; }

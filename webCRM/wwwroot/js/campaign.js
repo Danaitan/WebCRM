@@ -313,10 +313,18 @@ $(document).ready(async function () {
         startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูลสาขา...');
         const branchRes = await fetch(`/Campain/getBranchListForCRM`);
         const branchList = await branchRes.json();
-        branchesData = branchList.map(b => ({
-            code: b.offcde || b.Offcde || "",
-            name: b.branch_name || b.branchName || b.bname || b.Bname || "ไม่ทราบชื่อ"
-        }));
+        branchesData = (branchList || [])
+            .filter(b => (b.offcde || b.Offcde || "") !== "99")
+            .map(b => ({
+                code: String(b.offcde || b.Offcde || "").trim(),
+                name: b.branch_name || b.branchName || b.bname || b.Bname || "ไม่ทราบชื่อ"
+            }));
+
+        // Always add virtual "ทุกสาขา" (code 99) option at the top
+        branchesData.unshift({
+            code: "99",
+            name: "ทุกสาขา"
+        });
     } catch (err) {
         console.error("Failed to load branches:", err);
     } finally {
@@ -351,9 +359,46 @@ $(document).ready(async function () {
     const $branchesListContainer = $("#branchesListContainer");
     const $branchSelectDisplay = $("#branchSelectDisplay");
     const $branchDropdownPanel = $("#branchDropdownPanel");
-    const $chkSelectAllBranches = $("#chkSelectAllBranches");
     const $remarks = $("#remarks");
     const $remarksCharCounter = $("#remarksCharCounter");
+
+    // Helper to identify excluded branches (MIB, MFIN, สาขาใหญ่)
+    function isExcludedBranch(branch) {
+        if (!branch) return false;
+        const code = String(branch.code || "").trim().toUpperCase();
+        const name = String(branch.name || "").trim().toUpperCase();
+        
+        // 1. MIB
+        if (code === "MIB" || name.includes("MIB")) return true;
+        
+        // 2. MFIN
+        if (code === "MFIN" || name.includes("MFIN")) return true;
+        
+        // 3. สาขาใหญ่
+        if (code === "00" || code === "000" || name.includes("สาขาใหญ่") || name.includes("สำนักงานใหญ่") || name.includes("HEAD OFFICE") || name.includes("MAIN BRANCH")) return true;
+        
+        return false;
+    }
+
+    function updateSelectAllState() {
+        const nonExcludedBranches = branchesData.filter(b => b.code !== "99" && !isExcludedBranch(b));
+        const excludedBranches = branchesData.filter(b => b.code !== "99" && isExcludedBranch(b));
+        
+        const allNonExcludedChecked = nonExcludedBranches.length > 0 && 
+            nonExcludedBranches.every(b => selectedBranches.includes(b.code));
+        const anyExcludedChecked = excludedBranches.some(b => selectedBranches.includes(b.code));
+        
+        const is99Checked = allNonExcludedChecked && !anyExcludedChecked;
+        
+        $("#chk_branch_99").prop("checked", is99Checked);
+        if (is99Checked) {
+            if (!selectedBranches.includes("99")) {
+                selectedBranches.push("99");
+            }
+        } else {
+            selectedBranches = selectedBranches.filter(b => b !== "99");
+        }
+    }
 
     // Initialize Branch Checkbox List
     function renderBranchCheckboxes() {
@@ -374,79 +419,75 @@ $(document).ready(async function () {
             const isChecked = $(this).is(":checked");
             
             if (code === "99") {
-                // If selecting "99-ทุกสาขา", clear all other selections and check only 99
                 if (isChecked) {
-                    selectedBranches = ["99"];
-                    $(".branch-chk").not("#chk_branch_99").prop("checked", false);
+                    const nonExcludedCodes = branchesData
+                        .filter(b => b.code !== "99" && !isExcludedBranch(b))
+                        .map(b => b.code);
+                    
+                    selectedBranches = ["99", ...nonExcludedCodes];
+                    
+                    branchesData.forEach(b => {
+                        if (b.code === "99") {
+                            $(`#chk_branch_${b.code}`).prop("checked", true);
+                        } else if (isExcludedBranch(b)) {
+                            $(`#chk_branch_${b.code}`).prop("checked", false);
+                        } else {
+                            $(`#chk_branch_${b.code}`).prop("checked", true);
+                        }
+                    });
                 } else {
                     selectedBranches = [];
+                    $(".branch-chk").prop("checked", false);
                 }
             } else {
-                // If selecting another branch
                 if (isChecked) {
-                    // Uncheck 99 if checked
-                    $("#chk_branch_99").prop("checked", false);
-                    selectedBranches = selectedBranches.filter(b => b !== "99");
-                    
                     if (!selectedBranches.includes(code)) {
                         selectedBranches.push(code);
                     }
                 } else {
                     selectedBranches = selectedBranches.filter(b => b !== code);
                 }
+                updateSelectAllState();
             }
             
             updateBranchDisplay();
-            updateSelectAllState();
         });
     }
 
     // Sync Branch Checklist checkboxes with selectedBranches array
     function syncCheckboxesState() {
         $(".branch-chk").prop("checked", false);
+        if (selectedBranches.includes("99")) {
+            const nonExcludedCodes = branchesData
+                .filter(b => b.code !== "99" && !isExcludedBranch(b))
+                .map(b => b.code);
+            nonExcludedCodes.forEach(c => {
+                if (!selectedBranches.includes(c)) {
+                    selectedBranches.push(c);
+                }
+            });
+        }
         selectedBranches.forEach(code => {
             $(`#chk_branch_${code}`).prop("checked", true);
         });
         updateSelectAllState();
     }
 
-    // Update Select All Checkbox state
-    function updateSelectAllState() {
-        const totalCheckable = branchesData.length;
-        const totalChecked = selectedBranches.length;
-        
-        if (totalChecked === totalCheckable) {
-            $chkSelectAllBranches.prop("checked", true);
-        } else {
-            $chkSelectAllBranches.prop("checked", false);
-        }
-    }
-
-    // Handle Select All Click
-    $chkSelectAllBranches.on("change", function () {
-        const isChecked = $(this).is(":checked");
-        if (isChecked) {
-            // Select all codes
-            selectedBranches = branchesData.map(b => b.code);
-        } else {
-            selectedBranches = [];
-        }
-        syncCheckboxesState();
-        updateBranchDisplay();
-    });
-
     // Update Branch Input Display with tag pills
     function updateBranchDisplay() {
         // Clear existing tags
         $branchSelectDisplay.find(".branch-tag").remove();
         
-        if (selectedBranches.length === 0) {
+        // Exclude virtual "99" (ทุกสาขา) option from tag pill display
+        const displayBranches = selectedBranches.filter(code => code !== "99");
+        
+        if (displayBranches.length === 0) {
             $("#branchSelectPlaceholder").show();
         } else {
             $("#branchSelectPlaceholder").hide();
             
             // Render tags
-            selectedBranches.forEach(code => {
+            displayBranches.forEach(code => {
                 const branchObj = branchesData.find(b => b.code === code);
                 if (branchObj) {
                     const labelText = `${branchObj.name}`;
@@ -664,6 +705,12 @@ $(document).ready(async function () {
             $("#campaignName").val(campaign.name);
             $("#startDate").val(campaign.startDate);
             $("#endDate").val(campaign.endDate);
+            $("#campaignObjective").val(campaign.objective || "");
+            if (campaign.startDate) {
+                $("#endDate").attr("min", campaign.startDate);
+            } else {
+                $("#endDate").removeAttr("min");
+            }
             $("#remarks").val(campaign.remarks);
             
             // Update character counter
@@ -694,11 +741,9 @@ $(document).ready(async function () {
 
                     if (campaign.isImportFromExcel) {
                         $("#chkImportExcel").prop("checked", true);
-                        $("#btnImportExcel").removeClass("d-none").show();
                         $("#filterSelectedRow").hide();
                     } else {
                         $("#chkImportExcel").prop("checked", false);
-                        $("#btnImportExcel").addClass("d-none").hide();
                         $("#filterSelectedRow").show();
                     }
 
@@ -736,6 +781,19 @@ $(document).ready(async function () {
     $remarks.on("input", function () {
         const currentLen = $(this).val().length;
         $remarksCharCounter.text(`${currentLen} / 500`);
+    });
+
+    // Restrict main endDate so it cannot be earlier than main startDate
+    $("#startDate").on("change input", function () {
+        const startDateVal = $(this).val();
+        if (startDateVal) {
+            $("#endDate").attr("min", startDateVal);
+            if ($("#endDate").val() && $("#endDate").val() < startDateVal) {
+                $("#endDate").val(startDateVal);
+            }
+        } else {
+            $("#endDate").removeAttr("min");
+        }
     });
 
     // Search/Filter Campaigns in Sidebar List
@@ -805,7 +863,26 @@ $(document).ready(async function () {
     const $modalBranchSelectDisplay = $("#modalBranchSelectDisplay");
     const $modalBranchDropdownPanel = $("#modalBranchDropdownPanel");
     const $modalBranchesListContainer = $("#modalBranchesListContainer");
-    const $modalChkSelectAllBranches = $("#modalChkSelectAllBranches");
+
+    function updateModalSelectAllState() {
+        const nonExcludedBranches = branchesData.filter(b => b.code !== "99" && !isExcludedBranch(b));
+        const excludedBranches = branchesData.filter(b => b.code !== "99" && isExcludedBranch(b));
+        
+        const allNonExcludedChecked = nonExcludedBranches.length > 0 && 
+            nonExcludedBranches.every(b => modalSelectedBranches.includes(b.code));
+        const anyExcludedChecked = excludedBranches.some(b => modalSelectedBranches.includes(b.code));
+        
+        const is99Checked = allNonExcludedChecked && !anyExcludedChecked;
+        
+        $("#modal_chk_branch_99").prop("checked", is99Checked);
+        if (is99Checked) {
+            if (!modalSelectedBranches.includes("99")) {
+                modalSelectedBranches.push("99");
+            }
+        } else {
+            modalSelectedBranches = modalSelectedBranches.filter(b => b !== "99");
+        }
+    }
 
     // Init Modal Branch Checkboxes
     function renderModalBranchCheckboxes() {
@@ -826,57 +903,67 @@ $(document).ready(async function () {
             
             if (code === "99") {
                 if (isChecked) {
-                    modalSelectedBranches = ["99"];
-                    $(".modal-branch-chk").not("#modal_chk_branch_99").prop("checked", false);
+                    const nonExcludedCodes = branchesData
+                        .filter(b => b.code !== "99" && !isExcludedBranch(b))
+                        .map(b => b.code);
+                    
+                    modalSelectedBranches = ["99", ...nonExcludedCodes];
+                    
+                    branchesData.forEach(b => {
+                        if (b.code === "99") {
+                            $(`#modal_chk_branch_${b.code}`).prop("checked", true);
+                        } else if (isExcludedBranch(b)) {
+                            $(`#modal_chk_branch_${b.code}`).prop("checked", false);
+                        } else {
+                            $(`#modal_chk_branch_${b.code}`).prop("checked", true);
+                        }
+                    });
                 } else {
                     modalSelectedBranches = [];
+                    $(".modal-branch-chk").prop("checked", false);
                 }
             } else {
                 if (isChecked) {
-                    $("#modal_chk_branch_99").prop("checked", false);
-                    modalSelectedBranches = modalSelectedBranches.filter(b => b !== "99");
                     if (!modalSelectedBranches.includes(code)) modalSelectedBranches.push(code);
                 } else {
                     modalSelectedBranches = modalSelectedBranches.filter(b => b !== code);
                 }
+                updateModalSelectAllState();
             }
             
             updateModalBranchDisplay();
-            updateModalSelectAllState();
         });
     }
 
     function syncModalCheckboxesState() {
         $(".modal-branch-chk").prop("checked", false);
+        if (modalSelectedBranches.includes("99")) {
+            const nonExcludedCodes = branchesData
+                .filter(b => b.code !== "99" && !isExcludedBranch(b))
+                .map(b => b.code);
+            nonExcludedCodes.forEach(c => {
+                if (!modalSelectedBranches.includes(c)) {
+                    modalSelectedBranches.push(c);
+                }
+            });
+        }
         modalSelectedBranches.forEach(code => {
             $(`#modal_chk_branch_${code}`).prop("checked", true);
         });
         updateModalSelectAllState();
     }
 
-    function updateModalSelectAllState() {
-        const totalCheckable = branchesData.length;
-        const totalChecked = modalSelectedBranches.length;
-        $modalChkSelectAllBranches.prop("checked", totalChecked === totalCheckable);
-    }
-
-    $modalChkSelectAllBranches.on("change", function () {
-        if ($(this).is(":checked")) {
-            modalSelectedBranches = branchesData.map(b => b.code);
-        } else {
-            modalSelectedBranches = [];
-        }
-        syncModalCheckboxesState();
-        updateModalBranchDisplay();
-    });
-
     function updateModalBranchDisplay() {
         $modalBranchSelectDisplay.find(".branch-tag").remove();
-        if (modalSelectedBranches.length === 0) {
+        
+        // Exclude virtual "99" (ทุกสาขา) option from tag pill display
+        const displayBranches = modalSelectedBranches.filter(code => code !== "99");
+        
+        if (displayBranches.length === 0) {
             $("#modalBranchSelectPlaceholder").show();
         } else {
             $("#modalBranchSelectPlaceholder").hide();
-            modalSelectedBranches.forEach(code => {
+            displayBranches.forEach(code => {
                 const branchObj = branchesData.find(b => b.code === code);
                 if (branchObj) {
                     const labelText = `${branchObj.name}`;
@@ -925,13 +1012,60 @@ $(document).ready(async function () {
         $("#modalRemarksCharCounter").text(`${currentLen} / 500`);
     });
 
+    // Restrict modalEndDate so it cannot be earlier than modalStartDate
+    $("#modalStartDate").on("change input", function () {
+        const startDateVal = $(this).val();
+        if (startDateVal) {
+            $("#modalEndDate").attr("min", startDateVal);
+            if ($("#modalEndDate").val() && $("#modalEndDate").val() < startDateVal) {
+                $("#modalEndDate").val(startDateVal);
+            }
+        } else {
+            $("#modalEndDate").removeAttr("min");
+        }
+    });
+
+async function getCheckProductNo() {
+    try {
+        const response = await fetch('/Campain/GetCheckProductNo');
+        if (!response.ok) return '';
+        const resText = await response.text();
+        if (!resText) return '';
+
+        let data = resText;
+        if (typeof resText === 'string') {
+            try {
+                data = JSON.parse(resText);
+            } catch (e) {
+                return resText;
+            }
+        }
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch (e) {}
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+            return data[0].newCode || data[0].NewCode || data[0].code || data[0].Code || '';
+        } else if (data && typeof data === 'object') {
+            return data.newCode || data.NewCode || data.code || data.Code || '';
+        }
+        return '';
+    } catch (err) {
+        console.error("Error fetching GetCheckProductNo:", err);
+        return '';
+    }
+}
+
     // Click "+ New" Button to open modal
     $("#newActionBtn").on("click", function () {
         // Clear Modal Form
-        $("#modalCampaignCode").val("");
+        $("#modalCampaignCode").val("กำลังสร้างรหัส...");
         $("#modalCampaignName").val("");
         $("#modalStartDate").val("");
-        $("#modalEndDate").val("");
+        $("#modalEndDate").val("").removeAttr("min");
+        $("#modalCampaignObjective").val("");
         $("#modalRemarks").val("");
         $("#modalRemarksCharCounter").text("0 / 500");
         
@@ -940,9 +1074,16 @@ $(document).ready(async function () {
         syncModalCheckboxesState();
         updateModalBranchDisplay();
         
-        // Reset isImportFromExcel checkbox & button in modal
+        // Reset isImportFromExcel checkbox & file inputs in modal
         $("#modalChkImportExcel").prop("checked", false);
-        $("#btnModalImportExcel").addClass("d-none").hide();
+        $("#modalExcelFileInput").val("");
+        $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+
+        // Fetch and populate Product Code from GetCheckProductNo
+        getCheckProductNo().then(newCode => {
+            $("#modalCampaignCode").val(newCode);
+            $("#campaignCode").val(newCode);
+        });
         
         // Show modal
         var myModal = new bootstrap.Modal(document.getElementById('createCampaignModal'));
@@ -959,6 +1100,11 @@ $(document).ready(async function () {
         
         if (!name || !start || !end) {
             Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด", icon: "warning" });
+            return;
+        }
+
+        if (end < start) {
+            Swal.fire({ title: "วันที่ไม่ถูกต้อง", text: "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น", icon: "warning" });
             return;
         }
         
@@ -1011,7 +1157,7 @@ $(document).ready(async function () {
                             product_guid: newGuid,
                             createrd_by: window.CURRENT_USER_ID || "system",
                             product_company: company,
-                            offcde: modalSelectedBranches.join(",")
+                            offcde: modalSelectedBranches.filter(b => b !== "99").join(",")
                         },
                         filtersInfo: filterCodesToPost.map(c => ({
                             fguid: newGuid,
@@ -1102,7 +1248,7 @@ $(document).ready(async function () {
                             $("#campaignCode").val("");
                             $("#campaignName").val("");
                             $("#startDate").val("");
-                            $("#endDate").val("");
+                            $("#endDate").val("").removeAttr("min");
                             $("#remarks").val("");
                             $("#remarksCharCounter").text("0 / 500");
                             selectedBranches = [];
@@ -1143,6 +1289,11 @@ $(document).ready(async function () {
         const start = $("#startDate").val() || "";
         const end = $("#endDate").val() || "";
         const note = ($remarks && $remarks.length && $remarks.val()) ? $remarks.val().trim() : "";
+
+        if (start && end && end < start) {
+            Swal.fire({ title: "วันที่ไม่ถูกต้อง", text: "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น", icon: "warning" });
+            return;
+        }
 
         const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
         const campaignData = {
@@ -1213,7 +1364,7 @@ $(document).ready(async function () {
                                 product_guid: newGuid,
                                 createrd_by: window.CURRENT_USER_ID || "system",
                                 product_company: company,
-                                offcde: selectedBranches.join(",")
+                                offcde: selectedBranches.filter(b => b !== "99").join(",")
                             },
                             filtersInfo: selectedFilterCodes.map(c => ({
                                 fguid: newGuid,
@@ -1259,21 +1410,34 @@ $(document).ready(async function () {
         renderModalBranchCheckboxes();
         await renderMasterFilters();
         initDataTables();
+
+        // Initialize Bootstrap Popovers
+        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+        [...popoverTriggerList].forEach(popoverTriggerEl => {
+            bootstrap.Popover.getOrCreateInstance(popoverTriggerEl, {
+                container: 'body',
+                html: true,
+                sanitize: false,
+                trigger: 'click'
+            });
+        });
+
+        // Close popovers when clicking outside
+        $(document).off('click.popoverDismiss').on('click.popoverDismiss', function (e) {
+            $('[data-bs-toggle="popover"]').each(function () {
+                if (!this.contains(e.target) && $(e.target).closest('.popover').length === 0) {
+                    const popover = bootstrap.Popover.getInstance(this);
+                    if (popover) {
+                        popover.hide();
+                    }
+                }
+            });
+        });
         $("#chkImportExcel").off("change").on("change", function () {
             if ($(this).is(":checked")) {
                 $("#filterSelectedRow").hide();
-                $("#btnImportExcel").removeClass("d-none").show();
             } else {
                 $("#filterSelectedRow").show();
-                $("#btnImportExcel").addClass("d-none").hide();
-            }
-        });
-
-        $("#modalChkImportExcel").off("change").on("change", function () {
-            if ($(this).is(":checked")) {
-                $("#btnModalImportExcel").removeClass("d-none").show();
-            } else {
-                $("#btnModalImportExcel").addClass("d-none").hide();
             }
         });
 
@@ -1285,9 +1449,11 @@ $(document).ready(async function () {
             $("#modalExcelFileInput").trigger("click");
         });
 
-        $("#excelFileInput, #modalExcelFileInput").off("change").on("change", function () {
-            const file = this.files[0];
+        $("#excelFileInput").off("change").on("change", function () {
+            const file = this.files && this.files[0];
             if (file) {
+                $("#selectedFileNameText").text(file.name);
+                $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
                 Swal.fire({
                     title: "เลือกไฟล์สำเร็จ",
                     text: `ไฟล์ที่เลือก: ${file.name}`,
@@ -1295,7 +1461,36 @@ $(document).ready(async function () {
                     timer: 2000,
                     showConfirmButton: false
                 });
+            } else {
+                $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
             }
+        });
+
+        $(document).off("click", "#btnRemoveExcelFile").on("click", "#btnRemoveExcelFile", function () {
+            $("#excelFileInput").val("");
+            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+        });
+
+        $("#modalExcelFileInput").off("change").on("change", function () {
+            const file = this.files && this.files[0];
+            if (file) {
+                $("#modalSelectedFileNameText").text(file.name);
+                $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+                Swal.fire({
+                    title: "เลือกไฟล์สำเร็จ",
+                    text: `ไฟล์ที่เลือก: ${file.name}`,
+                    icon: "success",
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+            }
+        });
+
+        $(document).off("click", "#btnRemoveModalExcelFile").on("click", "#btnRemoveModalExcelFile", function () {
+            $("#modalExcelFileInput").val("");
+            $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
         });
 
         if (selectedCampaignCode) {

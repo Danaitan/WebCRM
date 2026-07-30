@@ -1,6 +1,6 @@
 @model List<webCRM.Models.ResponseSuggestion>
 @{
-    ViewData["Title"] = "ข้อเสนอแนะ / ร้องเรียน - CRM";
+    ViewData["Title"] = "ข้อเสนอแนะ / ร้องเรียน";
     ViewData["HeaderTitle"] = "ข้อเสนอแนะ / ร้องเรียน";
     ViewData["HeaderSubtitle"] = "บันทึกและติดตามข้อเสนอแนะ ข้อร้องเรียน หรือความสนใจผลิตภัณฑ์จากลูกค้า";
 }
@@ -45,8 +45,23 @@
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-list-ul text-primary fs-5"></i>
                             <h6 class="fw-bold text-dark-blue mb-0">รายการข้อเสนอแนะ / ร้องเรียน</h6>
+                            <button 
+                                type="button" 
+                                class="btn btn-outline-secondary border-0 rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" 
+                                style="width: 38px; height: 38px; background-color: #f1f5f9; color: #475569;" 
+                                id="statusInfoPopover"
+                                tabindex="0"
+                                data-bs-toggle="popover" 
+                                data-bs-placement="bottom" 
+                                data-bs-trigger="click"
+                                data-bs-html="true" 
+                                title="<span class='fw-bold text-dark-blue'><i class='bi bi-info-circle me-1'></i> คำอธิบายสถานะ</span>" 
+                                data-bs-content="<div class='py-1' style='font-size: 0.875rem; line-height: 1.8;'><div><strong>pending</strong> - รอการติดต่อ</div><div><strong>forward</strong> - ส่งต่อ</div><div><strong>replying</strong> - ตอบกลับ</div><div><strong>close</strong> - ปิดงาน</div></div>"
+                            >
+                                <i class="bi bi-info-circle fs-5"></i>
+                            </button>
                         </div>
-                        <div>
+                        <div class="d-flex align-items-center gap-2">
                             <button 
                                 type="button" 
                                 class="btn btn-primary px-4 py-2 fw-medium d-flex align-items-center gap-2 rounded-3 shadow-sm" 
@@ -63,10 +78,11 @@
                         <table id="suggestionsTable" class="table table-hover table-borderless align-middle w-100">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="fw-semibold text-muted py-3 text-center rounded-start" style="white-space: nowrap;">หัวข้อ</th>
+                                    <th class="fw-semibold text-muted py-3 text-center rounded-start" style="white-space: nowrap;">วันที่สร้าง</th>
+                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">หัวข้อ</th>
                                     <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">ชื่อ-นามสกุล</th>
-                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">วัน-เวลาติดต่อกลับ</th>
-                                    <th class="fw-semibold text-muted py-3 text-center rounded-end" style="white-space: nowrap;">สถานะ</th>
+                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">สถานะ</th>
+                                    <th class="fw-semibold text-muted py-3 text-center rounded-end" style="white-space: nowrap;">Time</th>
                                 </tr>
                             </thead>
                             <tbody id="suggestionResultBody">
@@ -74,6 +90,13 @@
                                 {
                                     foreach (var item in Model)
                                     {
+                                        var createdDate = item.UpDate ?? item.DateSugges;
+                                        var timeDiffText = "-";
+                                        if (createdDate.HasValue)
+                                        {
+                                            var days = (DateTime.Now.Date - createdDate.Value.Date).Days;
+                                            timeDiffText = $"{days} วัน";
+                                        }
                                         <tr style="cursor: pointer;" onclick="showDetails(this)"
                                             data-phone="@(item.PhoneProvider ?? "-")"
                                             data-contact="@(item.DateSugges?.ToString("dd/MM/yyyy") ?? "-") @(item.TimeSugges?.ToString("HH:mm") ?? "")"
@@ -90,14 +113,11 @@
                                             data-guid="@(item.Guid ?? "-")"
                                             data-updby="@(item.UpdBy ?? "-")"
                                             >
+                                            <td class="text-center py-2" data-order="@(item.UpDate?.ToString("yyyyMMddHHmmss") ?? "0")"><div class="fw-medium text-dark">@(item.UpDate?.ToString("dd/MM/yyyy HH:mm") ?? "-")</div></td>
                                             <td class="text-center py-2"><div class="fw-medium text-dark">@(item.SuggestionTitle ?? "-")</div></td>
                                             <td class="text-center py-2"><div class="fw-medium text-dark">@(item.NameProvider ?? "-")</div></td>
-                                            <td class="text-center py-2">
-                                                <div class="fw-medium text-dark">
-                                                    @(item.DateSugges?.ToString("dd/MM/yyyy") ?? "-") @(item.TimeSugges?.ToString("HH:mm") ?? "")
-                                                </div>
-                                            </td>
                                             <td class="text-center py-2"><div class="fw-medium text-dark">@(item.StatusTask ?? "-")</div></td>
+                                            <td class="text-center py-2"><div class="fw-medium text-dark">@timeDiffText</div></td>
                                         </tr>
                                     }
                                 }
@@ -152,7 +172,7 @@
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-address">-</div>
                                 </div>
                                 <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">วันที่บันทึก</div>
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">วันสร้าง</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-date">-</div>
                                 </div>
 
@@ -196,6 +216,10 @@
                                         <button type="button" class="btn btn-secondary px-4 fw-bold" onclick="$('#reply-input').val('')" style="border-radius: 4px;">ยกเลิก</button>
                                     </div>
                                 </div>
+
+                                <div class="d-flex justify-content-end gap-2 mt-2">
+                                    <button type="button" class="btn btn-danger px-4 fw-bold" onclick="PutSuggestionStatusUpd()" style="border-radius: 4px;">ปิดงาน</button>
+                                </div>
                             </div>
 
                         </div>
@@ -213,6 +237,8 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
         var currentUserEmail = '@(Context.Session.GetString("email") ?? "")';
+        var userCompany = '@(Context.Session.GetString("company") ?? "")';
+        window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
     </script>
     <script src="~/js/suggestions.js" asp-append-version="true"></script>
 }
@@ -270,50 +296,16 @@
                                             <i class="bi position-absolute top-50 end-0 translate-middle-y me-3 text-muted small pointer-events-none"></i>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    @* <div class="col-md-6">
                                         <label class="form-label fw-medium small">Department</label>
                                         <select class="form-select text-muted" id="post-department">
                                             <option value="" selected>เลือกแผนก</option>
-                                            <option value="พัฒนาระบบสารสนเทศ">พัฒนาระบบสารสนเทศ</option>
-                                            <option value="ฝ่ายบริการลูกค้า">ฝ่ายบริการลูกค้า</option>
-                                            <option value="ฝ่ายการตลาด">ฝ่ายการตลาด</option>
-                                            <option value="ฝ่ายสินเชื่อ">ฝ่ายสินเชื่อ</option>
-                                            <option value="ฝ่ายบัญชีและการเงิน">ฝ่ายบัญชีและการเงิน</option>
-                                            <option value="ฝ่ายทรัพยากรบุคคล">ฝ่ายทรัพยากรบุคคล</option>
-                                            @if (Model != null)
-                                            {
-                                                var depts = Model.Where(d => !string.IsNullOrEmpty(d.Department) 
-                                                    && d.Department != "พัฒนาระบบสารสนเทศ" 
-                                                    && d.Department != "ฝ่ายบริการลูกค้า" 
-                                                    && d.Department != "ฝ่ายการตลาด" 
-                                                    && d.Department != "ฝ่ายสินเชื่อ" 
-                                                    && d.Department != "ฝ่ายบัญชีและการเงิน" 
-                                                    && d.Department != "ฝ่ายทรัพยากรบุคคล")
-                                                    .Select(d => d.Department).Distinct();
-                                                foreach (var dept in depts)
-                                                {
-                                                    <option value="@dept">@dept</option>
-                                                }
-                                            }
                                         </select>
-                                    </div>
+                                    </div> *@
                                     <div class="col-md-6">
                                         <label class="form-label fw-medium small">Send To <span class="text-danger">*</span></label>
                                         <select class="form-select text-muted" id="post-send-to">
                                             <option value="" selected>เลือกผู้รับผิดชอบ</option>
-                                            @if (Context.Session.GetString("fullNameEn") != null)
-                                            {
-                                                <option value="@Context.Session.GetString("fullNameEn")">@Context.Session.GetString("fullNameEn") (คุณ)</option>
-                                            }
-                                            @if (Model != null)
-                                            {
-                                                var loggedInUser = Context.Session.GetString("fullNameEn") ?? "";
-                                                var users = Model.Where(s => !string.IsNullOrEmpty(s.SendTo) && s.SendTo != loggedInUser).Select(s => s.SendTo).Distinct().OrderBy(s => s);
-                                                foreach (var user in users)
-                                                {
-                                                    <option value="@user">@user</option>
-                                                }
-                                            }
                                         </select>
                                     </div>
                                 </div>
@@ -340,24 +332,12 @@
                             <div class="col-md-4">
                                 <label class="form-label fw-medium small">CC</label>
                                 <div class="dropdown custom-multi-select">
-                                    <div class="form-select d-flex align-items-center" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="cc-display" style="cursor: pointer; min-height: 38px;">
-                                        <div id="cc-tags-container" class="d-flex flex-wrap gap-1 w-100">
+                                    <div class="form-select d-flex align-items-center justify-content-between" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="cc-display" style="cursor: pointer; min-height: 38px;">
+                                        <div id="cc-tags-container" class="d-flex flex-wrap gap-1 w-100 align-items-center me-2">
                                             <span class="text-muted" id="cc-placeholder">เลือก CC</span>
                                         </div>
                                     </div>
-                                    <ul class="dropdown-menu w-100 p-2 shadow-sm" id="cc-dropdown-menu">
-                                        <li>
-                                            <div class="form-check mb-1">
-                                                <input class="form-check-input cc-checkbox" type="checkbox" value="ผู้จัดการสาขา" id="cc-chk-manager">
-                                                <label class="form-check-label w-100" for="cc-chk-manager" style="cursor:pointer">ผู้จัดการสาขา</label>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div class="form-check">
-                                                <input class="form-check-input cc-checkbox" type="checkbox" value="หัวหน้าแผนก" id="cc-chk-head">
-                                                <label class="form-check-label w-100" for="cc-chk-head" style="cursor:pointer">หัวหน้าแผนก</label>
-                                            </div>
-                                        </li>
+                                    <ul class="dropdown-menu w-100 p-1 shadow-sm" id="cc-dropdown-menu" style="max-height: 250px; overflow-y: auto;">
                                     </ul>
                                 </div>
                                 <select id="post-cc" multiple="multiple" class="d-none"></select>

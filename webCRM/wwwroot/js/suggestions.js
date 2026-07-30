@@ -1,7 +1,33 @@
 $(document).ready(function () {
+    // Initialize Bootstrap Popovers
+    const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+    [...popoverTriggerList].forEach(popoverTriggerEl => {
+        bootstrap.Popover.getOrCreateInstance(popoverTriggerEl, {
+            container: 'body',
+            html: true,
+            sanitize: false,
+            trigger: 'click'
+        });
+    });
+
+    // Close popovers when clicking outside
+    $(document).off('click.popoverDismiss').on('click.popoverDismiss', function (e) {
+        $('[data-bs-toggle="popover"]').each(function () {
+            if (!this.contains(e.target) && $(e.target).closest('.popover').length === 0) {
+                const popover = bootstrap.Popover.getInstance(this);
+                if (popover) {
+                    popover.hide();
+                }
+            }
+        });
+    });
+
+    loadDepartmentOptions();
+
     var table = $('#suggestionsTable').DataTable({
+        order: [],
         searching: true,
-        dom: "lrtip",
+        dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
         language: {
             lengthMenu: "แสดง _MENU_ รายการ",
             info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
@@ -24,7 +50,7 @@ $(document).ready(function () {
     // กรองตามหัวข้อ
     $('#filterTopic').on('change', function () {
         var val = $.fn.dataTable.util.escapeRegex($(this).val());
-        table.column(0).search(val ? val : '', true, false).draw();
+        table.column(1).search(val ? val : '', true, false).draw();
     });
 
     // กรองตามสถานะ
@@ -44,6 +70,95 @@ $(document).ready(function () {
         showDetails(firstRow[0]);
     }
 });
+
+async function loadDepartmentOptions() {
+    try {
+        const response = await fetch('/Home/GetMaster');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        const currentCompany = (typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")).trim().toUpperCase();
+
+        const deptSelect = document.getElementById('post-department');
+        if (deptSelect) {
+            deptSelect.innerHTML = '<option value="" selected>เลือกแผนก</option>';
+
+            if (data && Array.isArray(data.department)) {
+                const filteredDepartments = data.department.filter(item => {
+                    if (!currentCompany) return true;
+                    return item.company && item.company.trim().toUpperCase() === currentCompany;
+                });
+
+                const uniqueSections = [];
+                filteredDepartments.forEach(item => {
+                    if (item.section && item.section.trim() !== '') {
+                        const sectionName = item.section.trim();
+                        if (!uniqueSections.includes(sectionName)) {
+                            uniqueSections.push(sectionName);
+                        }
+                    }
+                });
+
+                uniqueSections.forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    deptSelect.appendChild(option);
+                });
+            }
+        }
+
+        const sendToSelect = document.getElementById('post-send-to');
+        const ccDropdownMenu = document.getElementById('cc-dropdown-menu');
+
+        if (data && Array.isArray(data.email)) {
+            const filteredEmails = data.email.filter(item => {
+                if (!currentCompany) return true;
+                return item.company && item.company.trim().toUpperCase() === currentCompany;
+            });
+
+            const uniqueEmails = [];
+            filteredEmails.forEach(item => {
+                if (item.groupEmail && item.groupEmail.trim() !== '') {
+                    const emailVal = item.groupEmail.trim();
+                    if (!uniqueEmails.includes(emailVal)) {
+                        uniqueEmails.push(emailVal);
+                    }
+                }
+            });
+
+            if (sendToSelect) {
+                sendToSelect.innerHTML = '<option value="" selected>เลือกผู้รับผิดชอบ</option>';
+                uniqueEmails.forEach(emailVal => {
+                    const option = document.createElement('option');
+                    option.value = emailVal;
+                    option.textContent = emailVal;
+                    sendToSelect.appendChild(option);
+                });
+            }
+
+            if (ccDropdownMenu) {
+                ccDropdownMenu.innerHTML = '';
+                if (uniqueEmails.length === 0) {
+                    ccDropdownMenu.innerHTML = '<li><span class="dropdown-item text-muted small">ไม่มีข้อมูล</span></li>';
+                } else {
+                    uniqueEmails.forEach(emailVal => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <a class="dropdown-item d-flex align-items-center justify-content-between rounded py-2 cc-option-item" href="javascript:void(0)" data-value="${emailVal}">
+                                <span class="small">${emailVal}</span>
+                                <i class="bi bi-check2 text-primary d-none cc-check-icon fs-6"></i>
+                            </a>
+                        `;
+                        ccDropdownMenu.appendChild(li);
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error loading master options:", error);
+    }
+}
 
 function showDetails(row) {
     const $row = $(row);
@@ -205,7 +320,7 @@ async function AddSuggestion() {
             $("#post-contact-time").val("00:00");
             $("#post-additional-contact").val("");
             $("#post-reply").val("");
-            $('.cc-checkbox').prop('checked', false);
+            $('.cc-option-item').removeClass('active').find('.cc-check-icon').addClass('d-none');
             $('#post-cc').empty();
             $('#cc-tags-container .badge').remove();
             $('#cc-placeholder').show();
@@ -230,39 +345,61 @@ async function AddSuggestion() {
     }
 }
 
-$(document).ready(function () {
-    function updateCcDisplay() {
-        var selected = [];
-        $('#post-cc').empty();
-        $('.cc-checkbox:checked').each(function () {
-            var val = $(this).val();
+function updateCcSelection() {
+    var selected = [];
+    $('#post-cc').empty();
+
+    $('.cc-option-item.active').each(function () {
+        var val = $(this).attr('data-value');
+        if (val) {
             selected.push(val);
             $('#post-cc').append('<option value="' + val + '" selected>' + val + '</option>');
-        });
-
-        var display = $('#cc-tags-container');
-        display.find('.badge').remove();
-
-        if (selected.length === 0) {
-            $('#cc-placeholder').show();
-        } else {
-            $('#cc-placeholder').hide();
-            selected.forEach(function (item) {
-                var badge = $('<span class="badge bg-primary text-white d-flex align-items-center gap-1"></span>').text(item);
-                var closeBtn = $('<i class="bi bi-x" style="cursor: pointer; font-size: 1.1em;"></i>');
-                closeBtn.on('click', function (e) {
-                    e.stopPropagation();
-                    $('.cc-checkbox[value="' + item + '"]').prop('checked', false);
-                    updateCcDisplay();
-                });
-                badge.append(closeBtn);
-                display.prepend(badge);
-            });
         }
-    }
-
-    $('.cc-checkbox').on('change', function () {
-        updateCcDisplay();
     });
+
+    var displayContainer = $('#cc-tags-container');
+    displayContainer.find('.badge').remove();
+
+    if (selected.length === 0) {
+        $('#cc-placeholder').show();
+    } else {
+        $('#cc-placeholder').hide();
+        selected.forEach(function (item) {
+            var badge = $('<span class="badge bg-primary text-white d-inline-flex align-items-center gap-1 py-1 px-2 rounded-2" style="font-weight: 500; font-size: 0.82rem;"></span>').text(item);
+            var closeBtn = $('<i class="bi bi-x ms-1" style="cursor: pointer; font-size: 1em;"></i>');
+            closeBtn.on('click', function (e) {
+                e.stopPropagation();
+                var $opt = $('.cc-option-item[data-value="' + item + '"]');
+                $opt.removeClass('active');
+                $opt.find('.cc-check-icon').addClass('d-none');
+                updateCcSelection();
+            });
+            badge.append(closeBtn);
+            displayContainer.append(badge);
+        });
+    }
+}
+
+$(document).on('click', '.cc-option-item', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $(this).toggleClass('active');
+    if ($(this).hasClass('active')) {
+        $(this).find('.cc-check-icon').removeClass('d-none');
+    } else {
+        $(this).find('.cc-check-icon').addClass('d-none');
+    }
+    updateCcSelection();
 });
 
+async function PutSuggestionStatusUpd (){
+    var guid = $("#detail-guid").text();
+    showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่...');
+    var response = await fetch(`/Suggestions/PutSuggestionStatusUpd?guid=${encodeURIComponent(guid)}`);
+    var msg = await response.json();
+    window.location.reload();
+    hideLoading();
+    if (msg && msg.status === "error") {
+        throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+    }
+}

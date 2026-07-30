@@ -1,15 +1,19 @@
-using webCRM.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using webCRM.Models;
 
 namespace webCRM.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(IConfiguration configuration) : Controller
     {
+        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings_BearerToken") ?? configuration["ApiSettings:BearerToken"];
+        string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
         public async Task<IActionResult> Index()
         {
             var profileWelcome = HttpContext.Session.GetString("profile_welcome");
@@ -31,19 +35,41 @@ namespace webCRM.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        #region Helper
+        public async Task<MasterData> GetMaster(){
 
-        private void SetCookie(string key, string value)
-        {
-            HttpContext.Response.Cookies.Append(key, value, new CookieOptions
+            try
             {
-                Expires = DateTimeOffset.UtcNow.AddHours(24),
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict
-            });
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    string userId = HttpContext.Session.GetString("personalId") ?? "";
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/master");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<MasterData>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var result = apiResponse;
+
+                        return result ?? new MasterData();
+                    }
+
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return new MasterData();
+            }
+
+            return new MasterData();
+
         }
 
-        #endregion
     }
 }

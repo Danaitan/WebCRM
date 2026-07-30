@@ -87,5 +87,59 @@ namespace webCRM.Controllers
 
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetProspect(int page = 1, int pageSize = 10)
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProspect_phase3?page={page}&pageSize={pageSize}&isNotAssign=true");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"page\": " + page + ", \"pageSize\": " + pageSize + ", \"count\": 0, \"data\": []}", "application/json");
+            }
+        
+        }
+        
+        [HttpGet]
+        public async Task<IActionResult> GetProductFilterByGuid(string guid)
+        {
+                       
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var company = HttpContext.Session.GetString("company");
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductFilterByGuid/{guid}/{company}");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            } 
+        }
+
     }
 }

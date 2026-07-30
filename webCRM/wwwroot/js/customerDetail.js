@@ -2,6 +2,80 @@ const searchInput = document.getElementById("searchInput");
 const searchBtn = document.getElementById("searchBtn");
 const clearBtn = document.getElementById("clearBtn");
 
+let masterData = null;
+let currentContactData = null;
+
+async function getmaster() {
+    try {
+        const response = await fetch('/Home/GetMaster');
+        masterData = await response.json();
+        renderCompanyTabs();
+    } catch (error) {
+        console.error("Error fetching master data:", error);
+    }
+}
+
+function getCompanyCountText(compName, contactData) {
+    const nameLower = compName.toLowerCase();
+    if (nameLower === 'micro') {
+        const count = contactData ? (contactData.contactMicroCount || 0) : 0;
+        return `${count}`;
+    } else if (nameLower === 'mfin') {
+        const count = contactData ? (contactData.contactMFINCount || 0) : 0;
+        return `${count}`;
+    } else if (nameLower === 'mib') {
+        const count = contactData ? (contactData.contactMIBCount || 0) : 0;
+        return `${count}`;
+    } else {
+        const countKey = `contact${compName}Count`;
+        const listKey = `contact${compName}`;
+        const count = contactData ? (contactData[countKey] ?? (Array.isArray(contactData[listKey]) ? contactData[listKey].length : 0)) : 0;
+        return `${count}`;
+    }
+}
+
+function renderCompanyTabs(contactData = currentContactData) {
+    const container = document.getElementById("contact-company-tabs");
+    if (!container || !masterData || !Array.isArray(masterData.company)) return;
+
+    const currentActiveBtn = container.querySelector('.button-tab-contact.active');
+    const currentActiveTarget = currentActiveBtn ? currentActiveBtn.getAttribute('data-target') : null;
+
+    container.innerHTML = "";
+
+    masterData.company.forEach((comp, index) => {
+        const compName = comp.company || "";
+        if (!compName) return;
+
+        let targetId = `contact-${compName}`;
+        if (!document.getElementById(targetId)) {
+            const existing = Array.from(document.querySelectorAll('[id^="contact-"]'))
+                .find(el => el.id.toLowerCase() === targetId.toLowerCase());
+            if (existing) {
+                targetId = existing.id;
+            }
+        }
+
+        const countText = getCompanyCountText(compName, contactData);
+
+        const button = document.createElement("button");
+        const isActive = currentActiveTarget ? (currentActiveTarget.toLowerCase() === targetId.toLowerCase()) : (index === 0);
+        button.className = `button-tab-contact${isActive ? " active" : ""}`;
+        button.style.padding = "0.3rem 1rem";
+        button.style.fontSize = "0.85rem";
+        button.setAttribute("data-target", targetId);
+        button.textContent = `${compName}(${countText})`;
+
+        container.appendChild(button);
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', getmaster);
+} else {
+    getmaster();
+}
+
 function isCheck (isCheck)
 {
     if (isCheck == '1'){
@@ -240,43 +314,45 @@ tabLinks.forEach(link => {
     });
 });
 
-// Sub-tab selection logic for contract section
-const contactTabButtons = document.querySelectorAll('.button-tab-contact');
-contactTabButtons.forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
+// Sub-tab selection logic for contract section (Event Delegation)
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.button-tab-contact');
+    if (!btn) return;
 
-        // Find the parent container of the clicked button
-        const parentGroup = this.closest('.d-flex');
-        
-        // Find all buttons in the same group
-        const groupButtons = parentGroup.querySelectorAll('.button-tab-contact');
+    e.preventDefault();
 
-        // Remove active class from all buttons in this group
-        groupButtons.forEach(b => b.classList.remove('active'));
-        
-        // Add active class to the clicked button
-        this.classList.add('active');
+    // Find the parent container of the clicked button
+    const parentGroup = btn.closest('.d-flex');
+    if (!parentGroup) return;
+    
+    // Find all buttons in the same group
+    const groupButtons = parentGroup.querySelectorAll('.button-tab-contact');
 
-        // Hide all target contents associated with this group
-        const targetIds = Array.from(groupButtons).map(b => b.getAttribute('data-target'));
-        targetIds.forEach(id => {
-            if (id) {
-                const content = document.getElementById(id);
-                if (content) {
-                    content.classList.add('d-none');
-                    content.classList.remove('show', 'active');
-                }
-            }
+    // Remove active class from all buttons in this group
+    groupButtons.forEach(b => b.classList.remove('active'));
+    
+    // Add active class to the clicked button
+    btn.classList.add('active');
+
+    // Hide all target contents associated with this group
+    const targetIds = Array.from(groupButtons).map(b => b.getAttribute('data-target'));
+    targetIds.forEach(id => {
+        if (id) {
+            document.querySelectorAll(`[id="${id}"]`).forEach(content => {
+                content.classList.add('d-none');
+                content.classList.remove('show', 'active');
+            });
+        }
+    });
+
+    // Show the selected target content
+    const targetId = btn.getAttribute('data-target');
+    if (targetId) {
+        const targetContents = document.querySelectorAll(`[id="${targetId}"]`);
+        targetContents.forEach(targetContent => {
+            targetContent.classList.remove('d-none');
+            targetContent.classList.add('show', 'active');
         });
-
-        // Show the selected target content
-        const targetId = this.getAttribute('data-target');
-        if (targetId) {
-            const targetContent = document.getElementById(targetId);
-            if (targetContent) {
-                targetContent.classList.remove('d-none');
-                targetContent.classList.add('show', 'active');
                 
                 // Adjust DataTables when Guarantor, Payment, or MIB Claim tab becomes visible
                 setTimeout(() => {
@@ -294,9 +370,34 @@ contactTabButtons.forEach(btn => {
 
             if (targetId === "tab-table-contact") {
                 const tabs = document.getElementById("contact-company-tabs");
-                if (tabs) tabs.classList.remove("d-none");
+                if (tabs) {
+                    tabs.classList.remove("d-none");
+
+                    // Ensure an active company tab button exists and its pane is visible
+                    let activeCompBtn = tabs.querySelector('.button-tab-contact.active') || tabs.querySelector('.button-tab-contact');
+                    if (activeCompBtn) {
+                        tabs.querySelectorAll('.button-tab-contact').forEach(b => b.classList.remove('active'));
+                        activeCompBtn.classList.add('active');
+
+                        const compTargetId = activeCompBtn.getAttribute('data-target');
+                        if (compTargetId) {
+                            tabs.querySelectorAll('.button-tab-contact').forEach(btn => {
+                                const id = btn.getAttribute('data-target');
+                                if (id) {
+                                    document.querySelectorAll(`[id="${id}"]`).forEach(el => {
+                                        el.classList.add('d-none');
+                                        el.classList.remove('show', 'active');
+                                    });
+                                }
+                            });
+                            document.querySelectorAll(`[id="${compTargetId}"]`).forEach(el => {
+                                el.classList.remove('d-none');
+                                el.classList.add('show', 'active');
+                            });
+                        }
+                    }
+                }
                 
-                // Adjust DataTables in case they were initialized while hidden
                 setTimeout(() => {
                     ['#dt-contact-Micro', '#dt-contact-MFIN', '#dt-contact-MIB'].forEach(id => {
                         if ($.fn.DataTable.isDataTable(id)) {
@@ -310,7 +411,7 @@ contactTabButtons.forEach(btn => {
             }
 
             // Abort pending requests and clear UI when switching company tabs
-            if (targetId === "contact-Micro" || targetId === "contact-MFIN" || targetId === "contact-MIB") {
+            if (targetId.toLowerCase() === "contact-micro" || targetId.toLowerCase() === "contact-mfin" || targetId.toLowerCase() === "contact-mib") {
                 if (typeof currentContactInfoRequestId !== 'undefined') {
                     currentContactInfoRequestId++;
                 }
@@ -340,7 +441,7 @@ contactTabButtons.forEach(btn => {
             }
 
             // Change tab layout when switching company tab
-            if (targetId === "contact-Micro" || targetId === "contact-MFIN") {
+            if (targetId.toLowerCase() === "contact-micro" || targetId.toLowerCase() === "contact-mfin") {
                 // Adjust DataTables when switching sub-tabs
                 setTimeout(() => {
                     if ($.fn.DataTable.isDataTable('#dt-' + targetId)) {
@@ -372,7 +473,7 @@ contactTabButtons.forEach(btn => {
                         if (firstContent) { firstContent.classList.remove('d-none'); firstContent.classList.add('show','active'); }
                     }
                 }
-            } else if (targetId === "contact-MIB") {
+            } else if (targetId.toLowerCase() === "contact-mib") {
                 setTimeout(() => {
                     if ($.fn.DataTable.isDataTable('#dt-' + targetId)) {
                         $('#dt-' + targetId).DataTable().columns.adjust();
@@ -404,9 +505,7 @@ contactTabButtons.forEach(btn => {
                     }
                 }
             }
-        }
     });
-});
 
 let currentContactRequestId = 0;
 async function getContact(idno) {
@@ -433,9 +532,12 @@ async function getContact(idno) {
         if (requestId !== currentContactRequestId) return;
 
         if (data) {
+            currentContactData = data;
             document.getElementById('summary-micro-count').innerText = (data.contactMicroCount || 0) + ' สัญญา';
             document.getElementById('summary-mfin-count').innerText = (data.contactMFINCount || 0) + ' สัญญา';
             document.getElementById('summary-mib-count').innerText = (data.contactMIBCount || 0) + ' กรมธรรม์';
+
+            renderCompanyTabs(data);
 
             function loadDataTable(tableId, dataList, company, idno) {
                 const dtConfig = {
@@ -657,7 +759,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             //#region ข้อมูลสินเชื่อ
 
             document.getElementById("loan-detail-fianlamount").innerText = formatValues(contract.finamt);
-            document.getElementById("loan-detail-aging").innerText = contract.aging || '-';
+            document.getElementById("loan-detail-aging").innerText = 'D'+contract.aging || '-';
             document.getElementById("loan-detail-appraisal").innerText = formatValues(contract.estimatePrice);
             document.getElementById("loan-detail-status").innerText = contract.contsts || '-';
             document.getElementById("loan-detail-ltv").innerText =  formatValues(contract.ltv);

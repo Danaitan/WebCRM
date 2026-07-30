@@ -127,4 +127,47 @@ body {
   width: 4px;
   background-color: var(--bs-primary);
   border-radius: 0 4px 4px 0;
+}
+
+/* Sticky Table Headers for DataTables and HTML Tables */
+.table thead th,
+.table thead td,
+table.dataTable thead th,
+table.dataTable thead td,
+table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #ffffff;
+  background-clip: padding-box;
+  box-shadow: inset 0 -1px 0 #e2e8f0;
+}
+
+.table-light thead th,
+.table thead.table-light th,
+table.table-light thead th {
+  background-color: #f8f9fa;
+  box-shadow: inset 0 -1px 0 #dee2e6;
+}
+
+.table-dark thead th,
+.table thead.table-dark th,
+table.table-dark thead th {
+  background-color: #212529;
+  color: #ffffff;
+  box-shadow: inset 0 -1px 0 #373b3e;
+}
+
+/* DataTables length menu horizontal alignment */
+.dataTables_length label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin-bottom: 0 !important;
+  white-space: nowrap !important;
+}
+
+.dataTables_length select {
+  width: auto !important;
+  display: inline-block !important;
 }

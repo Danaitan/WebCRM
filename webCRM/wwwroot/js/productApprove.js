@@ -296,4 +296,104 @@ $(document).ready(function () {
 
     const btnClear = document.getElementById('btnClearFilter');
     if (btnClear) btnClear.addEventListener('click', clearAllFilters);
+
+    // Action Footer Button Event Handlers with SweetAlert Confirmations
+    $("#btnApprove, .btn-pa-approve").on("click", function () {
+        const code = $("#detailId").val() || selectedCampaignCode || "";
+        const name = $("#detailName").val() || "";
+        const label = code ? `${code} (${name})` : "รายการนี้";
+
+        Swal.fire({
+            title: 'ยืนยันการอนุมัติ',
+            html: `คุณต้องการอนุมัติ <b>${label}</b> ใช่หรือไม่?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="bi bi-check2 me-1"></i> ยืนยันอนุมัติ',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true,
+            focusCancel: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'อนุมัติเรียบร้อย!',
+                    text: `ดำเนินการอนุมัติ ${code || 'รายการ'} เสร็จสิ้น`,
+                    icon: 'success',
+                    confirmButtonColor: '#10b981',
+                    confirmButtonText: 'ตกลง'
+                });
+            }
+        });
+    });
+
+    $("#btnReject, .btn-pa-reject").on("click", function () {
+        const code = $("#detailId").val() || selectedCampaignCode || "";
+        const name = $("#detailName").val() || "";
+        const label = code ? `${code} (${name})` : "รายการนี้";
+
+        Swal.fire({
+            title: 'ยืนยันการไม่อนุมัติ',
+            html: `คุณต้องการไม่อนุมัติ <b>${label}</b> ใช่หรือไม่?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="bi bi-x-lg me-1"></i> ยืนยันไม่อนุมัติ',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true,
+            focusCancel: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'ไม่อนุมัติเรียบร้อย!',
+                    text: `ปฏิเสธการอนุมัติ ${code || 'รายการ'} เรียบร้อยแล้ว`,
+                    icon: 'error',
+                    confirmButtonColor: '#ef4444',
+                    confirmButtonText: 'ตกลง'
+                });
+            }
+        });
+    });
+
+    $("#btnReturn, .btn-pa-return").on("click", function () {
+        const code = $("#detailId").val() || selectedCampaignCode || "";
+        const name = $("#detailName").val() || "";
+        const label = code ? `${code} (${name})` : "รายการนี้";
+
+        Swal.fire({
+            title: 'ยืนยันการตีกลับ',
+            html: `คุณต้องการตีกลับ <b>${label}</b> เพื่อแก้ไขใช่หรือไม่?`,
+            icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'ระบุหมายเหตุ / เหตุผลในการตีกลับ',
+            inputPlaceholder: 'กรอกหมายเหตุการตีกลับที่นี่...',
+            inputAttributes: {
+                'aria-label': 'กรอกหมายเหตุการตีกลับที่นี่'
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="bi bi-arrow-counterclockwise me-1"></i> ยืนยันตีกลับ',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true,
+            focusCancel: false,
+            inputValidator: (value) => {
+                if (!value || !value.trim()) {
+                    return 'กรุณากรอกหมายเหตุหรือเหตุผลในการตีกลับ';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const remark = result.value;
+                Swal.fire({
+                    title: 'ตีกลับเรียบร้อย!',
+                    text: `ส่งตีกลับ ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
+                    icon: 'warning',
+                    confirmButtonColor: '#f59e0b',
+                    confirmButtonText: 'ตกลง'
+                });
+            }
+        });
+    });
 });

@@ -561,23 +561,97 @@ input[type="date"].pa-form-control {
     justify-content: flex-end;
     gap: 1rem;
     flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .btn-pa {
-    padding: 0.5rem 2rem;
+    padding: 0.6rem 2rem;
     border-radius: 8px;
-    font-weight: 500;
-    display: flex;
+    font-weight: 600;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     border: none;
     cursor: pointer;
     color: white;
     font-size: 0.95rem;
+    letter-spacing: 0.3px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+}
+
+.btn-pa i {
+    font-size: 1.1rem;
+    transition: transform 0.2s ease;
+}
+
+.btn-pa:hover i {
+    transform: scale(1.15);
+}
+
+.btn-pa:hover {
+    transform: translateY(-2px);
+}
+
+/* Pressed / Active state - Darker color + scale down effect */
+.btn-pa:active {
+    transform: translateY(0) scale(0.96) !important;
+    filter: brightness(0.82) contrast(1.1) !important;
+    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Approve Button (Green) */
+.btn-pa-approve {
+    background-color: #10b981;
+    background-image: linear-gradient(180deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+.btn-pa-approve:hover {
+    background-color: #059669;
+    background-image: linear-gradient(180deg, #059669 0%, #047857 100%);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+.btn-pa-approve:active {
+    background-color: #047857 !important;
+    background-image: linear-gradient(180deg, #047857 0%, #065f46 100%) !important;
+}
+
+/* Reject Button (Red) */
+.btn-pa-reject {
+    background-color: #ef4444;
+    background-image: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+.btn-pa-reject:hover {
+    background-color: #dc2626;
+    background-image: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+.btn-pa-reject:active {
+    background-color: #b91c1c !important;
+    background-image: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%) !important;
+}
+
+/* Return Button (Amber/Orange) */
+.btn-pa-return {
+    background-color: #f59e0b;
+    background-image: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+.btn-pa-return:hover {
+    background-color: #d97706;
+    background-image: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+.btn-pa-return:active {
+    background-color: #b45309 !important;
+    background-image: linear-gradient(180deg, #b45309 0%, #78350f 100%) !important;
 }
 .btn-pa-cancel { background-color: var(--pa-gray); }
-.btn-pa-approve { background-color: var(--pa-green); }
-.btn-pa-reject { background-color: var(--pa-red); }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {

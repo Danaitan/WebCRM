@@ -214,5 +214,31 @@ namespace webCRM.Controllers
             }
         }
 
+        public async Task<IActionResult> PutSuggestionStatusUpd(string guid)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                var response = await client.PutAsync($"{domain}/crm/api/v1/suggestionStatusUpd/{guid}",null);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+                return Ok(new { status = "success" });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+        }
+
     }
 }

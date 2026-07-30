@@ -7,7 +7,7 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/prospectAssign.css" asp-append-version="true" />
 }
-<div class="container-fluid p-4 h-100 d-flex flex-column" style="gap: 20px;">
+<div class="container-fluid p-4 h-100 d-flex flex-column" style"gap: 20px;">
     
     <!-- Top Section -->
     <div class="row g-4">
@@ -65,7 +65,7 @@
             <!-- Summary Cards -->
             <div class="row g-3">
                 <div class="col-md-3">
-                    <div class="summary-card">
+                    <div class="summary-card active" data-status="all">
                         <div class="summary-icon blue"><i class="bi bi-people"></i></div>
                         <div class="summary-info">
                             <span class="summary-title">Prospect ทั้งหมด</span>
@@ -75,30 +75,30 @@
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="summary-card">
-                        <div class="summary-icon orange"><i class="bi bi-person-dash"></i></div>
+                    <div class="summary-card" data-status="assign">
+                        <div class="summary-icon green"><i class="bi bi-person-check"></i></div>
                         <div class="summary-info">
-                            <span class="summary-title">ยังไม่ Assign</span>
+                            <span class="summary-title">Assign</span>
                             <span class="summary-value">842</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="summary-card">
-                        <div class="summary-icon green"><i class="bi bi-person-check"></i></div>
+                    <div class="summary-card" data-status="reassign">
+                        <div class="summary-icon orange"><i class="bi bi-arrow-repeat"></i></div>
                         <div class="summary-info">
-                            <span class="summary-title">Assign แล้ว</span>
+                            <span class="summary-title">ReAssign</span>
                             <span class="summary-value">312</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="summary-card">
+                    <div class="summary-card" data-status="wait">
                         <div class="summary-icon purple"><i class="bi bi-clock-history"></i></div>
                         <div class="summary-info">
-                            <span class="summary-title">Waiting Approve</span>
+                            <span class="summary-title">Wait</span>
                             <span class="summary-value">102</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
@@ -240,7 +240,7 @@
                                 <td>เจ้าของกิจการ</td>
                                 <td>กรุงเทพฯ</td>
                                 <td>-</td>
-                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 2 -->
@@ -259,7 +259,7 @@
                                 <td>ผู้จัดการ</td>
                                 <td>ชลบุรี</td>
                                 <td>-</td>
-                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 3 -->
@@ -278,7 +278,7 @@
                                 <td>กรรมการผู้จัดการ</td>
                                 <td>สุราษฎร์ฯ</td>
                                 <td>-</td>
-                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td><span class="status-dot orange"></span><span class="status-text orange">ReAssign</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 4 -->
@@ -297,7 +297,7 @@
                                 <td>เจ้าของกิจการ</td>
                                 <td>กรุงเทพฯ</td>
                                 <td>จิราพร แสงสว่าง</td>
-                                <td><span class="status-dot green"></span><span class="status-text green">Assign แล้ว</span></td>
+                                <td><span class="status-dot green"></span><span class="status-text green">Assign</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 5 -->
@@ -316,7 +316,7 @@
                                 <td>รับเหมา</td>
                                 <td>ชลบุรี</td>
                                 <td>-</td>
-                                <td><span class="status-dot orange"></span><span class="status-text orange">ยังไม่ Assign</span></td>
+                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 6 -->
@@ -335,7 +335,7 @@
                                 <td>ผู้จัดการ</td>
                                 <td>กรุงเทพฯ</td>
                                 <td>อรรถพล ใจดี</td>
-                                <td><span class="status-dot green"></span><span class="status-text green">Assign แล้ว</span></td>
+                                <td><span class="status-dot green"></span><span class="status-text green">Assign</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 7 -->
@@ -354,7 +354,7 @@
                                 <td>เจ้าของกิจการ</td>
                                 <td>สุราษฎร์ฯ</td>
                                 <td>-</td>
-                                <td><span class="status-dot blue"></span><span class="status-text blue">รออนุมัติ</span></td>
+                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                             <!-- Row 8 -->
@@ -373,7 +373,7 @@
                                 <td>การตลาด</td>
                                 <td>กรุงเทพฯ</td>
                                 <td>ศิริวัฒน์ จันทร์ดี</td>
-                                <td><span class="status-dot green"></span><span class="status-text green">Assign แล้ว</span></td>
+                                <td><span class="status-dot green"></span><span class="status-text green">Assign</span></td>
                                 <td class="text-center"><i class="bi bi-three-dots text-gray" style="cursor:pointer"></i></td>
                             </tr>
                         </tbody>

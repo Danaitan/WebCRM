@@ -122,101 +122,101 @@ namespace webCRM.Models
         public string? Hub { get; set; }
     }
 
-public class GetProfileByPersonalCodeResponse
-{
-    [JsonPropertyName("personnel_id")]
-    public int? PersonnelId { get; set; }
+    public class GetProfileByPersonalCodeResponse
+    {
+        [JsonPropertyName("personnel_id")]
+        public int? PersonnelId { get; set; }
 
-    [JsonPropertyName("personnel_code")]
-    public string? PersonnelCode { get; set; }
+        [JsonPropertyName("personnel_code")]
+        public string? PersonnelCode { get; set; }
 
-    [JsonPropertyName("personnel_nickname")]
-    public string? PersonnelNickname { get; set; }
+        [JsonPropertyName("personnel_nickname")]
+        public string? PersonnelNickname { get; set; }
 
-    [JsonPropertyName("thname")]
-    public string? ThName { get; set; }
+        [JsonPropertyName("thname")]
+        public string? ThName { get; set; }
 
-    [JsonPropertyName("enname")]
-    public string? EnName { get; set; }
+        [JsonPropertyName("enname")]
+        public string? EnName { get; set; }
 
-    [JsonPropertyName("personnel_name_TH")]
-    public string? PersonnelNameTH { get; set; }
+        [JsonPropertyName("personnel_name_TH")]
+        public string? PersonnelNameTH { get; set; }
 
-    [JsonPropertyName("personnel_name_EN")]
-    public string? PersonnelNameEN { get; set; }
+        [JsonPropertyName("personnel_name_EN")]
+        public string? PersonnelNameEN { get; set; }
 
-    [JsonPropertyName("personnel_last_TH")]
-    public string? PersonnelLastTH { get; set; }
+        [JsonPropertyName("personnel_last_TH")]
+        public string? PersonnelLastTH { get; set; }
 
-    [JsonPropertyName("personnel_last_EN")]
-    public string? PersonnelLastEN { get; set; }
+        [JsonPropertyName("personnel_last_EN")]
+        public string? PersonnelLastEN { get; set; }
 
-    [JsonPropertyName("startdate")]
-    public string? StartDate { get; set; }
+        [JsonPropertyName("startdate")]
+        public string? StartDate { get; set; }
 
-    [JsonPropertyName("personnel_status")]
-    public int? PersonnelStatus { get; set; }
+        [JsonPropertyName("personnel_status")]
+        public int? PersonnelStatus { get; set; }
 
-    [JsonPropertyName("telephone")]
-    public string? Telephone { get; set; }
+        [JsonPropertyName("telephone")]
+        public string? Telephone { get; set; }
 
-    [JsonPropertyName("e_mail")]
-    public string? EMail { get; set; }
+        [JsonPropertyName("e_mail")]
+        public string? EMail { get; set; }
 
-    [JsonPropertyName("off_phone")]
-    public string? OffPhone { get; set; }
+        [JsonPropertyName("off_phone")]
+        public string? OffPhone { get; set; }
 
-    [JsonPropertyName("ad_account")]
-    public string? AdAccount { get; set; }
+        [JsonPropertyName("ad_account")]
+        public string? AdAccount { get; set; }
 
-    [JsonPropertyName("position_level_code")]
-    public string? PositionLevelCode { get; set; }
+        [JsonPropertyName("position_level_code")]
+        public string? PositionLevelCode { get; set; }
 
-    [JsonPropertyName("position_code")]
-    public string? PositionCode { get; set; }
+        [JsonPropertyName("position_code")]
+        public string? PositionCode { get; set; }
 
-    [JsonPropertyName("position")]
-    public string? Position { get; set; }
+        [JsonPropertyName("position")]
+        public string? Position { get; set; }
 
-    [JsonPropertyName("depart_code")]
-    public string? DepartCode { get; set; }
+        [JsonPropertyName("depart_code")]
+        public string? DepartCode { get; set; }
 
-    [JsonPropertyName("department")]
-    public string? Department { get; set; }
+        [JsonPropertyName("department")]
+        public string? Department { get; set; }
 
-    [JsonPropertyName("branch_no")]
-    public string? BranchNo { get; set; }
+        [JsonPropertyName("branch_no")]
+        public string? BranchNo { get; set; }
 
-    [JsonPropertyName("branch")]
-    public string? Branch { get; set; }
+        [JsonPropertyName("branch")]
+        public string? Branch { get; set; }
 
-    [JsonPropertyName("abbreviation")]
-    public string? Abbreviation { get; set; }
+        [JsonPropertyName("abbreviation")]
+        public string? Abbreviation { get; set; }
 
-    [JsonPropertyName("section_code")]
-    public string? SectionCode { get; set; }
+        [JsonPropertyName("section_code")]
+        public string? SectionCode { get; set; }
 
-    [JsonPropertyName("branch_code")]
-    public string? BranchCode { get; set; }
+        [JsonPropertyName("branch_code")]
+        public string? BranchCode { get; set; }
 
-    [JsonPropertyName("section")]
-    public string? Section { get; set; }
+        [JsonPropertyName("section")]
+        public string? Section { get; set; }
 
-    [JsonPropertyName("area_no")]
-    public string? AreaNo { get; set; }
+        [JsonPropertyName("area_no")]
+        public string? AreaNo { get; set; }
 
-    [JsonPropertyName("loanoff")]
-    public string? LoanOff { get; set; }
+        [JsonPropertyName("loanoff")]
+        public string? LoanOff { get; set; }
 
-    [JsonPropertyName("create_date")]
-    public string? CreateDate { get; set; } 
+        [JsonPropertyName("create_date")]
+        public string? CreateDate { get; set; }
 
-    [JsonPropertyName("resigned")]
-    public string? Resigned { get; set; } 
+        [JsonPropertyName("resigned")]
+        public string? Resigned { get; set; }
 
-    [JsonPropertyName("resigned_th")]
-    public string? ResignedTh { get; set; }
-}
+        [JsonPropertyName("resigned_th")]
+        public string? ResignedTh { get; set; }
+    }
 
     public class LoginResponse
     {
@@ -225,10 +225,6 @@ public class GetProfileByPersonalCodeResponse
         public List<ProfileData>? data { get; set; }
     }
 
-    /// <summary>
-    /// Converts any JSON token (Number, Boolean, String, Null) to a nullable string.
-    /// Needed because some API fields arrive as bare numbers instead of quoted strings.
-    /// </summary>
     public class NumberToStringConverter : JsonConverter<string?>
     {
         public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -236,13 +232,80 @@ public class GetProfileByPersonalCodeResponse
             {
                 JsonTokenType.String => reader.GetString(),
                 JsonTokenType.Number => reader.GetDecimal().ToString(),
-                JsonTokenType.True   => "true",
-                JsonTokenType.False  => "false",
-                JsonTokenType.Null   => null,
+                JsonTokenType.True => "true",
+                JsonTokenType.False => "false",
+                JsonTokenType.Null => null,
                 _ => reader.GetString()
             };
 
         public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
             => writer.WriteStringValue(value);
     }
+
+    public class MasterData
+    {
+        [JsonPropertyName("department")]
+        public List<departmentData>? department { get; set; }
+
+        [JsonPropertyName("email")]
+        public List<emailData>? email { get; set; }
+
+        [JsonPropertyName("company")]
+        public List<companyData>? company { get; set; }
+    }
+
+    public class departmentData
+    {
+        [JsonPropertyName("rid")]
+        public int? rid { get; set; }
+
+        [JsonPropertyName("company")]
+        public string? company { get; set; }
+
+        [JsonPropertyName("sectionCde")]
+        public string? sectionCde { get; set; }
+
+        [JsonPropertyName("section")]
+        public string? section { get; set; }
+
+    }
+
+    public class emailData
+    {
+        [JsonPropertyName("rid")]
+        public int? rid { get; set; }
+
+        [JsonPropertyName("company")]
+        public string? company { get; set; }
+
+        [JsonPropertyName("groupName")]
+        public string? groupName { get; set; }
+
+        [JsonPropertyName("groupAlias")]
+        public string? groupAlias { get; set; }
+
+        [JsonPropertyName("groupEmail")]
+        public string? groupEmail { get; set; }
+
+        [JsonPropertyName("sectionCde")]
+        public string? sectionCde { get; set; }
+
+    }
+
+    public class companyData
+    {
+        [JsonPropertyName("code")]
+        public string? code { get; set; }
+
+        [JsonPropertyName("company")]
+        public string? company { get; set; }
+
+        [JsonPropertyName("companyTH")]
+        public string? companyTH { get; set; }
+
+        [JsonPropertyName("companyEN")]
+        public string? companyEN { get; set; }
+
+    }
+
 }

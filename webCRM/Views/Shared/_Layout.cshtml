@@ -64,9 +64,13 @@
         {
             <!-- Sidebar -->
             <aside class="sidebar bg-white border-end d-flex flex-column flex-shrink-0" style="width: 260px; transition: all 0.3s;" id="crmSidebar">
-                <!-- Hide Menu Button at Top -->
-                <div class="px-3 py-3 border-bottom d-flex justify-content-end">
-                    <button class="btn text-secondary d-flex align-items-center gap-2 p-0 border-0 mt-1" id="hideSidebarBtn" style="font-size: 14px;">
+                <!-- Sidebar Header (Title & Hide Button) -->
+                <div class="px-3 py-3 border-bottom d-flex align-items-center justify-content-between">
+                    <div class="sidebar-text">
+                        @* <img src="~/images/logo.png" class="mb-2" style="height: 52px; object-fit: contain;"> *@
+                        <h5 class="fw-bold text-dark mb-0" style="color: var(--bs-primary, #0d6efd);">CRM 3.0</h5>
+                    </div>
+                    <button class="btn text-secondary d-flex align-items-center gap-2 p-0 border-0" id="hideSidebarBtn" style="font-size: 14px;">
                         <i class="bi bi-chevron-double-left fs-6" id="hideSidebarIcon"></i>
                     </button>
                 </div>
@@ -74,7 +78,7 @@
                 <!-- Menu Items -->
                 <nav class="sidebar-nav flex-grow-1 px-2 py-3 d-flex flex-column gap-1 overflow-auto">
                     <a href="/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-3 px-3 py-2 rounded">
-                        <i class="bi bi-house fs-5"></i> <span class="fw-medium sidebar-text">หน้าหลัก</span>
+                        <i class="bi bi-house fs-5"></i> <span class="fw-medium sidebar-text">Dashboard</span>
                     </a>
                     
                     <a href="/CustomerDetail" class="nav-link @GetActiveClass("/CustomerDetail") d-flex align-items-center gap-3 px-3 py-2 rounded">
@@ -119,14 +123,8 @@
             <!-- Header -->
             <header class="crm-header d-flex align-items-center justify-content-between px-4 py-3 bg-white shadow-sm border-bottom">
                 <div class="d-flex align-items-center gap-3">
-                    @* <div class="header-icon-box text-white rounded p-2 d-flex align-items-center justify-content-center" style="background-color: var(--bs-primary, #0d6efd);">
-                        <i class="bi bi-people-fill fs-5"></i>
-                    </div>
-                    <button class="btn btn-link text-secondary p-0 border-0 ms-2" id="toggleSidebarBtn">
-                        <i class="bi bi-list fs-3"></i>
-                    </button> *@
                     <div class="ms-2">
-                        <h4 class="mb-0 fw-bold text-dark-blue">@(ViewData["HeaderTitle"] ?? "เมนูระบบ CRM 3.0")</h4>
+                        <h4 class="mb-0 fw-bold text-dark-blue">@(ViewData["HeaderTitle"] ?? "CRM 3.0")</h4>
                         @if (ViewData["HeaderSubtitle"] != null)
                         {
                             <p class="text-muted small mb-0 mt-1">@ViewData["HeaderSubtitle"]</p>

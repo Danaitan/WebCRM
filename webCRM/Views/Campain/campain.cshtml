@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "สร้าง Product / Campaign - CRM";
+    ViewData["Title"] = "สร้าง Product / Campaign";
     ViewData["HeaderTitle"] = "สร้าง Product / Campaign";
     ViewData["HeaderSubtitle"] = "สร้างและจัดการ Product / Campaign สำหรับใช้งานในระบบ CRM";
 }
@@ -19,7 +19,7 @@
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <div class="search-wrapper d-flex align-items-center flex-grow-1" style="height: 42px;">
                             <span class="ps-3 text-muted"><i class="bi bi-search"></i></span>
-                            <input type="text" id="campaignSearchInput" placeholder="ค้นหา Product / Campaign" class="w-100" style="border: none; outline: none; font-size: 0.9rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
+                            <input type="text" id="campaignSearchInput" placeholder="ค้นหา Product / Campaign" class="w-100" style="border: none; outline: none; font-size: 0.875rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
                         </div>
                         <div class="sort-select-container">
                             <button type="button" class="btn-sort-trigger" id="sortBtn" title="จัดเรียง">
@@ -142,54 +142,44 @@
                             </div>
                             
                             <div class="col-md-6">
-                                <label class="form-label">วัตถุประสงค์<span class="required-star">*</span> <i class="bi bi-info-circle text-primary" style="cursor: pointer;" title="สาขาที่มีสิทธิ์เข้าใช้งานแคมเปญนี้"></i></label>
-                                
-                                <div class="branch-select-container">
-                                    <div class="branch-select-input-display" id="">
-                                        <span class="branch-placeholder" id="">เลือกวัตถุประสงค์</span>
-                                        <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
-                                    </div>
-                                    
-
-                                    <div class="branch-dropdown-panel" id="">
-                                        <div class="branch-search-box">
-                                            <input type="text" id="" placeholder="ค้นหาตถุประสงค์">
-                                            <i class="bi bi-search"></i>
-                                        </div>
-                                        
-                                        <div class="branch-list-wrapper">
-                                            <div class="branch-item" id="">
-                                                <input type="checkbox" id="">
-                                            </div>
-                                            <div id="">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
+                                <label class="form-label" for="campaignObjective">
+                                    วัตถุประสงค์ <span class="required-star">*</span> 
+                                    <i class="bi bi-info-circle text-primary ms-1" 
+                                       style="cursor: pointer;" 
+                                       tabindex="0"
+                                       data-bs-toggle="popover" 
+                                       data-bs-trigger="click" 
+                                       data-bs-html="true" 
+                                       data-bs-placement="right" 
+                                       title="<span class='fw-bold text-dark'><i class='bi bi-info-circle me-1 text-primary'></i> คำอธิบายวัตถุประสงค์</span>" 
+                                       data-bs-content="<div class='py-1' style='font-size: 0.875rem; line-height: 1.8;'><div><strong class='text-primary'>CS</strong> : Cost Sales ขายผลิตภัณฑ์</div><div><strong class='text-primary'>CL</strong> : Collection ตามหนี้</div><div><strong class='text-primary'>RM</strong> : Relation management สร้างความสัมพันธ์</div></div>">
+                                    </i>
+                                </label>
+                                <select id="campaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required>
+                                    <option value="">เลือกวัตถุประสงค์</option>
+                                    <option value="CS">CS</option>
+                                    <option value="CL">CL</option>
+                                    <option value="RM">RM</option>
+                                </select>
                             </div>
                             
                             <div class="col-md-6">
-                                <label class="form-label">ใช้กับสาขา <span class="required-star">*</span> <i class="bi bi-info-circle text-primary" style="cursor: pointer;" title="สาขาที่มีสิทธิ์เข้าใช้งานแคมเปญนี้"></i></label>
+                                <label class="form-label">ใช้กับสาขา <span class="required-star">*</span></label>
                                 
                                 <div class="branch-select-container">
                                     <div class="branch-select-input-display" id="branchSelectDisplay">
-                                        <span class="branch-placeholder" id="branchSelectPlaceholder">เลือกสาขา...</span>
+                                        <span class="branch-placeholder" id="branchSelectPlaceholder">เลือกสาขา</span>
                                         <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
                                     </div>
                                     
 
                                     <div class="branch-dropdown-panel" id="branchDropdownPanel">
                                         <div class="branch-search-box">
-                                            <input type="text" id="branchSearchInput" placeholder="ค้นหาสาขา...">
+                                            <input type="text" id="branchSearchInput" placeholder="ค้นหาสาขา">
                                             <i class="bi bi-search"></i>
                                         </div>
                                         
                                         <div class="branch-list-wrapper">
-                                            <div class="branch-item" id="selectAllBranchesItem">
-                                                <input type="checkbox" id="chkSelectAllBranches">
-                                                <label for="chkSelectAllBranches" class="m-0 cursor-pointer fw-semibold text-primary">เลือกทั้งหมด</label>
-                                            </div>
                                             <div id="branchesListContainer">
                                             </div>
                                         </div>
@@ -204,6 +194,21 @@
                                 <div class="char-counter" id="remarksCharCounter">0 / 500</div>
                             </div>
 
+                            <!-- ปุ่มแนบไฟล์ -->
+                            <div class="col-12" id="importExcelContainer">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel">
+                                        <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
+                                    </button>
+                                    <input type="file" id="excelFileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                                        <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                                        <span id="selectedFileNameText" class="fw-medium text-dark"></span>
+                                        <i class="bi bi-x-circle-fill text-secondary" id="btnRemoveExcelFile" style="cursor: pointer;" title="ลบไฟล์"></i>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="col-md-6 d-flex align-items-center gap-3">
                                 <div class="form-check m-0">
                                     <input class="form-check-input" type="checkbox" id="chkImportExcel" name="chkImportExcel">
@@ -215,13 +220,6 @@
 
                         </div>
                     </form>
-                </div>
-                
-                <div class="row g-4 mb-4 col-2 pl-2">
-                    <button type="button" class="btn btn-sm px-3 d-none" id="btnImportExcel" style="background:#1D6F42; color:white; border-radius: 6px; font-weight: 500; height: 38px;">
-                        <i class="bi bi-file-earmark-excel-fill me-1"></i> นำเข้า Excel
-                    </button>
-                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;">
                 </div>
                 
                 <div class="row g-4 mb-4" id="filterSelectedRow">
@@ -306,7 +304,7 @@
                             <div class="col-md-6">
                                 <label class="form-label" for="modalCampaignCode">รหัส Product / Campaign</label>
                                 <div class="input-container-icon">
-                                    <input type="text" id="modalCampaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;">
+                                    <input type="text" id="modalCampaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;" readonly>
                                 </div>
                             </div>
                             
@@ -329,31 +327,25 @@
                             </div>
                             
                             <div class="col-md-6">
-                                <label class="form-label">วัตถุประสงค์ <span class="required-star">*</span> <i class="bi bi-info-circle text-primary" style="cursor: pointer;" title="สาขาที่มีสิทธิ์เข้าใช้งานแคมเปญนี้"></i></label>
-                                
-                                <div class="branch-select-container">
-                                    <div class="branch-select-input-display" id="branchSelectDisplay">
-                                        <span class="branch-placeholder" id="branchSelectPlaceholder">เลือกวัตถุประสงค์</span>
-                                        <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
-                                    </div>
-                                    
-
-                                    <div class="branch-dropdown-panel" id="branchDropdownPanel">
-                                        <div class="branch-search-box">
-                                            <input type="text" id="branchSearchInput" placeholder="ค้นหาสาขา...">
-                                            <i class="bi bi-search"></i>
-                                        </div>
-                                        
-                                        <div class="branch-list-wrapper">
-                                            <div class="branch-item" id="selectAllBranchesItem">
-                                                <input type="checkbox" id="chkSelectAllBranches">
-                                                <label for="chkSelectAllBranches" class="m-0 cursor-pointer fw-semibold text-primary">เลือกทั้งหมด</label>
-                                            </div>
-                                            <div id="branchesListContainer">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <label class="form-label" for="modalCampaignObjective">
+                                    วัตถุประสงค์ <span class="required-star">*</span> 
+                                    <i class="bi bi-info-circle text-primary ms-1" 
+                                       style="cursor: pointer;" 
+                                       tabindex="0"
+                                       data-bs-toggle="popover" 
+                                       data-bs-trigger="click" 
+                                       data-bs-html="true" 
+                                       data-bs-placement="right" 
+                                       title="<span class='fw-bold text-dark'><i class='bi bi-info-circle me-1 text-primary'></i> คำอธิบายวัตถุประสงค์</span>" 
+                                       data-bs-content="<div class='py-1' style='font-size: 0.875rem; line-height: 1.8;'><div><strong class='text-primary'>CS</strong> : Cost Sales ขายผลิตภัณฑ์</div><div><strong class='text-primary'>CL</strong> : Collection ตามหนี้</div><div><strong class='text-primary'>RM</strong> : Relation management สร้างความสัมพันธ์</div></div>">
+                                    </i>
+                                </label>
+                                <select id="modalCampaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required>
+                                    <option value="">เลือกวัตถุประสงค์</option>
+                                    <option value="CS">CS</option>
+                                    <option value="CL">CL</option>
+                                    <option value="RM">RM</option>
+                                </select>
                             </div>
                             
                             <!-- ใช้กับสาขา * -->
@@ -362,21 +354,17 @@
                                 
                                 <div class="branch-select-container">
                                     <div class="branch-select-input-display" id="modalBranchSelectDisplay">
-                                        <span class="branch-placeholder" id="modalBranchSelectPlaceholder">เลือกสาขา...</span>
+                                        <span class="branch-placeholder" id="modalBranchSelectPlaceholder">เลือกสาขา</span>
                                         <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
                                     </div>
                                     
                                     <div class="branch-dropdown-panel" id="modalBranchDropdownPanel">
                                         <div class="branch-search-box">
-                                            <input type="text" id="modalBranchSearchInput" placeholder="ค้นหาสาขา...">
+                                            <input type="text" id="modalBranchSearchInput" placeholder="ค้นหาสาขา">
                                             <i class="bi bi-search"></i>
                                         </div>
                                         
                                         <div class="branch-list-wrapper">
-                                            <div class="branch-item" id="modalSelectAllBranchesItem">
-                                                <input type="checkbox" id="modalChkSelectAllBranches">
-                                                <label for="modalChkSelectAllBranches" class="m-0 cursor-pointer fw-semibold text-primary">เลือกทั้งหมด</label>
-                                            </div>
                                             <div id="modalBranchesListContainer">
                                             </div>
                                         </div>
@@ -389,6 +377,21 @@
                                 <label class="form-label" for="modalRemarks">หมายเหตุ</label>
                                 <textarea id="modalRemarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;"></textarea>
                                 <div class="char-counter" id="modalRemarksCharCounter">0 / 500</div>
+                            </div>
+
+                            <!-- ปุ่มแนบไฟล์ -->
+                            <div class="col-12" id="modalImportExcelContainer">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnModalImportExcel">
+                                        <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
+                                    </button>
+                                    <input type="file" id="modalExcelFileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    <div id="modalSelectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                                        <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                                        <span id="modalSelectedFileNameText" class="fw-medium text-dark"></span>
+                                        <i class="bi bi-x-circle-fill text-secondary" id="btnRemoveModalExcelFile" style="cursor: pointer;" title="ลบไฟล์"></i>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="col-md-6 d-flex align-items-center gap-3">

@@ -42,12 +42,35 @@ body.crm-body {
 .search-wrapper input {
     border: none;
     outline: none;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     padding: 0.6rem 0.8rem;
     flex-grow: 1;
 }
 
-.search-wrapper input::placeholder {
+/* Global Unified Placeholder Styling */
+input::placeholder,
+textarea::placeholder,
+.form-control::placeholder,
+.branch-placeholder,
+.search-wrapper input::placeholder,
+.branch-search-box input::placeholder {
+    color: #94a3b8 !important;
+    font-size: 0.875rem !important;
+    font-weight: 400 !important;
+    opacity: 1 !important;
+}
+
+select.form-select:has(option[value=""]:checked) {
+    color: #94a3b8 !important;
+    font-size: 0.875rem !important;
+}
+
+select.form-select option {
+    color: #1e293b;
+    font-size: 0.875rem;
+}
+
+select.form-select option[value=""] {
     color: #94a3b8;
 }
 

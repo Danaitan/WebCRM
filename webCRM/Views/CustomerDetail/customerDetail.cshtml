@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "ข้อมูลลูกค้า - CRM";
+    ViewData["Title"] = "ข้อมูลลูกค้า";
     ViewData["HeaderTitle"] = "ข้อมูลลูกค้า";
     ViewData["HeaderSubtitle"] = "ดูรายละเอียดลูกค้า";
 }
@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="~/css/customerDetail.css" />
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
 }
-
 
     <div class="container-fluid p-4 max-w-custom">
         <!-- Search Area -->
@@ -57,7 +56,7 @@
 
                     <div class="d-flex flex-md-row flex-column gap-2 mb-2">
                         <button class="button-tab-contact active" data-target="tab-table-person">
-                            <i class="bi bi-person fs-5"></i> บุคคล
+                            <i class="bi bi-person fs-5"></i> ลูกค้า
                         </button>
                         <button class="button-tab-contact" data-target="tab-table-contact">
                             <i class="bi bi-file-earmark-text fs-5"></i> สัญญา 
@@ -65,15 +64,6 @@
                     </div>
                     
                     <div id="contact-company-tabs" class="d-flex flex-md-row flex-column gap-2 mb-2 d-none">
-                        <button class="button-tab-contact active" style="padding: 0.3rem 1rem; font-size: 0.85rem;" data-target="contact-Micro">
-                            MICRO
-                        </button>
-                        <button class="button-tab-contact" style="padding: 0.3rem 1rem; font-size: 0.85rem;" data-target="contact-MFIN">
-                            MFIN 
-                        </button>
-                        <button class="button-tab-contact" style="padding: 0.3rem 1rem; font-size: 0.85rem;" data-target="contact-MIB">
-                            MIB
-                        </button>
                     </div>
                     
                     <div class="flex-grow-1 position-relative" style="min-height: 150px;">
@@ -82,7 +72,7 @@
 
                                 <div class="tab-pane fade show active d-flex flex-column flex-grow-1 h-100 min-vh-0" id="tab-table-person">
                                     <div class="flex-grow-1 overflow-auto min-vh-0">
-                                    <table class="table table-borderless search-result-table mb-0 align-middle" id="tab-table-person">
+                                    <table class="table table-borderless search-result-table mb-0 align-middle" id="person-result-table">
                                     <thead>
                                         <tr class="text-muted border-bottom">
                                             <th class="fw-medium pb-2 text-center">ชื่อ-นามสกุล</th>
@@ -128,10 +118,10 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MIB">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
-                                                    <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
+                                                    <th class="fw-medium pb-2 text-center">เลขที่กรมธรรม์</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
-                                                    <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
-                                                    <th class="fw-medium pb-2 text-center">ประเภทสัญญา</th>
+                                                    <th class="fw-medium pb-2 text-center">ประเภทผลิตภัณฑ์</th>
+                                                    <th class="fw-medium pb-2 text-center">เลขที่รับแจ้ง</th>
                                                 </tr>
                                             </thead>
                                             <tbody></tbody>
@@ -424,7 +414,7 @@
                                     </div>
                                     <div class="col-12 col-xl-6 d-flex align-items-start">
                                         <div class="detail-label-sm">
-                                            <span>ค้างชำระ (ปัจจุบัน) aging</span>
+                                            <span>ค้างชำระ (ปัจจุบัน)</span>
                                         </div>
                                         <div class="detail-value" id="loan-detail-aging">-</div>
                                     </div>

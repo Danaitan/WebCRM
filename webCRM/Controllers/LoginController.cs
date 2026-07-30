@@ -19,7 +19,7 @@ namespace webCRM.Controllers
         public async Task<IActionResult> Index()
         {
             await GetProfileByPersonalCode();
-            return View("~/Views/CustomerDetail/customerDetail.cshtml");
+            return View("~/Views/Home/Index.cshtml");
         }
 
         public async Task<IActionResult> GetProfile(string userName, string passWord)

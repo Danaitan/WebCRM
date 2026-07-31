@@ -7,6 +7,13 @@ namespace webCRM.Controllers
 {
     public class CustomerDetailController(IConfiguration configuration) : Controller
     {
+        private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString,
+            Converters = { new NumberToStringConverter() }
+        };
+
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings_BearerToken") ?? configuration["ApiSettings:BearerToken"];
         string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
@@ -43,7 +50,7 @@ namespace webCRM.Controllers
                     string data = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode)
                     {
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<CustomerDetailApiResponse>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<CustomerDetailApiResponse>(data, _jsonSerializerOptions);
                         var result = apiResponse?.Customer;
 
                         return result ?? new List<ResponseCustomerDetail>();
@@ -88,19 +95,19 @@ namespace webCRM.Controllers
                         string data = await response.Content.ReadAsStringAsync();
                         if (code == "Micro")
                         {
-                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseContact>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseContact>>(data, _jsonSerializerOptions);
                             result.contactMicro = apiResponse ?? new List<ResponseContact>();
                             result.contactMicroCount = apiResponse?.Count() ?? 0;
                         }
                         if (code == "MFIN")
                         {
-                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseContact>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseContact>>(data, _jsonSerializerOptions);
                             result.contactMFIN = apiResponse ?? new List<ResponseContact>();
                             result.contactMFINCount = apiResponse?.Count() ?? 0;
                         }
                         if (code == "MIB")
                         {
-                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseContact>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseContact>>(data, _jsonSerializerOptions);
                             result.contactMIB = apiResponse ?? new List<ResponseContact>();
                             result.contactMIBCount = apiResponse?.Count() ?? 0;
                         }
@@ -161,12 +168,7 @@ namespace webCRM.Controllers
             response.EnsureSuccessStatusCode();
             string data = await response.Content.ReadAsStringAsync();
 
-            var result = JsonSerializer.Deserialize<ResponseContactInfo<TContractInfo>>(
-                data,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+            var result = JsonSerializer.Deserialize<ResponseContactInfo<TContractInfo>>(data, _jsonSerializerOptions);
 
             return result;
         }
@@ -188,7 +190,7 @@ namespace webCRM.Controllers
                     string data = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode)
                     {
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ReceiveResponse>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ReceiveResponse>>(data, _jsonSerializerOptions);
                         var result = apiResponse;
 
                         return result ?? new List<ReceiveResponse>();
@@ -221,7 +223,7 @@ namespace webCRM.Controllers
                     string data = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode)
                     {
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseClaim>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseClaim>>(data, _jsonSerializerOptions);
                         var result = apiResponse;
 
                         return result ?? new List<ResponseClaim>();
@@ -255,12 +257,12 @@ namespace webCRM.Controllers
                     {
                         if (data.TrimStart().StartsWith("["))
                         {
-                            var apiResponseList = System.Text.Json.JsonSerializer.Deserialize<List<pdpaResponse>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            var apiResponseList = System.Text.Json.JsonSerializer.Deserialize<List<pdpaResponse>>(data, _jsonSerializerOptions);
                             return apiResponseList?.FirstOrDefault() ?? new pdpaResponse();
                         }
                         else
                         {
-                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<pdpaResponse>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            var apiResponse = System.Text.Json.JsonSerializer.Deserialize<pdpaResponse>(data, _jsonSerializerOptions);
                             return apiResponse ?? new pdpaResponse();
                         }
                     }

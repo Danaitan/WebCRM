@@ -123,6 +123,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("Tracking_Ins")]
         public string? TrackingIns { get; set; }
+
+        [JsonPropertyName("active")]
+        public object? Active { get; set; }
     }
 
     public class RequestCustomerDetail
@@ -261,6 +264,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("dateCheckNCB")]
         public string? DateCheckNCB { get; set; }
+
+        [JsonPropertyName("active")]
+        public object? Active { get; set; }
     }
 
     public class ContractInfoMIB : ContractInfo
@@ -324,6 +330,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("Register")]
         public string? Register { get; set; }
+
+        [JsonPropertyName("active")]
+        public object? Active { get; set; }
     }
 
     public class ContractInfoMFIN : ContractInfo

@@ -336,18 +336,30 @@ $(document).ready(function () {
             title: 'ยืนยันการไม่อนุมัติ',
             html: `คุณต้องการไม่อนุมัติ <b>${label}</b> ใช่หรือไม่?`,
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'ระบุสาเหตุการไม่อนุมัติ',
+            inputPlaceholder: 'กรอกเหตุผลการไม่อนุมัติที่นี่...',
+            inputAttributes: {
+                'aria-label': 'กรอกเหตุผลการไม่อนุมัติที่นี่'
+            },
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#64748b',
             confirmButtonText: '<i class="bi bi-x-lg me-1"></i> ยืนยันไม่อนุมัติ',
             cancelButtonText: 'ยกเลิก',
             reverseButtons: true,
-            focusCancel: true
+            focusCancel: false,
+            inputValidator: (value) => {
+                if (!value || !value.trim()) {
+                    return 'กรุณากรอกเหตุผลการไม่อนุมัติ';
+                }
+            }
         }).then((result) => {
             if (result.isConfirmed) {
+                const remark = result.value;
                 Swal.fire({
                     title: 'ไม่อนุมัติเรียบร้อย!',
-                    text: `ปฏิเสธการอนุมัติ ${code || 'รายการ'} เรียบร้อยแล้ว`,
+                    text: `ปฏิเสธการอนุมัติ ${code || 'รายการ'} เรียบร้อยแล้ว${remark ? ` (หมายเหตุ: ${remark})` : ''}`,
                     icon: 'error',
                     confirmButtonColor: '#ef4444',
                     confirmButtonText: 'ตกลง'
@@ -362,33 +374,33 @@ $(document).ready(function () {
         const label = code ? `${code} (${name})` : "รายการนี้";
 
         Swal.fire({
-            title: 'ยืนยันการตีกลับ',
-            html: `คุณต้องการตีกลับ <b>${label}</b> เพื่อแก้ไขใช่หรือไม่?`,
+            title: 'ยืนยันการส่งแก้ไข',
+            html: `คุณต้องการส่งแก้ไข <b>${label}</b> ใช่หรือไม่?`,
             icon: 'warning',
             input: 'textarea',
-            inputLabel: 'ระบุหมายเหตุ / เหตุผลในการตีกลับ',
-            inputPlaceholder: 'กรอกหมายเหตุการตีกลับที่นี่...',
+            inputLabel: 'ระบุสาเหตุที่แก้ไข',
+            inputPlaceholder: 'กรอกหมายเหตุการแก้ไขที่นี่...',
             inputAttributes: {
                 'aria-label': 'กรอกหมายเหตุการตีกลับที่นี่'
             },
             showCancelButton: true,
             confirmButtonColor: '#f59e0b',
             cancelButtonColor: '#64748b',
-            confirmButtonText: '<i class="bi bi-arrow-counterclockwise me-1"></i> ยืนยันตีกลับ',
+            confirmButtonText: '<i class="bi bi-x-lg me-1"></i> ยืนยันการส่งแก้ไข',
             cancelButtonText: 'ยกเลิก',
             reverseButtons: true,
             focusCancel: false,
             inputValidator: (value) => {
                 if (!value || !value.trim()) {
-                    return 'กรุณากรอกหมายเหตุหรือเหตุผลในการตีกลับ';
+                    return 'กรุณากรอกหมายเหตุหรือเหตุผลในการส่งแก้ไข';
                 }
             }
         }).then((result) => {
             if (result.isConfirmed) {
                 const remark = result.value;
                 Swal.fire({
-                    title: 'ตีกลับเรียบร้อย!',
-                    text: `ส่งตีกลับ ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
+                    title: 'ส่งแก้ไขเรียบร้อย!',
+                    text: `ส่งแก้ไข ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
                     icon: 'warning',
                     confirmButtonColor: '#f59e0b',
                     confirmButtonText: 'ตกลง'

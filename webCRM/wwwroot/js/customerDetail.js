@@ -194,6 +194,7 @@ async function performSearch() {
                     tbody.onclick = function(e) {
                         const clickedRow = e.target.closest('tr');
                         if (!clickedRow || !clickedRow.dataset.index) return;
+                        if (clickedRow.classList.contains('active-row')) return;
                         
                         // Handle row selection visually
                         const allRows = tbody.querySelectorAll('tr');
@@ -290,6 +291,7 @@ const tabContents = document.querySelectorAll('.tab-content-pane');
 tabLinks.forEach(link => {
     link.addEventListener('click', function(e) {
         e.preventDefault();
+        if (this.classList.contains('active')) return;
 
         tabLinks.forEach(t => {
             t.classList.remove('active');
@@ -320,6 +322,7 @@ document.addEventListener('click', function(e) {
     if (!btn) return;
 
     e.preventDefault();
+    if (btn.classList.contains('active')) return;
 
     // Find the parent container of the clicked button
     const parentGroup = btn.closest('.d-flex');
@@ -540,8 +543,16 @@ async function getContact(idno) {
             renderCompanyTabs(data);
 
             function loadDataTable(tableId, dataList, company, idno) {
+                const sortedDataList = [...(dataList || [])].sort((a, b) => {
+                    const aActive = isContractActive(a.active);
+                    const bActive = isContractActive(b.active);
+                    if (aActive && !bActive) return -1;
+                    if (!aActive && bActive) return 1;
+                    return 0;
+                });
+
                 const dtConfig = {
-                    data: dataList || [],
+                    data: sortedDataList,
                     destroy: true,
                     columns: [
                         { data: row => row.contno || '-' },
@@ -557,6 +568,13 @@ async function getContact(idno) {
                     createdRow: function (row, data, dataIndex) {
                         $(row).addClass('hover-row border-bottom cursor-pointer contract-row');
                         $(row).find('td').addClass('text-center py-3 contract-col');
+
+                        if (!isContractActive(data.active)) {
+                            $(row).css('color', '#94a3b8');
+                        } else {
+                            $(row).css('color', '#1e293b');
+                        }
+
                         const cEncoded = encodeURIComponent(JSON.stringify(data));
                         
                         let targetIdno = idno;
@@ -588,7 +606,7 @@ async function getContact(idno) {
                 };
 
                 if ($.fn.DataTable.isDataTable(tableId)) {
-                    $(tableId).DataTable().clear().rows.add(dataList || []).draw();
+                    $(tableId).DataTable().clear().rows.add(sortedDataList || []).draw();
                 } else {
                     $(tableId).DataTable(dtConfig);
                 }
@@ -619,9 +637,19 @@ const formatValues = (value) => {
     }
 };
 
+const isContractActive = (val) => {
+    if (val === true || val === 1) return true;
+    if (typeof val === 'string') {
+        const lower = val.trim().toLowerCase();
+        return lower === 'true' || lower === 'active' || lower === '1';
+    }
+    return false;
+};
+
 let currentContactInfoRequestId = 0;
 let currentClaimListRequestId = 0;
 async function getContactInfo(idno, company, encodedC, clickedRow) {
+    if (clickedRow && clickedRow.classList.contains('active-row')) return;
     const requestId = ++currentContactInfoRequestId;
     try {
         // Apply highlight to the clicked row
@@ -745,10 +773,32 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 document.getElementById("mib-ins-terms").innerText = contract.terminstall || '-';
                 document.getElementById("mib-ins-cover-amount").innerText = formatNum(contract.coverAmount);
                 document.getElementById("mib-ins-status-install").innerText = contract.statusInstall || '-';
-                document.getElementById("mib-ins-start-date").innerText = formatDt(contract.startDate);
-                document.getElementById("mib-ins-end-date").innerText = formatDt(contract.endDate);
+                document.getElementById("mib-ins-start-date").innerText = '  '+formatDt(contract.startDate) || '-';
+                document.getElementById("mib-ins-end-date").innerText = formatDt(contract.endDate) || '-';
                 document.getElementById("mib-ins-payment-type").innerText = contract.payDesc || '-';
                 document.getElementById("mib-ins-status").innerText = contract.cancel || '-';
+
+                let remainingDays = '-';
+                if (contract.endDate) {
+                    const end = new Date(contract.endDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    end.setHours(0, 0, 0, 0);
+
+                    if (!isNaN(end.getTime())) {
+                        const limitDate = new Date(end);
+                        limitDate.setMonth(limitDate.getMonth() + 3);
+
+                        if (today > limitDate) {
+                            const diffTime = end.getTime() - today.getTime();
+                            remainingDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                        } else {
+                            remainingDays = 0;
+                        }
+                    }
+                }
+                const remDaysElem = document.getElementById("mib-ins-remaining-days");
+                if (remDaysElem) remDaysElem.innerText = remainingDays;
 
                 // Fetch claim list using the application number from the MIB table
                 await getClaimList(c.trackingMIB || idno);
@@ -759,7 +809,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             //#region ข้อมูลสินเชื่อ
 
             document.getElementById("loan-detail-fianlamount").innerText = formatValues(contract.finamt);
-            document.getElementById("loan-detail-aging").innerText = 'D'+contract.aging || '-';
+            document.getElementById("loan-detail-aging").innerText = (contract.aging !== undefined && contract.aging !== null && contract.aging !== '') ? 'D' + contract.aging : '-';
             document.getElementById("loan-detail-appraisal").innerText = formatValues(contract.estimatePrice);
             document.getElementById("loan-detail-status").innerText = contract.contsts || '-';
             document.getElementById("loan-detail-ltv").innerText =  formatValues(contract.ltv);

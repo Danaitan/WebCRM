@@ -5,7 +5,7 @@ let page = 1;
 async function GetFilterByGuid(productGuid) {
     const guid = productGuid || selectedCampaignGuid || "";
     if (!guid) return [];
-    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Filter ของ Product / Campaign...');
+    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Filter ของ Campaign...');
     try {
         const response = await fetch(`/Campain/GetFilterByGuid?fguid=${guid}`);
         if (!response.ok) return [];
@@ -269,7 +269,7 @@ function updateSelectedFiltersDisplay() {
 }
 
 async function getCampainList(page, pageSize) {
-    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Product / Campaign...');
+    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Campaign...');
     try {
         const queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}`
@@ -306,7 +306,7 @@ async function getCampainList(page, pageSize) {
     }
 }
 $(document).ready(async function () {
-    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่ ระบบกำลังดึงข้อมูล Product / Campaign...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่ ระบบกำลังดึงข้อมูล Campaign...');
     // Fetch Branches Data
     let branchesData = [];
     try {
@@ -617,6 +617,7 @@ $(document).ready(async function () {
             ordering: true,
             dom: '<"campaign-list-container"t><"d-flex justify-content-center mt-3"p>',
             language: {
+                info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
                 infoEmpty: "ไม่พบรายการ",
                 emptyTable: `<div class="text-center py-4 text-muted" style="font-size: 0.85rem;">
                                 <i class="bi bi-emoji-neutral fs-4 d-block mb-1"></i>
@@ -694,7 +695,7 @@ $(document).ready(async function () {
         const campaign = campaigns.find(c => c.code === code);
         if (!campaign) return;
         
-        startLoading('กำลังโหลดข้อมูล...', 'กำลังโหลดรายละเอียด Product / Campaign...');
+        startLoading('กำลังโหลดข้อมูล...', 'กำลังโหลดรายละเอียด Campaign...');
         try {
             selectedCampaignCode = code;
             selectedCampaignGuid = campaign.guid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
@@ -807,7 +808,7 @@ $(document).ready(async function () {
     // Refresh List Buttons Action
     $("#refreshCampaignsListBtn").off("click").on("click", async function () {
         $campaignSearchInput.val("");
-        startLoading('กำลังโหลดข้อมูล...', 'กำลังรีเฟรชรายการ Product / Campaign...');
+        startLoading('กำลังโหลดข้อมูล...', 'กำลังรีเฟรชรายการ Campaign...');
         try {
             renderCampaignsList();
             if (campaignTable) {
@@ -1227,7 +1228,7 @@ async function getCheckProductNo() {
             cancelButtonText: "ยกเลิก"
         }).then(async (result) => {
             if (result.isConfirmed) {
-                startLoading("กำลังลบข้อมูล...", "ระบบกำลังลบ Product / Campaign...");
+                startLoading("กำลังลบข้อมูล...", "ระบบกำลังลบ Campaign...");
                 try {
                     const response = await fetch(`/Campain/DeleteCampain?productId=${encodeURIComponent(selectedCampaignId)}`);
                     const resultText = await response.text();
@@ -1499,5 +1500,59 @@ async function getCheckProductNo() {
         // ไม่ auto-load campaign แรก — ให้ผู้ใช้เลือกเองจากรายการ
     } finally {
         stopLoading();
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    const btnImport = document.getElementById('btnImportExcel');
+    const fileInput = document.getElementById('excelFileInput');
+    const fileDisplay = document.getElementById('selectedFileNameDisplay');
+    const fileNameText = document.getElementById('selectedFileNameText');
+    const btnRemove = document.getElementById('btnRemoveExcelFile');
+
+    // นามสกุลไฟล์ที่อนุญาต
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.png', '.jpg', '.jpeg'];
+    btnImport.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            const fileName = file.name;
+            // หานามสกุลไฟล์ (แปลงเป็นพิมพ์เล็กเพื่อเทียบ)
+            const fileExtension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+
+            // ตรวจสอบว่านามสกุลไฟล์อยู่ใน list ที่อนุญาตหรือไม่
+            if (!allowedExtensions.includes(fileExtension)) {
+
+                Swal.fire({
+                    title: "ประเภทไฟล์ไม่ถูกต้อง",
+                    text: `กรุณาอัปโหลดเฉพาะไฟล์: ${allowedExtensions.join(', ')}`,
+                    icon: "error",
+                    timer: 2000,
+                    showConfirmButton: true
+                });
+                removeFile(); // ลบค่าที่เลือกออก
+                return;
+            }
+
+            // ถ้าไฟล์ถูกต้อง ให้แสดงชื่อไฟล์
+            fileNameText.textContent = fileName;
+            
+            // สลับคลาสเพื่อแสดงกล่องชื่อไฟล์
+            fileDisplay.classList.remove('d-none');
+            fileDisplay.classList.add('d-flex');
+        }
+    });
+    btnRemove.addEventListener('click', removeFile);
+
+    // ฟังก์ชันเคลียร์ไฟล์
+    function removeFile() {
+        fileInput.value = '';
+        fileNameText.textContent = '';
+        fileDisplay.classList.remove('d-flex');
+        fileDisplay.classList.add('d-none');
     }
 });

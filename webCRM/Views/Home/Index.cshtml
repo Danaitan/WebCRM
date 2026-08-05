@@ -164,7 +164,7 @@
                                     <circle cx="18" cy="18" r="15.9" fill="none" stroke="#94a3b8" stroke-width="4"
                                         stroke-dasharray="10 90" stroke-dashoffset="-90"></circle>
                                 </svg>
-                                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.8rem;font-weight:600;color:#1e293b;">128</div>
+                                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.8rem;font-weight:600;color:#1e293b;">128/128</div>
                             </div>
                             <div class="d-flex flex-column gap-2">
                                 <div class="d-flex align-items-center gap-2">
@@ -225,17 +225,19 @@
             <!-- Detail Table -->
             <div class="pc-card p-4 flex-grow-1 d-flex flex-column overflow-hidden" style="min-height:300px;">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
-                    <span class="fw-bold text-dark">รายการรายงานการโทร</span>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark">รายการรายงานการโทร</span>
+                        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 ms-2" id="homeReportTotalBadge">ทั้งหมด 5 รายการ</span>
+                    </div>
                     <div class="d-flex align-items-center gap-2">
                         <div class="pc-search-box" style="margin:0;width:220px;">
-                            <input type="text" class="form-control form-control-sm" placeholder="ค้นหารายการ">
+                            <input type="text" class="form-control form-control-sm" id="homeTableSearch" placeholder="ค้นหารายการ">
                             <i class="bi bi-search" style="top:50%;font-size:0.8rem;"></i>
                         </div>
-                        <select class="form-select form-select-sm" style="width:auto;"><option>10 / หน้า</option></select>
                     </div>
                 </div>
                 <div class="table-responsive flex-grow-1">
-                    <table class="table pc-report-table mb-0">
+                    <table class="table pc-report-table mb-0" id="homeReportTable">
                         <thead>
                             <tr>
                                 <th>วันที่โทร</th>
@@ -295,18 +297,6 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-                <div class="d-flex justify-content-between align-items-center pt-3 border-top flex-shrink-0">
-                    <span class="text-muted" style="font-size:0.8rem;">1 - 5 จาก 128 รายการ</span>
-                    <ul class="pagination pagination-sm pc-pagination mb-0">
-                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a></li>
-                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                        <li class="page-item"><a class="page-link" href="#">2</a></li>
-                        <li class="page-item"><a class="page-link" href="#">3</a></li>
-                        <li class="page-item"><a class="page-link" href="#">...</a></li>
-                        <li class="page-item"><a class="page-link" href="#">13</a></li>
-                        <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
-                    </ul>
                 </div>
             </div>
         </div>

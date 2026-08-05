@@ -156,7 +156,7 @@ async function performSearch() {
     const val = searchInput.value;
     if (val) {
         try {
-            startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้า กรุณารอสักครู่...');
+            startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้าทั่วไป กรุณารอสักครู่...');
             const originalText = searchBtn.innerHTML;
             searchBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
             
@@ -562,17 +562,17 @@ async function getContact(idno) {
                             }
                             return row.applno || '-';
                         }},
-                        { data: row => row.loantype || '-' },
-                        { data: row => row.conttype || '-' }
+                        { data: row => row.conttype || '-' },
+                        { data: row => row.loantype  || '-' }
                     ],
                     createdRow: function (row, data, dataIndex) {
                         $(row).addClass('hover-row border-bottom cursor-pointer contract-row');
                         $(row).find('td').addClass('text-center py-3 contract-col');
 
                         if (!isContractActive(data.active)) {
-                            $(row).css('color', '#94a3b8');
+                            $(row).find('td').css('color', '#94a3b8');
                         } else {
-                            $(row).css('color', '#1e293b');
+                            $(row).find('td').css('color', '#1e293b');
                         }
 
                         const cEncoded = encodeURIComponent(JSON.stringify(data));
@@ -643,7 +643,7 @@ const isContractActive = (val) => {
         const lower = val.trim().toLowerCase();
         return lower === 'true' || lower === 'active' || lower === '1';
     }
-    return false;
+    return true; // เพื่อเทส ค่าจริงต้อง return false
 };
 
 let currentContactInfoRequestId = 0;
@@ -751,10 +751,37 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
 
             if (company == "MIB"){
                 
+                const parseAnyDate = (val) => {
+                    if (!val) return null;
+                    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+                    if (typeof val === 'number') return new Date(val);
+                    let str = String(val).trim();
+                    if (!str || str === '-') return null;
+
+                    if (str.indexOf('/Date(') !== -1) {
+                        const ms = parseInt(str.replace(/\/Date\((.*?)\)\//, '$1'), 10);
+                        if (!isNaN(ms)) return new Date(ms);
+                    }
+
+                    let d = new Date(str);
+                    if (!isNaN(d.getTime())) return d;
+
+                    const parts = str.split(/[\/\-\sT:]/);
+                    if (parts.length >= 3) {
+                        let p0 = parseInt(parts[0], 10);
+                        let p1 = parseInt(parts[1], 10) - 1;
+                        let p2 = parseInt(parts[2], 10);
+                        if (p0 > 31) d = new Date(p0, p1, p2);
+                        else if (p2 > 31) d = new Date(p2, p1, p0);
+                        else if (p0 <= 12 && p1 <= 31) d = new Date(p2, p0 - 1, p1);
+                        if (d && !isNaN(d.getTime())) return d;
+                    }
+                    return null;
+                };
+
                 const formatDt = (date) => {
-                    if (!date) return '-';
-                    const d = new Date(date);
-                    if (isNaN(d.getTime())) return '-';
+                    const d = parseAnyDate(date);
+                    if (!d) return '-';
                     return d.toLocaleDateString('en-GB').replace(/\//g, '-');
                 };
                 const formatNum = (val) => (val != null && val !== '') ? Number(val).toLocaleString('en-US') : '-';
@@ -776,27 +803,66 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 document.getElementById("mib-ins-start-date").innerText = '  '+formatDt(contract.startDate) || '-';
                 document.getElementById("mib-ins-end-date").innerText = formatDt(contract.endDate) || '-';
                 document.getElementById("mib-ins-payment-type").innerText = contract.payDesc || '-';
-                document.getElementById("mib-ins-status").innerText = contract.cancel || '-';
 
                 let remainingDays = '-';
-                if (contract.endDate) {
-                    const end = new Date(contract.endDate);
+                let statusBgColor = '';
+                let statusTextColor = '';
+
+                const rawEndDate = contract.endDate || contract.enddate || contract.endDateCover || contract.expDate;
+                const end = parseAnyDate(rawEndDate);
+
+                if (end) {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-                    end.setHours(0, 0, 0, 0);
+                    const endDateMidnight = new Date(end);
+                    endDateMidnight.setHours(0, 0, 0, 0);
 
-                    if (!isNaN(end.getTime())) {
-                        const limitDate = new Date(end);
-                        limitDate.setMonth(limitDate.getMonth() + 3);
+                    const diffTime = endDateMidnight.getTime() - today.getTime();
+                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                    remainingDays = diffDays;
 
-                        if (today > limitDate) {
-                            const diffTime = end.getTime() - today.getTime();
-                            remainingDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-                        } else {
-                            remainingDays = 0;
-                        }
+                    if (diffDays >= 90) {
+                        statusBgColor = '#28a745'; // เขียว: คงเหลือตั้งแต่ 90 วันขึ้นไป
+                        statusTextColor = '#ffffff';
+                    } else if (diffDays >= 31) {
+                        statusBgColor = '#ffc107'; // เหลือง: คงเหลือ 31-60 วัน (31-89 วัน)
+                        statusTextColor = '#212529';
+                    } else if (diffDays >= 1) {
+                        statusBgColor = '#fd7e14'; // ส้ม: คงเหลือ 1-30 วัน
+                        statusTextColor = '#ffffff';
+                    } else if (diffDays >= -365) {
+                        statusBgColor = '#dc3545'; // แดง: ขาดอายุไม่เกิน 1 ปี
+                        statusTextColor = '#ffffff';
+                    } else {
+                        statusBgColor = '#6c757d'; // เทา: ขาดอายุเกิน 1 ปี
+                        statusTextColor = '#ffffff';
                     }
                 }
+
+                const statusElem = document.getElementById("mib-ins-status");
+                const statusContainer = document.getElementById("mib-ins-status-container") || (statusElem ? statusElem.closest('.d-flex') : null);
+
+                if (statusElem) {
+                    statusElem.innerText = contract.cancel || '-';
+                }
+
+                if (statusContainer) {
+                    const labelSpan = statusContainer.querySelector('.detail-label-sm span') || statusContainer.querySelector('.detail-label-sm') || statusContainer.children[0];
+                    if (statusBgColor) {
+                        statusContainer.style.setProperty('background-color', statusBgColor, 'important');
+                        statusContainer.style.setProperty('padding', '6px 12px', 'important');
+                        statusContainer.style.setProperty('border-radius', '6px', 'important');
+                        if (labelSpan) labelSpan.style.setProperty('color', statusTextColor, 'important');
+                        if (statusElem) statusElem.style.setProperty('color', statusTextColor, 'important');
+                    } else {
+                        statusContainer.style.removeProperty('background-color');
+                        statusContainer.style.removeProperty('padding');
+                        statusContainer.style.removeProperty('border-radius');
+                        if (labelSpan) labelSpan.style.removeProperty('color');
+                        if (statusElem) statusElem.style.removeProperty('color');
+                    }
+                }
+
                 const remDaysElem = document.getElementById("mib-ins-remaining-days");
                 if (remDaysElem) remDaysElem.innerText = remainingDays;
 

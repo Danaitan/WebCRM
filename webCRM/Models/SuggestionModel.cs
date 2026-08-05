@@ -54,9 +54,11 @@ namespace webCRM.Models
         public string? Suggestion { get; set; }
 
         [JsonPropertyName("dateSugges")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? DateSugges { get; set; }
 
         [JsonPropertyName("timeSugges")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? TimeSugges { get; set; }
 
         [JsonPropertyName("idno")]
@@ -75,7 +77,12 @@ namespace webCRM.Models
         public string? UpdBy { get; set; }
 
         [JsonPropertyName("upDate")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? UpDate { get; set; }
+
+        [JsonPropertyName("createdDate")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
+        public DateTime? CreatedDate { get; set; }
 
         [JsonPropertyName("personalName")]
         public string? PersonalName { get; set; }

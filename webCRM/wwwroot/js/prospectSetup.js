@@ -5,6 +5,10 @@ let currentProspectPage = 1;
 let currentProspectPageSize = 10;
 
 let currentFilterRequestId = 0;
+let selectedCampaign = null;
+let currentProductBatches = [];
+let currentBatchCustomers = [];
+let removedBatchCustomerIds = new Set();
 
 async function getCampainList(page = 1, pageSize = 20) {
     try {
@@ -16,15 +20,16 @@ async function getCampainList(page = 1, pageSize = 20) {
         const mapped = items.map(item => ({
             code:      item.product_code  || "",
             name:      item.product_name  || "",
-            status:    item.product_status || "ปกติ",
+            status:    item.product_status || "",
             startDate: item.product_start ? item.product_start.substring(0, 10) : "",
             endDate:   item.product_end   ? item.product_end.substring(0, 10)   : "",
             remark:    item.product_remark || "",
             createdBy: item.createrd_by   || item.created_by || "",
             created:   item.created       ? item.created.substring(0, 10)       : "",
-            guid:      item.product_guid  || item.guid || item.fguid || item.product_code || item.code || ""
+            guid:      item.product_guid  || "",
+            offcde:    item.offcde || "",
+            product_company: item.product_company || "", 
         }));
-        stopLoading();
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
             pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
@@ -34,8 +39,10 @@ async function getCampainList(page = 1, pageSize = 20) {
     }
     catch(error){
         console.error("Error in getCampainList:", error);
-        stopLoading();
         return { page: 1, pageSize: 5, count: 0, data: [] };
+    }
+    finally {
+        stopLoading();
     }
 }
 
@@ -244,6 +251,9 @@ async function loadBatchList(page = 1, pageSize = 5) {
             const color = colorPalette[i % colorPalette.length];
             const card = document.createElement('div');
             card.className = `batch-card color-${color}`;
+            if (selectedCampaign && selectedCampaign.code === item.code) {
+                card.classList.add('active');
+            }
             card.dataset.code = item.code;
             card.dataset.guid = item.guid || '';
             card.innerHTML = `
@@ -265,64 +275,78 @@ async function loadBatchList(page = 1, pageSize = 5) {
             card.addEventListener('click', async function() {
                 dataTableContainer.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
                 this.classList.add('active');
+                selectedCampaign = item;
+                removedBatchCustomerIds.clear();
 
-                const requestId = ++currentFilterRequestId;
-                const dynamicFilterContainer = document.getElementById('dynamicFilter');
-                if (dynamicFilterContainer) {
-                    dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2"><div class="spinner-border spinner-border-sm text-primary me-2"></div>กำลังโหลดตัวกรอง...</div>';
-                }
+                startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
 
-                const targetGuid = item.guid || item.product_guid || item.fguid || item.code || '';
+                try {
+                    await refreshSelectedCampaignCustomers();
 
-                if (targetGuid) {
-                    try {
-                        const filterData = await getProductFilterByGuid(targetGuid);
-                        if (requestId !== currentFilterRequestId) return;
+                    const requestId = ++currentFilterRequestId;
+                    const dynamicFilterContainer = document.getElementById('dynamicFilter');
+                    if (dynamicFilterContainer) {
+                        dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2"><div class="spinner-border spinner-border-sm text-primary me-2"></div>กำลังโหลดตัวกรอง...</div>';
+                    }
 
-                        let rawFilters = filterData;
-                        if (typeof rawFilters === 'string') {
-                            try { rawFilters = JSON.parse(rawFilters); } catch(e) {}
-                        }
+                    const targetGuid = item.guid || item.product_guid || item.fguid || item.code || '';
 
-                        let filters = [];
-                        if (Array.isArray(rawFilters)) {
-                            filters = rawFilters;
-                        } else if (rawFilters && typeof rawFilters === 'object') {
-                            if (Array.isArray(rawFilters.data)) filters = rawFilters.data;
-                            else if (Array.isArray(rawFilters.result)) filters = rawFilters.result;
-                            else if (Array.isArray(rawFilters.filters)) filters = rawFilters.filters;
-                        }
+                    if (targetGuid) {
+                        try {
+                            const filterData = await getProductFilterByGuid(targetGuid);
+                            if (requestId !== currentFilterRequestId) {
+                                return;
+                            }
 
-                        if (dynamicFilterContainer) {
-                            dynamicFilterContainer.innerHTML = '';
+                            let rawFilters = filterData;
+                            if (typeof rawFilters === 'string') {
+                                try { rawFilters = JSON.parse(rawFilters); } catch(e) {}
+                            }
 
-                            if (filters.length > 0) {
-                                filters.forEach((filter) => {
-                                    const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
-                                    const filterHTML = productFilterHTML(fCode);
+                            let filters = [];
+                            if (Array.isArray(rawFilters)) {
+                                filters = rawFilters;
+                            } else if (rawFilters && typeof rawFilters === 'object') {
+                                if (Array.isArray(rawFilters.data)) filters = rawFilters.data;
+                                else if (Array.isArray(rawFilters.result)) filters = rawFilters.result;
+                                else if (Array.isArray(rawFilters.filters)) filters = rawFilters.filters;
+                            }
 
-                                    if (filterHTML) {
-                                        dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
-                                    }
-                                });
-                            } else {
-                                dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+                            if (dynamicFilterContainer) {
+                                dynamicFilterContainer.innerHTML = '';
+
+                                if (filters.length > 0) {
+                                    filters.forEach((filter) => {
+                                        const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
+                                        const filterHTML = productFilterHTML(fCode);
+
+                                        if (filterHTML) {
+                                            dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
+                                        }
+                                    });
+                                } else {
+                                    dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Error calling getProductFilterByGuid:", err);
+                            if (dynamicFilterContainer && requestId === currentFilterRequestId) {
+                                dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-danger py-2" style="font-size:0.85rem;">เกิดข้อผิดพลาดในการโหลดตัวกรอง</div>';
                             }
                         }
-                    } catch (err) {
-                        console.error("Error calling getProductFilterByGuid:", err);
-                        if (dynamicFilterContainer && requestId === currentFilterRequestId) {
-                            dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-danger py-2" style="font-size:0.85rem;">เกิดข้อผิดพลาดในการโหลดตัวกรอง</div>';
+                    } else {
+                        if (dynamicFilterContainer) {
+                            dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
                         }
                     }
-                } else {
-                    if (dynamicFilterContainer) {
-                        dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
-                    }
-                }
 
-                if (requestId === currentFilterRequestId) {
-                    loadProspectList(1, currentProspectPageSize);
+                    if (requestId === currentFilterRequestId) {
+                        await loadProspectList(1, currentProspectPageSize);
+                    }
+                } catch (err) {
+                    console.error("Error in card click handler:", err);
+                } finally {
+                    stopLoading();
                 }
             });
             dataTableContainer.appendChild(card);
@@ -378,9 +402,6 @@ async function getProspect(page = 1, pageSize = 10) {
     }
     catch(error){
         console.error("Error in getProspect:", error);
-        if (typeof stopLoading === 'function') {
-            stopLoading();
-        }
         return { page: page, pageSize: pageSize, count: 0, data: [] };
     }
 }
@@ -389,60 +410,117 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
 
-    currentProspectPage = page;
-    currentProspectPageSize = pageSize;
+    try {
+        currentProspectPage = page;
+        currentProspectPageSize = pageSize;
 
-    const res = await getProspect(page, pageSize);
-    const rawData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
-    const count = res.total ?? 0;
-    const currentPage = res && typeof res.page === 'number' ? res.page : page;
-    const currentPageSize = res && typeof res.pageSize === 'number' ? res.pageSize : pageSize;
+        const res = await getProspect(page, pageSize);
+        const rawData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        const count = res.total ?? 0;
+        const currentPage = res && typeof res.page === 'number' ? res.page : page;
+        const currentPageSize = res && typeof res.pageSize === 'number' ? res.pageSize : pageSize;
 
-    // 1. Update total count
-    const totalFoundEl = document.getElementById('totalFound');
-    if (totalFoundEl) totalFoundEl.textContent = count;
+        // 1. Update total count
+        const totalFoundEl = document.getElementById('totalFound');
+        if (totalFoundEl) totalFoundEl.textContent = count;
 
-    // 2. Populate tbody
-    const tbody = document.getElementById('dataTableBody');
-    if (tbody) {
-        tbody.innerHTML = '';
-        if (rawData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">ไม่พบข้อมูลลูกค้าเป้าหมาย</td></tr>`;
-        } else {
-            console.log("dataTableBody",rawData)
-            rawData.forEach(item => {
-                const name = item.nameCus || '-';
-                const phone = item.mobile || '-';
-                const branch = item.branch_Name || '-';
-                const status = item.assign_status || '-';
+        // 2. Populate tbody
+        const tbody = document.getElementById('dataTableBody');
+        if (tbody) {
+            tbody.innerHTML = '';
+            if (rawData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">ไม่พบข้อมูลลูกค้าเป้าหมาย</td></tr>`;
+            } else {
+                rawData.forEach(item => {
+                    const name = item.nameCus || '-';
+                    const phone = item.mobile || '-';
+                    const branch = item.branch_Name || '-';
+                    const status = item.assign_status || '-';
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center">
-                        <div class="form-check d-flex justify-content-center m-0">
-                            <input class="form-check-input row-checkbox" type="checkbox">
-                        </div>
-                    </td>
-                    <td>${name}</td>
-                    <td>${phone}</td>
-                    <td>${branch}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+                    const idno = item.idno || '';
+                    const id = item.id || '';
+                    const prospectBatch = item.prospect_batch || item.prospectBatch || item.product_batch || item.productBatch || item.batch_id || item.batch || '';
+
+                    let matchedBatch = null;
+                    if (Array.isArray(currentProductBatches) && currentProductBatches.length > 0) {
+                        matchedBatch = currentProductBatches.find(b => {
+                            if (!b) return false;
+
+                            // 1. If b is a primitive string or number
+                            if (typeof b === 'string' || typeof b === 'number') {
+                                const strB = String(b).trim();
+                                return (prospectBatch && strB === String(prospectBatch).trim()) ||
+                                       (id && strB === String(id).trim());
+                            }
+
+                            // 2. Extract batch properties from object b
+                            const bBatch = b.prospect_batch || b.prospectBatch || b.product_batch || b.productBatch || b.batch_id || b.batch || b.code || b.product_batch_remark || '';
+                            const bId = b.id || b.Id || b.ID || b.cus_id || b.cust_id || '';
+                            const bIds = Array.isArray(b.id) ? b.id : (Array.isArray(b.ids) ? b.ids : (Array.isArray(b.prospects) ? b.prospects : []));
+
+                            // Match by batch code/name
+                            if (prospectBatch && bBatch && String(bBatch).trim() === String(prospectBatch).trim()) {
+                                return true;
+                            }
+
+                            // Match by single id
+                            if (id && bId && String(bId).trim() === String(id).trim()) {
+                                return true;
+                            }
+
+                            // Match by id in array
+                            if (id && bIds.length > 0 && bIds.some(i => String(i).trim() === String(id).trim())) {
+                                return true;
+                            }
+
+                            return false;
+                        });
+                    }
+
+                    const isRemoved = id && removedBatchCustomerIds.has(String(id).trim());
+                    const isMatchedInBatchRes = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c.id && String(c.id).trim() === String(id).trim());
+                    const isMatched = !isRemoved && (!!matchedBatch || isMatchedInBatchRes);
+                    let isDraft = false;
+                    if (isMatched) {
+                        const bStatus = (typeof matchedBatch === 'object' && matchedBatch ? (matchedBatch.status || matchedBatch.assign_status || matchedBatch.product_batch_status || matchedBatch.batch_status) : null) || item.status || item.assign_status || '';
+                        const statusStr = String(bStatus || '').trim().toLowerCase();
+                        isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
+                    }
+
+                    const isChecked = isMatched;
+                    const isDisabled = isMatched && !isDraft;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="text-center">
+                            <div class="form-check d-flex justify-content-center m-0">
+                                <input class="form-check-input row-checkbox" type="checkbox" data-id="${id}" data-idno="${idno}" data-batch="${prospectBatch}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
+                            </div>
+                        </td>
+                        <td>${name}</td>
+                        <td>${phone}</td>
+                        <td>${branch}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
         }
+
+        // 3. Re-bind checkbox listeners
+        bindTableCheckboxEvents();
+
+        // 4. Render Table Pagination Controls
+        renderProspectPaginationControls(currentPage, currentPageSize, count);
+
+        // 5. Update Go To Page Input
+        const goToInput = document.getElementById('goToPageInput');
+        if (goToInput) goToInput.value = currentPage;
+
+    } catch (err) {
+        console.error("Error in loadProspectList:", err);
+    } finally {
+        stopLoading();
     }
-
-    // 3. Re-bind checkbox listeners
-    bindTableCheckboxEvents();
-
-    // 4. Render Table Pagination Controls
-    renderProspectPaginationControls(currentPage, currentPageSize, count);
-
-    // 5. Update Go To Page Input
-    const goToInput = document.getElementById('goToPageInput');
-    if (goToInput) goToInput.value = currentPage;
-
-    stopLoading();
 }
 
 function renderProspectPaginationControls(currentPage, pageSize, totalCount) {
@@ -512,63 +590,153 @@ function buildPageRange(current, total) {
     return [1, '...', current - 1, current, current + 1, '...', total];
 }
 
-function bindTableCheckboxEvents() {
-    const checkAll = document.getElementById('checkAll');
+function getSelectedList() {
+    const combinedList = [];
+    const seenIds = new Set();
+
+    if (Array.isArray(currentBatchCustomers)) {
+        currentBatchCustomers.forEach(c => {
+            if (!c) return;
+            const idKey = c.id || c.Id || (c.raw ? (c.raw.id || c.raw.Id || c.raw.ID || c.raw.cus_id || c.raw.cust_id) : null);
+            const trimmedId = idKey ? String(idKey).trim() : null;
+
+            if (trimmedId) seenIds.add(trimmedId);
+
+            const name = c.name || c.nameCus || c.name_cus || c.cus_name || (c.raw ? (c.raw.nameCus || c.raw.name || c.raw.name_cus || c.raw.cus_name) : '-') || '-';
+            const phone = c.phone || c.mobile || c.phone1 || c.mobile_no || c.contno || (c.raw ? (c.raw.mobile || c.raw.phone || c.raw.contno) : '-') || '-';
+            const branch = c.branch || c.branch_Name || c.branch_name || c.branchName || (c.raw ? (c.raw.branch_Name || c.raw.branch) : '-') || '-';
+            const isDisabled = c.isDisabled !== undefined ? c.isDisabled : true;
+
+            combinedList.push({
+                id: trimmedId || '',
+                idno: c.idno || (c.raw ? c.raw.idno : ''),
+                name: name,
+                phone: phone,
+                branch: branch,
+                isDisabled: isDisabled,
+                isBatchCustomer: true
+            });
+        });
+    }
+
     const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    rowCheckboxes.forEach((checkbox, index) => {
+        if (checkbox.checked) {
+            const tr = checkbox.closest('tr');
+            const name = tr?.cells[1]?.textContent.trim() || '-';
+            const phone = tr?.cells[2]?.textContent.trim() || '-';
+            const branch = tr?.cells[3]?.textContent.trim() || '-';
+            const idno = checkbox.getAttribute('data-idno') || '';
+            const id = checkbox.getAttribute('data-id') || '';
+            const idKey = id ? String(id).trim() : null;
+
+            if (idKey && seenIds.has(idKey)) {
+                return;
+            }
+
+            if (idKey) seenIds.add(idKey);
+
+            combinedList.push({
+                id: idKey || '',
+                idno: idno,
+                name: name,
+                phone: phone,
+                branch: branch,
+                isDisabled: checkbox.disabled,
+                isBatchCustomer: false,
+                checkboxIndex: index
+            });
+        }
+    });
+
+    return combinedList;
+}
+
+function updateSelectedList() {
     const selectedTableBody = document.getElementById('selectedTableBody');
     const selectedCountText = document.getElementById('selectedCountText');
     const selectedTotalText = document.getElementById('selectedTotalText');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
-    function updateSelectedList() {
-        if (!selectedTableBody) return;
-        selectedTableBody.innerHTML = '';
-        let selectedCount = 0;
+    if (!selectedTableBody) return;
+    selectedTableBody.innerHTML = '';
 
-        rowCheckboxes.forEach((checkbox, index) => {
-            if (checkbox.checked) {
-                selectedCount++;
-                const tr = checkbox.closest('tr');
-                const name = tr?.cells[1]?.textContent.trim() || '-';
-                const phone = tr?.cells[2]?.textContent.trim() || '-';
+    const combinedList = getSelectedList();
 
-                const newRow = document.createElement('tr');
-                newRow.innerHTML = `
-                    <td class="text-center text-muted">${selectedCount}</td>
-                    <td>${name}</td>
-                    <td class="text-muted">${phone}</td>
-                    <td class="text-center"><i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${index}"></i></td>
-                `;
-                selectedTableBody.appendChild(newRow);
+    let selectedCount = 0;
+    combinedList.forEach((item) => {
+        selectedCount++;
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td>${item.name}</td>
+            <td class="text-muted">${item.phone}</td>
+            <td class="text-muted">${item.branch}</td>
+            <td class="text-center">${item.isDisabled ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${item.checkboxIndex !== undefined ? item.checkboxIndex : ''}" data-idno="${item.idno}" data-id="${item.id}"></i>`}</td>
+        `;
+        selectedTableBody.appendChild(newRow);
+    });
+
+    if (selectedCountText) selectedCountText.textContent = `รายการที่เลือก (${selectedCount} รายการ)`;
+    if (selectedTotalText) selectedTotalText.textContent = `รวมทั้งหมด ${selectedCount} รายการ`;
+
+    document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const targetIndex = this.getAttribute('data-index');
+            const targetIdno = this.getAttribute('data-idno');
+            const targetId = this.getAttribute('data-id');
+
+            const idStr = targetId ? String(targetId).trim() : '';
+
+            if (idStr) removedBatchCustomerIds.add(idStr);
+
+            if (targetIndex !== '' && targetIndex !== null && rowCheckboxes[targetIndex]) {
+                rowCheckboxes[targetIndex].checked = false;
+                rowCheckboxes[targetIndex].disabled = false;
             }
-        });
 
-        if (selectedCountText) selectedCountText.textContent = `รายการที่เลือก (${selectedCount} รายการ)`;
-        if (selectedTotalText) selectedTotalText.textContent = `รวมทั้งหมด ${selectedCount} รายการ`;
-
-        document.querySelectorAll('.remove-item').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const targetIndex = this.getAttribute('data-index');
-                if (rowCheckboxes[targetIndex]) {
-                    rowCheckboxes[targetIndex].checked = false;
-                    updateSelectedList();
-                    updateCheckAllStatus();
+            const matchCbs = document.querySelectorAll('#dataTableBody .row-checkbox');
+            matchCbs.forEach(cb => {
+                const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
+                if (idStr && cbId === idStr) {
+                    cb.checked = false;
+                    cb.disabled = false;
                 }
             });
+
+            if (Array.isArray(currentBatchCustomers)) {
+                const removeIndex = currentBatchCustomers.findIndex(c => {
+                    const cId = c.id ? String(c.id).trim() : '';
+                    return idStr && cId === idStr;
+                });
+                if (removeIndex !== -1) {
+                    currentBatchCustomers.splice(removeIndex, 1);
+                }
+            }
+
+            updateSelectedList();
+            updateCheckAllStatus();
         });
+    });
 
-        const badgeBlue = document.querySelector('.badge-blue');
-        if (badgeBlue) badgeBlue.textContent = selectedCount;
-    }
+    const badgeBlue = document.querySelector('.badge-blue');
+    if (badgeBlue) badgeBlue.textContent = selectedCount;
+}
 
-    function updateCheckAllStatus() {
-        if (!checkAll) return;
-        const visibleCheckboxes = Array.from(rowCheckboxes);
-        const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
-        const someChecked = visibleCheckboxes.some(cb => cb.checked);
+function updateCheckAllStatus() {
+    const checkAll = document.getElementById('checkAll');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    if (!checkAll) return;
+    const visibleCheckboxes = Array.from(rowCheckboxes);
+    const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
+    const someChecked = visibleCheckboxes.some(cb => cb.checked);
 
-        checkAll.checked = allChecked;
-        checkAll.indeterminate = !allChecked && someChecked;
-    }
+    checkAll.checked = allChecked;
+    checkAll.indeterminate = !allChecked && someChecked;
+}
+
+function bindTableCheckboxEvents() {
+    const checkAll = document.getElementById('checkAll');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
     if (checkAll) {
         const newCheckAll = checkAll.cloneNode(true);
@@ -576,7 +744,9 @@ function bindTableCheckboxEvents() {
         newCheckAll.addEventListener('change', function () {
             const isChecked = this.checked;
             rowCheckboxes.forEach(checkbox => {
-                checkbox.checked = isChecked;
+                if (!checkbox.disabled) {
+                    checkbox.checked = isChecked;
+                }
             });
             updateSelectedList();
         });
@@ -629,6 +799,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // --- 5. Filter event listeners ---
+    const btnApplyFilters = document.getElementById('btnApplyFilters');
+    if (btnApplyFilters) {
+        btnApplyFilters.addEventListener('click', function() {
+            loadProspectList(1, currentProspectPageSize);
+        });
+    }
+
     const btnClearFilters = document.getElementById('btnClearFilters');
     if (btnClearFilters) {
         btnClearFilters.addEventListener('click', function() {
@@ -688,6 +865,24 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
     $("#saveDraftBtn").off("click").on("click", function () {
+        if (!selectedCampaign) {
+            Swal.fire({
+                title: "แจ้งเตือน",
+                text: "กรุณาเลือกแคมเปญก่อนทำการบันทึก",
+                icon: "warning"
+            });
+            return;
+        }
+
+        const selectedList = getSelectedList();
+        if (selectedList.length === 0) {
+            Swal.fire({
+                title: "แจ้งเตือน",
+                text: "กรุณาเลือกลูกค้าเป้าหมายอย่างน้อย 1 รายการ",
+                icon: "warning"
+            });
+            return;
+        }
 
         Swal.fire({
             title: "ยืนยันการบันทึก",
@@ -701,7 +896,36 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (result.isConfirmed) {
                 startLoading("กำลังบันทึกข้อมูล...", "");
                 try {
+                    const currentSelected = getSelectedList();
+                    const selectedIds = Array.from(new Set(
+                        currentSelected.map(c => c.id).filter(Boolean)
+                    ));
 
+                    var request = {
+                        id: selectedIds,
+                        product_code: selectedCampaign.code || "",
+                        product_offcde: selectedCampaign.offcde || "",
+                        product_company: selectedCampaign.product_company || "",
+                        product_batch_remark: selectedCampaign.code+":new batch" || "",
+                        status: "draft",
+                    };
+                    const response = await fetch(`/ProspectSetup/PostNewProspectBatch`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(request),
+                    });
+                    const data = await response.json();
+                    if (!response.ok || (data && data.status === false)) {
+                        const errorMsg = (data && data.message) ? data.message : "ไม่สามารถบันทึกข้อมูลได้";
+                        Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
+                    } else {
+                        Swal.fire({ title: "บันทึกสำเร็จ", icon: "success" });
+                        removedBatchCustomerIds.clear();
+                        await refreshSelectedCampaignCustomers();
+                        await loadProspectList(currentProspectPage, currentProspectPageSize);
+                    }
                 } catch (err) {
                     console.error(err);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถบันทึกข้อมูลได้", icon: "error" });
@@ -712,7 +936,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-        $("#sendForApprovalBtn").off("click").on("click", function () {
+    $("#sendForApprovalBtn").off("click").on("click", function () {
 
         Swal.fire({
             title: "ยืนยันการอนุมัติ",
@@ -727,11 +951,40 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังส่งอนุมัติ...", "");
                 try {
 
+                    const selectedProspects = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+                        .map(cb => ({ idno: cb.getAttribute('data-idno') }))
+                        .filter(p => p.idno);
+
+                    var request = {
+                        product_code: selectedCampaign.code || "",
+                        status: "waiting approve",
+                    };
+                    const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(request),
+                    });
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        console.error("Error parsing response json:", e);
+                    }
+                    if (!response.ok || (data && data.status === false)) {
+                        const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งอนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
+                        Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
+                    } else {
+                        Swal.fire({ title: "บันทึกสำเร็จ", icon: "success" });
+                    }
+
                 } catch (err) {
                     console.error(err);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งอนุมัติข้อมูลได้", icon: "error" });
                 } finally {
-                    stopLoading();
+                    window.location.reload();
+                    // stopLoading();
                 }
             }
         });
@@ -748,5 +1001,172 @@ async function getProductFilterByGuid(guid) {
         console.error("Error in getProductFilterByGuid:", err);
         return [];
     }
+}
+
+async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+    try{
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        if (!response.ok) {
+            console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
+            return [];
+        }
+        const data = await response.json();
+        return data || [];
+    }catch(err){
+        console.error("Error in getProductBatchByProductCode:", err);
+        return [];
+    }
+}
+
+async function refreshSelectedCampaignCustomers() {
+    if (selectedCampaign && selectedCampaign.code) {
+        const batchRes = await getProductBatchByProductCode(selectedCampaign.code, 1, currentProspectPageSize || 10);
+        console.log("batchRes", batchRes);
+        currentBatchCustomers = extractCustomers(batchRes);
+        console.log("Extracted batch customers:", currentBatchCustomers);
+        updateSelectedList();
+
+        let rawBatches = batchRes;
+        if (typeof rawBatches === 'string') {
+            try { rawBatches = JSON.parse(rawBatches); } catch(e) {}
+        }
+        if (Array.isArray(rawBatches)) {
+            currentProductBatches = rawBatches;
+        } else if (rawBatches && typeof rawBatches === 'object') {
+            let items = [];
+            if (Array.isArray(rawBatches.data)) items = rawBatches.data;
+            else if (rawBatches.Customer && Array.isArray(rawBatches.Customer.data)) items = rawBatches.Customer.data;
+            else if (rawBatches.customer && Array.isArray(rawBatches.customer.data)) items = rawBatches.customer.data;
+            else if (rawBatches.ObjectCustomer && Array.isArray(rawBatches.ObjectCustomer.data)) items = rawBatches.ObjectCustomer.data;
+            else if (rawBatches.objectCustomer && Array.isArray(rawBatches.objectCustomer.data)) items = rawBatches.objectCustomer.data;
+            else if (Array.isArray(rawBatches.Customer)) items = rawBatches.Customer;
+            else if (Array.isArray(rawBatches.customer)) items = rawBatches.customer;
+            else if (Array.isArray(rawBatches.customers)) items = rawBatches.customers;
+            else if (Array.isArray(rawBatches.result)) items = rawBatches.result;
+            else if (Array.isArray(rawBatches.batches)) items = rawBatches.batches;
+            else if (Array.isArray(rawBatches.productBatch)) items = rawBatches.productBatch;
+            else if (Array.isArray(rawBatches.prospectBatch)) items = rawBatches.prospectBatch;
+            else items = [rawBatches];
+
+            const parentStatus = rawBatches.status || rawBatches.assign_status || rawBatches.product_batch_status;
+            const parentBatch = rawBatches.prospect_batch || rawBatches.prospectBatch || rawBatches.product_batch;
+
+            currentProductBatches = items.map(b => {
+                if (typeof b === 'object' && b !== null) {
+                    return {
+                        ...b,
+                        status: b.status || parentStatus,
+                        prospect_batch: b.prospect_batch || parentBatch
+                    };
+                }
+                return b;
+            });
+        } else {
+            currentProductBatches = [];
+        }
+    } else {
+        currentBatchCustomers = [];
+        currentProductBatches = [];
+    }
+}
+
+function extractCustomers(data) {
+    if (!data) return [];
+    let list = [];
+
+    let raw = data;
+    if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch (e) { return []; }
+    }
+
+    const checkAndPush = (item) => {
+        if (!item) return;
+        if (Array.isArray(item.Customer?.data)) {
+            item.Customer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customer?.data)) {
+            item.customer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.ObjectCustomer?.data)) {
+            item.ObjectCustomer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.objectCustomer?.data)) {
+            item.objectCustomer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (item.Customer && typeof item.Customer === 'object' && !Array.isArray(item.Customer)) {
+            checkAndPush(item.Customer);
+            return;
+        }
+        if (item.customer && typeof item.customer === 'object' && !Array.isArray(item.customer)) {
+            checkAndPush(item.customer);
+            return;
+        }
+        if (item.ObjectCustomer && typeof item.ObjectCustomer === 'object' && !Array.isArray(item.ObjectCustomer)) {
+            checkAndPush(item.ObjectCustomer);
+            return;
+        }
+        if (item.objectCustomer && typeof item.objectCustomer === 'object' && !Array.isArray(item.objectCustomer)) {
+            checkAndPush(item.objectCustomer);
+            return;
+        }
+        if (Array.isArray(item.Customer)) {
+            item.Customer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customer)) {
+            item.customer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customers)) {
+            item.customers.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.prospects)) {
+            item.prospects.forEach(c => checkAndPush(c));
+            return;
+        }
+
+        if (typeof item === 'object') {
+            const idno = item.idno || item.Idno || item.IDNO || item.cus_idno || item.cust_idno || item.code || '';
+            const id = item.id || item.Id || item.ID || item.cus_id || item.cust_id || '';
+            const name = item.nameCus || item.name || item.name_cus || item.cus_name || item.cust_name || item.customerName || item.fullName || (item.first_name ? `${item.first_name} ${item.last_name || ''}` : '') || idno || '-';
+            const phone = item.mobile || item.phone || item.phone1 || item.mobile_no || item.phone_no || item.tel || item.contract_no || item.cont_no || item.contno || '-';
+            const branch = item.branch_Name || item.branch || item.branch_name || item.branchName || item.offcde || item.off_cde || '-';
+            const statusVal = item.status || item.assign_status || (raw && typeof raw === 'object' ? (raw.status || raw.assign_status) : '') || '';
+            const statusStr = String(statusVal).trim().toLowerCase();
+            const isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
+            const isDisabled = item.isDisabled !== undefined ? item.isDisabled : !isDraft;
+
+            if (id || idno || name !== '-') {
+                list.push({
+                    id: String(id || '').trim(),
+                    idno: String(idno || '').trim(),
+                    name: String(name).trim(),
+                    phone: String(phone).trim(),
+                    branch: String(branch).trim(),
+                    isDisabled: isDisabled,
+                    raw: item
+                });
+            }
+        }
+    };
+
+    if (Array.isArray(raw)) {
+        raw.forEach(i => checkAndPush(i));
+    } else if (typeof raw === 'object') {
+        if (Array.isArray(raw.data)) {
+            raw.data.forEach(i => checkAndPush(i));
+        } else if (raw.data && typeof raw.data === 'object') {
+            checkAndPush(raw.data);
+        } else {
+            checkAndPush(raw);
+        }
+    }
+
+    return list;
 }
     

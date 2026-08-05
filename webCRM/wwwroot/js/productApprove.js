@@ -7,6 +7,16 @@ let campaignTable;
 // Colour palette cycling for campaign cards
 const iconColors = ['blue', 'green', 'yellow', 'purple', 'red'];
 
+function getObjectiveBadge(obj) {
+    const map = {
+        'CS': { text: 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' },
+        'MC': { text: 'MC', class: 'bg-warning-subtle text-warning border-warning-subtle', iconBg: 'yellow' },
+        'RM': { text: 'RM', class: 'bg-info-subtle text-info border-info-subtle', iconBg: 'blue' },
+        'FL': { text: 'FL', class: 'bg-orange-subtle text-orange border-orange-subtle', iconBg: 'orange' }
+    };
+    return map[obj] || { text: obj || 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' };
+}
+
 // Map status → badge CSS class
 function statusClass(status) {
     var map = {
@@ -155,25 +165,32 @@ function initDataTables() {
                 orderable: false,
                 render: function (data, type, row) {
                     if (!row || !row.code) return '';
-                    const isActive = row.code === selectedCampaignCode;
-                    const idx = campaigns.findIndex(c => c.code === row.code);
+                    const item = row;
+                    const isActive = item.code === selectedCampaignCode;
+                    const activeClass = isActive ? 'active' : '';
+                    const idx = campaigns.findIndex(c => c.code === item.code);
                     const color = iconColors[idx >= 0 ? idx % iconColors.length : 0] || 'blue';
-                    const sCls = statusClass(row.status);
-                    const startFmt = formatDate(row.startDate);
-                    const endFmt = formatDate(row.endDate);
+                    const statusBadgeClass = statusClass(item.status);
+                    const startFmt = formatDate(item.startDate);
+                    const endFmt = formatDate(item.endDate);
+                    const objBadge = getObjectiveBadge(item.objective);
 
                     return `
-                        <div class="pa-card ${isActive ? 'active' : ''}" data-code="${row.code}">
-                            <div class="pa-card-icon ${color}"><i class="bi bi-megaphone"></i></div>
-                            <div class="pa-card-content">
-                                <div class="pa-card-title-row">
-                                    <div class="pa-card-id">${row.code}</div>
-                                    <div class="pa-status-badge ${sCls}">${row.status}</div>
+                    <div class="pa-card ${activeClass} p-3 rounded-3 mb-2 border shadow-sm-hover cursor-pointer overflow-hidden" data-code="${item.code}">
+                        <div class="d-flex align-items-center gap-2.5 w-100 overflow-hidden">
+                            <div class="pa-card-icon ${objBadge.iconBg} flex-shrink-0 fw-bold">${objBadge.text}</div>
+                            <div class="pa-card-content flex-grow-1 overflow-hidden min-w-0 ms-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1 gap-1 overflow-hidden">
+                                    <div class="pa-card-name fw-bold text-dark fs-6 text-truncate me-1" title="${item.name}">${item.name}</div>
+                                    <span class="badge pa-status-badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${item.status}</span>
                                 </div>
-                                <div class="pa-card-name">${row.name}</div>
-                                <div class="pa-card-date">วันที่เริ่ม: ${startFmt || '-'} &bull; วันที่สิ้นสุด: ${endFmt || '-'}</div>
+                                <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
+                                    <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${item.code}</span>
+                                </div>
+                                <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${startFmt} • สิ้นสุด: ${endFmt}">เริ่ม: ${startFmt} &bull; สิ้นสุด: ${endFmt}</div>
                             </div>
                         </div>
+                    </div>
                     `;
                 }
             },
@@ -223,6 +240,10 @@ function filterProspectTable() {
     });
 
     var total = rows.length;
+    var badge = document.getElementById('prospectApproveTotalBadge');
+    if (badge) {
+        badge.textContent = 'ทั้งหมด ' + total + ' รายการ';
+    }
     var prospectPaginationText = document.getElementById('prospectPaginationText');
     if (prospectPaginationText) {
         prospectPaginationText.textContent =

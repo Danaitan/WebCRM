@@ -45,4 +45,34 @@ function renderBranchOptions() {
 
 document.addEventListener('DOMContentLoaded', () => {
     getmaster();
+
+    if ($('#homeReportTable').length) {
+        var homeTable = $('#homeReportTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            info: false,
+            dom: 't<"d-flex justify-content-between align-items-center pt-3 border-top flex-shrink-0"p>',
+            language: {
+                paginate: {
+                    first: "หน้าแรก",
+                    last: "หน้าสุดท้าย",
+                    next: '<i class="bi bi-chevron-right"></i>',
+                    previous: '<i class="bi bi-chevron-left"></i>'
+                }
+            }
+        });
+
+        function updateHomeTotalBadge() {
+            var count = homeTable.page.info().recordsTotal;
+            $('#homeReportTotalBadge').text('ทั้งหมด ' + count + ' รายการ');
+        }
+
+        homeTable.on('draw.dt init.dt', updateHomeTotalBadge);
+        updateHomeTotalBadge();
+
+        $('#homeTableSearch').on('keyup input', function () {
+            homeTable.search(this.value).draw();
+        });
+    }
 });

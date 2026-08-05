@@ -1,7 +1,7 @@
 @{
-    ViewData["Title"] = "สร้าง Product / Campaign";
-    ViewData["HeaderTitle"] = "สร้าง Product / Campaign";
-    ViewData["HeaderSubtitle"] = "สร้างและจัดการ Product / Campaign สำหรับใช้งานในระบบ CRM";
+    ViewData["Title"] = "สร้าง Campaign";
+    ViewData["HeaderTitle"] = "สร้าง Campaign";
+    ViewData["HeaderSubtitle"] = "สร้างและจัดการ Campaign สำหรับใช้งานในระบบ CRM";
 }
 
 @section Styles {
@@ -19,7 +19,7 @@
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <div class="search-wrapper d-flex align-items-center flex-grow-1" style="height: 42px;">
                             <span class="ps-3 text-muted"><i class="bi bi-search"></i></span>
-                            <input type="text" id="campaignSearchInput" placeholder="ค้นหา Product / Campaign" class="w-100" style="border: none; outline: none; font-size: 0.875rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
+                            <input type="text" id="campaignSearchInput" placeholder="ค้นหา Campaign" class="w-100" style="border: none; outline: none; font-size: 0.875rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
                         </div>
                         <div class="sort-select-container">
                             <button type="button" class="btn-sort-trigger" id="sortBtn" title="จัดเรียง">
@@ -115,18 +115,18 @@
                     
                     <form id="campaignForm">
                         <div class="row g-4">
-                            <!-- รหัส Product / Campaign -->
+                            <!-- รหัส Campaign -->
                             <div class="col-md-6">
-                                <label class="form-label" for="campaignCode">รหัส Product / Campaign</label>
+                                <label class="form-label" for="campaignCode">รหัส Campaign</label>
                                 <div class="input-container-icon">
-                                    <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;" readonly>
+                                    <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Campaign" style="border-radius: 8px; height: 42px;" readonly>
                                 </div>
                             </div>
                             
-                            <!-- ชื่อ Product / Campaign * -->
+                            <!-- ชื่อ Campaign * -->
                             <div class="col-md-6">
-                                <label class="form-label" for="campaignName">ชื่อ Product / Campaign <span class="required-star">*</span></label>
-                                <input type="text" id="campaignName" class="form-control" placeholder="กรอกชื่อ Product / Campaign" style="border-radius: 8px; height: 42px;" required>
+                                <label class="form-label" for="campaignName">ชื่อ Campaign <span class="required-star">*</span></label>
+                                <input type="text" id="campaignName" class="form-control" placeholder="กรอกชื่อ Campaign" style="border-radius: 8px; height: 42px;" required>
                             </div>
                             
                             <!-- เริ่ม * -->
@@ -152,14 +152,53 @@
                                        data-bs-html="true" 
                                        data-bs-placement="right" 
                                        title="<span class='fw-bold text-dark'><i class='bi bi-info-circle me-1 text-primary'></i> คำอธิบายวัตถุประสงค์</span>" 
-                                       data-bs-content="<div class='py-1' style='font-size: 0.875rem; line-height: 1.8;'><div><strong class='text-primary'>CS</strong> : Cost Sales ขายผลิตภัณฑ์</div><div><strong class='text-primary'>CL</strong> : Collection ตามหนี้</div><div><strong class='text-primary'>RM</strong> : Relation management สร้างความสัมพันธ์</div></div>">
+                                       data-bs-content="<div 
+                                       class='py-1' 
+                                       style='font-size: 0.875rem; 
+                                       line-height: 1.8;'
+                                       >
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            CS
+                                            </strong> 
+                                            : Cost Sales ขายผลิตภัณฑ์
+                                        </div>
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            MC
+                                            </strong> 
+                                            : Marketing Collector มาร์เก็ตติ้งตามหนี้
+                                        </div>
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            RM
+                                            </strong> 
+                                            : Relation management สร้างความสัมพันธ์
+                                        </div>
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            FL
+                                            </strong> 
+                                            : Following เร่งรัดตามหนี้
+                                        </div>
+                                       </div>
+                                       ">
                                     </i>
                                 </label>
                                 <select id="campaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required>
                                     <option value="">เลือกวัตถุประสงค์</option>
                                     <option value="CS">CS</option>
-                                    <option value="CL">CL</option>
+                                    <option value="MC">MC</option>
                                     <option value="RM">RM</option>
+                                    <option value="FL">FL</option>
                                 </select>
                             </div>
                             
@@ -200,7 +239,9 @@
                                     <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel">
                                         <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
                                     </button>
+                                    
                                     <input type="file" id="excelFileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    
                                     <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
                                         <i class="bi bi-file-earmark-text text-primary fs-5"></i>
                                         <span id="selectedFileNameText" class="fw-medium text-dark"></span>
@@ -300,18 +341,18 @@
                 <div class="modal-body p-4">
                     <form id="modalCampaignForm">
                         <div class="row g-4">
-                            <!-- รหัส Product / Campaign -->
+                            <!-- รหัส Campaign -->
                             <div class="col-md-6">
-                                <label class="form-label" for="modalCampaignCode">รหัส Product / Campaign</label>
+                                <label class="form-label" for="modalCampaignCode">รหัส Campaign</label>
                                 <div class="input-container-icon">
-                                    <input type="text" id="modalCampaignCode" class="form-control" placeholder="กรอกรหัส Product / Campaign" style="border-radius: 8px; height: 42px;" readonly>
+                                    <input type="text" id="modalCampaignCode" class="form-control" placeholder="กรอกรหัส Campaign" style="border-radius: 8px; height: 42px;" readonly>
                                 </div>
                             </div>
                             
-                            <!-- ชื่อ Product / Campaign * -->
+                            <!-- ชื่อ Campaign * -->
                             <div class="col-md-6">
-                                <label class="form-label" for="modalCampaignName">ชื่อ Product / Campaign <span class="required-star">*</span></label>
-                                <input type="text" id="modalCampaignName" class="form-control" placeholder="กรอกชื่อ Product / Campaign" style="border-radius: 8px; height: 42px;" required>
+                                <label class="form-label" for="modalCampaignName">ชื่อ Campaign <span class="required-star">*</span></label>
+                                <input type="text" id="modalCampaignName" class="form-control" placeholder="กรอกชื่อ Campaign" style="border-radius: 8px; height: 42px;" required>
                             </div>
                             
                             <!-- เริ่ม * -->
@@ -337,14 +378,53 @@
                                        data-bs-html="true" 
                                        data-bs-placement="right" 
                                        title="<span class='fw-bold text-dark'><i class='bi bi-info-circle me-1 text-primary'></i> คำอธิบายวัตถุประสงค์</span>" 
-                                       data-bs-content="<div class='py-1' style='font-size: 0.875rem; line-height: 1.8;'><div><strong class='text-primary'>CS</strong> : Cost Sales ขายผลิตภัณฑ์</div><div><strong class='text-primary'>CL</strong> : Collection ตามหนี้</div><div><strong class='text-primary'>RM</strong> : Relation management สร้างความสัมพันธ์</div></div>">
+                                      data-bs-content="<div 
+                                       class='py-1' 
+                                       style='font-size: 0.875rem; 
+                                       line-height: 1.8;'
+                                       >
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            CS
+                                            </strong> 
+                                            : Cost Sales ขายผลิตภัณฑ์
+                                        </div>
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            MC
+                                            </strong> 
+                                            : Marketing Collector มาร์เก็ตติ้งตามหนี้
+                                        </div>
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            RM
+                                            </strong> 
+                                            : Relation management สร้างความสัมพันธ์
+                                        </div>
+                                        <div>
+                                            <strong 
+                                            class='text-primary'
+                                            >
+                                            FL
+                                            </strong> 
+                                            : Following เร่งรัดตามหนี้
+                                        </div>
+                                       </div>
+                                       ">
                                     </i>
                                 </label>
                                 <select id="modalCampaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required>
                                     <option value="">เลือกวัตถุประสงค์</option>
                                     <option value="CS">CS</option>
-                                    <option value="CL">CL</option>
+                                    <option value="MC">MC</option>
                                     <option value="RM">RM</option>
+                                    <option value="FL">FL</option>
                                 </select>
                             </div>
                             
@@ -380,16 +460,18 @@
                             </div>
 
                             <!-- ปุ่มแนบไฟล์ -->
-                            <div class="col-12" id="modalImportExcelContainer">
+                            <div class="col-12" id="importExcelContainer">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnModalImportExcel">
+                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel">
                                         <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
                                     </button>
-                                    <input type="file" id="modalExcelFileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
-                                    <div id="modalSelectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                                    
+                                    <input type="file" id="excelFileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    
+                                    <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
                                         <i class="bi bi-file-earmark-text text-primary fs-5"></i>
-                                        <span id="modalSelectedFileNameText" class="fw-medium text-dark"></span>
-                                        <i class="bi bi-x-circle-fill text-secondary" id="btnRemoveModalExcelFile" style="cursor: pointer;" title="ลบไฟล์"></i>
+                                        <span id="selectedFileNameText" class="fw-medium text-dark"></span>
+                                        <i class="bi bi-x-circle-fill text-secondary" id="btnRemoveExcelFile" style="cursor: pointer;" title="ลบไฟล์"></i>
                                     </div>
                                 </div>
                             </div>

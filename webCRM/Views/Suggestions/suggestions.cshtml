@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="~/css/suggestions.css" />
 }
 
-    <div class="container-fluid p-4 max-w-custom crm-main">
+    <div class="container-fluid p-4 crm-main">
                 <!-- Search Card -->
                 <div class="bg-white rounded-4 p-4 shadow-sm mb-4 border border-light">
                     <div class="d-flex flex-column flex-md-row align-items-md-center gap-4">
@@ -24,8 +24,10 @@
                                 </select>
                                 <select id="filterStatus" class="form-select rounded-3 text-muted" style="width: auto; min-width: 140px;">
                                     <option value="">สถานะ (ทั้งหมด)</option>
-                                    <option value="Close">Close</option>
-                                    <option value="Pending">Pending</option>
+                                    <option value="pending">pending</option>
+                                    <option value="forward">forward</option>
+                                    <option value="reply">reply</option>
+                                    <option value="close">close</option>
                                 </select>
                                 <div class="position-relative flex-grow-1">
                                     <input type="text" id="customSearchInput" class="form-control rounded-3 py-2 ps-3 pe-5" placeholder="ค้นหาโดย หัวข้อ / ชื่อ-นามสกุล / สถานะ" />
@@ -45,6 +47,7 @@
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-list-ul text-primary fs-5"></i>
                             <h6 class="fw-bold text-dark-blue mb-0">รายการข้อเสนอแนะ / ร้องเรียน</h6>
+                            <span class="bg-primary-subtle text-primary rounded-pill px-3 py-1 ms-2 fs-7" id="suggestionsTotalBadge">ทั้งหมด 0 รายการ</span>
                             <button 
                                 type="button" 
                                 class="btn btn-outline-secondary border-0 rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" 
@@ -55,8 +58,30 @@
                                 data-bs-placement="bottom" 
                                 data-bs-trigger="click"
                                 data-bs-html="true" 
-                                title="<span class='fw-bold text-dark-blue'><i class='bi bi-info-circle me-1'></i> คำอธิบายสถานะ</span>" 
-                                data-bs-content="<div class='py-1' style='font-size: 0.875rem; line-height: 1.8;'><div><strong>pending</strong> - รอการติดต่อ</div><div><strong>forward</strong> - ส่งต่อ</div><div><strong>replying</strong> - ตอบกลับ</div><div><strong>close</strong> - ปิดงาน</div></div>"
+                                data-bs-title="<span class='fw-bold text-dark-blue'><i class='bi bi-info-circle me-1'></i> คำอธิบายสถานะ</span>" 
+                                data-bs-content="
+                                <div 
+                                class='py-1' 
+                                style='font-size: 0.875rem; 
+                                line-height: 1.8;'
+                                >
+                                    <div>
+                                    <strong>pending</strong>
+                                    - รอการติดต่อ
+                                    </div>
+                                    <div>
+                                    <strong>forward</strong> 
+                                    - ส่งต่อ
+                                    </div>
+                                    <div>
+                                    <strong>reply</strong>
+                                    - ตอบกลับ
+                                    </div>
+                                    <div>
+                                    <strong>close</strong>
+                                    - ปิดงาน
+                                    </div>
+                                </div>"
                             >
                                 <i class="bi bi-info-circle fs-5"></i>
                             </button>
@@ -90,34 +115,51 @@
                                 {
                                     foreach (var item in Model)
                                     {
-                                        var createdDate = item.UpDate ?? item.DateSugges;
-                                        var timeDiffText = "-";
-                                        if (createdDate.HasValue)
-                                        {
-                                            var days = (DateTime.Now.Date - createdDate.Value.Date).Days;
-                                            timeDiffText = $"{days} วัน";
-                                        }
+                                         DateTime? displayCreatedDate = item.CreatedDate;
+                                         if (!displayCreatedDate.HasValue && item.DateSugges.HasValue)
+                                         {
+                                             displayCreatedDate = item.TimeSugges.HasValue 
+                                                 ? item.DateSugges.Value.Date.Add(item.TimeSugges.Value.TimeOfDay) 
+                                                 : item.DateSugges.Value;
+                                         }
+                                         if (!displayCreatedDate.HasValue && item.UpDate.HasValue)
+                                         {
+                                             displayCreatedDate = item.UpDate;
+                                         }
+                                         var createdDateStr = displayCreatedDate?.ToString("dd/MM/yyyy HH:mm") ?? "-";
+                                         var createdDateOrder = displayCreatedDate?.ToString("yyyyMMddHHmmss") ?? "0";
+
+                                         var timeDiffText = "-";
+                                         var daysOrder = 999999;
+                                         if (displayCreatedDate.HasValue)
+                                         {
+                                             var days = (DateTime.Now.Date - displayCreatedDate.Value.Date).Days;
+                                             daysOrder = days;
+                                             timeDiffText = $"{days} วัน";
+                                         }
                                         <tr style="cursor: pointer;" onclick="showDetails(this)"
                                             data-phone="@(item.PhoneProvider ?? "-")"
                                             data-contact="@(item.DateSugges?.ToString("dd/MM/yyyy") ?? "-") @(item.TimeSugges?.ToString("HH:mm") ?? "")"
                                             data-email="@(item.EmailProvider ?? "-")"
                                             data-line="@(item.LineProvider ?? "-")"
                                             data-idno="@(item.Idno ?? "-")"
-                                            data-status="@(item.StatusTask ?? "-")"
+                                            data-status="@(item.StatusTask?.ToLower() ?? "-")"
                                             data-address="@(item.AddressProvider ?? "-")"
-                                            data-date="@(item.UpDate?.ToString("dd/MM/yyyy HH:mm") ?? "-")"
+                                            data-date="@createdDateStr"
                                             data-recordedby="@(item.PersonalName ?? "-")"
                                             data-reply="@(item.Reply ?? "-")"
                                             data-nameprovider="@(item.NameProvider ?? "-")"
                                             data-suggestion="@(item.Suggestion ?? "-")"
                                             data-guid="@(item.Guid ?? "-")"
                                             data-updby="@(item.UpdBy ?? "-")"
+                                            data-sendto="@(item.SendTo ?? "-")"
+                                            data-details='@(item.Detail != null ? System.Text.Json.JsonSerializer.Serialize(item.Detail) : "[]")'
                                             >
-                                            <td class="text-center py-2" data-order="@(item.UpDate?.ToString("yyyyMMddHHmmss") ?? "0")"><div class="fw-medium text-dark">@(item.UpDate?.ToString("dd/MM/yyyy HH:mm") ?? "-")</div></td>
+                                            <td class="text-center py-2" data-order="@createdDateOrder"><div class="fw-medium text-dark">@createdDateStr</div></td>
                                             <td class="text-center py-2"><div class="fw-medium text-dark">@(item.SuggestionTitle ?? "-")</div></td>
                                             <td class="text-center py-2"><div class="fw-medium text-dark">@(item.NameProvider ?? "-")</div></td>
-                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.StatusTask ?? "-")</div></td>
-                                            <td class="text-center py-2"><div class="fw-medium text-dark">@timeDiffText</div></td>
+                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.StatusTask?.ToLower() ?? "-")</div></td>
+                                            <td class="text-center py-2" data-order="@daysOrder"><div class="fw-medium text-dark">@timeDiffText</div></td>
                                         </tr>
                                     }
                                 }
@@ -181,20 +223,32 @@
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-suggestion">-</div>
                                 </div>
 
-                                <h6 style="text-decoration: underline; text-decoration-style: double;" class="text-dark-blue mb-3 fw-bold mt-4">
-                                    ข้อมูลการตอบกลับ
-                                </h6>
-
-                                <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">บันทึกโดย</div>
-                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-recorded-by">-</div>
+                                <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
+                                    <h6 style="text-decoration: underline; text-decoration-style: double;" class="text-dark-blue mb-0 fw-bold">
+                                        ข้อมูลการตอบกลับ
+                                    </h6>
+                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1" id="replyHistoryTotalBadge">ทั้งหมด 0 รายการ</span>
                                 </div>
-                                <div class="d-flex mb-3 align-items-start">
-                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">Reply</div>
-                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-reply">-</div>
+
+                                <div class="table-responsive mb-3">
+                                    <table class="table table-bordered align-middle mb-0" style="font-size: 0.875rem;" id="reply-history-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="text-center text-muted fw-semibold py-2" style="width: 140px; white-space: nowrap;">วันที่ตอบกลับ</th>
+                                                <th class="text-center text-muted fw-semibold py-2" style="width: 140px; white-space: nowrap;">บันทึกโดย</th>
+                                                <th class="text-center text-muted fw-semibold py-2">ข้อความตอบกลับ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="detail-reply-list">
+                                            <tr>
+                                                <td colspan="3" class="text-center text-muted py-3">ไม่มีข้อมูลการตอบกลับ</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                                 <span id="detail-guid" class="d-none"></span>
                                 <span id="detail-updBy" class="d-none"></span>
+                                <span id="detail-sendTo" class="d-none"></span>
                             </div>
 
                             <h6 style="text-decoration: underline; text-decoration-style: double;" class="mb-2 mt-2 fw-bold">
@@ -218,8 +272,30 @@
                                 </div>
 
                                 <div class="d-flex justify-content-end gap-2 mt-2">
-                                    <button type="button" class="btn btn-danger px-4 fw-bold" onclick="PutSuggestionStatusUpd()" style="border-radius: 4px;">ปิดงาน</button>
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button 
+                                        type="button" 
+                                        class="btn btn-warning px-4 fw-bold" 
+                                        onclick="ForwardSuggestion()" 
+                                        style="border-radius: 4px;"
+                                        >
+                                        ส่งต่อ
+                                        </button>
+                                    </div>
+
+                                    <div class="d-flex justify-content-end gap-2 mt-2">
+                                        <button 
+                                        type="button" 
+                                        class="btn btn-danger px-4 fw-bold" 
+                                        onclick="PutSuggestionStatusUpd()" 
+                                        style="border-radius: 4px;"
+                                        >
+                                        ปิดงาน
+                                        </button>
+                                    </div>
+
                                 </div>
+
                             </div>
 
                         </div>

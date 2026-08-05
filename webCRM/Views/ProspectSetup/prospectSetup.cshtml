@@ -55,19 +55,20 @@
                     </button>
                 </div>
 
+                <div class="col-12 mt-4" id="importExcelContainer">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div id="selectedFileNameDisplay" class="d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                            <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                            <span class="fw-medium text-dark"> ตัวอย่างไฟล์แนบ.xlsx </span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
         <div class="card-custom mb-0">
-
-                <div class="card-header-custom border-0 pb-0">
-
-                @* <div class="d-flex gap-2 flex-shrink-0">
-                    <button class="btn btn-outline-primary btn-sm px-3 d-flex align-items-center gap-1" style="border-radius: 6px; font-weight: 500; font-size: 0.85rem; white-space: nowrap;" id="btnExportExcel">
-                        <i class="bi bi-download"></i> ส่งออก Excel
-                    </button>
-                </div> *@
-
+            <div class="card-header-custom border-0 pb-0">
             </div>
 
             <div class="card-body-custom pt-3">
@@ -128,12 +129,6 @@
             
         <!-- Action Buttons -->
         <div>
-            @* <div class="d-flex align-items-center gap-3 mb-4">
-                <label class="form-label-custom mb-0 w-auto text-nowrap">เลือกสถานะ</label>
-                <select class="form-select form-select-custom">
-                    <option>รอการอนุมัติ</option>
-                </select>
-            </div> *@
             
             <button class="action-btn btn-primary-green" id="saveDraftBtn">
                 <i class="bi bi-file-earmark-text"></i>
@@ -162,9 +157,9 @@
                 <table class="table table-borderless selected-table mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 40px;" class="text-center">ลำดับ</th>
-                            <th>ชื่อลูกค้า</th>
-                            <th>เลขที่สัญญา</th>
+                            <th>ชื่อ-นามสกุล</th>
+                            <th>เบอร์โทรศัพท์</th>
+                            <th>สาขา</th>
                             <th style="width: 30px;"></th>
                         </tr>
                     </thead>

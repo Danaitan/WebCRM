@@ -14,7 +14,7 @@
     <div class="pa-sidebar-left">
         <div class="pa-sidebar-header">
             <h5>รายการขายและติดตาม</h5>
-            <div class="badge-count" id="campaignCount">4</div>
+            <div class="badge-count" id="campaignCount">0</div>
         </div>
 
         <div class="pa-search-box">
@@ -25,56 +25,11 @@
         </div>
 
         <div class="campaign-list-container">
-            <div class="pa-campaign-list">
-                <div class="pa-card active" data-code="CMP-2024-0001">
-                    <div class="pa-card-icon blue"><i class="bi bi-megaphone"></i></div>
-                    <div class="pa-card-content">
-                        <div class="pa-card-title-row">
-                            <div class="pa-card-id">CMP-2024-0001</div>
-                            <div class="pa-status-badge status-blue">กำลังดำเนินการ</div>
-                        </div>
-                        <div class="pa-card-name">โปรโมชัน ดอกเบี้ยพิเศษ 2.99%</div>
-                        <div class="pa-card-date">วันที่เริ่ม: 01/05/2024 &bull; วันที่สิ้นสุด: 31/07/2024</div>
-                    </div>
-                </div>
+            <div class="pa-campaign-list" id="campaignList">
 
-                <div class="pa-card" data-code="CMP-2024-0002">
-                    <div class="pa-card-icon green"><i class="bi bi-megaphone"></i></div>
-                    <div class="pa-card-content">
-                        <div class="pa-card-title-row">
-                            <div class="pa-card-id">CMP-2024-0002</div>
-                            <div class="pa-status-badge status-green">กำลังโทรออก</div>
-                        </div>
-                        <div class="pa-card-name">แคมเปญ ฟรีวันรับเงินคืน 1</div>
-                        <div class="pa-card-date">วันที่เริ่ม: 15/05/2024 &bull; วันที่สิ้นสุด: 30/06/2024</div>
-                    </div>
-                </div>
-
-                <div class="pa-card" data-code="CMP-2024-0003">
-                    <div class="pa-card-icon yellow"><i class="bi bi-megaphone"></i></div>
-                    <div class="pa-card-content">
-                        <div class="pa-card-title-row">
-                            <div class="pa-card-id">CMP-2024-0003</div>
-                            <div class="pa-status-badge status-yellow">รอข้อมูลเพิ่มเติม</div>
-                        </div>
-                        <div class="pa-card-name">โปรโมชัน รีไฟแนนซ์ ดอกเบี้ยพิเศษ</div>
-                        <div class="pa-card-date">วันที่เริ่ม: 01/06/2024 &bull; วันที่สิ้นสุด: 31/08/2024</div>
-                    </div>
-                </div>
-
-                <div class="pa-card" data-code="CMP-2024-0004">
-                    <div class="pa-card-icon purple"><i class="bi bi-megaphone"></i></div>
-                    <div class="pa-card-content">
-                        <div class="pa-card-title-row">
-                            <div class="pa-card-id">CMP-2024-0004</div>
-                            <div class="pa-status-badge status-purple">รออนุมัติ</div>
-                        </div>
-                        <div class="pa-card-name">โปรโมชัน ผ่อนสบาย 0% 6 เดือน</div>
-                        <div class="pa-card-date">วันที่เริ่ม: 10/06/2024 &bull; วันที่สิ้นสุด: 10/09/2024</div>
-                    </div>
-                </div>
             </div>
         </div>
+        
     </div>
 
     <!-- Right Container -->
@@ -87,15 +42,15 @@
                 <!-- Top Section: Campaign Detail Header -->
                 <div class="pa-section flex-shrink-0">
                     <div class="pa-section-title mb-3">
-                        <i class="bi bi-megaphone"></i> รายละเอียด Product / Campaign
+                        <i class="bi bi-megaphone"></i> รายละเอียด Campaign
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-md-4 col-xl-2 pa-form-group mb-0">
-                            <label>รหัส Product / Campaign</label>
-                            <input type="text" id="detailId" class="pa-form-control" value="CMP-2024-0001" readonly>
+                            <label>รหัส Campaign</label>
+                            <input type="text" id="detailId" class="pa-form-control" value="" readonly>
                         </div>
                         <div class="col-12 col-md-8 col-xl-4 pa-form-group mb-0">
-                            <label>ชื่อ Product / Campaign</label>
+                            <label>ชื่อ Campaign</label>
                             <input type="text" id="detailName" class="pa-form-control" value="โปรโมชัน ดอกเบี้ยพิเศษ 2.99%" readonly>
                         </div>
                         <div class="col-12 col-md-6 col-xl-2 pa-form-group mb-0">
@@ -117,6 +72,16 @@
                             <input type="text" id="detailObjective" class="pa-form-control" value="ส่งเสริมการขายสินเชื่อ" readonly>
                         </div>
                     </div>
+
+                    <div class="col-12 mt-4" id="importExcelContainer">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <div id="selectedFileNameDisplay" class="d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                                <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                                <span class="fw-medium text-dark"> ตัวอย่างไฟล์แนบ.xlsx </span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Bottom Section: Customer Table (Full Height) -->
@@ -124,6 +89,7 @@
                     <div class="pa-prospect-header">
                         <div class="pa-section-title mb-0">
                             <i class="bi bi-people"></i> รายละเอียด Prospect / ลูกค้า
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 ms-2" id="prospectCallTotalBadge">ทั้งหมด 0 รายการ</span>
                         </div>
                         <div class="pa-table-controls" style="flex-grow: 1; max-width: 340px;">
                             <div class="pa-search-input-group" style="width: 100%;">
@@ -139,14 +105,14 @@
                             <thead>
                                 <tr>
                                     <th style="width: 50px; text-align: center;">ลำดับ</th>
-                                    <th>บริษัท/สาขา</th>
+                                    <th>สาขา</th>
                                     <th>ชื่อ-นามสกุล</th>
                                     <th>เลขที่สัญญา</th>
                                     <th>เบอร์โทร</th>
-                                    <th>ใช้รถที่</th>
+                                    <th>สถานที่ใช้รถ</th>
                                     <th>ผลการติดต่อ</th>
-                                    <th>วันที่เลือกข้อมูล</th>
-                                    <th>โดย</th>
+                                    <th>วันที่ Assign</th>
+                                    <th>Status Lead</th>
                                 </tr>
                             </thead>
                             <tbody id="prospectTableBody">
@@ -178,114 +144,275 @@
 
 <!-- Record Result Pop-up Modal -->
 <div class="modal fade pc-modal" id="recordResultModal" tabindex="-1" aria-labelledby="recordResultModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header">
-                <h5 class="modal-title" id="recordResultModalLabel">
-                    <i class="bi bi-telephone-outbound me-2"></i>บันทึกผลการติดต่อลูกค้า
+            <div class="modal-header bg-white border-bottom-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-dark fs-5" id="recordResultModalLabel">
+                    บันทึกผลการติดต่อ
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <!-- Customer Summary Info Card -->
-                <div class="pc-customer-info-card">
-                    <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-2">
-                        <div>
-                            <div class="text-muted small">ลูกค้าที่เลือก</div>
-                            <div class="fw-bold text-dark fs-5" id="modalCustName">คุณณัฐวรรณ ใจดี</div>
+                <div class="pc-summary-card mb-4 p-3 rounded-3 bg-white border">
+                    <div class="row g-3 align-items-center">
+                        <!-- Row 1 -->
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-person fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">ชื่อลูกค้า</div>
+                                    <div class="fw-bold text-dark fs-6" id="modalCustName">น.ส. อมรรัตน์ ใจดี</div>
+                                </div>
+                            </div>
                         </div>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
-                            <i class="bi bi-check-circle-fill me-1"></i><span id="modalCustPdpa">ยินยอมแล้ว (PDPA)</span>
-                        </span>
-                    </div>
-                    <div class="pc-info-grid-modal">
-                        <div class="pc-info-item">
-                            <span class="pc-info-item-label">เลขบัตรประชาชน</span>
-                            <span class="pc-info-item-value" id="modalCustIdCard">1-5099-00123-45-6</span>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-success bg-success-subtle"><i class="bi bi-telephone-fill fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">เบอร์โทรศัพท์</div>
+                                    <div class="d-flex align-items-center gap-2 mt-0.5">
+                                        <span class="fw-bold text-dark fs-6" id="modalCustPhone">081-234-5678</span>
+                                        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 py-1 fw-bold shadow-sm d-inline-flex align-items-center gap-1.5 pc-btn-call" id="btnModalCall">
+                                            <i class="bi bi-telephone-outbound-fill"></i> <span>โทรออก</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="pc-info-item">
-                            <span class="pc-info-item-label">เลขที่สัญญา</span>
-                            <span class="pc-info-item-value text-primary" id="modalCustContract">CT-6705-000123</span>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-megaphone fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">แคมเปญ</div>
+                                    <div class="fw-bold text-dark fs-6" id="modalCustCampaign">CMP-2024-0001</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="pc-info-item">
-                            <span class="pc-info-item-label">เบอร์โทรศัพท์</span>
-                            <span class="pc-info-item-value" id="modalCustPhone">081-234-5678</span>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-megaphone fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">ชื่อแคมเปญ</div>
+                                    <div class="fw-bold text-dark fs-6" id="modalCustCampaignName">โปรโมชัน ดอกเบี้ยพิเศษ 2.99%</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="pc-info-item">
-                            <span class="pc-info-item-label">สาขา</span>
-                            <span class="pc-info-item-value" id="modalCustBranch">ไมโครลิสซิ่ง สาขาเชียงใหม่</span>
+
+                        <!-- Row 2 -->
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-person-badge fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">วัตถุประสงค์</div>
+                                    <div><span class="pc-modal-obj-badge green" id="modalCustObjective">CS</span></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="pc-info-item">
-                            <span class="pc-info-item-label">แผนผ่อนชำระ</span>
-                            <span class="pc-info-item-value" id="modalCustPlan">6,000 / 12 เดือน</span>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-info-circle fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">Status Lead ปัจจุบัน</div>
+                                    <div><span class="status-badge badge bg-primary text-white" id="modalCustLeadStatus">Follow</span></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="pc-info-item col-span-2">
-                            <span class="pc-info-item-label">ที่อยู่</span>
-                            <span class="pc-info-item-value" id="modalCustAddress">99/123 หมู่ 4 ต.สุเทพ อ.เมือง จ.เชียงใหม่ 50200</span>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-journal-text fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">ผลการติดต่อล่าสุด</div>
+                                    <div><span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1 rounded-pill fw-semibold" id="modalCustLastResult">ขอข้อมูลเพิ่มเติม</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="pc-summary-icon text-primary"><i class="bi bi-calendar-event fs-5"></i></div>
+                                <div>
+                                    <div class="text-muted extra-small">นัดหมายครั้งถัดไป</div>
+                                    <div class="fw-bold text-dark fs-6" id="modalCustNextAppt">20/05/2024 14:00</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Record Form Section -->
-                <div class="pc-modal-section-title">
-                    <i class="bi bi-pencil-square text-primary"></i> ข้อมูลบันทึกผลการติดต่อ
-                </div>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small fw-medium">ครั้งที่ติดต่อ <span class="text-danger">*</span></label>
-                        <select class="form-select form-select-sm" id="modalContactCount">
-                            <option value="1">ครั้งที่ 1</option>
-                            <option value="2">ครั้งที่ 2</option>
-                            <option value="3">ครั้งที่ 3</option>
-                            <option value="4">ครั้งที่ 4</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small fw-medium">ผลการติดต่อ <span class="text-danger">*</span></label>
-                        <select class="form-select form-select-sm" id="modalContactResult">
-                            <option value="">-- เลือกผลการติดต่อ --</option>
-                            <option value="สนใจ">สนใจ</option>
-                            <option value="ไม่สนใจ">ไม่สนใจ</option>
-                            <option value="ติดต่อไม่ได้">ติดต่อไม่ได้</option>
-                            <option value="นัดติดตาม">นัดติดตาม</option>
-                            <option value="รอนัดหมาย">รอนัดหมาย</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small fw-medium">นัดหมายครั้งถัดไป</label>
-                        <input type="date" class="form-control form-control-sm" id="modalNextDate">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small fw-medium">หมายเหตุ</label>
-                        <input type="text" class="form-control form-control-sm" id="modalRemarks" placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)">
-                    </div>
-                </div>
+                <!-- Main Content: Form & History -->
+                <div class="row g-4">
+                    <!-- Left Column: Form -->
+                    <div class="col-lg-8 d-flex flex-column">
+                        <div class="row g-3 flex-grow-1 d-flex flex-column">
+                            <!-- Row 1: Select 1 & 2 + Textarea on Right -->
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label text-dark small fw-medium mb-1">ผลการติดต่อ <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm" id="modalContactResult">
+                                                <option value="">เลือกผลการติดต่อ</option>
+                                                <option value="สนใจ">สนใจ</option>
+                                                <option value="ไม่สนใจ">ไม่สนใจ</option>
+                                                <option value="ขอข้อมูลเพิ่มเติม">ขอข้อมูลเพิ่มเติม</option>
+                                                <option value="ติดต่อไม่ได้">ติดต่อไม่ได้</option>
+                                                <option value="นัดติดตาม">นัดติดตาม</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label text-dark small fw-medium mb-1">Status Lead <span class="text-danger">*</span></label>
+                                            <select class="form-select form-select-sm" id="modalStatusLead">
+                                                <option value="">เลือก Status Lead</option>
+                                                <option value="Follow">Follow</option>
+                                                <option value="Success">Success</option>
+                                                <option value="Cancel">Cancel</option>
+                                                <option value="Call">Call</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label text-dark small fw-medium mb-1">รายงานผลการติดต่อ <span class="text-danger">*</span></label>
+                                        <div class="position-relative">
+                                            <textarea class="form-control form-control-sm" id="modalContactReport" rows="4" maxlength="500" placeholder="ระบุรายละเอียดการติดต่อ เช่น ลูกค้าสนใจ / ไม่สนใจ / ขอข้อมูลเพิ่มเติม / สาเหตุ ฯลฯ"></textarea>
+                                            <span class="position-absolute bottom-0 end-0 p-2 text-muted extra-small" id="contactReportCount" style="pointer-events: none; z-index: 5;">0/500</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                <!-- Contact History Section -->
-                <div class="pc-modal-section-title">
-                    <i class="bi bi-clock-history text-primary"></i> ประวัติการติดต่อล่าสุด
-                </div>
-                <div class="pc-modal-history-list">
-                    <div class="pc-modal-history-item">
-                        <div>
-                            <div class="fw-semibold text-dark">นัดหมายติดตามเอกสารเพิ่มเติม</div>
-                            <div class="text-muted small">15/05/2024 10:22 &bull; ครั้งที่ 1 &bull; โดย พงศกร คนสอน</div>
+                            <!-- Row 2: Products, Interest Level, Sales Result -->
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">ผลิตภัณฑ์ที่เสนอ</label>
+                                        <select class="form-select form-select-sm" id="modalProduct">
+                                            <option value="">เลือกผลิตภัณฑ์</option>
+                                            <option value="สินเชื่อจำนำทะเบียน">สินเชื่อจำนำทะเบียน</option>
+                                            <option value="สินเชื่อรีไฟแนนซ์">สินเชื่อรีไฟแนนซ์</option>
+                                            <option value="ประกันภัย">ประกันภัย</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">ระดับความสนใจ</label>
+                                        <select class="form-select form-select-sm" id="modalInterestLevel">
+                                            <option value="">เลือกระดับความสนใจ</option>
+                                            <option value="High">สนใจมาก (High)</option>
+                                            <option value="Medium">สนใจปานกลาง (Medium)</option>
+                                            <option value="Low">สนใจน้อย (Low)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">ผลการเสนอขาย</label>
+                                        <select class="form-select form-select-sm" id="modalSalesResult">
+                                            <option value="">เลือกผลการเสนอขาย</option>
+                                            <option value="เสนอขายสำเร็จ">เสนอขายสำเร็จ</option>
+                                            <option value="ขอคิดดูก่อน">ขอคิดดูก่อน</option>
+                                            <option value="ปฏิเสธ">ปฏิเสธ</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row 3: Next Appt Date, Next Appt Time, Channel -->
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">นัดหมายครั้งถัดไป</label>
+                                        <input type="date" class="form-control form-control-sm" id="modalNextDate">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">เวลานัดหมาย (ถ้ามี)</label>
+                                        <input type="time" class="form-control form-control-sm" id="modalNextTime">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">ช่องทางการนัดหมาย</label>
+                                        <select class="form-select form-select-sm" id="modalContactChannel">
+                                            <option value="">เลือกช่องทาง</option>
+                                            <option value="โทรศัพท์">โทรศัพท์</option>
+                                            <option value="LINE">LINE</option>
+                                            <option value="สาขา">สาขา</option>
+                                            <option value="เข้าพบ">เข้าพบลูกค้า</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row 4: Additional Remarks (Flex Expand Height) -->
+                            <div class="col-12 flex-grow-1 d-flex flex-column">
+                                <label class="form-label text-dark small fw-medium mb-1">หมายเหตุเพิ่มเติม</label>
+                                <div class="position-relative flex-grow-1 d-flex flex-column">
+                                    <textarea class="form-control form-control-sm flex-grow-1" id="modalRemarks" style="min-height: 80px;" maxlength="300" placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+                                    <span class="position-absolute bottom-0 end-0 p-2 text-muted extra-small" id="remarksCount" style="pointer-events: none; z-index: 5;">0/300</span>
+                                </div>
+                            </div>
                         </div>
-                        <span class="badge bg-primary-subtle text-primary">นัดติดตาม</span>
                     </div>
-                    <div class="pc-modal-history-item">
-                        <div>
-                            <div class="fw-semibold text-dark">ติดต่อได้ ไม่สะดวกรับสาย</div>
-                            <div class="text-muted small">14/05/2024 16:30 &bull; ครั้งที่ 1 &bull; โดย จิราภรณ์ วงษ์ดี</div>
+
+                    <!-- Right Column: Contact History Sidebar -->
+                    <div class="col-lg-4 d-flex flex-column h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h6 class="fw-bold text-dark mb-0 small">ประวัติการติดต่อ <span class="fw-normal text-muted">(ล่าสุด 5 รายการ)</span></h6>
+                            <a href="javascript:void(0);" class="text-primary text-decoration-none small fw-medium">ดูทั้งหมด</a>
                         </div>
-                        <span class="badge bg-secondary-subtle text-secondary">ไม่สะดวก</span>
+                        <div class="pc-modal-history-list d-flex flex-column gap-2 flex-grow-1" id="modalHistoryList">
+                            <!-- Card Item 1 -->
+                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 15/05/2024 10:22</span>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
+                                </div>
+                                <div class="text-secondary extra-small">ผลการติดต่อ: ขอข้อมูลเพิ่มเติม</div>
+                                <div class="text-secondary extra-small">นัดหมาย: 20/05/2024 14:00</div>
+                            </div>
+
+                            <!-- Card Item 2 -->
+                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 10/05/2024 09:45</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill extra-small">Success</span>
+                                </div>
+                                <div class="text-secondary extra-small">ผลการติดต่อ: ติดต่อได้</div>
+                                <div class="text-secondary extra-small">นัดหมาย: 15/05/2024 10:00</div>
+                            </div>
+
+                            <!-- Card Item 3 -->
+                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 14/05/2024 16:10</span>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
+                                </div>
+                                <div class="text-secondary extra-small">ผลการติดต่อ: ไม่รับสาย</div>
+                                <div class="text-secondary extra-small">นัดหมาย: -</div>
+                            </div>
+
+                            <!-- Card Item 4 -->
+                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 14/05/2024 14:05</span>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
+                                </div>
+                                <div class="text-secondary extra-small">ผลการติดต่อ: ติดต่อได้ แต่ยังไม่สนใจ</div>
+                                <div class="text-secondary extra-small">นัดหมาย: 20/05/2024 14:00</div>
+                            </div>
+
+                            <!-- Card Item 5 -->
+                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold text-dark"><i class="bi bi-calendar-event text-primary me-1.5"></i> 13/05/2024 11:40</span>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
+                                </div>
+                                <div class="text-secondary extra-small">ผลการติดต่อ: นัดหมายล่วงหน้า</div>
+                                <div class="text-secondary extra-small">นัดหมาย: 14/05/2024 14:00</div>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
-            <div class="modal-footer bg-light border-top-0 px-4 py-3">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">ยกเลิก</button>
-                <button type="button" class="btn btn-primary px-4 rounded-pill fw-medium" id="btnSaveResult">
-                    <i class="bi bi-check2-circle me-1"></i>บันทึกผลการติดต่อ
+            <div class="modal-footer bg-white border-top-0 px-4 py-3 justify-content-end gap-2">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3 fw-medium" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary px-4 rounded-3 fw-medium" id="btnSaveResult">
+                    <i class="bi bi-floppy me-1"></i>บันทึกผลการติดต่อ
                 </button>
             </div>
         </div>

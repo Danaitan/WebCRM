@@ -22,83 +22,6 @@ namespace webCRM.Controllers
             return View("~/Views/Home/Index.cshtml");
         }
 
-        public async Task<IActionResult> GetProfile(string userName, string passWord)
-        {
-            try
-            {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
-                var domain = Environment.GetEnvironmentVariable("ApiSettings__APILogin") ?? configuration["ApiSettings:APILogin"];
-
-                if (string.IsNullOrEmpty(domain))
-                {
-                    return Unauthorized(new { message = "Login failed: API Domain is not configured. (ApiSettings:APILogin is null)" });
-                }
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                var request = new
-                {
-                    username = userName,
-                    password = passWord
-                };
-
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
-
-                var response = await client.PostAsync(
-                    $"{domain}/login",
-                    content);
-
-                response.EnsureSuccessStatusCode();
-
-                string json = await response.Content.ReadAsStringAsync();
-
-                LoginResponse? apiResponse = null;
-                try
-                {
-                    apiResponse = JsonSerializer.Deserialize<LoginResponse>(
-                        json,
-                        _jsonSerializerOptions);
-                }
-                catch (JsonException)
-                {
-                    return Unauthorized(new { message = "Login failed: Invalid API Response format" });
-                }
-
-                ProfileData result = apiResponse?.data?.FirstOrDefault() ?? new ProfileData();
-
-                if (string.IsNullOrEmpty(result.adAccount))
-                {
-                    return Unauthorized(new { message = "Login failed" });
-                }
-
-                string company = "";
-                if (result.eMail != null && result.eMail.Contains("microleasingplc")) company = "MICRO";
-                if (result.eMail != null && result.eMail.Contains("microinsurebroker")) company = "MIB";
-                if (result.eMail != null && result.eMail.Contains("mfin")) company = "MFIN";
-
-                HttpContext.Session.SetString("profile_welcome", $"{company} [{result.adAccount}] ({result.personalNameTh} {result.personalLastNameTh})");
-                HttpContext.Session.SetString("fullNameEn", $"{result.personalNameEn} {result.personalLastNameEn}");
-                HttpContext.Session.SetString("personalId", result.adAccount);
-                HttpContext.Session.SetString("email", result.eMail ?? "");
-                HttpContext.Session.SetString("company", company);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return Unauthorized(new { message = $"Login failed: {ex.Message}" });
-            }
-        }
-
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
@@ -191,6 +114,21 @@ namespace webCRM.Controllers
                 HttpContext.Session.SetString("personalId", result.PersonnelCode ?? "");
                 HttpContext.Session.SetString("email", result.EMail ?? "");
                 HttpContext.Session.SetString("company", company);
+
+                var loginLog = new 
+                {
+                    personalCde = result.PersonnelCode ?? "",
+                    action = "เข้าสู่ระบบ"
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(loginLog),
+                    Encoding.UTF8,
+                    "application/json");
+
+                await client.PostAsync(
+                    $"{domain}/crm/api/v1/loginlog",
+                    content);
 
                 return Ok(result);
             }

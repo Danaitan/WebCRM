@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -240,6 +241,88 @@ namespace webCRM.Models
 
         public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
             => writer.WriteStringValue(value);
+    }
+
+    public class FlexibleNullableDateTimeConverter : JsonConverter<DateTime?>
+    {
+        private static readonly string[] Formats = new[]
+        {
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss.fff",
+            "yyyy-MM-ddTHH:mm:ss",
+            "yyyy-MM-ddTHH:mm:ss.fff",
+            "yyyy-MM-ddTHH:mm:ssZ",
+            "yyyy-MM-ddTHH:mm:ss.fffZ",
+            "yyyy-MM-dd",
+            "dd/MM/yyyy HH:mm:ss",
+            "dd/MM/yyyy HH:mm",
+            "dd/MM/yyyy",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd HH:mm",
+            "yyyy/MM/dd",
+            "MM/dd/yyyy HH:mm:ss",
+            "MM/dd/yyyy"
+        };
+
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null)
+                return null;
+
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                string? dateStr = reader.GetString();
+                if (string.IsNullOrWhiteSpace(dateStr))
+                    return null;
+
+                if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                    return dt;
+
+                if (DateTime.TryParseExact(dateStr, Formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
+                    return dt;
+
+                if (DateTime.TryParse(dateStr, out dt))
+                    return dt;
+
+                return null;
+            }
+
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                if (reader.TryGetInt64(out long unixTime))
+                {
+                    if (unixTime > 100000000000L)
+                        return DateTimeOffset.FromUnixTimeMilliseconds(unixTime).DateTime;
+                    else if (unixTime > 0)
+                        return DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
+                }
+            }
+
+            return null;
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue)
+                writer.WriteStringValue(value.Value.ToString("yyyy-MM-ddTHH:mm:ss"));
+            else
+                writer.WriteNullValue();
+        }
+    }
+
+    public class FlexibleDateTimeConverter : JsonConverter<DateTime>
+    {
+        private static readonly FlexibleNullableDateTimeConverter NullableConverter = new();
+
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return NullableConverter.Read(ref reader, typeof(DateTime?), options) ?? default;
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString("yyyy-MM-ddTHH:mm:ss"));
+        }
     }
 
     public class MasterData

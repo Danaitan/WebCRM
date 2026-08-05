@@ -109,6 +109,10 @@ async function getCampainList(page, pageSize) {
         if (totalRowsInfo) {
             totalRowsInfo.textContent = filtered.length;
         }
+        const badge = document.getElementById('prospectAssignTotalBadge');
+        if (badge) {
+            badge.textContent = 'ทั้งหมด ' + filtered.length + ' รายการ';
+        }
     }
 
     function renderPagination() {

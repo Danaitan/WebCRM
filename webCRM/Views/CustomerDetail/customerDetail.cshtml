@@ -1,6 +1,6 @@
 @{
-    ViewData["Title"] = "ข้อมูลลูกค้า";
-    ViewData["HeaderTitle"] = "ข้อมูลลูกค้า";
+    ViewData["Title"] = "ข้อมูลลูกค้าทั่วไป";
+    ViewData["HeaderTitle"] = "ข้อมูลลูกค้าทั่วไป";
     ViewData["HeaderSubtitle"] = "ดูรายละเอียดลูกค้า";
 }
 
@@ -606,12 +606,6 @@
                                         </div>
                                         <div class="detail-value" id="mib-detail-claim-count">-</div>
                                     </div>
-                                    <div class="col-12 col-xl-6 d-flex align-items-start">
-                                        <div class="detail-label-sm">
-                                            <span>สถานะ Active</span>
-                                        </div>
-                                        <div class="detail-value" id="mib-contract-active">-</div>
-                                    </div>
 
                                 </div>
 
@@ -670,13 +664,16 @@
                                     </div>
 
                                     <div class="col-12 col-xl-6 d-flex align-items-start">
-                                        <div class="detail-label-sm d-flex flex-column">
-                                            <span>ประเภทการชำระเงิน</span>
-                                            <small class="text-muted">(โอน/ผ่อน/บัตรเครดิต/เงินสด)</small>
+                                        <div class="detail-label-sm block">
+                                            <div> 
+                                                <span class="d-block">ประเภทการชำระเงิน</span>
+                                                <small class="text-muted d-block">(โอน/ผ่อน/บัตรเครดิต/เงินสด)</small>
+                                            </div>
                                         </div>
                                         <div class="detail-value" id="mib-ins-payment-type">-</div>
                                     </div>
-                                    <div class="col-12 col-xl-6 d-flex align-items-start">
+
+                                    <div class="col-12 col-xl-6 d-flex align-items-center rounded" id="mib-ins-status-container">
                                         <div class="detail-label-sm">
                                             <span>สถานะกรมธรรม์</span>
                                         </div>
@@ -846,7 +843,7 @@
                     <ul class="nav nav-tabs crm-tabs border-0 flex-nowrap overflow-y-hidden" style="margin-bottom: 0;">
                        
                         <li class="nav-item">
-                            <a class="nav-link active fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-info">ข้อมูลลูกค้า</a>
+                            <a class="nav-link active fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-info">ข้อมูลลูกค้าทั่วไป</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-muted fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-contract">สัญญา</a>

@@ -111,13 +111,13 @@ namespace webCRM.Controllers
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
                 return Content("{\"page\": " + page + ", \"pageSize\": " + pageSize + ", \"count\": 0, \"data\": []}", "application/json");
             }
-        
+
         }
-        
+
         [HttpGet]
         public async Task<IActionResult> GetProductFilterByGuid(string guid)
         {
-                       
+
             try
             {
                 var handler = new HttpClientHandler
@@ -138,7 +138,136 @@ namespace webCRM.Controllers
             {
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
                 return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
-            } 
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateProspectCustomer([FromBody] UpdateProspectCustomerRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var personalId = HttpContext.Session.GetString("personalId") ?? "";
+                    request.assigner = personalId;
+                    request.updated_by = personalId;
+
+                    var response = await client.PostAsync($"{domain}/crm/api/v1/p3/updateProspectCustomer", new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json"));
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PostNewProspectBatch([FromBody] PostNewProspectBatchRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var personalId = HttpContext.Session.GetString("personalId") ?? "";
+                    request.created_by = personalId;
+
+                    var response = await client.PostAsync
+                    ($"{domain}/crm/api/v1/p3/postNewProspectBatch",
+                    new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json")
+                    );
+
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> getProductBatchByProductCode(string productCode, int pageSize = 0, int page = 0)
+        {
+            try
+            {
+                if (pageSize == 0) pageSize = 10;
+                if (page == 0) page = 1;
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync(
+                        $"{domain}/crm/api/v1/p3/getProductBatchByProductCode?product_code={Uri.EscapeDataString(productCode)}&pageSize={pageSize}&page={page}"
+                    );
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> updateProductBatchStatus([FromBody] UpdateProductBatchStatusRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var personalId = HttpContext.Session.GetString("personalId") ?? "";
+                    request.updated_by = personalId;
+                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateProductBatchStatus", new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json"));
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
         }
 
     }

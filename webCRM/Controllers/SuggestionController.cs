@@ -20,7 +20,7 @@ namespace webCRM.Controllers
         {
             PropertyNameCaseInsensitive = true,
             NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString,
-            Converters = { new NumberToStringConverter() }
+            Converters = { new NumberToStringConverter(), new FlexibleNullableDateTimeConverter(), new FlexibleDateTimeConverter() }
         };
 
         public async Task<IActionResult> Index()
@@ -73,7 +73,7 @@ namespace webCRM.Controllers
                 string data = await response.Content.ReadAsStringAsync();
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseSuggestion>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseSuggestion>>(data, _jsonSerializerOptions);
                     return apiResponse ?? new List<ResponseSuggestion>();
                 }
 
@@ -113,6 +113,8 @@ namespace webCRM.Controllers
                 var response = await client.PostAsync(
                     $"{domain}/crm/api/v1/suggestionDetail",
                     content);
+
+                await UpdateSuggestionStatus(guid, "Reply");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -226,7 +228,45 @@ namespace webCRM.Controllers
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
-                var response = await client.PutAsync($"{domain}/crm/api/v1/suggestionStatusUpd/{guid}",null);
+                var response = await client.PutAsync($"{domain}/crm/api/v1/suggestionStatusUpd/{guid}", null);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+                return Ok(new { status = "success" });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+        }
+
+        public async Task<IActionResult> UpdateSuggestionStatus(string guid, string? statusTask = null, string? sendTo = null)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                var request = new
+                {
+                    guid = guid,
+                    statusTask = statusTask,
+                    sendTo = sendTo
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateSuggestion", content);
 
                 if (!response.IsSuccessStatusCode)
                 {

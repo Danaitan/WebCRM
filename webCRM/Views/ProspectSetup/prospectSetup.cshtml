@@ -168,7 +168,26 @@
                 </table>
             </div>
             
-            <div class="text-muted" style="font-size: 0.8rem;" id="selectedTotalText">
+            <div class="selected-pagination-container">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted" style="font-size: 0.85rem;">แสดง</span>
+                    <select class="form-select form-select-sm" id="selectedRowsPerPage" style="width: 70px; border-radius: 6px;">
+                        <option value="2">2</option>
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span class="text-muted" style="font-size: 0.85rem;">รายการ</span>
+                </div>
+                
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <ul class="pagination pagination-sm pagination-custom mb-0 flex-wrap" id="selectedTablePagination">
+                    </ul>
+                </div>
+            </div>
+
+            <div class="text-muted mt-2" style="font-size: 0.8rem;" id="selectedTotalText">
                 รวมทั้งหมด 0 รายการ
             </div>
         </div>

@@ -48,43 +48,6 @@
                             <i class="bi bi-list-ul text-primary fs-5"></i>
                             <h6 class="fw-bold text-dark-blue mb-0">รายการข้อเสนอแนะ / ร้องเรียน</h6>
                             <span class="bg-primary-subtle text-primary rounded-pill px-3 py-1 ms-2 fs-7" id="suggestionsTotalBadge">ทั้งหมด 0 รายการ</span>
-                            <button 
-                                type="button" 
-                                class="btn btn-outline-secondary border-0 rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" 
-                                style="width: 38px; height: 38px; background-color: #f1f5f9; color: #475569;" 
-                                id="statusInfoPopover"
-                                tabindex="0"
-                                data-bs-toggle="popover" 
-                                data-bs-placement="bottom" 
-                                data-bs-trigger="click"
-                                data-bs-html="true" 
-                                data-bs-title="<span class='fw-bold text-dark-blue'><i class='bi bi-info-circle me-1'></i> คำอธิบายสถานะ</span>" 
-                                data-bs-content="
-                                <div 
-                                class='py-1' 
-                                style='font-size: 0.875rem; 
-                                line-height: 1.8;'
-                                >
-                                    <div>
-                                    <strong>pending</strong>
-                                    - รอการติดต่อ
-                                    </div>
-                                    <div>
-                                    <strong>forward</strong> 
-                                    - ส่งต่อ
-                                    </div>
-                                    <div>
-                                    <strong>reply</strong>
-                                    - ตอบกลับ
-                                    </div>
-                                    <div>
-                                    <strong>close</strong>
-                                    - ปิดงาน
-                                    </div>
-                                </div>"
-                            >
-                                <i class="bi bi-info-circle fs-5"></i>
-                            </button>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <button 
@@ -106,7 +69,50 @@
                                     <th class="fw-semibold text-muted py-3 text-center rounded-start" style="white-space: nowrap;">วันที่สร้าง</th>
                                     <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">หัวข้อ</th>
                                     <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">ชื่อ-นามสกุล</th>
-                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">สถานะ</th>
+                                    <th class="fw-semibold text-muted py-3 text-center" style="white-space: nowrap;">
+                                        <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <span>สถานะ</span>
+
+                                            <button 
+                                                type="button" 
+                                                class="btn btn-outline-secondary border-0 rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" 
+                                                style="width: 38px; height: 38px; background-color: #f1f5f9; color: #475569;" 
+                                                id="statusInfoPopover"
+                                                tabindex="0"
+                                                data-bs-toggle="popover" 
+                                                data-bs-placement="bottom" 
+                                                data-bs-trigger="click"
+                                                data-bs-html="true" 
+                                                data-bs-title="<span class='fw-bold text-dark-blue'><i class='bi bi-info-circle me-1'></i> คำอธิบายสถานะ</span>" 
+                                                data-bs-content="
+                                                <div 
+                                                class='py-1' 
+                                                style='font-size: 0.875rem; 
+                                                line-height: 1.8;'
+                                                >
+                                                    <div>
+                                                    <strong>pending</strong>
+                                                    - รอการติดต่อ
+                                                    </div>
+                                                    <div>
+                                                    <strong>forward</strong> 
+                                                    - ส่งต่อ
+                                                    </div>
+                                                    <div>
+                                                    <strong>reply</strong>
+                                                    - ตอบกลับ
+                                                    </div>
+                                                    <div>
+                                                    <strong>close</strong>
+                                                    - ปิดงาน
+                                                    </div>
+                                                </div>"
+                                            >
+                                                <i class="bi bi-info-circle fs-5"></i>
+                                            </button>
+
+                                        </div>
+                                    </th>
                                     <th class="fw-semibold text-muted py-3 text-center rounded-end" style="white-space: nowrap;">Time</th>
                                 </tr>
                             </thead>

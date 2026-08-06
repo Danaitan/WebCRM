@@ -13,15 +13,46 @@ namespace webCRM.Controllers
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings_BearerToken") ?? configuration["ApiSettings:BearerToken"];
         string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
+        private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString,
+            Converters = { new NumberToStringConverter() }
+        };
+
         public async Task<IActionResult> Index()
         {
             return View("productApprove");
         }
 
-        //public async Task<> Get()
-        //{
-        //    return null;
-        //}
+        public async Task<GetProspectCustomerViewResponse> GetProspectCustomerView(string productBatch)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProspectCustomerView/{productBatch}");
+                response.EnsureSuccessStatusCode();
+                string data = await response.Content.ReadAsStringAsync();
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = System.Text.Json.JsonSerializer.Deserialize<GetProspectCustomerViewResponse>(data, _jsonSerializerOptions);
+                    return apiResponse ?? new GetProspectCustomerViewResponse();
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return new GetProspectCustomerViewResponse();
+            }
+            return new GetProspectCustomerViewResponse();
+        }
         
     }
 }

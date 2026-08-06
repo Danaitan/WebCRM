@@ -1,12 +1,178 @@
 
-const pageSize = 10;
-let page = 1;
+let selectedCampaignCode = "";
+let prospectPage = 1;
+let prospectPageSize = 10;
+let prospectTotalCount = 0;
+let rawProspectItems = [];
+let activeStatusFilter = 'all';
+
+// Fetch prospect batch for selected campaign from API
+async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+    try{
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        if (!response.ok) {
+            console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
+            return [];
+        }
+        const data = await response.json();
+        return data || [];
+    }catch(err){
+        console.error("Error in getProductBatchByProductCode:", err);
+        return [];
+    }
+}
+
+// Extract prospect items from API result
+function extractProspectCustomers(data) {
+    if (!data) return { items: [], totalCount: 0 };
+    let raw = data;
+    if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch (e) { return { items: [], totalCount: 0 }; }
+    }
+
+    let items = [];
+    let totalCount = 0;
+    let rootUpdatedBy = (raw && typeof raw === 'object' && raw.updated_by) ? String(raw.updated_by).trim() : '';
+
+    if (raw && typeof raw === 'object') {
+        totalCount = raw.Customer?.total ?? raw.total ?? 0;
+    }
+
+    const checkAndPush = (item) => {
+        if (!item) return;
+        if (Array.isArray(item.Customer?.data)) {
+            item.Customer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customer?.data)) {
+            item.customer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.ObjectCustomer?.data)) {
+            item.ObjectCustomer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.objectCustomer?.data)) {
+            item.objectCustomer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (item.Customer && typeof item.Customer === 'object' && !Array.isArray(item.Customer)) {
+            checkAndPush(item.Customer);
+            return;
+        }
+        if (item.customer && typeof item.customer === 'object' && !Array.isArray(item.customer)) {
+            checkAndPush(item.customer);
+            return;
+        }
+        if (item.ObjectCustomer && typeof item.ObjectCustomer === 'object' && !Array.isArray(item.ObjectCustomer)) {
+            checkAndPush(item.ObjectCustomer);
+            return;
+        }
+        if (item.objectCustomer && typeof item.objectCustomer === 'object' && !Array.isArray(item.objectCustomer)) {
+            checkAndPush(item.objectCustomer);
+            return;
+        }
+        if (Array.isArray(item.Customer)) {
+            item.Customer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customer)) {
+            item.customer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customers)) {
+            item.customers.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.prospects)) {
+            item.prospects.forEach(c => checkAndPush(c));
+            return;
+        }
+
+        if (typeof item === 'object') {
+            const idno = item.idno || '';
+            const id = item.id || '';
+            const name = item.nameCus || '-';
+            const contract = item.contno || '-';
+            const branch = item.branch_Name || '-';
+            const carLocation = item.provinceUsecar || '-';
+            const createdDate = item.created || '-';
+            const createdBy = item.created_by || '-';
+            const custType = item.custype || '-';
+            const occupation = item.occupation || '-';
+            const assignee = item.staffName || '-';
+            const status = item.status || '-';
+
+            if (id || idno || name !== '-') {
+                items.push({
+                    id: String(id || '').trim(),
+                    idno: String(idno || '').trim(),
+                    branch: String(branch).trim(),
+                    name: String(name).trim(),
+                    contract: String(contract).trim(),
+                    custType: String(custType).trim(),
+                    occupation: String(occupation).trim(),
+                    carLocation: String(carLocation).trim(),
+                    assignee: String(assignee).trim(),
+                    status: String(status).trim(),
+                    createdDate: String(createdDate).trim(),
+                    createdBy: String(createdBy).trim(),
+                    raw: item
+                });
+            }
+        }
+    };
+
+    if (Array.isArray(raw)) {
+        raw.forEach(i => checkAndPush(i));
+    } else if (typeof raw === 'object') {
+        if (Array.isArray(raw.data)) {
+            raw.data.forEach(i => checkAndPush(i));
+        } else if (raw.data && typeof raw.data === 'object') {
+            checkAndPush(raw.data);
+        } else {
+            checkAndPush(raw);
+        }
+    }
+
+    if (totalCount === 0) totalCount = items.length;
+
+    return { items, totalCount };
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function getStatusDotClass(status, assignee) {
+    if (!status) {
+        return (assignee && assignee !== '-') ? 'green' : 'purple';
+    }
+    const s = String(status).toLowerCase();
+    if (s.includes('reassign') || s.includes('re-assign')) return 'orange';
+    if (s.includes('assign') && !s.includes('wait') && !s.includes('รอ')) return 'green';
+    return 'purple';
+}
+
+function getStatusLabel(status, assignee) {
+    const cls = getStatusDotClass(status, assignee);
+    if (cls === 'green') return 'Assign';
+    if (cls === 'orange') return 'ReAssign';
+    return 'Wait';
+}
 
 async function getCampainList(page, pageSize) {
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
+        const status = "approved";
         const queryStr = (page !== undefined && pageSize !== undefined) 
-            ? `?page=${page}&pageSize=${pageSize}`
+            ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : '';
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
@@ -36,167 +202,273 @@ async function getCampainList(page, pageSize) {
     }
 }
 
-(function () {
-    const tbody = document.querySelector('.table-custom tbody');
+async function loadProspectAssignData(productCode, page = 1, pageSize = 10) {
+    if (!productCode) {
+        rawProspectItems = [];
+        prospectTotalCount = 0;
+        filterAndRenderProspectTable();
+        return;
+    }
+
+    selectedCampaignCode = productCode;
+    prospectPage = page;
+    prospectPageSize = pageSize;
+
+    const tbody = document.getElementById('prospectAssignTableBody');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>`;
+    }
+
+    const res = await getProductBatchByProductCode(productCode, page, pageSize);
+    const { items, totalCount } = extractProspectCustomers(res);
+
+    rawProspectItems = items;
+    prospectTotalCount = totalCount;
+
+    updateSummaryCardCounts(items, totalCount);
+    filterAndRenderProspectTable();
+}
+
+function updateSummaryCardCounts(items, totalCount) {
+    let allCount = totalCount || items.length;
+    let assignCount = 0;
+    let reassignCount = 0;
+    let waitCount = 0;
+
+    items.forEach(item => {
+        const label = getStatusLabel(item.status, item.assignee);
+        if (label === 'Assign') assignCount++;
+        else if (label === 'ReAssign') reassignCount++;
+        else waitCount++;
+    });
+
+    const cardAll = document.querySelector('.summary-card[data-status="all"] .summary-value');
+    if (cardAll) cardAll.textContent = allCount.toLocaleString();
+
+    const cardAssign = document.querySelector('.summary-card[data-status="assign"] .summary-value');
+    if (cardAssign) cardAssign.textContent = assignCount.toLocaleString();
+
+    const cardReassign = document.querySelector('.summary-card[data-status="reassign"] .summary-value');
+    if (cardReassign) cardReassign.textContent = reassignCount.toLocaleString();
+
+    const cardWait = document.querySelector('.summary-card[data-status="wait"] .summary-value');
+    if (cardWait) cardWait.textContent = waitCount.toLocaleString();
+}
+
+function filterAndRenderProspectTable() {
+    const tbody = document.getElementById('prospectAssignTableBody');
     if (!tbody) return;
 
-    const allRows = Array.from(tbody.querySelectorAll('tr'));
-    const rowsPerPageSelect = document.getElementById('rowsPerPageSelect');
+    let filteredItems = rawProspectItems;
+    if (activeStatusFilter !== 'all') {
+        filteredItems = rawProspectItems.filter(item => {
+            const statusLabel = getStatusLabel(item.status, item.assignee).toLowerCase();
+            if (activeStatusFilter === 'assign') {
+                return statusLabel === 'assign';
+            } else if (activeStatusFilter === 'reassign') {
+                return statusLabel === 'reassign';
+            } else if (activeStatusFilter === 'wait') {
+                return statusLabel === 'wait';
+            }
+            return true;
+        });
+    }
+
+    if (filteredItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบรายการ Prospect</td></tr>`;
+    } else {
+        let html = '';
+        filteredItems.forEach(item => {
+            const dotClass = getStatusDotClass(item.status, item.assignee);
+            const statusText = getStatusLabel(item.status, item.assignee);
+            html += `
+                <tr>
+                    <td class="text-center"><input type="checkbox" class="form-check-input prospect-checkbox" data-id="${escapeHtml(item.id)}" data-contract="${escapeHtml(item.contract)}"></td>
+                    <td>
+                        <div class="fw-medium">${escapeHtml(item.branch)}</div>
+                    </td>
+                    <td>
+                        <div class="fw-medium">${escapeHtml(item.name)}</div>
+                        <div class="text-gray" style="font-size: 0.75rem;">${escapeHtml(item.idno)}</div>
+                    </td>
+                    <td>${escapeHtml(item.contract)}</td>
+                    <td>${escapeHtml(item.custType)}</td>
+                    <td>${escapeHtml(item.occupation)}</td>
+                    <td>${escapeHtml(item.carLocation)}</td>
+                    <td>${escapeHtml(item.assignee)}</td>
+                    <td><span class="status-dot ${dotClass}"></span><span class="status-text ${dotClass}">${statusText}</span></td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // Attach event listeners for checkboxes in tbody
+    const checkboxes = tbody.querySelectorAll('.prospect-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    updateSelectedCount();
+
+    const displayTotal = prospectTotalCount || filteredItems.length;
+    const badge = document.getElementById('prospectAssignTotalBadge');
+    if (badge) badge.textContent = `ทั้งหมด ${displayTotal} รายการ`;
+
+    const totalRowsInfo = document.getElementById('totalRowsInfo');
+    if (totalRowsInfo) totalRowsInfo.textContent = displayTotal;
+
+    renderProspectPagination(displayTotal);
+}
+
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox');
+    const checkedBoxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
+    const countDisplay = document.getElementById('selectedProspectCount');
+    const selectAllCheckbox = document.getElementById('selectAllProspects');
+    const assignBtn = document.getElementById('assignBtn');
+
+    const checkedCount = checkedBoxes.length;
+    if (countDisplay) {
+        countDisplay.textContent = `Selected: ${checkedCount} รายการ`;
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = (checkboxes.length > 0 && checkedCount === checkboxes.length);
+    }
+
+    let hasAssigned = false;
+    checkedBoxes.forEach(cb => {
+        const row = cb.closest('tr');
+        if (row) {
+            const statusText = row.querySelector('.status-text');
+            if (statusText && statusText.textContent.trim().toLowerCase().includes('assign') && !statusText.textContent.trim().toLowerCase().includes('wait')) {
+                hasAssigned = true;
+            }
+        }
+    });
+
+    if (assignBtn) {
+        if (hasAssigned) {
+            assignBtn.textContent = 'ReAssign';
+        } else if (checkedCount > 1) {
+            assignBtn.textContent = 'Assign To Group';
+        } else {
+            assignBtn.textContent = 'Assign';
+        }
+    }
+}
+
+function renderProspectPagination(total) {
     const paginationEl = document.getElementById('prospectPagination');
+    if (!paginationEl) return;
+
+    paginationEl.innerHTML = '';
+    const totalPages = Math.ceil(total / prospectPageSize) || 1;
+    if (totalPages <= 0) return;
+
+    // Prev button
+    const prevLi = document.createElement('li');
+    prevLi.className = 'page-item' + (prospectPage <= 1 ? ' disabled' : '');
+    prevLi.innerHTML = '<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>';
+    prevLi.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (prospectPage > 1) {
+            prospectPage--;
+            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+        }
+    });
+    paginationEl.appendChild(prevLi);
+
+    // Page numbers
+    const pages = buildPageRange(prospectPage, totalPages);
+    pages.forEach(function (p) {
+        const li = document.createElement('li');
+        if (p === '...') {
+            li.className = 'page-item disabled';
+            li.innerHTML = '<span class="page-link bg-transparent text-gray">...</span>';
+        } else {
+            li.className = 'page-item' + (p === prospectPage ? ' active' : '');
+            li.innerHTML = '<a class="page-link" href="#">' + p + '</a>';
+            li.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (p !== prospectPage) {
+                    prospectPage = p;
+                    loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+                }
+            });
+        }
+        paginationEl.appendChild(li);
+    });
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = 'page-item' + (prospectPage >= totalPages ? ' disabled' : '');
+    nextLi.innerHTML = '<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>';
+    nextLi.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (prospectPage < totalPages) {
+            prospectPage++;
+            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+        }
+    });
+    paginationEl.appendChild(nextLi);
+}
+
+function buildPageRange(current, total) {
+    if (total <= 7) {
+        return Array.from({ length: total }, function (_, i) { return i + 1; });
+    }
+    var pages = [];
+    if (current <= 4) {
+        pages = [1, 2, 3, 4, 5, '...', total];
+    } else if (current >= total - 3) {
+        pages = [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    } else {
+        pages = [1, '...', current - 1, current, current + 1, '...', total];
+    }
+    return pages;
+}
+
+// Summary card filtering setup
+(function () {
     const summaryCards = document.querySelectorAll('.summary-card');
-
-    let currentPage = 1;
-    let activeStatusFilter = 'all';
-
-    // Summary card click filtering
     summaryCards.forEach(function (card) {
         card.addEventListener('click', function () {
             summaryCards.forEach(c => c.classList.remove('active'));
             this.classList.add('active');
 
             activeStatusFilter = this.getAttribute('data-status') || 'all';
-            currentPage = 1;
-            update();
+            filterAndRenderProspectTable();
         });
     });
 
-    function getFilteredRows() {
-        if (activeStatusFilter === 'all') {
-            return allRows;
-        }
-        return allRows.filter(function (row) {
-            const statusEl = row.querySelector('.status-text');
-            if (!statusEl) return true;
-            const text = statusEl.textContent.trim().toLowerCase();
-
-            if (activeStatusFilter === 'assign') {
-                return text.includes('assign') && !text.includes('ยังไม่') && !text.includes('reassign');
-            } else if (activeStatusFilter === 'reassign') {
-                return text.includes('reassign') || text.includes('re-assign');
-            } else if (activeStatusFilter === 'wait') {
-                return text.includes('wait') || text.includes('รอ') || text.includes('ยังไม่');
-            }
-            return true;
+    const rowsPerPageSelect = document.getElementById('rowsPerPageSelect');
+    if (rowsPerPageSelect) {
+        rowsPerPageSelect.addEventListener('change', function () {
+            prospectPageSize = parseInt(this.value, 10) || 10;
+            prospectPage = 1;
+            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
         });
     }
 
-    function getRowsPerPage() {
-        return parseInt(rowsPerPageSelect.value, 10);
-    }
-
-    function getTotalPages() {
-        const filtered = getFilteredRows();
-        return Math.max(1, Math.ceil(filtered.length / getRowsPerPage()));
-    }
-
-    function renderRows() {
-        const filtered = getFilteredRows();
-        const rpp = getRowsPerPage();
-        const start = (currentPage - 1) * rpp;
-        const end = start + rpp;
-
-        allRows.forEach(function (row) {
-            row.style.display = 'none';
+    const selectAllCheckbox = document.getElementById('selectAllProspects');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function () {
+            const isChecked = this.checked;
+            const checkboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox');
+            checkboxes.forEach(cb => cb.checked = isChecked);
+            updateSelectedCount();
         });
-
-        filtered.forEach(function (row, i) {
-            if (i >= start && i < end) {
-                row.style.display = '';
-            }
-        });
-
-        const totalRowsInfo = document.getElementById('totalRowsInfo');
-        if (totalRowsInfo) {
-            totalRowsInfo.textContent = filtered.length;
-        }
-        const badge = document.getElementById('prospectAssignTotalBadge');
-        if (badge) {
-            badge.textContent = 'ทั้งหมด ' + filtered.length + ' รายการ';
-        }
     }
-
-    function renderPagination() {
-        const total = getTotalPages();
-        paginationEl.innerHTML = '';
-
-        if (total <= 0) return;
-
-        // Prev button
-        const prevLi = document.createElement('li');
-        prevLi.className = 'page-item' + (currentPage === 1 ? ' disabled' : '');
-        prevLi.innerHTML = '<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>';
-        prevLi.addEventListener('click', function (e) {
-            e.preventDefault();
-            if (currentPage > 1) { currentPage--; update(); }
-        });
-        paginationEl.appendChild(prevLi);
-
-        // Page number buttons with ellipsis
-        const pages = buildPageRange(currentPage, total);
-        pages.forEach(function (p) {
-            const li = document.createElement('li');
-            if (p === '...') {
-                li.className = 'page-item disabled';
-                li.innerHTML = '<span class="page-link bg-transparent text-gray">...</span>';
-            } else {
-                li.className = 'page-item' + (p === currentPage ? ' active' : '');
-                li.innerHTML = '<a class="page-link" href="#">' + p + '</a>';
-                li.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    currentPage = p;
-                    update();
-                });
-            }
-            paginationEl.appendChild(li);
-        });
-
-        // Next button
-        const nextLi = document.createElement('li');
-        nextLi.className = 'page-item' + (currentPage === total ? ' disabled' : '');
-        nextLi.innerHTML = '<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>';
-        nextLi.addEventListener('click', function (e) {
-            e.preventDefault();
-            if (currentPage < total) { currentPage++; update(); }
-        });
-        paginationEl.appendChild(nextLi);
-    }
-
-    function buildPageRange(current, total) {
-        if (total <= 7) {
-            return Array.from({ length: total }, function (_, i) { return i + 1; });
-        }
-        var pages = [];
-        if (current <= 4) {
-            pages = [1, 2, 3, 4, 5, '...', total];
-        } else if (current >= total - 3) {
-            pages = [1, '...', total - 4, total - 3, total - 2, total - 1, total];
-        } else {
-            pages = [1, '...', current - 1, current, current + 1, '...', total];
-        }
-        return pages;
-    }
-
-    function update() {
-        renderRows();
-        renderPagination();
-    }
-
-    rowsPerPageSelect.addEventListener('change', function () {
-        currentPage = 1;
-        update();
-    });
-
-    update();
 })();
 
-// =============================================
 // BATCH LIST & CAMPAIGN DATA LOADING
-// =============================================
 (function () {
     let campaigns = [];
     let filteredCampaigns = [];
     let batchPage = 1;
-    const batchPerPage = pageSize;
+    const batchPerPage = 10;
     let totalBatchCount = 0;
     let selectedIndex = 0;
 
@@ -240,6 +512,9 @@ async function getCampainList(page, pageSize) {
             if (startInput) startInput.value = campaign.startDate;
             if (endInput) endInput.value = campaign.endDate;
             if (remarkInput) remarkInput.value = campaign.remark;
+
+            // Fetch prospects for selected campaign code
+            loadProspectAssignData(campaign.code, 1, prospectPageSize);
         }
     }
 
@@ -287,7 +562,6 @@ async function getCampainList(page, pageSize) {
 
         container.innerHTML = html;
 
-        // Add click events to rendered batch items
         container.querySelectorAll('.batch-item').forEach(el => {
             el.addEventListener('click', function () {
                 const idx = parseInt(this.getAttribute('data-batch-index'), 10);
@@ -295,7 +569,6 @@ async function getCampainList(page, pageSize) {
             });
         });
 
-        // Update page info
         const pageInfo = document.getElementById('batchPageInfo');
         if (pageInfo) pageInfo.textContent = `${from} - ${to} จาก ${total}`;
 
@@ -390,7 +663,6 @@ async function getCampainList(page, pageSize) {
         }
     }
 
-    // Search listener
     const searchInput = document.getElementById('batchSearchInput');
     if (searchInput) {
         searchInput.addEventListener('input', function () {
@@ -413,7 +685,6 @@ async function getCampainList(page, pageSize) {
         });
     }
 
-    // Pagination buttons
     document.getElementById('batchFirstBtn')?.addEventListener('click', function () {
         if (batchPage > 1) { loadBatch(1); }
     });
@@ -424,10 +695,10 @@ async function getCampainList(page, pageSize) {
         if (batchPage < getTotalBatchPages()) { loadBatch(batchPage + 1); }
     });
 
-    // Initialize Campaign List
     loadBatch(1);
 })();
 
+// AUTO ASSIGN METHOD TOGGLE
 (function () {
     const assignMethodBtns = document.querySelectorAll('.assign-method-btn');
     assignMethodBtns.forEach(btn => {
@@ -438,66 +709,7 @@ async function getCampainList(page, pageSize) {
     });
 })();
 
-(function () {
-    const selectAllCheckbox = document.querySelector('.table-custom thead .form-check-input');
-    const prospectCheckboxes = document.querySelectorAll('.table-custom tbody .form-check-input');
-    const countDisplay = document.getElementById('selectedProspectCount');
-
-    function updateCount() {
-        const checkedCheckboxes = document.querySelectorAll('.table-custom tbody .form-check-input:checked');
-        const checkedCount = checkedCheckboxes.length;
-        if (countDisplay) {
-            countDisplay.textContent = `Selected: ${checkedCount} รายการ`;
-        }
-        
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = (checkedCount === prospectCheckboxes.length && prospectCheckboxes.length > 0);
-        }
-
-        let hasAssigned = false;
-        checkedCheckboxes.forEach(cb => {
-            const row = cb.closest('tr');
-            if (row) {
-                const statusText = row.querySelector('.status-text');
-                if (statusText && statusText.textContent.trim() === 'Assign แล้ว') {
-                    hasAssigned = true;
-                }
-            }
-        });
-
-        const assignBtn = document.getElementById('assignBtn');
-        if (assignBtn) {
-            if (hasAssigned) {
-                assignBtn.textContent = 'ReAssign';
-            } else if (checkedCount > 1) {
-                assignBtn.textContent = 'Assign To Group';
-            } else {
-                assignBtn.textContent = 'Assign';
-            }
-        }
-    }
-
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const isChecked = this.checked;
-            prospectCheckboxes.forEach(cb => {
-                cb.checked = isChecked;
-            });
-            updateCount();
-        });
-    }
-
-    prospectCheckboxes.forEach(cb => {
-        cb.addEventListener('change', updateCount);
-    });
-
-    // Initialize
-    updateCount();
-})();
-
-// =============================================
 // RESPONSIBLE PERSON MULTI-SELECT
-// =============================================
 (function () {
     function initMultiSelect(containerId, selectBoxId, dropdownMenuId, optionClass) {
         const container = document.getElementById(containerId);
@@ -524,18 +736,20 @@ async function getCampainList(page, pageSize) {
             }
         });
 
-        searchInput.addEventListener('input', function() {
-            const val = this.value.toLowerCase();
-            options.forEach(opt => {
-                const text = opt.querySelector('span').textContent.toLowerCase();
-                if (text.includes(val)) {
-                    opt.classList.remove('d-none');
-                } else {
-                    opt.classList.add('d-none');
-                }
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const val = this.value.toLowerCase();
+                options.forEach(opt => {
+                    const text = opt.querySelector('span').textContent.toLowerCase();
+                    if (text.includes(val)) {
+                        opt.classList.remove('d-none');
+                    } else {
+                        opt.classList.add('d-none');
+                    }
+                });
+                dropdownMenu.style.display = 'block';
             });
-            dropdownMenu.style.display = 'block';
-        });
+        }
 
         options.forEach(opt => {
             opt.addEventListener('click', function(e) {
@@ -571,8 +785,10 @@ async function getCampainList(page, pageSize) {
             });
             
             selectBox.insertBefore(tag, selectBox.querySelector('.d-flex'));
-            searchInput.value = '';
-            searchInput.dispatchEvent(new Event('input'));
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+            }
         }
 
         function removeTag(val) {
@@ -583,16 +799,11 @@ async function getCampainList(page, pageSize) {
         }
     }
 
-    // Initialize for Main Assign Panel
     initMultiSelect('responsibleSelectContainer', 'responsibleSelectBox', 'responsibleDropdownMenu', 'responsible-option');
-    
-    // Initialize for Re-Assign Modal
     initMultiSelect('newResponsibleSelectContainer', 'newResponsibleSelectBox', 'newResponsibleDropdownMenu', 'new-responsible-option');
 })();
 
-// =============================================
 // ASSIGN / RE-ASSIGN BUTTON CLICK
-// =============================================
 (function () {
     const assignBtn = document.getElementById('assignBtn');
     if (assignBtn) {

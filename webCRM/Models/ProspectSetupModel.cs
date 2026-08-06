@@ -35,6 +35,7 @@ namespace webCRM.Models
         public string? product_code { get; set; }
         public string? status { get; set; }
         public string? updated_by { get; set; }
+        public string? product_remark { get; set; }
     }
 
 }

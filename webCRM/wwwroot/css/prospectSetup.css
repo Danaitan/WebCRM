@@ -393,6 +393,15 @@
         color: #fff;
     }
 
+    .selected-pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
     /* Checkbox */
     .form-check-input {
         border-color: #cbd5e1;

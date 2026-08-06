@@ -4,6 +4,9 @@ let currentBatchPageSize = 5;
 let currentProspectPage = 1;
 let currentProspectPageSize = 10;
 
+let currentSelectedPage = 1;
+let currentSelectedPageSize = 10;
+
 let currentFilterRequestId = 0;
 let selectedCampaign = null;
 let currentProductBatches = [];
@@ -597,14 +600,13 @@ function getSelectedList() {
     if (Array.isArray(currentBatchCustomers)) {
         currentBatchCustomers.forEach(c => {
             if (!c) return;
-            const idKey = c.id || c.Id || (c.raw ? (c.raw.id || c.raw.Id || c.raw.ID || c.raw.cus_id || c.raw.cust_id) : null);
+            const idKey = c.id;
             const trimmedId = idKey ? String(idKey).trim() : null;
 
             if (trimmedId) seenIds.add(trimmedId);
-
-            const name = c.name || c.nameCus || c.name_cus || c.cus_name || (c.raw ? (c.raw.nameCus || c.raw.name || c.raw.name_cus || c.raw.cus_name) : '-') || '-';
-            const phone = c.phone || c.mobile || c.phone1 || c.mobile_no || c.contno || (c.raw ? (c.raw.mobile || c.raw.phone || c.raw.contno) : '-') || '-';
-            const branch = c.branch || c.branch_Name || c.branch_name || c.branchName || (c.raw ? (c.raw.branch_Name || c.raw.branch) : '-') || '-';
+            const name = c.name || '-';
+            const phone = c.phone || '-';
+            const branch = c.branch || '-';
             const isDisabled = c.isDisabled !== undefined ? c.isDisabled : true;
 
             combinedList.push({
@@ -662,24 +664,37 @@ function updateSelectedList() {
     selectedTableBody.innerHTML = '';
 
     const combinedList = getSelectedList();
+    const selectedCount = combinedList.length;
 
-    let selectedCount = 0;
-    combinedList.forEach((item) => {
-        selectedCount++;
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td>${item.name}</td>
-            <td class="text-muted">${item.phone}</td>
-            <td class="text-muted">${item.branch}</td>
-            <td class="text-center">${item.isDisabled ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${item.checkboxIndex !== undefined ? item.checkboxIndex : ''}" data-idno="${item.idno}" data-id="${item.id}"></i>`}</td>
-        `;
-        selectedTableBody.appendChild(newRow);
-    });
+    const totalPages = Math.max(1, Math.ceil(selectedCount / (currentSelectedPageSize || 1)));
+    if (currentSelectedPage > totalPages) {
+        currentSelectedPage = totalPages;
+    }
+
+    const startIndex = (currentSelectedPage - 1) * currentSelectedPageSize;
+    const pageItems = combinedList.slice(startIndex, startIndex + currentSelectedPageSize);
+
+    if (pageItems.length === 0) {
+        selectedTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3" style="font-size: 0.85rem;">ไม่มีรายการที่เลือก</td></tr>`;
+    } else {
+        pageItems.forEach((item) => {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>${item.name}</td>
+                <td class="text-muted">${item.phone}</td>
+                <td class="text-muted">${item.branch}</td>
+                <td class="text-center">${item.isDisabled ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${item.checkboxIndex !== undefined ? item.checkboxIndex : ''}" data-idno="${item.idno}" data-id="${item.id}"></i>`}</td>
+            `;
+            selectedTableBody.appendChild(newRow);
+        });
+    }
 
     if (selectedCountText) selectedCountText.textContent = `รายการที่เลือก (${selectedCount} รายการ)`;
     if (selectedTotalText) selectedTotalText.textContent = `รวมทั้งหมด ${selectedCount} รายการ`;
 
-    document.querySelectorAll('.remove-item').forEach(btn => {
+    renderSelectedPaginationControls(currentSelectedPage, currentSelectedPageSize, selectedCount);
+
+    document.querySelectorAll('#selectedTableBody .remove-item').forEach(btn => {
         btn.addEventListener('click', function () {
             const targetIndex = this.getAttribute('data-index');
             const targetIdno = this.getAttribute('data-idno');
@@ -720,6 +735,61 @@ function updateSelectedList() {
 
     const badgeBlue = document.querySelector('.badge-blue');
     if (badgeBlue) badgeBlue.textContent = selectedCount;
+}
+
+function renderSelectedPaginationControls(currentPage, pageSize, totalCount) {
+    const paginationEl = document.getElementById('selectedTablePagination');
+    if (!paginationEl) return;
+    paginationEl.innerHTML = '';
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / (pageSize || 1)));
+
+    // Previous Button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentPage <= 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>`;
+    prevLi.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage > 1) {
+            currentSelectedPage = currentPage - 1;
+            updateSelectedList();
+        }
+    });
+    paginationEl.appendChild(prevLi);
+
+    // Page Numbers
+    const pages = buildPageRange(currentPage, totalPages);
+    pages.forEach(p => {
+        const li = document.createElement('li');
+        if (p === '...') {
+            li.className = 'page-item disabled';
+            li.innerHTML = `<span class="page-link bg-transparent text-muted">...</span>`;
+        } else {
+            li.className = `page-item ${p === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
+            li.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (p !== currentPage) {
+                    currentSelectedPage = p;
+                    updateSelectedList();
+                }
+            });
+        }
+        paginationEl.appendChild(li);
+    });
+
+    // Next Button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>`;
+    nextLi.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (currentPage < totalPages) {
+            currentSelectedPage = currentPage + 1;
+            updateSelectedList();
+        }
+    });
+    paginationEl.appendChild(nextLi);
 }
 
 function updateCheckAllStatus() {
@@ -829,6 +899,19 @@ document.addEventListener('DOMContentLoaded', async function () {
             loadProspectList(1, currentProspectPageSize);
         });
     }
+
+    // --- 5.1 Selected Table Pagination event listeners ---
+    const selectedRowsPerPageSelect = document.getElementById('selectedRowsPerPage');
+    if (selectedRowsPerPageSelect) {
+        selectedRowsPerPageSelect.value = currentSelectedPageSize.toString();
+        selectedRowsPerPageSelect.addEventListener('change', function() {
+            currentSelectedPageSize = parseInt(this.value, 10) || 10;
+            currentSelectedPage = 1;
+            updateSelectedList();
+        });
+    }
+
+
 
     if (btnClearSelection) {
         btnClearSelection.addEventListener('click', function () {
@@ -951,16 +1034,12 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังส่งอนุมัติ...", "");
                 try {
 
-                    const selectedProspects = Array.from(document.querySelectorAll('.row-checkbox:checked'))
-                        .map(cb => ({ idno: cb.getAttribute('data-idno') }))
-                        .filter(p => p.idno);
-
                     var request = {
                         product_code: selectedCampaign.code || "",
                         status: "waiting approve",
                     };
                     const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {
-                        method: 'POST',
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                         },
@@ -1020,10 +1099,9 @@ async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10
 
 async function refreshSelectedCampaignCustomers() {
     if (selectedCampaign && selectedCampaign.code) {
+        currentSelectedPage = 1;
         const batchRes = await getProductBatchByProductCode(selectedCampaign.code, 1, currentProspectPageSize || 10);
-        console.log("batchRes", batchRes);
         currentBatchCustomers = extractCustomers(batchRes);
-        console.log("Extracted batch customers:", currentBatchCustomers);
         updateSelectedList();
 
         let rawBatches = batchRes;

@@ -76,7 +76,7 @@
                         <div class="summary-icon blue"><i class="bi bi-people"></i></div>
                         <div class="summary-info">
                             <span class="summary-title">Prospect ทั้งหมด</span>
-                            <span class="summary-value">1,256</span>
+                            <span class="summary-value">0</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
                     </div>
@@ -86,7 +86,7 @@
                         <div class="summary-icon green"><i class="bi bi-person-check"></i></div>
                         <div class="summary-info">
                             <span class="summary-title">Assign</span>
-                            <span class="summary-value">842</span>
+                            <span class="summary-value">0</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
                     </div>
@@ -96,7 +96,7 @@
                         <div class="summary-icon orange"><i class="bi bi-arrow-repeat"></i></div>
                         <div class="summary-info">
                             <span class="summary-title">ReAssign</span>
-                            <span class="summary-value">312</span>
+                            <span class="summary-value">0</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
                     </div>
@@ -106,7 +106,7 @@
                         <div class="summary-icon purple"><i class="bi bi-clock-history"></i></div>
                         <div class="summary-info">
                             <span class="summary-title">Wait</span>
-                            <span class="summary-value">102</span>
+                            <span class="summary-value">0</span>
                             <span class="summary-unit">รายการ</span>
                         </div>
                     </div>
@@ -212,7 +212,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 40px; text-align: center;">
-                                    <input type="checkbox" class="form-check-input mt-0 border-primary">
+                                    <input type="checkbox" class="form-check-input mt-0 border-primary" id="selectAllProspects">
                                 </th>
                                 <th>สาขา</th>
                                 <th>ชื่อ-นามสกุล / เลขบัตรประชาชน</th>
@@ -224,157 +224,11 @@
                                 <th>สถานะ</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <!-- Row 1 -->
+                        <tbody id="prospectAssignTableBody">
                             <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">บจก. กรุงเทพเทรดดิ้ง</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
+                                <td colspan="9" class="text-center py-4 text-muted">
+                                    <i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...
                                 </td>
-                                <td>
-                                    <div class="fw-medium">จิตรกร เอ็นจิเนียริ่ง</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">0105543040732</div>
-                                </td>
-                                <td>CN-2568-000123</td>
-                                <td>นิติบุคคล</td>
-                                <td>เจ้าของกิจการ</td>
-                                <td>กรุงเทพฯ</td>
-                                <td>-</td>
-                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
-                            </tr>
-                            <!-- Row 2 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">หจก. สยามโลจิสติกส์</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">06 ชลบุรี</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">เอกชัย พงษ์พัฒน์</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">3101201234567</div>
-                                </td>
-                                <td>CN-2568-000124</td>
-                                <td>นิติบุคคล</td>
-                                <td>ผู้จัดการ</td>
-                                <td>ชลบุรี</td>
-                                <td>-</td>
-                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
-                                
-                            </tr>
-                            <!-- Row 3 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">บจก. ทีเอส แมนูแฟคเจอริ่ง</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">12 สุราษฎร์ธานี</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">กมลวรรณ ศรีสวัสดิ์</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">3840609876543</div>
-                                </td>
-                                <td>CN-2568-000125</td>
-                                <td>นิติบุคคล</td>
-                                <td>กรรมการผู้จัดการ</td>
-                                <td>สุราษฎร์ฯ</td>
-                                <td>-</td>
-                                <td><span class="status-dot orange"></span><span class="status-text orange">ReAssign</span></td>
-                                
-                            </tr>
-                            <!-- Row 4 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">บจก. เอ็น.ที. เซอร์วิส</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">สมชาย ใจดี</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">1101600123456</div>
-                                </td>
-                                <td>CN-2568-000126</td>
-                                <td>นิติบุคคล</td>
-                                <td>เจ้าของกิจการ</td>
-                                <td>กรุงเทพฯ</td>
-                                <td>จิราพร แสงสว่าง</td>
-                                <td><span class="status-dot green"></span><span class="status-text green">Assign</span></td>
-                                
-                            </tr>
-                            <!-- Row 5 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">หจก. กิจเจริญทรัพย์</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">06 ชลบุรี</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">วินัย แซ่ตั้ง</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">3200500987654</div>
-                                </td>
-                                <td>CN-2568-000127</td>
-                                <td>บุคคลธรรมดา</td>
-                                <td>รับเหมา</td>
-                                <td>ชลบุรี</td>
-                                <td>-</td>
-                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
-                                
-                            </tr>
-                            <!-- Row 6 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">บจก. ไทยซัพพลาย กรุ๊ป</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">ปวีณา รัตนกุล</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">1119901234567</div>
-                                </td>
-                                <td>CN-2568-000128</td>
-                                <td>นิติบุคคล</td>
-                                <td>ผู้จัดการ</td>
-                                <td>กรุงเทพฯ</td>
-                                <td>อรรถพล ใจดี</td>
-                                <td><span class="status-dot green"></span><span class="status-text green">Assign</span></td>
-                                
-                            </tr>
-                            <!-- Row 7 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">หจก. ภูเก็ตทรานสปอร์ต</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">12 สุราษฎร์ธานี</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">ธีรยุทธ นาคธรณ์</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">3849901122334</div>
-                                </td>
-                                <td>CN-2568-000129</td>
-                                <td>นิติบุคคล</td>
-                                <td>เจ้าของกิจการ</td>
-                                <td>สุราษฎร์ฯ</td>
-                                <td>-</td>
-                                <td><span class="status-dot purple"></span><span class="status-text purple">Wait</span></td>
-                                
-                            </tr>
-                            <!-- Row 8 -->
-                            <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input"></td>
-                                <td>
-                                    <div class="fw-medium">บจก. สตาร์ มาร์เก็ตติ้ง</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">00 สำนักงานใหญ่</div>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">ดารินทร์ มณีวงศ์</div>
-                                    <div class="text-gray" style="font-size: 0.75rem;">1100200456789</div>
-                                </td>
-                                <td>CN-2568-000130</td>
-                                <td>นิติบุคคล</td>
-                                <td>การตลาด</td>
-                                <td>กรุงเทพฯ</td>
-                                <td>ศิริวัฒน์ จันทร์ดี</td>
-                                <td><span class="status-dot green"></span><span class="status-text green">Assign</span></td>
-                                
                             </tr>
                         </tbody>
                     </table>

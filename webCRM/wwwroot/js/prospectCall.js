@@ -1,11 +1,207 @@
 // prospectCall.js - Sales & Follow-up Page Script
 
-let selectedCampaignCode = "APP-0001";
-let selectedCampaignName = "โปรโมชัน ดอกเบี้ยพิเศษ 2.99%";
+let selectedCampaignCode = "";
+let selectedCampaignName = "";
 let selectedCampaignObjective = "CS";
 let selectedCustomerRow = null;
 
-// Helper: Objective Badge Mapping (CS=เขียว, MC/CL=เหลือง, RM=ฟ้า, FL=ส้ม)
+let campaignsData = [];
+let rawProspectItems = [];
+let prospectPage = 1;
+let prospectPageSize = 10;
+let prospectTotalCount = 0;
+
+// Fetch campaign list from API with page and pageSize
+async function getCampainList(page, pageSize) {
+    startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+    try {
+        const status = "waiting approve,approved";
+        const queryStr = (page !== undefined && pageSize !== undefined) 
+            ? `?page=${page}&pageSize=${pageSize}&status=${status}`
+            : '';
+        const response = await fetch(`/Campain/GetCampainList${queryStr}`);
+        if (!response.ok) throw new Error("Failed to fetch campaigns list");
+        const jsonResult = await response.json();
+        const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
+        const mapped = items.map(item => ({
+            code:      item.product_code   || '',
+            name:      item.product_name   || '',
+            status:    item.product_status || 'ปกติ',
+            startDate: item.product_start  ? item.product_start.substring(0, 10) : '',
+            endDate:   item.product_end    ? item.product_end.substring(0, 10)   : '',
+            remark:    item.product_remark || '',
+            createdBy: item.createrd_by    || item.created_by || '',
+            created:   item.created        ? item.created.substring(0, 10)       : ''
+        }));
+        return {
+            page: jsonResult.page ?? (page ? parseInt(page) : 1),
+            pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
+            count: jsonResult.count ?? mapped.length,
+            data: mapped
+        };
+    } catch (error) {
+        console.error(error);
+        return { page: page, pageSize: pageSize, count: 0, data: [] };
+    } finally {
+        stopLoading();
+    }
+}
+
+async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+    try{
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        if (!response.ok) {
+            console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
+            return [];
+        }
+        const data = await response.json();
+        return data || [];
+    }catch(err){
+        console.error("Error in getProductBatchByProductCode:", err);
+        return [];
+    }
+}
+
+// Extract prospect items from API result
+function extractProspectCustomers(data) {
+    if (!data) return { items: [], totalCount: 0 };
+    let raw = data;
+    if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch (e) { return { items: [], totalCount: 0 }; }
+    }
+
+    let items = [];
+    let totalCount = 0;
+
+    if (raw && typeof raw === 'object') {
+        totalCount = raw.Customer?.total ?? raw.total ?? 0;
+    }
+
+    const checkAndPush = (item) => {
+        if (!item) return;
+        if (Array.isArray(item.Customer?.data)) {
+            item.Customer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customer?.data)) {
+            item.customer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.ObjectCustomer?.data)) {
+            item.ObjectCustomer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.objectCustomer?.data)) {
+            item.objectCustomer.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (item.Customer && typeof item.Customer === 'object' && !Array.isArray(item.Customer)) {
+            checkAndPush(item.Customer);
+            return;
+        }
+        if (item.customer && typeof item.customer === 'object' && !Array.isArray(item.customer)) {
+            checkAndPush(item.customer);
+            return;
+        }
+        if (item.ObjectCustomer && typeof item.ObjectCustomer === 'object' && !Array.isArray(item.ObjectCustomer)) {
+            checkAndPush(item.ObjectCustomer);
+            return;
+        }
+        if (item.objectCustomer && typeof item.objectCustomer === 'object' && !Array.isArray(item.objectCustomer)) {
+            checkAndPush(item.objectCustomer);
+            return;
+        }
+        if (Array.isArray(item.Customer)) {
+            item.Customer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customer)) {
+            item.customer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.customers)) {
+            item.customers.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.prospects)) {
+            item.prospects.forEach(c => checkAndPush(c));
+            return;
+        }
+
+        if (typeof item === 'object') {
+            const idno = item.idno || item.idCard || '';
+            const id = item.id || '';
+            const name = item.nameCus || item.name || '-';
+            const contract = item.contno || item.contract || '-';
+            const branch = item.branch_Name || item.branch || '-';
+            const carLocation = item.provinceUsecar || item.carLocation || '-';
+            const createdDate = item.created ? String(item.created).substring(0, 10) : (item.createdDate || item.date || '-');
+            const createdBy = item.created_by || item.createdBy || '-';
+            const phone = item.phone || item.tel || item.mobile || '-';
+            const status = item.status || 'พร้อมติดต่อ';
+            const statusLead = item.statusLead || item.leadStatus || 'Follow';
+            const remarks = item.remarks || item.remark || '';
+            const address = item.address || '-';
+            const pdpa = item.pdpa || 'ยินยอมแล้ว';
+            const plan = item.plan || '-';
+            const count = item.count || '1';
+            const objective = item.objective || 'CS';
+            const nextAppt = item.nextAppt || '-';
+
+            if (id || idno || name !== '-') {
+                items.push({
+                    id: String(id || '').trim(),
+                    idno: String(idno || '').trim(),
+                    branch: String(branch).trim(),
+                    name: String(name).trim(),
+                    contract: String(contract).trim(),
+                    phone: String(phone).trim(),
+                    carLocation: String(carLocation).trim(),
+                    status: String(status).trim(),
+                    date: String(createdDate).trim(),
+                    statusLead: String(statusLead).trim(),
+                    remarks: String(remarks).trim(),
+                    address: String(address).trim(),
+                    pdpa: String(pdpa).trim(),
+                    plan: String(plan).trim(),
+                    count: String(count).trim(),
+                    objective: String(objective).trim(),
+                    nextAppt: String(nextAppt).trim(),
+                    historyList: item.historyList || [],
+                    raw: item
+                });
+            }
+        }
+    };
+
+    if (Array.isArray(raw)) {
+        raw.forEach(i => checkAndPush(i));
+    } else if (typeof raw === 'object') {
+        if (Array.isArray(raw.data)) {
+            raw.data.forEach(i => checkAndPush(i));
+        } else if (raw.data && typeof raw.data === 'object') {
+            checkAndPush(raw.data);
+        } else {
+            checkAndPush(raw);
+        }
+    }
+
+    if (totalCount === 0) totalCount = items.length;
+
+    return { items, totalCount };
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Helper: Objective Badge Mapping (CS=เขียว, MC=เหลือง, RM=ฟ้า, FL=ส้ม)
 function getObjectiveBadge(obj) {
     const map = {
         'CS': { text: 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' },
@@ -15,42 +211,6 @@ function getObjectiveBadge(obj) {
     };
     return map[obj] || { text: obj || 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' };
 }
-
-// Campaign Data Array
-let campaignData = [
-    {
-        code: "APP-0001",
-        name: "โปรโมชัน ดอกเบี้ยพิเศษ 2.99%",
-        status: "Active",
-        startDate: "01/05/2024",
-        endDate: "31/07/2024",
-        objective: "CS"
-    },
-    {
-        code: "APP-0002",
-        name: "แคมเปญ ฟรีวันรับเงินคืน 1",
-        status: "Active",
-        startDate: "15/05/2024",
-        endDate: "30/06/2024",
-        objective: "MC"
-    },
-    {
-        code: "APP-0003",
-        name: "โปรโมชัน รีไฟแนนซ์ ดอกเบี้ยพิเศษ",
-        status: "Active",
-        startDate: "01/06/2024",
-        endDate: "31/08/2024",
-        objective: "RM"
-    },
-    {
-        code: "APP-0004",
-        name: "โปรโมชัน ผ่อนสบาย 0% 6 เดือน",
-        status: "Expire",
-        startDate: "10/01/2024",
-        endDate: "10/04/2024",
-        objective: "FL"
-    }
-];
 
 // Render Campaign List dynamically
 function renderCampaignList(items) {
@@ -68,27 +228,27 @@ function renderCampaignList(items) {
     items.forEach(item => {
         const activeClass = (item.code === selectedCampaignCode) ? 'active' : '';
         
-        // Campaign status badge: Active (เขียว) / Expire (แดง)
-        const statusBadgeClass = (item.status === 'Active')
+        // Campaign status badge: Active / Approved (เขียว) / Waiting Approve (เหลือง)
+        const statusBadgeClass = (item.status === 'approved' || item.status === 'Active' || item.status === 'ปกติ')
             ? 'bg-success-subtle text-success border-success-subtle'
-            : 'bg-danger-subtle text-danger border-danger-subtle';
+            : 'bg-warning-subtle text-warning border-warning-subtle';
 
         // Objective badge styling (CS เขียว, MC/CL เหลือง, RM ฟ้า, FL ส้ม)
-        const objBadge = getObjectiveBadge(item.objective);
+        const objBadge = getObjectiveBadge(item.remark || 'CS');
 
         const card = $(`
-            <div class="pa-card ${activeClass} p-3 rounded-3 mb-2 border shadow-sm-hover cursor-pointer overflow-hidden" data-code="${item.code}">
+            <div class="pa-card ${activeClass} p-3 rounded-3 mb-2 border shadow-sm-hover cursor-pointer overflow-hidden" data-code="${escapeHtml(item.code)}">
                 <div class="d-flex align-items-center gap-2.5 w-100 overflow-hidden">
                     <div class="pa-card-icon ${objBadge.iconBg} flex-shrink-0 fw-bold">${objBadge.text}</div>
                     <div class="pa-card-content flex-grow-1 overflow-hidden min-w-0 ms-2">
                         <div class="d-flex justify-content-between align-items-center mb-1 gap-1 overflow-hidden">
-                            <div class="pa-card-name fw-bold text-dark fs-6 text-truncate me-1" title="${item.name}">${item.name}</div>
-                            <span class="badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${item.status}</span>
+                            <div class="pa-card-name fw-bold text-dark fs-6 text-truncate me-1" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+                            <span class="badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${escapeHtml(item.status)}</span>
                         </div>
                         <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
-                            <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${item.code}</span>
+                            <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${escapeHtml(item.code)}</span>
                         </div>
-                        <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${item.startDate} • สิ้นสุด: ${item.endDate}">เริ่ม: ${item.startDate} &bull; สิ้นสุด: ${item.endDate}</div>
+                        <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${escapeHtml(item.startDate)} • สิ้นสุด: ${escapeHtml(item.endDate)}">เริ่ม: ${escapeHtml(item.startDate)} &bull; สิ้นสุด: ${escapeHtml(item.endDate)}</div>
                     </div>
                 </div>
             </div>
@@ -97,10 +257,46 @@ function renderCampaignList(items) {
     });
 }
 
+// Select Campaign Card
+function selectCampaignCard(code) {
+    const campaign = campaignsData.find(c => c.code === code);
+    if (!campaign) return;
+
+    selectedCampaignCode = campaign.code;
+    selectedCampaignName = campaign.name;
+    selectedCampaignObjective = campaign.remark || 'CS';
+
+    $('.pa-card').removeClass('active');
+    $(`.pa-card[data-code="${code}"]`).addClass('active');
+
+    const objBadge = getObjectiveBadge(selectedCampaignObjective);
+
+    $('#detailId').val(campaign.code);
+    $('#detailName').val(campaign.name);
+    $('#detailStart').val(campaign.startDate);
+    $('#detailEnd').val(campaign.endDate);
+    $('#detailObjective').val(campaign.remark || objBadge.text);
+
+    loadProspectCallData(campaign.code, 1, prospectPageSize);
+}
+
+// Load Campaign List from API
+async function loadCampaignData() {
+    const res = await getCampainList();
+    campaignsData = res.data || [];
+    renderCampaignList(campaignsData);
+
+    if (campaignsData.length > 0) {
+        selectCampaignCard(campaignsData[0].code);
+    } else {
+        renderProspectTable([]);
+    }
+}
+
 // Filter Campaign List
 function filterCampaignList() {
     const query = ($('#campaignSearch').val() || '').trim().toLowerCase();
-    const filtered = campaignData.filter(item => {
+    const filtered = campaignsData.filter(item => {
         const code = (item.code || '').toLowerCase();
         const name = (item.name || '').toLowerCase();
         return !query || code.includes(query) || name.includes(query);
@@ -108,303 +304,30 @@ function filterCampaignList() {
     renderCampaignList(filtered);
 }
 
-// Prospect / Customer Data Array with dynamic history & info
-let prospectData = [
-    {
-        id: 1,
-        branch: "ไมโครลิสซิ่ง สาขาเชียงใหม่",
-        name: "คุณณัฐวรรณ ใจดี",
-        contract: "CT-6705-000123",
-        phone: "081-234-5678",
-        carLocation: "เชียงใหม่",
-        status: "ขอข้อมูลเพิ่มเติม",
-        date: "15/05/2024 10:15",
-        statusLead: "Follow",
-        idcard: "1-5099-00123-45-6",
-        address: "99/123 หมู่ 4 ต.สุเทพ อ.เมือง จ.เชียงใหม่ 50200",
-        pdpa: "ยินยอมแล้ว",
-        plan: "6,000 / 12 เดือน",
-        count: "1",
-        remarks: "สนใจรีไฟแนนซ์ ขอส่งเอกสารเพิ่ม",
-        objective: "CS",
-        nextAppt: "20/05/2024 14:00",
-        historyList: [
-            {
-                date: "15/05/2024 10:22",
-                statusLead: "Follow",
-                result: "ขอข้อมูลเพิ่มเติม",
-                report: "ลูกค้าสนใจสินเชื่อจำนำทะเบียน ขอใบเสนอราคาและตารางค่างวดเพิ่มเติมเพื่อนำไปเปรียบเทียบ",
-                product: "สินเชื่อจำนำทะเบียน",
-                interestLevel: "High",
-                salesResult: "ขอคิดดูก่อน",
-                nextDate: "2024-05-20",
-                nextTime: "14:00",
-                channel: "โทรศัพท์",
-                remarks: "ต้องการวงเงิน 150,000 บาท ผ่อน 24 เดือน",
-                icon: "bi-telephone"
-            },
-            {
-                date: "10/05/2024 09:45",
-                statusLead: "Success",
-                result: "สนใจ",
-                report: "ติดต่อสอบถามรอบแรก ลูกค้าสนใจโปรโมชันดอกเบี้ยพิเศษ 2.99%",
-                product: "สินเชื่อรีไฟแนนซ์",
-                interestLevel: "High",
-                salesResult: "เสนอขายสำเร็จ",
-                nextDate: "2024-05-15",
-                nextTime: "10:00",
-                channel: "โทรศัพท์",
-                remarks: "นัดเตรียมเอกสารเพื่อยื่นขออนุมัติ",
-                icon: "bi-telephone"
-            }
-        ]
-    },
-    {
-        id: 2,
-        branch: "ไมโครลิสซิ่ง สาขาขอนแก่น",
-        name: "คุณกิตติพงษ์ วงศ์สวัสดิ์",
-        contract: "CT-6705-000124",
-        phone: "089-876-5432",
-        carLocation: "ขอนแก่น",
-        status: "สนใจ",
-        date: "15/05/2024 10:22",
-        statusLead: "Success",
-        idcard: "3-4001-00456-78-9",
-        address: "12/3 ถนนมิตรภาพ ต.ในเมือง อ.เมือง จ.ขอนแก่น 40000",
-        pdpa: "ยินยอมแล้ว",
-        plan: "8,500 / 24 เดือน",
-        count: "1",
-        remarks: "ตกลงทำสัญญาแล้ว นัดวันเซ็นสัญญา",
-        objective: "CL",
-        nextAppt: "18/05/2024 11:00",
-        historyList: [
-            {
-                date: "15/05/2024 10:22",
-                statusLead: "Success",
-                result: "สนใจ",
-                report: "เสนอขายสำเร็จ ตกลงทำสัญญาพร้อมยื่นอนุมัติวงเงินสินเชื่อ",
-                product: "สินเชื่อรีไฟแนนซ์",
-                interestLevel: "High",
-                salesResult: "เสนอขายสำเร็จ",
-                nextDate: "2024-05-18",
-                nextTime: "11:00",
-                channel: "สาขา",
-                remarks: "นัดเข้ามาเซ็นสัญญาที่สาขาขอนแก่น",
-                icon: "bi-telephone"
-            }
-        ]
-    },
-    {
-        id: 3,
-        branch: "ไมโครลิสซิ่ง สาขาอุดรธานี",
-        name: "คุณสุนิสา โพธิ์ทอง",
-        contract: "CT-6705-000125",
-        phone: "082-345-6789",
-        carLocation: "อุดรธานี",
-        status: "ไม่สนใจ",
-        date: "15/05/2024 10:35",
-        statusLead: "Cancel",
-        idcard: "1-4199-00789-12-3",
-        address: "88 หมู่ 2 ต.หมากแข้ง อ.เมือง จ.อุดรธานี 41000",
-        pdpa: "ยินยอมแล้ว",
-        plan: "5,500 / 18 เดือน",
-        count: "1",
-        remarks: "ไม่สะดวกรับข้อเสนอในขณะนี้",
-        objective: "RM",
-        nextAppt: "-",
-        historyList: [
-            {
-                date: "15/05/2024 10:35",
-                statusLead: "Cancel",
-                result: "ไม่สนใจ",
-                report: "ปฏิเสธ ไม่สนใจสินเชื่อและโปรโมชันในขณะนี้",
-                product: "สินเชื่อจำนำทะเบียน",
-                interestLevel: "Low",
-                salesResult: "ปฏิเสธ",
-                nextDate: "",
-                nextTime: "",
-                channel: "โทรศัพท์",
-                remarks: "แจ้งยกเลิกการติดตาม",
-                icon: "bi-telephone"
-            }
-        ]
-    },
-    {
-        id: 4,
-        branch: "ไมโครลิสซิ่ง สาขาสงขลา",
-        name: "คุณอำพล เพชรเกษม",
-        contract: "CT-6705-000126",
-        phone: "086-543-2109",
-        carLocation: "สงขลา",
-        status: "ไม่ผ่านเงื่อนไข",
-        date: "15/05/2024 10:40",
-        statusLead: "Reject",
-        idcard: "9-9002-00111-22-3",
-        address: "45/1 ถนนกาญจนวนิช ต.หาดใหญ่ อ.หาดใหญ่ จ.สงขลา 90110",
-        pdpa: "ยินยอมแล้ว",
-        plan: "7,200 / 12 เดือน",
-        count: "1",
-        remarks: "ติดเงื่อนไขแบล็กลิสต์",
-        objective: "FL",
-        nextAppt: "-",
-        historyList: [
-            {
-                date: "15/05/2024 10:40",
-                statusLead: "Reject",
-                result: "ไม่ผ่านเงื่อนไข",
-                report: "ตรวจสอบประวัติสินเชื่อ ไม่ผ่านเงื่อนไขการอนุมัติ (Reject)",
-                product: "สินเชื่อจำนำทะเบียน",
-                interestLevel: "Low",
-                salesResult: "ไม่อนุมัติ",
-                nextDate: "",
-                nextTime: "",
-                channel: "ระบบ",
-                remarks: "ติดเงื่อนไขแบล็กลิสต์",
-                icon: "bi-x-circle"
-            }
-        ]
-    },
-    {
-        id: 5,
-        branch: "ไมโครลิสซิ่ง สาขาภูเก็ต",
-        name: "คุณปวีณ์ลดา ศรีสุข",
-        contract: "CT-6705-000127",
-        phone: "084-112-2334",
-        carLocation: "ภูเก็ต",
-        status: "สนใจ",
-        date: "15/05/2024 10:55",
-        statusLead: "Success",
-        idcard: "8-8300-00999-88-7",
-        address: "100/5 ถนนเทพกระษัตรี ต.รัษฎา อ.เมือง จ.ภูเก็ต 83000",
-        pdpa: "ยินยอมแล้ว",
-        plan: "10,000 / 36 เดือน",
-        count: "1",
-        remarks: "สนใจวงเงินสูง นัดเข้าพบ",
-        objective: "CS",
-        nextAppt: "25/05/2024 13:30",
-        historyList: [
-            {
-                date: "15/05/2024 10:55",
-                statusLead: "Success",
-                result: "สนใจ",
-                report: "ลูกค้าสนใจสินเชื่อจำนำทะเบียน วงเงินสูง นัดหมายเข้าพบเสนอรายละเอียด",
-                product: "สินเชื่อจำนำทะเบียน",
-                interestLevel: "High",
-                salesResult: "เสนอขายสำเร็จ",
-                nextDate: "2024-05-25",
-                nextTime: "13:30",
-                channel: "เข้าพบ",
-                remarks: "นัดพบสถานที่ทำงานของลูกค้า",
-                icon: "bi-telephone"
-            }
-        ]
-    },
-    {
-        id: 6,
-        branch: "ไมโครลิสซิ่ง สาขาเชียงใหม่",
-        name: "คุณภาคภูมิ แสงทอง",
-        contract: "CT-6705-000128",
-        phone: "085-998-8776",
-        carLocation: "เชียงใหม่",
-        status: "ติดต่อไม่ได้",
-        date: "16/05/2024 09:10",
-        statusLead: "Follow",
-        idcard: "1-5099-00444-55-6",
-        address: "14 ถนนช้างคลาน ต.ช้างคลาน อ.เมือง จ.เชียงใหม่ 50100",
-        pdpa: "ยินยอมแล้ว",
-        plan: "6,500 / 12 เดือน",
-        count: "1",
-        remarks: "ไม่รับสาย โทรแล้ว 2 ครั้ง",
-        objective: "CL",
-        nextAppt: "19/05/2024 10:00",
-        historyList: [
-            {
-                date: "16/05/2024 09:10",
-                statusLead: "Follow",
-                result: "ติดต่อไม่ได้",
-                report: "สายไม่ว่าง / ไม่รับสาย โทรติดต่อ 2 ครั้ง",
-                product: "",
-                interestLevel: "",
-                salesResult: "",
-                nextDate: "2024-05-19",
-                nextTime: "10:00",
-                channel: "โทรศัพท์",
-                remarks: "ติดต่อนัดหมายติดตามใหม่",
-                icon: "bi-telephone"
-            }
-        ]
-    },
-    {
-        id: 7,
-        branch: "ไมโครลิสซิ่ง สาขาขอนแก่น",
-        name: "คุณศิริพร มิลดี",
-        contract: "CT-6705-000129",
-        phone: "083-445-5667",
-        carLocation: "ขอนแก่น",
-        status: "ไม่สนใจ",
-        date: "16/05/2024 11:30",
-        statusLead: "Cancel",
-        idcard: "4-4002-00555-66-7",
-        address: "55 ถนนศรีจันทร์ ต.ในเมือง อ.เมือง จ.ขอนแก่น 40000",
-        pdpa: "ยินยอมแล้ว",
-        plan: "7,000 / 24 เดือน",
-        count: "1",
-        remarks: "มีเจ้าอื่นดูแลแล้ว",
-        objective: "RM",
-        nextAppt: "-",
-        historyList: [
-            {
-                date: "16/05/2024 11:30",
-                statusLead: "Cancel",
-                result: "ไม่สนใจ",
-                report: "ลูกค้าไม่สนใจโปรโมชัน เนื่องจากมีเจ้าอื่นดูแลแล้ว",
-                product: "",
-                interestLevel: "Low",
-                salesResult: "ปฏิเสธ",
-                nextDate: "",
-                nextTime: "",
-                channel: "โทรศัพท์",
-                remarks: "มีสินเชื่อเดิมอยู่แล้ว",
-                icon: "bi-telephone"
-            }
-        ]
-    },
-    {
-        id: 8,
-        branch: "ไมโครลิสซิ่ง สาขาอุดรธานี",
-        name: "คุณสมชาย มันคง",
-        contract: "CT-6705-000130",
-        phone: "081-776-6554",
-        carLocation: "อุดรธานี",
-        status: "ไม่ผ่านเงื่อนไข",
-        date: "16/05/2024 14:00",
-        statusLead: "Reject",
-        idcard: "1-4199-00222-33-4",
-        address: "200 ถนนทหาร ต.หมากแข้ง อ.เมือง จ.อุดรธานี 41000",
-        pdpa: "ยินยอมแล้ว",
-        plan: "9,000 / 12 เดือน",
-        count: "1",
-        remarks: "เอกสารไม่ครบถ้วน / ไม่ผ่านเกณฑ์",
-        objective: "FL",
-        nextAppt: "-",
-        historyList: [
-            {
-                date: "16/05/2024 14:00",
-                statusLead: "Reject",
-                result: "ไม่ผ่านเงื่อนไข",
-                report: "พิจารณาอนุมัติ ไม่ผ่านเกณฑ์ (Reject)",
-                product: "สินเชื่อจำนำทะเบียน",
-                interestLevel: "Low",
-                salesResult: "ไม่อนุมัติ",
-                nextDate: "",
-                nextTime: "",
-                channel: "ระบบ",
-                remarks: "เอกสารไม่อนุมัติ",
-                icon: "bi-x-circle"
-            }
-        ]
+// Fetch Prospect Batch Data for selected campaign
+async function loadProspectCallData(productCode, page = 1, pageSize = 10) {
+    if (!productCode) {
+        rawProspectItems = [];
+        prospectTotalCount = 0;
+        filterProspectTable();
+        return;
     }
-];
+
+    selectedCampaignCode = productCode;
+    prospectPage = page;
+    prospectPageSize = pageSize;
+
+    const $tbody = $('#prospectTableBody');
+    $tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>');
+
+    const res = await getProductBatchByProductCode(productCode, page, pageSize);
+    const { items, totalCount } = extractProspectCustomers(res);
+
+    rawProspectItems = items;
+    prospectTotalCount = totalCount;
+
+    filterProspectTable();
+}
 
 // Status badge styling helper
 function getStatusBadgeClass(status) {
@@ -428,10 +351,10 @@ function getStatusBadgeClass(status) {
 function getStatusLeadBadgeClass(statusLead) {
     const map = {
         'Success': 'bg-success text-white',
-        'Follow': 'bg-info text-white', // ฟ้า
-        'Cancel': 'bg-secondary text-white', // เทา
+        'Follow': 'bg-info text-white',
+        'Cancel': 'bg-secondary text-white',
         'Cancle': 'bg-secondary text-white',
-        'Reject': 'bg-danger text-white' // แดง
+        'Reject': 'bg-danger text-white'
     };
     return map[statusLead] || 'bg-secondary text-white';
 }
@@ -455,50 +378,59 @@ function formatDateTh(dateStr) {
     return dateStr;
 }
 
-// Render Prospect Table from Array Data
+// Render Prospect Table
 function renderProspectTable(items) {
     const $tbody = $('#prospectTableBody');
     $tbody.empty();
 
     if (!items || items.length === 0) {
         $tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted">ไม่พบข้อมูล Prospect / ลูกค้า</td></tr>');
-        $('#prospectPaginationText').text(`แสดง 0 จาก ${prospectData.length} รายการ`);
+        $('#prospectPaginationText').text('แสดง 0 จาก 0 รายการ');
+        $('#prospectCallTotalBadge').text('ทั้งหมด 0 รายการ');
+        renderProspectPagination(0);
         return;
     }
 
     items.forEach((item, index) => {
         const badgeClass = getStatusBadgeClass(item.status);
         const badgeClassStatusLead = getStatusLeadBadgeClass(item.statusLead);
+        const seq = (prospectPage - 1) * prospectPageSize + index + 1;
         const tr = $(`
-            <tr data-id="${item.id}"
-                data-branch="${item.branch || ''}" 
-                data-name="${item.name || ''}" 
-                data-contract="${item.contract || ''}" 
-                data-phone="${item.phone || ''}" 
-                data-status="${item.status || ''}" 
-                data-statuslead="${item.statusLead || ''}" 
-                data-idcard="${item.idcard || ''}" 
-                data-address="${item.address || ''}" 
-                data-pdpa="${item.pdpa || ''}" 
-                data-plan="${item.plan || ''}"
-                data-count="${item.count || '1'}"
-                data-remarks="${item.remarks || ''}">
-                <td style="text-align: center;" class="row-seq">${index + 1}</td>
-                <td>${item.branch || ''}</td>
-                <td class="fw-bold text-dark">${item.name || ''}</td>
-                <td><span class="badge bg-light text-primary border">${item.contract || ''}</span></td>
-                <td>${item.phone || ''}</td>
-                <td>${item.carLocation || ''}</td>
-                <td><span class="status-badge badge ${badgeClass}">${item.status || ''}</span></td>
-                <td>${item.date || ''}</td>
-                <td><span class="status-badge badge ${badgeClassStatusLead}">${item.statusLead || ''}</span></td>
+            <tr data-id="${escapeHtml(item.id)}"
+                data-branch="${escapeHtml(item.branch)}" 
+                data-name="${escapeHtml(item.name)}" 
+                data-contract="${escapeHtml(item.contract)}" 
+                data-phone="${escapeHtml(item.phone)}" 
+                data-status="${escapeHtml(item.status)}" 
+                data-statuslead="${escapeHtml(item.statusLead)}" 
+                data-idcard="${escapeHtml(item.idno)}" 
+                data-address="${escapeHtml(item.address)}" 
+                data-pdpa="${escapeHtml(item.pdpa)}" 
+                data-plan="${escapeHtml(item.plan)}"
+                data-count="${escapeHtml(item.count)}"
+                data-remarks="${escapeHtml(item.remarks)}">
+                <td style="text-align: center;" class="row-seq">${seq}</td>
+                <td>${escapeHtml(item.branch)}</td>
+                <td class="fw-bold text-dark">${escapeHtml(item.name)}</td>
+                <td><span class="badge bg-light text-primary border">${escapeHtml(item.contract)}</span></td>
+                <td>${escapeHtml(item.phone)}</td>
+                <td>${escapeHtml(item.carLocation)}</td>
+                <td><span class="status-badge badge ${badgeClass}">${escapeHtml(item.status)}</span></td>
+                <td>${escapeHtml(item.date)}</td>
+                <td><span class="status-badge badge ${badgeClassStatusLead}">${escapeHtml(item.statusLead)}</span></td>
             </tr>
         `);
         $tbody.append(tr);
     });
 
-    $('#prospectPaginationText').text(`แสดง 1 - ${items.length} จาก ${prospectData.length} รายการ`);
-    $('#prospectCallTotalBadge').text(`ทั้งหมด ${items.length} รายการ`);
+    const displayTotal = prospectTotalCount || items.length;
+    const startCount = (prospectPage - 1) * prospectPageSize + 1;
+    const endCount = Math.min(prospectPage * prospectPageSize, displayTotal);
+
+    $('#prospectPaginationText').text(`แสดง ${startCount} - ${endCount} จาก ${displayTotal} รายการ`);
+    $('#prospectCallTotalBadge').text(`ทั้งหมด ${displayTotal} รายการ`);
+
+    renderProspectPagination(displayTotal);
 }
 
 // Filter Prospect Table
@@ -506,9 +438,9 @@ function filterProspectTable() {
     const query = ($('#prospectSearch').val() || '').trim().toLowerCase();
     const branch = $('#filterBranch').val() || '';
     const status = $('#filterStatus').val() || '';
-    const statusLead = ($('#filterBy').val() || '').trim().toLowerCase();
+    const statusLead = ($('#filterStatusLead').val() || $('#filterBy').val() || '').trim().toLowerCase();
 
-    const filtered = prospectData.filter(item => {
+    const filtered = rawProspectItems.filter(item => {
         const itemBranch = (item.branch || '').toLowerCase();
         const itemName = (item.name || '').toLowerCase();
         const itemContract = (item.contract || '').toLowerCase();
@@ -525,6 +457,71 @@ function filterProspectTable() {
     });
 
     renderProspectTable(filtered);
+}
+
+// Render Prospect Pagination
+function renderProspectPagination(total) {
+    const $container = $('.pa-page-controls');
+    if (!$container.length) return;
+
+    $container.empty();
+    const totalPages = Math.ceil(total / prospectPageSize) || 1;
+    if (totalPages <= 0) return;
+
+    // Prev button
+    const $prevBtn = $(`<button class="pa-page-btn ${prospectPage <= 1 ? 'disabled' : ''}"><i class="bi bi-chevron-left"></i></button>`);
+    $prevBtn.on('click', function (e) {
+        e.preventDefault();
+        if (prospectPage > 1) {
+            prospectPage--;
+            loadProspectCallData(selectedCampaignCode, prospectPage, prospectPageSize);
+        }
+    });
+    $container.append($prevBtn);
+
+    // Page numbers
+    const pages = buildPageRange(prospectPage, totalPages);
+    pages.forEach(p => {
+        if (p === '...') {
+            $container.append('<button class="pa-page-btn disabled">...</button>');
+        } else {
+            const $btn = $(`<button class="pa-page-btn ${p === prospectPage ? 'active' : ''}">${p}</button>`);
+            $btn.on('click', function (e) {
+                e.preventDefault();
+                if (p !== prospectPage) {
+                    prospectPage = p;
+                    loadProspectCallData(selectedCampaignCode, prospectPage, prospectPageSize);
+                }
+            });
+            $container.append($btn);
+        }
+    });
+
+    // Next button
+    const $nextBtn = $(`<button class="pa-page-btn ${prospectPage >= totalPages ? 'disabled' : ''}"><i class="bi bi-chevron-right"></i></button>`);
+    $nextBtn.on('click', function (e) {
+        e.preventDefault();
+        if (prospectPage < totalPages) {
+            prospectPage++;
+            loadProspectCallData(selectedCampaignCode, prospectPage, prospectPageSize);
+        }
+    });
+    $container.append($nextBtn);
+}
+
+function buildPageRange(current, total) {
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    let pages = [];
+    if (current <= 4) {
+        pages = [1, 2, 3, 4, 5, '...', total];
+    } else if (current >= total - 3) {
+        pages = [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    } else {
+        pages = [1, '...', current - 1, current, current + 1, '...', total];
+    }
+    return pages;
 }
 
 // Clear filters
@@ -557,10 +554,10 @@ function renderModalContactHistory(historyList) {
             <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover cursor-pointer" data-index="${index}">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <span class="small fw-semibold text-dark"><i class="bi ${iconClass} text-primary me-1.5"></i> ${item.date}</span>
-                    <span class="badge ${badgeClass} border px-2 py-0.5 rounded-pill extra-small">${item.statusLead}</span>
+                    <span class="badge ${badgeClass} border px-2 py-0.5 rounded-pill extra-small">${escapeHtml(item.statusLead)}</span>
                 </div>
-                <div class="text-secondary extra-small">ผลการติดต่อ: ${item.result || ''}</div>
-                <div class="text-secondary extra-small">นัดหมาย: ${nextApptDisplay}</div>
+                <div class="text-secondary extra-small">ผลการติดต่อ: ${escapeHtml(item.result || '')}</div>
+                <div class="text-secondary extra-small">นัดหมาย: ${escapeHtml(nextApptDisplay)}</div>
             </div>
         `);
 
@@ -594,22 +591,22 @@ function openRecordResultModal(trElement) {
     selectedCustomerRow = trElement;
     const $row = $(trElement);
     const itemId = $row.data('id');
+    const contract = $row.data('contract');
 
-    // Find customer in prospectData array
-    const customer = prospectData.find(item => item.id == itemId) || {
-        name: $row.data('name') || 'คุณณัฐวรรณ ใจดี',
-        phone: $row.data('phone') || '081-234-5678',
+    // Find customer in rawProspectItems array
+    const customer = rawProspectItems.find(item => item.id == itemId || item.contract == contract) || {
+        name: $row.data('name') || '-',
+        phone: $row.data('phone') || '-',
         objective: selectedCampaignObjective || 'CS',
         statusLead: $row.data('statuslead') || 'Follow',
-        status: $row.data('status') || 'ขอข้อมูลเพิ่มเติม',
-        nextAppt: '20/05/2024 14:00',
+        status: $row.data('status') || 'พร้อมติดต่อ',
+        nextAppt: '-',
         remarks: $row.data('remarks') || '',
         historyList: []
     };
 
-    // Get Objective directly from the active selected campaign
-    const activeCampaign = campaignData.find(c => c.code === selectedCampaignCode);
-    const campaignObjectiveCode = activeCampaign ? activeCampaign.objective : (selectedCampaignObjective || 'CS');
+    const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
+    const campaignObjectiveCode = activeCampaign ? (activeCampaign.remark || 'CS') : (selectedCampaignObjective || 'CS');
     const objBadge = getObjectiveBadge(campaignObjectiveCode);
 
     // Set modal title & customer summary info
@@ -618,12 +615,10 @@ function openRecordResultModal(trElement) {
     $('#modalCustCampaign').text(selectedCampaignCode);
     $('#modalCustCampaignName').text(selectedCampaignName);
     
-    // Set Objective badge directly from active campaign using formatted pc-modal-obj-badge style and color
     $('#modalCustObjective')
         .attr('class', `pc-modal-obj-badge ${objBadge.iconBg}`)
         .text(objBadge.text);
 
-    // Set badges with consistent badge classes
     const leadStatusClass = getStatusLeadBadgeClass(customer.statusLead);
     const lastResultClass = getStatusBadgeClass(customer.status);
 
@@ -635,7 +630,7 @@ function openRecordResultModal(trElement) {
         .attr('class', `badge ${lastResultClass} border px-3 py-1 rounded-pill fw-semibold`)
         .text(customer.status);
 
-    $('#modalCustNextAppt').text(customer.nextAppt || '20/05/2024 14:00');
+    $('#modalCustNextAppt').text(customer.nextAppt || '-');
 
     // Reset form fields
     $('#modalContactResult').val('');
@@ -654,7 +649,7 @@ function openRecordResultModal(trElement) {
     $('#remarksCount').text(`${(customer.remarks || '').length}/300`);
 
     // Render Contact History dynamically from array
-    renderModalContactHistory(customer.historyList);
+    renderModalContactHistory(customer.historyList || []);
 
     // Show bootstrap modal
     const modalEl = document.getElementById('recordResultModal');
@@ -718,13 +713,12 @@ function saveRecordResult() {
         cancelButtonText: 'ยกเลิก'
     }).then((res) => {
         if (res.isConfirmed) {
-            // Update customer data in array
             if (selectedCustomerRow) {
                 const $row = $(selectedCustomerRow);
                 const itemId = $row.data('id');
                 const contract = $row.data('contract');
 
-                const targetItem = prospectData.find(item => item.id == itemId || item.contract == contract);
+                const targetItem = rawProspectItems.find(item => item.id == itemId || item.contract == contract);
                 if (targetItem) {
                     targetItem.status = resultVal;
                     targetItem.statusLead = statusLeadVal;
@@ -788,38 +782,16 @@ function saveRecordResult() {
 
 // Document Ready
 $(document).ready(function () {
-    // Initial Render Campaign List & Prospect Table
-    renderCampaignList(campaignData);
-    renderProspectTable(prospectData);
+    // Initial Load Campaigns
+    loadCampaignData();
 
     // Campaign search listener
     $('#campaignSearch').on('input keyup', filterCampaignList);
 
     // Campaign card selection handler (delegated)
     $(document).on('click', '.pa-card', function () {
-        $('.pa-card').removeClass('active');
-        $(this).addClass('active');
-
         const code = $(this).data('code');
-        const campaign = campaignData.find(c => c.code === code);
-        if (campaign) {
-            selectedCampaignCode = campaign.code;
-            selectedCampaignName = campaign.name;
-            selectedCampaignObjective = campaign.objective;
-
-            const objBadge = getObjectiveBadge(campaign.objective);
-
-            $('#detailId').val(campaign.code);
-            $('#detailName').val(campaign.name);
-            $('#detailStart').val(campaign.startDate);
-            $('#detailEnd').val(campaign.endDate);
-            $('#detailObjective').val(objBadge.full);
-        } else {
-            selectedCampaignCode = $(this).data('code') || 'CMP-2024-0001';
-            selectedCampaignName = $(this).find('.pa-card-name').text().trim() || 'โปรโมชัน ดอกเบี้ยพิเศษ 2.99%';
-            $('#detailId').val(selectedCampaignCode);
-            $('#detailName').val(selectedCampaignName);
-        }
+        selectCampaignCard(code);
     });
 
     // Prospect search listener
@@ -827,6 +799,14 @@ $(document).ready(function () {
     $('#filterBranch, #filterStatus').on('change', filterProspectTable);
     $('#filterStatusLead').on('input', filterProspectTable);
     $('#btnClearFilter').on('click', clearFilters);
+
+    // Rows per page select listener
+    $('.pa-table-pagination select').on('change', function () {
+        const val = parseInt($(this).val(), 10) || 10;
+        prospectPageSize = val;
+        prospectPage = 1;
+        loadProspectCallData(selectedCampaignCode, prospectPage, prospectPageSize);
+    });
 
     // Character counter listeners (Document delegated)
     $(document).on('input keyup change', '#modalContactReport', function () {

@@ -15,7 +15,7 @@ let prospectTotalCount = 0;
 async function getCampainList(page, pageSize) {
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
-        const status = "waiting approve,approved";
+        const status = "approved";
         const queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : '';
@@ -232,7 +232,6 @@ function renderCampaignList(items) {
         const statusBadgeClass = (item.status === 'approved' || item.status === 'Active' || item.status === 'ปกติ')
             ? 'bg-success-subtle text-success border-success-subtle'
             : 'bg-warning-subtle text-warning border-warning-subtle';
-
         // Objective badge styling (CS เขียว, MC/CL เหลือง, RM ฟ้า, FL ส้ม)
         const objBadge = getObjectiveBadge(item.remark || 'CS');
 

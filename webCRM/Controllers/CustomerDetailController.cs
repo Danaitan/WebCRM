@@ -14,8 +14,8 @@ namespace webCRM.Controllers
             Converters = { new NumberToStringConverter() }
         };
 
-        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings_BearerToken") ?? configuration["ApiSettings:BearerToken"];
-        string? domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
+        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
         public async Task<IActionResult> Index()
         {
@@ -163,7 +163,7 @@ namespace webCRM.Controllers
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", configuration["ApiSettings:BearerToken"]);
 
-            var domain = Environment.GetEnvironmentVariable("ApiSettings_APIDomain") ?? configuration["ApiSettings:APIDomain"];
+            var domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
             var response = await client.GetAsync($"{domain}/crm/api/v1/contactInfo/{idno}/{company}");
             response.EnsureSuccessStatusCode();
             string data = await response.Content.ReadAsStringAsync();

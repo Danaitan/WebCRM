@@ -21,10 +21,7 @@
                             <span class="ps-3 text-muted"><i class="bi bi-search"></i></span>
                             <input type="text" id="campaignSearchInput" placeholder="ค้นหา Campaign" class="w-100" style="border: none; outline: none; font-size: 0.875rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
                         </div>
-                        <div class="sort-select-container">
-                            <button type="button" class="btn-sort-trigger" id="sortBtn" title="จัดเรียง">
-                                <i class="bi bi-arrow-down-up"></i>
-                            </button>
+                        @* <div class="sort-select-container">
                             <div class="sort-dropdown-panel" id="sortDropdownPanel">
                                 <div class="sort-section-title">Sort by</div>
                                 <div class="sort-option" data-field="code">
@@ -67,7 +64,7 @@
                                     <button type="button" class="btn-sort-cancel" id="cancelSortBtn">Cancel</button>
                                 </div>
                             </div>
-                        </div>
+                        </div> *@
                     </div>
                     
                     <!-- List Header & Refresh -->
@@ -119,86 +116,44 @@
                             <div class="col-md-6">
                                 <label class="form-label" for="campaignCode">รหัส Campaign</label>
                                 <div class="input-container-icon">
-                                    <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Campaign" style="border-radius: 8px; height: 42px;" readonly>
+                                    <input type="text" id="campaignCode" class="form-control" placeholder="กรอกรหัส Campaign" style="border-radius: 8px; height: 42px;" readonly disabled>
                                 </div>
                             </div>
                             
                             <!-- ชื่อ Campaign * -->
                             <div class="col-md-6">
                                 <label class="form-label" for="campaignName">ชื่อ Campaign <span class="required-star">*</span></label>
-                                <input type="text" id="campaignName" class="form-control" placeholder="กรอกชื่อ Campaign" style="border-radius: 8px; height: 42px;" required>
+                                <input type="text" id="campaignName" class="form-control" placeholder="กรอกชื่อ Campaign" style="border-radius: 8px; height: 42px;" required disabled>
                             </div>
                             
                             <!-- เริ่ม * -->
                             <div class="col-md-6">
                                 <label class="form-label" for="startDate">เริ่ม <span class="required-star">*</span></label>
-                                <input type="date" id="startDate" class="form-control" style="border-radius: 8px; height: 42px;" required>
+                                <input type="date" id="startDate" class="form-control" style="border-radius: 8px; height: 42px;" required disabled>
                             </div>
                             
                             <!-- จบ * -->
                             <div class="col-md-6">
                                 <label class="form-label" for="endDate">จบ <span class="required-star">*</span></label>
-                                <input type="date" id="endDate" class="form-control" style="border-radius: 8px; height: 42px;" required>
+                                <input type="date" id="endDate" class="form-control" style="border-radius: 8px; height: 42px;" required disabled>
                             </div>
                             
                             <div class="col-md-6">
                                 <label class="form-label" for="campaignObjective">
                                     วัตถุประสงค์ <span class="required-star">*</span> 
                                     <i class="bi bi-info-circle text-primary ms-1" 
-                                       style="cursor: pointer;" 
+                                       style="cursor: pointer; width: auto;" 
                                        tabindex="0"
                                        data-bs-toggle="popover" 
                                        data-bs-trigger="click" 
                                        data-bs-html="true" 
                                        data-bs-placement="right" 
                                        title="<span class='fw-bold text-dark'><i class='bi bi-info-circle me-1 text-primary'></i> คำอธิบายวัตถุประสงค์</span>" 
-                                       data-bs-content="<div 
-                                       class='py-1' 
-                                       style='font-size: 0.875rem; 
-                                       line-height: 1.8;'
-                                       >
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            CS
-                                            </strong> 
-                                            : Cost Sales ขายผลิตภัณฑ์
-                                        </div>
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            MC
-                                            </strong> 
-                                            : Marketing Collector มาร์เก็ตติ้งตามหนี้
-                                        </div>
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            RM
-                                            </strong> 
-                                            : Relation management สร้างความสัมพันธ์
-                                        </div>
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            FL
-                                            </strong> 
-                                            : Following เร่งรัดตามหนี้
-                                        </div>
-                                       </div>
-                                       ">
+                                       data-bs-content="">
                                     </i>
                                 </label>
-                                <select id="campaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required>
+                                <select id="campaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required disabled>
                                     <option value="">เลือกวัตถุประสงค์</option>
-                                    <option value="CS">CS</option>
-                                    <option value="MC">MC</option>
-                                    <option value="RM">RM</option>
-                                    <option value="FL">FL</option>
                                 </select>
                             </div>
                             
@@ -206,7 +161,7 @@
                                 <label class="form-label">ใช้กับสาขา <span class="required-star">*</span></label>
                                 
                                 <div class="branch-select-container">
-                                    <div class="branch-select-input-display" id="branchSelectDisplay">
+                                    <div class="branch-select-input-display disabled" id="branchSelectDisplay" style="pointer-events: none;">
                                         <span class="branch-placeholder" id="branchSelectPlaceholder">เลือกสาขา</span>
                                         <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
                                     </div>
@@ -229,14 +184,14 @@
                             <!-- หมายเหตุ -->
                             <div class="col-md-12">
                                 <label class="form-label" for="remarks">หมายเหตุ</label>
-                                <textarea id="remarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;"></textarea>
+                                <textarea id="remarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;" disabled></textarea>
                                 <div class="char-counter" id="remarksCharCounter">0 / 500</div>
                             </div>
 
                             <!-- ปุ่มแนบไฟล์ -->
                             <div class="col-12" id="importExcelContainer">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel">
+                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel" disabled>
                                         <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
                                     </button>
                                     
@@ -247,12 +202,17 @@
                                         <span id="selectedFileNameText" class="fw-medium text-dark"></span>
                                         <i class="bi bi-x-circle-fill text-secondary" id="btnRemoveExcelFile" style="cursor: pointer;" title="ลบไฟล์"></i>
                                     </div>
+
+                                    <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                                        <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                                        <span class="fw-medium text-dark"> ตัวอย่างไฟล์แนบ.xlsx </span>
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="col-md-6 d-flex align-items-center gap-3">
                                 <div class="form-check m-0">
-                                    <input class="form-check-input" type="checkbox" id="chkImportExcel" name="chkImportExcel">
+                                    <input class="form-check-input" type="checkbox" id="chkImportExcel" name="chkImportExcel" disabled>
                                     <label class="form-check-label" for="chkImportExcel">
                                         ดึงข้อมูลจาก Excel
                                     </label>
@@ -276,7 +236,7 @@
                             
                             <div style="font-size: 0.85rem; font-weight: 600; display: flex; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
                                 <div style="width: 8%; text-align: center;">
-                                    <input type="checkbox" id="chkSelectAllFilters" style="cursor: pointer;" title="เลือกทั้งหมด">
+                                    <input type="checkbox" id="chkSelectAllFilters" style="cursor: pointer;" title="เลือกทั้งหมด" disabled>
                                 </div>
                                 <div style="width: 50%; color: #000000;">หัวข้อ Filter</div>
                             </div>
@@ -320,10 +280,16 @@
                     </div>
                 </div>
                 
+                <div class="mt-3 mb-3">
+                    <button class="btn btn-success w-100" type="button" id="btnGotoETL">
+                        ไปยังระบบ ETL
+                    </button>
+                </div>
                 <!-- Bottom Action Buttons -->
                 <div class="bottom-actions-row">
-                    <button type="button" class="btn-cancel" id="cancelFormBtn">ยกเลิก</button>
-                    <button type="button" class="btn-submit" id="submitFormBtn">บันทึก</button>
+                    @* <button type="button" class="btn-cancel" id="cancelFormBtn">ยกเลิก</button> *@
+                    <button type="button" class="btn-submit" id="submitFormBtn" disabled>บันทึก</button>
+                </div>
                 </div>
             </div>
             
@@ -378,53 +344,11 @@
                                        data-bs-html="true" 
                                        data-bs-placement="right" 
                                        title="<span class='fw-bold text-dark'><i class='bi bi-info-circle me-1 text-primary'></i> คำอธิบายวัตถุประสงค์</span>" 
-                                      data-bs-content="<div 
-                                       class='py-1' 
-                                       style='font-size: 0.875rem; 
-                                       line-height: 1.8;'
-                                       >
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            CS
-                                            </strong> 
-                                            : Cost Sales ขายผลิตภัณฑ์
-                                        </div>
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            MC
-                                            </strong> 
-                                            : Marketing Collector มาร์เก็ตติ้งตามหนี้
-                                        </div>
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            RM
-                                            </strong> 
-                                            : Relation management สร้างความสัมพันธ์
-                                        </div>
-                                        <div>
-                                            <strong 
-                                            class='text-primary'
-                                            >
-                                            FL
-                                            </strong> 
-                                            : Following เร่งรัดตามหนี้
-                                        </div>
-                                       </div>
-                                       ">
+                                       data-bs-content="">
                                     </i>
                                 </label>
                                 <select id="modalCampaignObjective" class="form-select" style="border-radius: 8px; height: 42px; cursor: pointer;" required>
                                     <option value="">เลือกวัตถุประสงค์</option>
-                                    <option value="CS">CS</option>
-                                    <option value="MC">MC</option>
-                                    <option value="RM">RM</option>
-                                    <option value="FL">FL</option>
                                 </select>
                             </div>
                             

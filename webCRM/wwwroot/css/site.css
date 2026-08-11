@@ -170,4 +170,35 @@ table.table-dark thead th {
 .dataTables_length select {
   width: auto !important;
   display: inline-block !important;
-}
+}
+
+/* Global Popover styling for dynamic width and clean presentation */
+.popover {
+  max-width: min(480px, 90vw) !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+.popover-header {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  padding: 0.75rem 1rem !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  border-top-left-radius: calc(0.75rem - 1px) !important;
+  border-top-right-radius: calc(0.75rem - 1px) !important;
+}
+
+.popover-body {
+  padding: 0.9rem 1.1rem !important;
+  font-size: 0.875rem !important;
+  line-height: 1.6 !important;
+  color: #334155 !important;
+}
+
+.popover-consent-content p {
+  text-align: justify;
+}
+

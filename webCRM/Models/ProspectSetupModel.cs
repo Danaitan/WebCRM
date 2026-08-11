@@ -6,7 +6,7 @@ namespace webCRM.Models
 
     public class UpdateProspectCustomerRequest
     {
-        public List<string>? idno { get; set; }
+        public List<string>? id { get; set; }
         public string? product_guid { get; set; }
         public string? assigner { get; set; }
         public string? assign_to { get; set; }

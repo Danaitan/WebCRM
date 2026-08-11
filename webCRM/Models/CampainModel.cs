@@ -15,6 +15,9 @@ namespace webCRM.Models
 
     public class ProductInfo
     {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
         [JsonPropertyName("product_code")]
         public string? ProductCode { get; set; }
 
@@ -41,6 +44,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("offcde")]
         public string? Offcde { get; set; }
+
+        [JsonPropertyName("Objective_code")]
+        public string? ObjectiveCode { get; set; }
     }
 
     public class FilterInfo
@@ -88,6 +94,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("offcde")]
         public string? Offcde { get; set; }
+
+        [JsonPropertyName("Objective_code")]
+        public string? ObjectiveCode { get; set; }
 
         [JsonPropertyName("created")]
         [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
@@ -189,7 +198,7 @@ namespace webCRM.Models
         [JsonPropertyName("company")]
         public string? company { get; set; }
     }
-          
+
     public class CampainPagedResult
     {
         [JsonPropertyName("page")]
@@ -204,5 +213,6 @@ namespace webCRM.Models
         [JsonPropertyName("data")]
         public List<ProductGet> Data { get; set; } = new List<ProductGet>();
     }
+
 }
 

@@ -95,7 +95,7 @@ function extractProspectCustomers(data) {
         if (typeof item === 'object') {
             const idno = item.idno || '';
             const id = item.id || '';
-            const name = item.nameCus || '-';
+            const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
             const branch = item.branch_Name || '-';
             const carLocation = item.provinceUsecar || '-';
@@ -251,10 +251,39 @@ function updateDetailPanel(campaign) {
 async function getCampainList(page, pageSize) {
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
-        const status = "waiting approve,approved";
-        const queryStr = (page !== undefined && pageSize !== undefined) 
+        let status = "waiting approve,approved";
+        if (document.getElementById('filterStatus').value)
+        {
+            status = document.getElementById('filterStatus').value;
+        }
+        let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : '';
+
+        // if (document.getElementById('filterStartDate').value)
+        // {
+        //     var startDate = document.getElementById('filterStartDate').value;
+        //     queryStr += '&startDate=' + startDate;
+        // }
+
+        // if (document.getElementById('filterEndDate').value)
+        // {
+        //     var endDate = document.getElementById('filterEndDate').value;
+        //     queryStr +='&endDate='+endDate;
+        // }
+
+        if (document.getElementById('filterBranch').value)
+        {
+            var branch = document.getElementById('filterBranch').value;
+            queryStr += '&branch=' + branch;
+        }
+
+        if (document.getElementById('filterBy').value)
+        {
+            var createdBy = document.getElementById('filterBy').value;
+            queryStr += '&createdBy=' + createdBy;
+        }
+
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();
@@ -706,7 +735,7 @@ $(document).ready(function () {
         const label = code ? `${code} (${name})` : "รายการนี้";
 
         Swal.fire({
-            title: 'ยืนยันการส่งแก้ไข',
+            title: 'ส่งกลับแก้ไข',
             html: `คุณต้องการส่งแก้ไข <b>${label}</b> ใช่หรือไม่?`,
             icon: 'warning',
             input: 'textarea',
@@ -718,7 +747,7 @@ $(document).ready(function () {
             showCancelButton: true,
             confirmButtonColor: '#f59e0b',
             cancelButtonColor: '#64748b',
-            confirmButtonText: '<i class="bi bi-x-lg me-1"></i> ยืนยันการส่งแก้ไข',
+            confirmButtonText: '<i class="bi bi-x-lg me-1"></i> ยืนยันการส่งกลับแก้ไข',
             cancelButtonText: 'ยกเลิก',
             reverseButtons: true,
             focusCancel: false,

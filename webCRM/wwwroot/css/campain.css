@@ -662,10 +662,28 @@ select.form-select option[value=""] {
     transition: all 0.2s ease;
 }
 
-.btn-submit:hover {
+.btn-submit:hover:not(:disabled) {
     background: #1d4ed8;
     border-color: #1d4ed8;
 }
+
+.btn-submit:disabled,
+.btn-submit[disabled] {
+    background: #cbd5e1 !important;
+    border-color: #cbd5e1 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    opacity: 0.7;
+}
+
+.branch-select-input-display.disabled {
+    background-color: #e2e8f0 !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
 
 /* Sort Dropdown styling */
 .sort-select-container {
@@ -847,3 +865,9 @@ table.dataTable thead th, table.dataTable thead td {
 #campaignsTable thead {
     display: none;
 }
+
+/* Popover auto width styling */
+.popover {
+    max-width: max-content !important;
+}
+

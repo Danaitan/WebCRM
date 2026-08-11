@@ -6,19 +6,32 @@ let selectedCampaignObjective = "CS";
 let selectedCustomerRow = null;
 
 let campaignsData = [];
+let campaignPage = 1;
+let campaignPageSize = 10;
+let campaignTotalCount = 0;
 let rawProspectItems = [];
 let prospectPage = 1;
 let prospectPageSize = 10;
 let prospectTotalCount = 0;
 
+function getCampaignStatus(date) {
+    if (!date) return 'Expire';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(0, 0, 0, 0);
+    return end >= today ? 'Active' : 'Expire';
+}
+
 // Fetch campaign list from API with page and pageSize
-async function getCampainList(page, pageSize) {
+async function getCampainList(page = 1, pageSize = 10) {
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
         const status = "approved";
         const queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
-            : '';
+            : `?status=${status}`;
+        console.log("queryStr", queryStr);
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();
@@ -31,7 +44,8 @@ async function getCampainList(page, pageSize) {
             endDate:   item.product_end    ? item.product_end.substring(0, 10)   : '',
             remark:    item.product_remark || '',
             createdBy: item.createrd_by    || item.created_by || '',
-            created:   item.created        ? item.created.substring(0, 10)       : ''
+            created:   item.created        ? item.created.substring(0, 10)       : '',
+            Objective_code: item.Objective_code || '',
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -209,7 +223,7 @@ function getObjectiveBadge(obj) {
         'RM': { text: 'RM', class: 'bg-info-subtle text-info border-info-subtle', iconBg: 'blue' },
         'FL': { text: 'FL', class: 'bg-orange-subtle text-orange border-orange-subtle', iconBg: 'orange' }
     };
-    return map[obj] || { text: obj || 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' };
+    return map[obj] || { text: obj || '  ', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' };
 }
 
 // Render Campaign List dynamically
@@ -228,13 +242,12 @@ function renderCampaignList(items) {
     items.forEach(item => {
         const activeClass = (item.code === selectedCampaignCode) ? 'active' : '';
         
-        // Campaign status badge: Active / Approved (เขียว) / Waiting Approve (เหลือง)
-        const statusBadgeClass = (item.status === 'approved' || item.status === 'Active' || item.status === 'ปกติ')
+        const statusText = getCampaignStatus(item.endDate);
+        const statusBadgeClass = (statusText === 'Active')
             ? 'bg-success-subtle text-success border-success-subtle'
-            : 'bg-warning-subtle text-warning border-warning-subtle';
+            : 'bg-danger-subtle text-danger border-danger-subtle';
         // Objective badge styling (CS เขียว, MC/CL เหลือง, RM ฟ้า, FL ส้ม)
-        const objBadge = getObjectiveBadge(item.remark || 'CS');
-
+        const objBadge = getObjectiveBadge(item.Objective_code || '');
         const card = $(`
             <div class="pa-card ${activeClass} p-3 rounded-3 mb-2 border shadow-sm-hover cursor-pointer overflow-hidden" data-code="${escapeHtml(item.code)}">
                 <div class="d-flex align-items-center gap-2.5 w-100 overflow-hidden">
@@ -242,7 +255,7 @@ function renderCampaignList(items) {
                     <div class="pa-card-content flex-grow-1 overflow-hidden min-w-0 ms-2">
                         <div class="d-flex justify-content-between align-items-center mb-1 gap-1 overflow-hidden">
                             <div class="pa-card-name fw-bold text-dark fs-6 text-truncate me-1" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
-                            <span class="badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${escapeHtml(item.status)}</span>
+                            <span class="badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${statusText}</span>
                         </div>
                         <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
                             <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${escapeHtml(item.code)}</span>
@@ -274,22 +287,86 @@ function selectCampaignCard(code) {
     $('#detailName').val(campaign.name);
     $('#detailStart').val(campaign.startDate);
     $('#detailEnd').val(campaign.endDate);
-    $('#detailObjective').val(campaign.remark || objBadge.text);
+    $('#detailObjective').val(campaign.Objective_code || '');
 
     loadProspectCallData(campaign.code, 1, prospectPageSize);
 }
 
 // Load Campaign List from API
-async function loadCampaignData() {
-    const res = await getCampainList();
+async function loadCampaignData(page = 1, pageSize = 10) {
+    campaignPage = page;
+    campaignPageSize = pageSize;
+    const res = await getCampainList(campaignPage, campaignPageSize);
     campaignsData = res.data || [];
+    campaignTotalCount = res.count ?? campaignsData.length;
+
+    $('#campaignCount').text(campaignTotalCount);
     renderCampaignList(campaignsData);
+    renderCampaignPagination(campaignTotalCount);
 
     if (campaignsData.length > 0) {
         selectCampaignCard(campaignsData[0].code);
     } else {
         renderProspectTable([]);
     }
+}
+
+// Render Campaign Pagination Controls
+function renderCampaignPagination(total) {
+    const $container = $('#campaignPageControls');
+    const $infoText = $('#campaignPaginationText');
+    if (!$container.length) return;
+
+    $container.empty();
+    const totalPages = Math.ceil(total / campaignPageSize) || 1;
+
+    if ($infoText.length) {
+        const startCount = total > 0 ? (campaignPage - 1) * campaignPageSize + 1 : 0;
+        const endCount = Math.min(campaignPage * campaignPageSize, total);
+        $infoText.text(`แสดง ${startCount} - ${endCount} จาก ${total} รายการ`);
+    }
+
+    if (totalPages <= 0) return;
+
+    // Prev button
+    const $prevBtn = $(`<button class="pa-page-btn ${campaignPage <= 1 ? 'disabled' : ''}"><i class="bi bi-chevron-left"></i></button>`);
+    $prevBtn.on('click', function (e) {
+        e.preventDefault();
+        if (campaignPage > 1) {
+            campaignPage--;
+            loadCampaignData(campaignPage, campaignPageSize);
+        }
+    });
+    $container.append($prevBtn);
+
+    // Page numbers
+    const pages = buildPageRange(campaignPage, totalPages);
+    pages.forEach(p => {
+        if (p === '...') {
+            $container.append('<button class="pa-page-btn disabled">...</button>');
+        } else {
+            const $btn = $(`<button class="pa-page-btn ${p === campaignPage ? 'active' : ''}">${p}</button>`);
+            $btn.on('click', function (e) {
+                e.preventDefault();
+                if (p !== campaignPage) {
+                    campaignPage = p;
+                    loadCampaignData(campaignPage, campaignPageSize);
+                }
+            });
+            $container.append($btn);
+        }
+    });
+
+    // Next button
+    const $nextBtn = $(`<button class="pa-page-btn ${campaignPage >= totalPages ? 'disabled' : ''}"><i class="bi bi-chevron-right"></i></button>`);
+    $nextBtn.on('click', function (e) {
+        e.preventDefault();
+        if (campaignPage < totalPages) {
+            campaignPage++;
+            loadCampaignData(campaignPage, campaignPageSize);
+        }
+    });
+    $container.append($nextBtn);
 }
 
 // Filter Campaign List
@@ -410,8 +487,8 @@ function renderProspectTable(items) {
                 data-remarks="${escapeHtml(item.remarks)}">
                 <td style="text-align: center;" class="row-seq">${seq}</td>
                 <td>${escapeHtml(item.branch)}</td>
-                <td class="fw-bold text-dark">${escapeHtml(item.name)}</td>
-                <td><span class="badge bg-light text-primary border">${escapeHtml(item.contract)}</span></td>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${escapeHtml(item.contract)}</td>
                 <td>${escapeHtml(item.phone)}</td>
                 <td>${escapeHtml(item.carLocation)}</td>
                 <td><span class="status-badge badge ${badgeClass}">${escapeHtml(item.status)}</span></td>
@@ -779,6 +856,78 @@ function saveRecordResult() {
     });
 }
 
+// Make call via 3CX API
+async function makeCall3CX(destinationNumber) {
+    destinationNumber = "0923539608";
+    if (!destinationNumber) {
+        Swal.fire({
+            title: 'ไม่พบเบอร์โทรศัพท์',
+            text: 'กรุณาตรวจสอบเบอร์โทรศัพท์ก่อนทำการโทรออก',
+            icon: 'warning',
+            confirmButtonColor: '#1e5dd1'
+        });
+        return;
+    }
+
+    const cleanDestination = destinationNumber.replace(/[^0-9]/g, '');
+    if (!cleanDestination) {
+        Swal.fire({
+            title: 'เบอร์โทรศัพท์ไม่ถูกต้อง',
+            text: 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง',
+            icon: 'error',
+            confirmButtonColor: '#1e5dd1'
+        });
+        return;
+    }
+
+    const $btnCall = $('#btnModalCall');
+    const originalHtml = $btnCall.html();
+    $btnCall.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> <span>กำลังโทร...</span>');
+    console.log("cleanDestination", cleanDestination)
+    try {
+        const response = await fetch("https://mlc.my3cx.sg:5001/callcontrol/100/makecall", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer YOUR_API_KEY",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                destination: cleanDestination,
+                timeout: 30
+            })
+        });
+
+        if (response.ok) {
+            Swal.fire({
+                title: 'โทรออกเรียบร้อยแล้ว',
+                text: `กำลังเชื่อมต่อสายไปยังเบอร์ ${cleanDestination}`,
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else {
+            const errText = await response.text();
+            console.error("3CX Call Error:", response.status, errText);
+            Swal.fire({
+                title: 'โทรออกไม่สำเร็จ',
+                text: `เกิดข้อผิดพลาดจากระบบ 3CX (${response.status})`,
+                icon: 'error',
+                confirmButtonColor: '#1e5dd1'
+            });
+        }
+    } catch (error) {
+        console.error("3CX MakeCall Exception:", error);
+        Swal.fire({
+            title: 'โทรออกไม่สำเร็จ',
+            text: 'ไม่สามารถเชื่อมต่อกับ 3CX Server ได้ กรุณาตรวจสอบการเชื่อมต่อหรือ API Key',
+            icon: 'error',
+            confirmButtonColor: '#1e5dd1'
+        });
+    } finally {
+        $btnCall.prop('disabled', false).html(originalHtml);
+    }
+}
+
 // Document Ready
 $(document).ready(function () {
     // Initial Load Campaigns
@@ -828,4 +977,12 @@ $(document).ready(function () {
         e.preventDefault();
         saveRecordResult();
     });
+
+    // 3CX Call button click handler
+    $('#btnModalCall').on('click', function (e) {
+        e.preventDefault();
+        const phone = $('#modalCustPhone').text() || '';
+        makeCall3CX(phone);
+    });
 });
+

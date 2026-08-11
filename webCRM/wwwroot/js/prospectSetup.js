@@ -423,11 +423,9 @@ async function loadProspectList(page = 1, pageSize = 10) {
         const currentPage = res && typeof res.page === 'number' ? res.page : page;
         const currentPageSize = res && typeof res.pageSize === 'number' ? res.pageSize : pageSize;
 
-        // 1. Update total count
         const totalFoundEl = document.getElementById('totalFound');
         if (totalFoundEl) totalFoundEl.textContent = count;
 
-        // 2. Populate tbody
         const tbody = document.getElementById('dataTableBody');
         if (tbody) {
             tbody.innerHTML = '';
@@ -449,29 +447,24 @@ async function loadProspectList(page = 1, pageSize = 10) {
                         matchedBatch = currentProductBatches.find(b => {
                             if (!b) return false;
 
-                            // 1. If b is a primitive string or number
                             if (typeof b === 'string' || typeof b === 'number') {
                                 const strB = String(b).trim();
                                 return (prospectBatch && strB === String(prospectBatch).trim()) ||
                                        (id && strB === String(id).trim());
                             }
 
-                            // 2. Extract batch properties from object b
                             const bBatch = b.prospect_batch || b.prospectBatch || b.product_batch || b.productBatch || b.batch_id || b.batch || b.code || b.product_batch_remark || '';
                             const bId = b.id || b.Id || b.ID || b.cus_id || b.cust_id || '';
                             const bIds = Array.isArray(b.id) ? b.id : (Array.isArray(b.ids) ? b.ids : (Array.isArray(b.prospects) ? b.prospects : []));
 
-                            // Match by batch code/name
                             if (prospectBatch && bBatch && String(bBatch).trim() === String(prospectBatch).trim()) {
                                 return true;
                             }
 
-                            // Match by single id
                             if (id && bId && String(bId).trim() === String(id).trim()) {
                                 return true;
                             }
 
-                            // Match by id in array
                             if (id && bIds.length > 0 && bIds.some(i => String(i).trim() === String(id).trim())) {
                                 return true;
                             }
@@ -509,13 +502,8 @@ async function loadProspectList(page = 1, pageSize = 10) {
             }
         }
 
-        // 3. Re-bind checkbox listeners
         bindTableCheckboxEvents();
-
-        // 4. Render Table Pagination Controls
         renderProspectPaginationControls(currentPage, currentPageSize, count);
-
-        // 5. Update Go To Page Input
         const goToInput = document.getElementById('goToPageInput');
         if (goToInput) goToInput.value = currentPage;
 
@@ -735,6 +723,44 @@ function updateSelectedList() {
 
     const badgeBlue = document.querySelector('.badge-blue');
     if (badgeBlue) badgeBlue.textContent = selectedCount;
+
+    updateSendForApprovalButtonState();
+}
+
+function updateSendForApprovalButtonState() {
+    const sendBtn = document.getElementById('sendForApprovalBtn');
+    if (!sendBtn) return;
+
+    const selectedList = getSelectedList();
+    const hasSelectedItems = selectedList.length > 0;
+
+    const rowCheckboxes = document.querySelectorAll('#dataTableBody .row-checkbox');
+    let hasCheckedInTable = false;
+
+    rowCheckboxes.forEach(cb => {
+        if (cb.checked) {
+            const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
+            const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === cbId);
+            if (!isSavedInBatch) {
+                hasCheckedInTable = true;
+            }
+        }
+    });
+
+    const shouldDisable = !hasSelectedItems || hasCheckedInTable || !(selectedCampaign.status == "waiting prospect");
+
+    sendBtn.disabled = shouldDisable;
+    if (shouldDisable) {
+        sendBtn.classList.add('disabled');
+        sendBtn.style.opacity = '0.5';
+        sendBtn.style.pointerEvents = 'none';
+        sendBtn.style.cursor = 'not-allowed';
+    } else {
+        sendBtn.classList.remove('disabled');
+        sendBtn.style.opacity = '1';
+        sendBtn.style.pointerEvents = 'auto';
+        sendBtn.style.cursor = 'pointer';
+    }
 }
 
 function renderSelectedPaginationControls(currentPage, pageSize, totalCount) {
@@ -980,6 +1006,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังบันทึกข้อมูล...", "");
                 try {
                     const currentSelected = getSelectedList();
+                    console.log("currentSelected",currentSelected)
                     const selectedIds = Array.from(new Set(
                         currentSelected.map(c => c.id).filter(Boolean)
                     ));
@@ -1020,6 +1047,34 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     $("#sendForApprovalBtn").off("click").on("click", function () {
+        const selectedList = getSelectedList();
+        if (selectedList.length === 0) {
+            Swal.fire({
+                title: "แจ้งเตือน",
+                text: "ไม่มีข้อมูลในรายการที่เลือก",
+                icon: "warning"
+            });
+            return;
+        }
+
+        const rowCheckboxes = document.querySelectorAll('#dataTableBody .row-checkbox');
+        let hasUnsavedChecked = false;
+        rowCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
+                const isSaved = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === cbId);
+                if (!isSaved) hasUnsavedChecked = true;
+            }
+        });
+
+        if (hasUnsavedChecked) {
+            Swal.fire({
+                title: "แจ้งเตือน",
+                text: "มีรายการที่กดติ๊กเลือกอยู่ กรุณาบันทึกชุดข้อมูลก่อนส่งอนุมัติ",
+                icon: "warning"
+            });
+            return;
+        }
 
         Swal.fire({
             title: "ยืนยันการอนุมัติ",
@@ -1100,7 +1155,7 @@ async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10
 async function refreshSelectedCampaignCustomers() {
     if (selectedCampaign && selectedCampaign.code) {
         currentSelectedPage = 1;
-        const batchRes = await getProductBatchByProductCode(selectedCampaign.code, 1, currentProspectPageSize || 10);
+        const batchRes = await getProductBatchByProductCode(selectedCampaign.code, 1, 9000000);
         currentBatchCustomers = extractCustomers(batchRes);
         updateSelectedList();
 
@@ -1209,12 +1264,12 @@ function extractCustomers(data) {
         }
 
         if (typeof item === 'object') {
-            const idno = item.idno || item.Idno || item.IDNO || item.cus_idno || item.cust_idno || item.code || '';
-            const id = item.id || item.Id || item.ID || item.cus_id || item.cust_id || '';
-            const name = item.nameCus || item.name || item.name_cus || item.cus_name || item.cust_name || item.customerName || item.fullName || (item.first_name ? `${item.first_name} ${item.last_name || ''}` : '') || idno || '-';
-            const phone = item.mobile || item.phone || item.phone1 || item.mobile_no || item.phone_no || item.tel || item.contract_no || item.cont_no || item.contno || '-';
-            const branch = item.branch_Name || item.branch || item.branch_name || item.branchName || item.offcde || item.off_cde || '-';
-            const statusVal = item.status || item.assign_status || (raw && typeof raw === 'object' ? (raw.status || raw.assign_status) : '') || '';
+            const idno = item.idno || '';
+            const id = item.id || '';
+            const name = item.customer_name || '-';
+            const phone = item.customer_mobile || '-';
+            const branch = item.branch_Name || '-';
+            const statusVal = item.assign_status || '';
             const statusStr = String(statusVal).trim().toLowerCase();
             const isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
             const isDisabled = item.isDisabled !== undefined ? item.isDisabled : !isDraft;

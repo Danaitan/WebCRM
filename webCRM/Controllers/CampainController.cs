@@ -18,7 +18,15 @@ namespace webCRM.Controllers
             return View("campain");
         }
 
-        public async Task<CampainPagedResult> GetCampainList(string page = "1", string pageSize = "10", string status = "")
+        public async Task<CampainPagedResult> GetCampainList(
+            string page = "1",
+            string pageSize = "10",
+            string status = "",
+            string startDate = "",
+            string endDate = "",
+            string branch = "",
+            string createdBy = ""
+            )
         {
 
             try
@@ -34,12 +42,28 @@ namespace webCRM.Controllers
                     string reqPage = string.IsNullOrEmpty(page) ? "1" : page;
                     string reqPageSize = string.IsNullOrEmpty(pageSize) ? "20" : pageSize;
                     
-                    string url = $"{domain}/crm/api/v1/p2/getProductsPhase3/{userId}/{reqPage}/{reqPageSize}";
+                    if(string.IsNullOrEmpty(createdBy))
+                    {
+                        createdBy = userId;
+                    }
+
+                    string url = $"{domain}/crm/api/v1/p2/getProductsPhase3/{createdBy}/{reqPage}/{reqPageSize}";
                     if (!string.IsNullOrEmpty(status))
                     {
                         url += $"?status={status}";
                     }
-
+                    if (!string.IsNullOrEmpty(startDate))
+                    {
+                        url += $"?startDate={startDate}";
+                    }
+                    if (!string.IsNullOrEmpty(endDate))
+                    {
+                        url += $"?endDate={endDate}";
+                    }
+                    if (!string.IsNullOrEmpty(branch))
+                    {
+                        url += $"?branch={branch}";
+                    }
                     var response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
@@ -76,21 +100,18 @@ namespace webCRM.Controllers
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
-                    // 1. Try PUT (endpoint name: putProductRemove)
                     var response = await client.PutAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}", null);
                     if (response.IsSuccessStatusCode)
                     {
                         return "Remove Success";
                     }
 
-                    // 2. Try GET if PUT returned 405 Method Not Allowed or 404
                     var getResponse = await client.GetAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}");
                     if (getResponse.IsSuccessStatusCode)
                     {
                         return "Remove Success";
                     }
 
-                    // 3. Try DELETE
                     var deleteResponse = await client.DeleteAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}");
                     if (deleteResponse.IsSuccessStatusCode)
                     {
@@ -297,6 +318,7 @@ namespace webCRM.Controllers
             }
         }
 
+        [HttpPut]
         public async Task<IActionResult> UpdateCampaign([FromBody] PostCampaign request)
         {
             try
@@ -308,21 +330,24 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.PostAsync($"{domain}/crm/api/v1/p2/putProductsPhase3",
+                    var response = await client.PutAsync($"{domain}/crm/api/v1/p2/putProductsPhase3",
                         new StringContent(
                             JsonSerializer.Serialize(request),
                             Encoding.UTF8,
                             "application/json"));
 
+                    string json = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {
-                        return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                        return Ok(new
+                        {
+                            status = "error",
+                            message = $"API responded with status code: {response.StatusCode}",
+                            detail = json
+                        });
                     }
-
-                    string json = await response.Content.ReadAsStringAsync();
-                    return Ok(new { status = "success" });
+                    return Ok(new { status = "success", data = json });
                 }
-
             }
             catch (System.Exception ex)
             {
@@ -378,6 +403,33 @@ namespace webCRM.Controllers
                 return "";
             }
         }
-    
+
+        [HttpGet]
+        public async Task<IActionResult> getMasterObjective()
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getMasterObjective");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+
+        }
+        
+        
     }
 }

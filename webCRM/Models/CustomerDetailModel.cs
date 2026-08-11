@@ -581,19 +581,4 @@ namespace webCRM.Models
         public string? TrackingIns { get; set; }
     }
 
-    public class pdpaResponse
-    {
-        [JsonPropertyName("Identifier")]
-        public string? Identifier { get; set; }
-        
-        [JsonPropertyName("MS1")]
-        public string? MS1 { get; set; }
-
-        [JsonPropertyName("MS2")]
-        public string? MS2 { get; set; }
-
-        [JsonPropertyName("company")]
-        public string? Company { get; set; }
-    }
-
 }

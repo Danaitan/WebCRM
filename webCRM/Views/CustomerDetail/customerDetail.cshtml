@@ -1,6 +1,6 @@
 @{
-    ViewData["Title"] = "ข้อมูลลูกค้าทั่วไป";
-    ViewData["HeaderTitle"] = "ข้อมูลลูกค้าทั่วไป";
+    ViewData["Title"] = "ข้อมูลลูกค้า";
+    ViewData["HeaderTitle"] = "ข้อมูลลูกค้า";
     ViewData["HeaderSubtitle"] = "ดูรายละเอียดลูกค้า";
 }
 
@@ -51,14 +51,13 @@
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="fw-bold mb-0 text-dark">ผลการค้นหา (<span id="customerCount">0</span>)</h6>
-                        @* <i class="bi bi-arrow-clockwise text-muted cursor-pointer fs-5"></i> *@
                     </div>
 
                     <div class="d-flex flex-md-row flex-column gap-2 mb-2">
                         <button class="button-tab-contact active" data-target="tab-table-person">
                             <i class="bi bi-person fs-5"></i> ลูกค้า
                         </button>
-                        <button class="button-tab-contact" data-target="tab-table-contact">
+                        <button class="button-tab-contact" data-target="tab-table-contact" id="tab-btn-table-contact">
                             <i class="bi bi-file-earmark-text fs-5"></i> สัญญา 
                         </button>
                     </div>
@@ -92,6 +91,7 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-Micro">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
+                                                    <th class="fw-medium pb-2 text-center">สถานะสัญญา</th>
                                                     <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
@@ -105,6 +105,7 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MFIN">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
+                                                    <th class="fw-medium pb-2 text-center">สถานะสัญญา</th>
                                                     <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
@@ -118,6 +119,7 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MIB">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
+                                                    <th class="fw-medium pb-2 text-center">สถานะกรมธรรม์</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่กรมธรรม์</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทผลิตภัณฑ์</th>
@@ -280,6 +282,13 @@
                                     <span>อีเมล</span>
                                 </div>
                                 <div class="detail-value fw-medium text-dark" id="detail-email">-</div>
+                            </div>
+                            <div class="col-12 col-xl-6 d-flex align-items-center">
+                                <div class="detail-label-sm">
+                                    <i class="bi bi-cash fs-5"></i>
+                                    <span>B/W</span>
+                                </div>
+                                <div class="detail-value fw-medium text-dark" id="detail-BW">-</div>
                             </div>
                         </div>
 
@@ -675,6 +684,21 @@
 
                                     <div class="col-12 col-xl-6 d-flex align-items-center rounded" id="mib-ins-status-container">
                                         <div class="detail-label-sm">
+                                            <i class="bi bi-info-circle text-primary" 
+                                                style="cursor: pointer;" 
+                                                tabindex="0"
+                                                data-bs-toggle="popover" 
+                                                data-bs-trigger="click" 
+                                                data-bs-html="true" 
+                                                data-bs-placement="right" 
+                                                data-bs-content="
+                                                    - สีเขียว อายุกรมธรรม์คงเหลือตั้งแต่ 90 วันขึ้นไป<br>
+                                                    - สีเหลือง อายุกรมธรรม์คงเหลือ 31- 60 วัน<br>
+                                                    - สีส้ม อายุกรมธรรม์คงเหลือตั้งแต่ 1-30 วัน<br>
+                                                    - สีแดง กรมธรรม์ขาดอายุ ไม่เกิน 1 ปี<br>
+                                                    - สีเทา กรมธรรม์ขาดอายุ เกิน 1 ปี
+                                                ">
+                                            </i>
                                             <span>สถานะกรมธรรม์</span>
                                         </div>
                                         <div class="detail-value" id="mib-ins-status">-</div>
@@ -843,7 +867,7 @@
                     <ul class="nav nav-tabs crm-tabs border-0 flex-nowrap overflow-y-hidden" style="margin-bottom: 0;">
                        
                         <li class="nav-item">
-                            <a class="nav-link active fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-info">ข้อมูลลูกค้าทั่วไป</a>
+                            <a class="nav-link active fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-info">ข้อมูลลูกค้า</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-muted fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-contract">สัญญา</a>
@@ -855,28 +879,20 @@
 
                     <!-- PDPA Section -->
                     <div class="p-4 p-lg-5 bg-light rounded-bottom-4 flex-grow-1 border-top">
-                        <h6 class="fw-bold mb-4 text-dark">การยินยอมเพื่อการตลาดและสิทธิพิเศษ (✅ = ยินยอม, ❌ = ไม่ยินยอม)</h6>
-                        เพื่อการประชาสัมพันธ์ แนะนำ ให้ข้อมูลหรือข้อเสนอเกี่ยวกับผลิตภัณฑ์และบริการ รวมถึงสิทธิพิเศษที่เป็นประโยชน์และอาจเหมาะสมแก่
-                        <div class="d-flex flex-wrap gap-3 mb-4">
-
-                            <div class="consent-box bg-white border rounded p-3 p-xl-4 d-flex align-items-center shadow-sm">
-                                <span class="consent-icon me-3" id="isCheck1"></span>
-
-                                <div class="flex-grow-1">
-                                    ข้าพเจ้า (<span class="cus-name-consent"></span>) ของบริษัทฯ ซึ่งอาจเกินความคาดหมายของข้าพเจ้า
-                                </div>
-                            </div>
-
-                            <div class="consent-box bg-white border rounded p-3 p-xl-4 d-flex align-items-center shadow-sm">
-                                <span class="consent-icon me-3" id="isCheck2"></span>
-
-                                <div class="flex-grow-1">
-                                    ข้าพเจ้า (<span class="cus-name-consent"></span>) ของบริษัทฯ และยินยอมให้แบ่งปันข้อมูลแก่บริษัทในเครือของบริษัทฯ ซึ่งอาจเกินความคาดหมายของข้าพเจ้า
-                                </div>
-                            </div>
-
+                        <h6 class="fw-bold mb-4 text-dark">การยินยอมเพื่อการตลาดและสิทธิพิเศษ (✅ = ยินยอม, ❌ = ไม่ยินยอม)
+                            <i class="bi bi-info-circle text-primary ms-1" 
+                               id="pdpa-info-icon"
+                               style="cursor: pointer; width: auto;" 
+                               tabindex="0"
+                               data-bs-toggle="popover" 
+                               data-bs-trigger="click" 
+                               data-bs-html="true" 
+                               data-bs-placement="left" 
+                               data-bs-content="">
+                            </i>
+                        </h6>
+                        <div class="d-flex flex-wrap gap-3 mb-4" id="pdpa-consent-container">
                         </div>
-
                     </div>
                 </div>
             </div>

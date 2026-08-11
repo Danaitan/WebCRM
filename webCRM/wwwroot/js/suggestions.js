@@ -23,9 +23,10 @@ $(document).ready(function () {
     });
 
     loadDepartmentOptions();
+    loadSuggestionHeaderOptions();
 
     var table = $('#suggestionsTable').DataTable({
-        order: [[4, 'asc']],
+        order: [[5, 'asc']],
         searching: true,
         dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
         language: {
@@ -165,6 +166,56 @@ async function loadDepartmentOptions() {
         }
     } catch (error) {
         console.error("Error loading master options:", error);
+    }
+}
+
+async function loadSuggestionHeaderOptions() {
+    try {
+        const response = await fetch('/Suggestions/GetSuggestionHeader');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+            const postTitleSelect = document.getElementById('post-title');
+            const filterTopicSelect = document.getElementById('filterTopic');
+
+            if (postTitleSelect) {
+                postTitleSelect.innerHTML = '<option value="" selected>เลือกหัวข้อ</option>';
+            }
+            if (filterTopicSelect) {
+                filterTopicSelect.innerHTML = '<option value="">หัวข้อ (ทั้งหมด)</option>';
+            }
+
+            data.forEach(item => {
+                const title = item.Title || item.title || item.name || '';
+                if (!title) return;
+
+                let code = item.suggesCde || item.SuggesCde || item.code || item.Code;
+                if (!code && (item.Id !== undefined && item.Id !== null)) {
+                    code = String(item.Id).padStart(2, '0');
+                } else if (!code && (item.id !== undefined && item.id !== null)) {
+                    code = String(item.id).padStart(2, '0');
+                } else if (!code) {
+                    code = title;
+                }
+
+                if (postTitleSelect) {
+                    const option = document.createElement('option');
+                    option.value = code;
+                    option.textContent = title;
+                    postTitleSelect.appendChild(option);
+                }
+
+                if (filterTopicSelect) {
+                    const option = document.createElement('option');
+                    option.value = title;
+                    option.textContent = title;
+                    filterTopicSelect.appendChild(option);
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Error loading suggestion header options:", error);
     }
 }
 

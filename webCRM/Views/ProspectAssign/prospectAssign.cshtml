@@ -20,41 +20,34 @@
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label-custom">Campaign Code</label>
-                        <input type="text" id="filterCampaignCode" class="form-control form-control-custom" placeholder="เช่น CAM-202505">
+                        <input type="text" id="filterCampaignCode" class="form-control form-control-custom" readonly>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">Campaign Name</label>
-                        <input type="text" id="filterCampaignName" class="form-control form-control-custom" placeholder="เช่น สินเชื่อรถยนต์ พ.ศ. 2568">
+                        <input type="text" id="filterCampaignName" class="form-control form-control-custom" readonly>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">วันที่เริ่มต้น</label>
                         <div class="position-relative">
-                            <i class="bi bi-calendar position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
-                            <input type="text" id="filterStartDate" class="form-control form-control-custom" value="" style="padding-left: 35px;">
+                            <input type="date" id="filterStartDate" class="form-control form-control-custom" style="padding-left: 35px;" readonly>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">วันที่สิ้นสุด</label>
                         <div class="position-relative">
-                            <i class="bi bi-calendar position-absolute" style="left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-gray);"></i>
-                            <input type="text" id="filterEndDate" class="form-control form-control-custom" value="" style="padding-left: 35px;">
+                            <input type="date" id="filterEndDate" class="form-control form-control-custom" style="padding-left: 35px;" readonly>
                         </div>
                     </div>
                     
                     <div class="col-md-5">
                         <label class="form-label-custom">หมายเหตุ</label>
-                        <input type="text" id="filterRemark" class="form-control form-control-custom" placeholder="ระบุหมายเหตุ (ถ้ามี)">
+                        <input type="text" id="filterRemark" class="form-control form-control-custom" readonly>
                     </div>
-                    <div class="col-md-7">
-                        <label class="form-label-custom">เลือกสาขา / Branch (เลือกได้หลายสาขา)</label>
-                        <div class="form-control form-control-custom d-flex align-items-center flex-wrap gap-2 py-1" style="min-height: 38px; height: auto;">
-                            <span class="branch-tag">00 สำนักงานใหญ่ <i class="bi bi-x"></i></span>
-                            <div class="d-flex align-items-center flex-grow-1 ms-1">
-                                <i class="bi bi-search" style="font-size: 0.8rem; color: #94a3b8;"></i>
-                                <input type="text" class="border-0 shadow-none bg-transparent" placeholder="ค้นหาสาขา" style="outline: none; font-size: 0.85rem; width: 80px; margin-left: 5px;">
-                            </div>
-                            <i class="bi bi-chevron-down ms-auto" style="font-size: 0.8rem; color: #94a3b8;"></i>
-                        </div>
+                    <div class="col-md-7" id="filterBranchSelectContainer">
+                        <label class="form-label-custom">เลือกสาขา</label>
+                        <select id="filterBranchSelect" class="form-select form-control-custom" style="height: 38px; cursor: pointer;">
+                            <option value="">-- เลือกสาขา --</option>
+                        </select>
                     </div>
 
                     <div class="col-12" id="importExcelContainer">
@@ -120,10 +113,10 @@
             <div class="card-custom p-4 h-100">
                 
                 <div class="d-flex gap-3 mb-4">
-                    <div class="assign-method-btn">
+                    <button type="button" class="assign-method-btn active">
                         <i class="bi bi-robot"></i>
                         <span>Auto<br>Assign</span>
-                    </div>
+                    </button>
                 </div>
                 
                 <div class="mb-4 position-relative" id="responsibleSelectContainer">
@@ -138,18 +131,7 @@
                     
                     <!-- Dropdown Menu -->
                     <div class="dropdown-menu w-100 shadow-sm border mt-1 p-2" id="responsibleDropdownMenu" style="display: none; position: absolute; z-index: 1000; max-height: 200px; overflow-y: auto; background: white; border-radius: 8px;">
-                        <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="A">
-                            <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
-                            <span>A</span>
-                        </div>
-                        <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="B">
-                            <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
-                            <span>B</span>
-                        </div>
-                        <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="C">
-                            <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
-                            <span>C</span>
-                        </div>
+                        <div class="p-2 text-center text-muted" style="font-size: 0.85rem;">กรุณาเลือกสาขา</div>
                     </div>
                 </div>
                 
@@ -159,7 +141,6 @@
                 </div>
                 
                 <button id="assignBtn" class="btn-primary-custom w-100 d-flex align-items-center justify-content-center gap-2 py-3 mt-auto" style="font-size: 1rem;">
-                    Assign
                 </button>
                 
             </div>
@@ -275,18 +256,7 @@
                         
                         <!-- Dropdown Menu -->
                         <div class="dropdown-menu w-100 shadow-sm border mt-1 p-2" id="newResponsibleDropdownMenu" style="display: none; position: absolute; z-index: 1000; max-height: 200px; overflow-y: auto; background: white; border-radius: 8px;">
-                            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="A">
-                                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
-                                <span>A</span>
-                            </div>
-                            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="B">
-                                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
-                                <span>B</span>
-                            </div>
-                            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="C">
-                                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
-                                <span>C</span>
-                            </div>
+                            <div class="p-2 text-center text-muted" style="font-size: 0.85rem;">กรุณาเลือกสาขา</div>
                         </div>
                     </div>
                     <div class="mb-3">

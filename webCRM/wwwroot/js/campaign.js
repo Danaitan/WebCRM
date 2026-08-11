@@ -1,6 +1,72 @@
-// Campaign Management JavaScript
+
+let masterFiltersData = [];
+let selectedFilterCodes = [];
+let selectedCampaignCode = "";
+let selectedCampaignGuid = "";
+let selectedCampaignId = 0;
 const pageSize = 5;
 let page = 1;
+let rawMasterFilters = [];
+
+async function GetMasterObjective() {
+    const response = await fetch(`/Campain/GetMasterObjective`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data || [];
+}
+
+async function renderMasterObjectives() {
+    try {
+        const objectives = await GetMasterObjective();
+        const $objectiveSelects = $("#campaignObjective, #modalCampaignObjective");
+        
+        $objectiveSelects.html('<option value="">เลือกวัตถุประสงค์</option>');
+        
+        let popoverInnerHtml = "";
+
+        if (Array.isArray(objectives) && objectives.length > 0) {
+            objectives.forEach(item => {
+                const code = item.Code || "";
+                const nameEn = item.NameEn || "";
+                const nameTh = item.NameTh || "";
+
+                const labelText = `${code}: ${nameEn} ${nameTh}`.replace(/\s+/g, ' ').trim();
+
+                $objectiveSelects.append(
+                    $("<option></option>").attr("value", code).text(labelText)
+                );
+
+                popoverInnerHtml += `
+                    <div style="display:grid; grid-template-columns:30px 15px 1fr; gap:0;">
+                        <strong class="text-primary">${code}</strong>
+                        <span>:</span>
+                        <span>${nameEn} ${nameTh}</span>
+                    </div>
+                `;
+            });
+        }
+
+        const popoverContentHtml = `<div class='py-1 text-nowrap' style='font-size: 0.875rem; line-height: 1.8; white-space: nowrap;'>${popoverInnerHtml}</div>`;
+        
+        const $popoverIcons = $('label[for="campaignObjective"] [data-bs-toggle="popover"], label[for="modalCampaignObjective"] [data-bs-toggle="popover"]');
+        $popoverIcons.attr("data-bs-content", popoverContentHtml);
+        
+        $popoverIcons.each(function () {
+            const existingPopover = bootstrap.Popover.getInstance(this);
+            if (existingPopover) {
+                existingPopover.dispose();
+            }
+            bootstrap.Popover.getOrCreateInstance(this, {
+                container: 'body',
+                html: true,
+                sanitize: false,
+                trigger: 'click'
+            });
+        });
+    } catch (error) {
+        console.error("Error rendering master objectives:", error);
+    }
+}
 
 async function GetFilterByGuid(productGuid) {
     const guid = productGuid || selectedCampaignGuid || "";
@@ -20,7 +86,8 @@ async function GetFilterByGuid(productGuid) {
 }
 
 function updateFilterSelectionUI() {
-    $(".filter-chk, #chkSelectAllFilters").prop("disabled", false);
+    const isDisabled = !selectedCampaignCode;
+    $(".filter-chk, #chkSelectAllFilters").prop("disabled", isDisabled);
 
     $(".filter-chk").each(function () {
         const code = $(this).attr("data-fcode") || $(this).val();
@@ -29,8 +96,6 @@ function updateFilterSelectionUI() {
     updateSelectAllFiltersState();
     updateSelectedFiltersDisplay();
 }
-
-let rawMasterFilters = [];
 
 async function fetchRawMasterFilters() {
     if (rawMasterFilters && rawMasterFilters.length > 0) {
@@ -108,22 +173,21 @@ async function getMasterFilter() {
     startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Filter...');
     try {
         const data = await fetchRawMasterFilters();
-        
         const mappedData = (data || [])
             .filter(item => {
-                const code = (item.fcode || item.fCode || item.FCode || "").toString().toUpperCase();
-                const name = (item.fname || item.fName || item.FName || "").toString().toLowerCase();
+                const code = (item.fcode || "").toString().toUpperCase();
+                const name = (item.fname || "").toString().toLowerCase();
                 return code !== "F999" && name !== "import";
             })
             .map(item => ({
-                id: item.id ?? item.Id ?? 0,
-                fcode: item.fcode || item.fCode || item.FCode || item.f_code || "",
-                fname: item.fname || item.fName || item.FName || item.f_name || "",
-                fremark: item.fremark || item.fRemark || item.FRemark || item.f_remark || "",
-                ftype: item.ftype || item.fType || item.FType || item.f_type || "",
-                fcompany: item.fcompany || item.fCompany || item.FCompany || item.f_company || "",
-                fstatus: item.fstatus || item.fStatus || item.FStatus || item.f_status || "",
-                fremark2: item.fremark2 || item.fRemark2 || item.FRemark2 || item.f_remark2 || ""
+                id: item.id ?? 0,
+                fcode: item.fcode || "",
+                fname: item.fname || "",
+                fremark: item.fremark || "",
+                ftype: item.ftype || "",
+                fcompany: item.fcompany || "",
+                fstatus: item.fstatus || "",
+                fremark2: item.fremark2 || ""
             }));
         
         return mappedData;
@@ -134,12 +198,6 @@ async function getMasterFilter() {
         stopLoading();
     }
 }
-
-let masterFiltersData = [];
-let selectedFilterCodes = [];
-let selectedCampaignCode = "";
-let selectedCampaignGuid = "";
-let selectedCampaignId = 0;
 
 async function renderMasterFilters() {
     try {
@@ -176,10 +234,11 @@ async function renderMasterFilters() {
             const filterName = item.fname || item.fcode || "-";
             const description = item.fremark || item.fremark2 || item.ftype || "-";
             const isChecked = selectedFilterCodes.includes(item.fcode) ? "checked" : "";
+            const isDisabled = !selectedCampaignCode ? "disabled" : "";
             const rowHtml = `
                 <div class="filter-name-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; cursor: pointer;" data-id="${item.id}" data-fcode="${item.fcode}">
                     <div style="width: 8%; text-align: center;">
-                        <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" ${isChecked} style="cursor: pointer;">
+                        <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" ${isChecked} ${isDisabled} style="cursor: pointer;">
                     </div>
                     <div style="width: 50%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
                 </div>
@@ -189,6 +248,7 @@ async function renderMasterFilters() {
 
         // Attach checkbox change event
         $(".filter-chk").off("change").on("change", function (e) {
+            if (!selectedCampaignCode) return;
             e.stopPropagation();
             const code = $(this).attr("data-fcode") || $(this).val();
             if ($(this).is(":checked")) {
@@ -204,6 +264,7 @@ async function renderMasterFilters() {
 
         // Click row toggles checkbox
         $(".filter-name-row").off("click").on("click", function (e) {
+            if (!selectedCampaignCode) return;
             if ($(e.target).is("input[type='checkbox']")) return;
             const $chk = $(this).find(".filter-chk");
             $chk.prop("checked", !$chk.is(":checked")).trigger("change");
@@ -211,6 +272,7 @@ async function renderMasterFilters() {
 
         // Select All Filters Checkbox handler
         $("#chkSelectAllFilters").off("change").on("change", function () {
+            if (!selectedCampaignCode) return;
             const isChecked = $(this).is(":checked");
             if (isChecked) {
                 selectedFilterCodes = masterFiltersData.map(f => f.fcode);
@@ -232,7 +294,8 @@ async function renderMasterFilters() {
 function updateSelectAllFiltersState() {
     const total = masterFiltersData.length;
     const checkedCount = selectedFilterCodes.length;
-    $("#chkSelectAllFilters").prop("checked", total > 0 && checkedCount === total);
+    const isDisabled = !selectedCampaignCode;
+    $("#chkSelectAllFilters").prop("checked", total > 0 && checkedCount === total).prop("disabled", isDisabled);
 }
 
 function updateSelectedFiltersDisplay() {
@@ -286,6 +349,7 @@ async function getCampainList(page, pageSize) {
             status: item.product_status || "ปกติ",
             startDate: item.product_start ? item.product_start.substring(0, 10) : "",
             endDate: item.product_end ? item.product_end.substring(0, 10) : "",
+            objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || "",
             branches: item.offcde ? item.offcde.split(',') : [],
             remarks: item.product_remark || "",
             isImportFromExcel: false
@@ -305,6 +369,7 @@ async function getCampainList(page, pageSize) {
         stopLoading();
     }
 }
+
 $(document).ready(async function () {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่ ระบบกำลังดึงข้อมูล Campaign...');
     // Fetch Branches Data
@@ -505,6 +570,47 @@ $(document).ready(async function () {
         }
     }
 
+    function setProductFormState(hasSelected) {
+        if (!hasSelected) {
+            selectedCampaignCode = "";
+            selectedCampaignGuid = "";
+            selectedCampaignId = 0;
+
+            $("#campaignCode").val("");
+            $("#campaignName").val("");
+            $("#startDate").val("");
+            $("#endDate").val("").removeAttr("min");
+            $("#campaignObjective").val("");
+            $("#remarks").val("");
+            $("#remarksCharCounter").text("0 / 500");
+
+            selectedBranches = [];
+            syncCheckboxesState();
+            updateBranchDisplay();
+
+            $("#chkImportExcel").prop("checked", false);
+            $("#excelFileInput").val("");
+            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+            $("#filterSelectedRow").hide();
+            $("#btnGotoETL").hide();
+
+            selectedFilterCodes = [];
+            updateFilterSelectionUI();
+
+            $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportExcel, #submitFormBtn").prop("disabled", true);
+            $("#branchSelectDisplay").addClass("disabled").css("pointer-events", "none");
+            $(".branch-chk").prop("disabled", true);
+            $(".filter-chk, #chkSelectAllFilters").prop("disabled", true);
+
+            $(".campaign-card").removeClass("active");
+        } else {
+            $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportExcel, #submitFormBtn").prop("disabled", false);
+            $("#branchSelectDisplay").removeClass("disabled").css("pointer-events", "auto");
+            $(".branch-chk").prop("disabled", false);
+            $(".filter-chk, #chkSelectAllFilters").prop("disabled", false);
+        }
+    }
+
     // Remove tag click event handler (using event delegation)
     $branchSelectDisplay.on("click", ".tag-remove-btn", function (e) {
         e.stopPropagation(); // Avoid opening the dropdown
@@ -518,6 +624,7 @@ $(document).ready(async function () {
 
     // Toggle Dropdown Panel
     $branchSelectDisplay.on("click", function (e) {
+        if (!selectedCampaignCode) return;
         e.stopPropagation();
         $branchSelectDisplay.toggleClass("open");
         $branchDropdownPanel.toggleClass("show");
@@ -700,6 +807,7 @@ $(document).ready(async function () {
             selectedCampaignCode = code;
             selectedCampaignGuid = campaign.guid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
             selectedCampaignId = campaign.id || 0;
+            setProductFormState(true);
             
             // Populate inputs
             $("#campaignCode").val(campaign.code);
@@ -743,9 +851,11 @@ $(document).ready(async function () {
                     if (campaign.isImportFromExcel) {
                         $("#chkImportExcel").prop("checked", true);
                         $("#filterSelectedRow").hide();
+                        $("#btnGotoETL").show();
                     } else {
                         $("#chkImportExcel").prop("checked", false);
                         $("#filterSelectedRow").show();
+                        $("#btnGotoETL").hide();
                     }
 
                     if (Array.isArray(filterData)) {
@@ -1098,6 +1208,7 @@ async function getCheckProductNo() {
         const start = $("#modalStartDate").val();
         const end = $("#modalEndDate").val();
         const note = $("#modalRemarks").val().trim();
+        const Objective_code = $("#modalCampaignObjective").val();
         
         if (!name || !start || !end) {
             Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด", icon: "warning" });
@@ -1156,9 +1267,10 @@ async function getCheckProductNo() {
                             product_end: end,
                             product_remark: note,
                             product_guid: newGuid,
-                            createrd_by: window.CURRENT_USER_ID || "system",
+                            createrd_by: window.CURRENT_USER_ID,
                             product_company: company,
-                            offcde: modalSelectedBranches.filter(b => b !== "99").join(",")
+                            offcde: modalSelectedBranches.filter(b => b !== "99").join(","),
+                            Objective_code: Objective_code
                         },
                         filtersInfo: filterCodesToPost.map(c => ({
                             fguid: newGuid,
@@ -1185,6 +1297,7 @@ async function getCheckProductNo() {
                             status: "ปกติ",
                             startDate: start,
                             endDate: end,
+                            objective: Objective_code,
                             branches: [...modalSelectedBranches],
                             remarks: note,
                             isImportFromExcel: isImportFromExcel
@@ -1239,26 +1352,8 @@ async function getCheckProductNo() {
                         // Re-fetch fresh campaign list from server
                         renderCampaignsList();
                         
-                        if (campaigns.length > 0) {
-                            await loadCampaignToForm(campaigns[0].code);
-                        } else {
-                            // Reset form & UI state when list is empty
-                            selectedCampaignCode = "";
-                            selectedCampaignGuid = "";
-                            selectedCampaignId = 0;
-                            $("#campaignCode").val("");
-                            $("#campaignName").val("");
-                            $("#startDate").val("");
-                            $("#endDate").val("").removeAttr("min");
-                            $("#remarks").val("");
-                            $("#remarksCharCounter").text("0 / 500");
-                            selectedBranches = [];
-                            syncCheckboxesState();
-                            updateBranchDisplay();
-                            selectedFilterCodes = [];
-                            updateFilterSelectionUI();
-                            renderCampaignsList();
-                        }
+                        setProductFormState(false);
+                        renderCampaignsList();
                     } else {
                         Swal.fire({ title: "ลบไม่สำเร็จ", text: resultText || "เกิดข้อผิดพลาดในการลบแคมเปญ", icon: "error" });
                     }
@@ -1279,17 +1374,22 @@ async function getCheckProductNo() {
             loadCampaignToForm(selectedCampaignCode);
             Swal.fire({ title: "ยกเลิกการแก้ไข", text: "คืนค่าข้อมูลเดิมเรียบร้อย", icon: "info", timer: 1000, showConfirmButton: false });
         } else {
-            $("#newActionBtn").trigger("click");
+            setProductFormState(false);
         }
     });
 
     // Submit Form Button
     $("#submitFormBtn").off("click").on("click", function () {
+        if (!selectedCampaignCode) {
+            Swal.fire({ title: "กรุณาเลือก Campaign", text: "กรุณาเลือก Campaign จากรายการทางด้านซ้ายก่อนทำการบันทึกข้อมูล", icon: "warning" });
+            return;
+        }
         const name = ($("#campaignName").val() || "").trim();
         const code = ($("#campaignCode").val() || "").trim();
         const start = $("#startDate").val() || "";
         const end = $("#endDate").val() || "";
         const note = ($remarks && $remarks.length && $remarks.val()) ? $remarks.val().trim() : "";
+        const Objective_code = $("#campaignObjective").val() || "";
 
         if (start && end && end < start) {
             Swal.fire({ title: "วันที่ไม่ถูกต้อง", text: "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น", icon: "warning" });
@@ -1297,13 +1397,15 @@ async function getCheckProductNo() {
         }
 
         const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
+        const currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
         const campaignData = {
-            guid: selectedCampaignGuid,
+            id: currentCampaignId,
             code: code,
             name: name,
             status: "ปกติ",
             startDate: start,
             endDate: end,
+            objective: Objective_code,
             branches: [...selectedBranches],
             remarks: note
         };
@@ -1323,6 +1425,30 @@ async function getCheckProductNo() {
                     startLoading("กำลังบันทึกข้อมูล...", "ระบบกำลังบันทึกข้อมูลแคมเปญและ Filter...");
                     try {
                         const filterRes = await postFilter(selectedCampaignGuid);
+                        const company = window.CURRENT_COMPANY || "MICRO";
+                        const updatePayload = {
+                            productInfo: {
+                                id: currentCampaignId ? String(currentCampaignId) : "",
+                                product_code: code,
+                                product_name: name,
+                                product_start: start,
+                                product_end: end,
+                                product_remark: note,
+                                product_guid: selectedCampaignGuid,
+                                updated_by: window.CURRENT_USER_ID || "system",
+                                product_company: company,
+                                offcde: selectedBranches.filter(b => b !== "99").join(","),
+                                Objective_code: Objective_code
+                            }
+                        };
+                        await fetch(`/Campain/UpdateCampaign`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(updatePayload)
+                        });
+
                         if (filterRes && (filterRes.status === "success" || filterRes.status === "warning")) {
                             campaigns[existingIdx] = campaignData;
                             Swal.fire({ title: "บันทึกข้อมูลสำเร็จ", text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
@@ -1365,7 +1491,8 @@ async function getCheckProductNo() {
                                 product_guid: newGuid,
                                 createrd_by: window.CURRENT_USER_ID || "system",
                                 product_company: company,
-                                offcde: selectedBranches.filter(b => b !== "99").join(",")
+                                offcde: selectedBranches.filter(b => b !== "99").join(","),
+                                Objective_code: Objective_code
                             },
                             filtersInfo: selectedFilterCodes.map(c => ({
                                 fguid: newGuid,
@@ -1407,6 +1534,7 @@ async function getCheckProductNo() {
 
     // Initial Execution on Load
     try {
+        await renderMasterObjectives();
         renderBranchCheckboxes();
         renderModalBranchCheckboxes();
         await renderMasterFilters();
@@ -1496,12 +1624,19 @@ async function getCheckProductNo() {
 
         if (selectedCampaignCode) {
             await loadCampaignToForm(selectedCampaignCode);
+        } else {
+            setProductFormState(false);
         }
-        // ไม่ auto-load campaign แรก — ให้ผู้ใช้เลือกเองจากรายการ
     } finally {
         stopLoading();
     }
 });
+
+    $("#btnGotoETL").off("click").on("click", function () {
+        if (!selectedCampaignGuid) return;
+        var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignGuid;
+        window.location.href = url;
+    });
 
 document.addEventListener("DOMContentLoaded", function() {
     const btnImport = document.getElementById('btnImportExcel');

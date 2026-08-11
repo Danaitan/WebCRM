@@ -34,7 +34,12 @@ namespace webCRM.Controllers
                     request.assigner = personalId;
                     request.updated_by = personalId;
 
-                    var response = await client.PostAsync($"{domain}/crm/api/v1/p3/updateProspectCustomer", new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json"));
+                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateProspectCustomer",
+                    new StringContent(
+                        JsonSerializer.Serialize(request),
+                        Encoding.UTF8,
+                        "application/json"
+                        ));
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {
@@ -47,6 +52,31 @@ namespace webCRM.Controllers
             {
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
                 return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetStafflist(string branchId)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getStaffList/{branchId}");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message);
             }
         }
 

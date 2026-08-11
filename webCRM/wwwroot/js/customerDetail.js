@@ -34,6 +34,25 @@ function getCompanyCountText(compName, contactData) {
     }
 }
 
+function updateContactTabLabel(compName) {
+    const contactBtn = document.getElementById("tab-btn-table-contact") || document.querySelector('.button-tab-contact[data-target="tab-table-contact"]');
+    if (!contactBtn) return;
+
+    if (!compName) {
+        const activeCompBtn = document.querySelector('#contact-company-tabs .button-tab-contact.active');
+        if (activeCompBtn) {
+            compName = activeCompBtn.getAttribute('data-target') || '';
+        }
+    }
+
+    const isMIB = compName && (compName.toLowerCase() === 'mib' || compName.toLowerCase() === 'contact-mib');
+    if (isMIB) {
+        contactBtn.innerHTML = '<i class="bi bi-file-earmark-text fs-5"></i> กรมธรรม์';
+    } else {
+        contactBtn.innerHTML = '<i class="bi bi-file-earmark-text fs-5"></i> สัญญา';
+    }
+}
+
 function renderCompanyTabs(contactData = currentContactData) {
     const container = document.getElementById("contact-company-tabs");
     if (!container || !masterData || !Array.isArray(masterData.company)) return;
@@ -68,17 +87,44 @@ function renderCompanyTabs(contactData = currentContactData) {
 
         container.appendChild(button);
     });
+
+    updateContactTabLabel();
+}
+
+function initPopovers() {
+    const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+    [...popoverTriggerList].forEach(popoverTriggerEl => {
+        bootstrap.Popover.getOrCreateInstance(popoverTriggerEl, {
+            sanitize: false
+        });
+    });
+
+    // Close popovers when clicking outside
+    $(document).off('click.popoverDismiss').on('click.popoverDismiss', function (e) {
+        $('[data-bs-toggle="popover"]').each(function () {
+            if (!this.contains(e.target) && $(e.target).closest('.popover').length === 0) {
+                const popover = bootstrap.Popover.getInstance(this);
+                if (popover) {
+                    popover.hide();
+                }
+            }
+        });
+    });
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', getmaster);
+    document.addEventListener('DOMContentLoaded', () => {
+        getmaster();
+        initPopovers();
+    });
 } else {
     getmaster();
+    initPopovers();
 }
 
 function isCheck (isCheck)
 {
-    if (isCheck == '1'){
+    if (isCheck === true || isCheck === '1'){
         return '✅';
     }else{
         return '❌';
@@ -96,8 +142,33 @@ function allowCard(status) {
 }
 
 async function displayCustomerDetails(customer) {
-    const response = await fetch(`/CustomerDetail/GetPDPA?search=${customer.idno}&company=${customer.companyCde}`);
-    const pdpaData = await response.json();
+    const companyCode = customer.companyCde || customer.CompanyCde || '';
+    let pdpaData = null;
+    let checkPDPAData = null;
+    let MS1Purpose = null;
+    let MS2Purpose = null;
+    try {
+        const response = await fetch(`/CustomerDetail/GetPDPA?company=${companyCode}`);
+        const checkPDPA = await fetch(`/CustomerDetail/GetCheckPDPA?idno=${customer.idno || ''}`);
+
+        if (response.ok) {
+            pdpaData = await response.json();
+        }
+        if (checkPDPA.ok) {
+            checkPDPAData = await checkPDPA.json();
+        }
+
+        if (companyCode === "MICRO"){
+            MS1Purpose = "291e16b1-403b-4f0d-6256-08da3957c070";
+            MS2Purpose = "7018373d-b0b5-4d6e-4a8b-08da3d7327ea";
+        } else if (companyCode === "MFIN"){
+            MS1Purpose = "1d9ac4c8-fe6a-4fa6-ab04-08db72459de6";
+            MS2Purpose = "40e07f77-7245-40c3-ab05-08db72459de6";
+        }
+
+    } catch (e) {
+        console.error("Error fetching PDPA data:", e);
+    }
 
     const pdpaCheckEl = document.getElementById("detail-pdpaCheck");
     if (pdpaCheckEl) pdpaCheckEl.innerText = customer.pdpaCheck || '-';
@@ -112,7 +183,6 @@ async function displayCustomerDetails(customer) {
     
     const contractNameElement = document.getElementById("contract-detail-name");
     if (contractNameElement) contractNameElement.innerText = customer.nameCus || '-';
-
     document.getElementById("detail-type").innerText = customer.custyp || '-';
     document.getElementById("detail-gender").innerText = customer.gender || '-';
     document.getElementById("detail-dob").innerText = customer.birdte || '-';
@@ -122,8 +192,97 @@ async function displayCustomerDetails(customer) {
     document.getElementById("detail-phone2").innerText = customer.phone2 || '-';
     document.getElementById("detail-occupation").innerText = customer.occupation || '-';
     document.getElementById("detail-email").innerText = customer.mail || '-';
-    document.getElementById("isCheck1").innerText = isCheck(pdpaData.MS1);
-    document.getElementById("isCheck2").innerText = isCheck(pdpaData.MS2);
+    document.getElementById("detail-BW").innerText = customer.BLWL || '-';
+
+    const container = document.getElementById("pdpa-consent-container");
+    if (container) {
+        let items = [];
+        if (Array.isArray(pdpaData)) {
+            items = pdpaData;
+        } else if (pdpaData && Array.isArray(pdpaData.data)) {
+            items = pdpaData.data;
+        } else if (pdpaData && typeof pdpaData === 'object') {
+            items = Object.keys(pdpaData).map(key => ({
+                purpose: key,
+                purposeDesc: pdpaData[key]?.purposeDesc,
+                status: pdpaData[key]?.status ?? pdpaData[key]
+            }));
+        }
+
+        const pdpaList = Array.isArray(checkPDPAData) ? checkPDPAData : (checkPDPAData?.data || []);
+
+        const sortedPdpaList = [...pdpaList].sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0));
+
+        let popoverInnerHtml = "";
+        if (sortedPdpaList.length > 0) {
+            popoverInnerHtml = sortedPdpaList.map((item, index) => {
+                const isApproved = item.LastestStatus === "approved";
+                const icon = isApproved 
+                    ? `<i class="bi bi-check-circle-fill text-success fs-6 me-2"></i>` 
+                    : `<i class="bi bi-x-circle-fill text-danger fs-6 me-2"></i>`;
+                
+                const numBadge = item.number != null 
+                    ? `<span class="badge ${isApproved ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'} me-2">ข้อ ${item.number}</span>` 
+                    : '';
+                
+                const descStr = item.description || item.purposeDesc || item.name || item.title || item.detail || '';
+                const isLast = index === sortedPdpaList.length - 1;
+                const borderClass = isLast ? '' : 'border-bottom pb-1 mb-1';
+
+                return `<div class="d-flex align-items-center ${borderClass}">${icon}${numBadge}<span class="text-dark fw-medium">${descStr || `ข้อ ${item.number}`}</span></div>`;
+            }).join('');
+        } else {
+            popoverInnerHtml = `<div class="text-muted text-center py-1"><i class="bi bi-exclamation-circle me-1"></i>ไม่พบข้อมูลรายการ PDPA</div>`;
+        }
+
+        const popoverContentHtml = `<div class="p-1" style="font-size: 0.875rem; min-width: 220px; max-height: 260px; overflow-y: auto;"><div class="fw-bold text-dark border-bottom pb-1 mb-2 d-flex align-items-center position-sticky top-0 bg-white z-1"><i class="bi bi-shield-check text-primary me-2"></i>รายละเอียด PDPA</div><div>${popoverInnerHtml}</div></div>`;
+        const pdpaInfoIcon = document.getElementById("pdpa-info-icon") || document.querySelector('#pdpa-consent-container')?.previousElementSibling?.querySelector('[data-bs-toggle="popover"]');
+        if (pdpaInfoIcon) {
+            const oldPopover = bootstrap.Popover.getInstance(pdpaInfoIcon);
+            if (oldPopover) {
+                oldPopover.dispose();
+            }
+            pdpaInfoIcon.setAttribute("data-bs-content", popoverContentHtml);
+            bootstrap.Popover.getOrCreateInstance(pdpaInfoIcon, { sanitize: false });
+        }
+
+        if (items.length > 0) {
+            container.innerHTML = items.map((item, idx) => {
+                let descText = item.purposeDesc || '';
+                let MScheck = false;
+
+                if (Array.isArray(pdpaList) && pdpaList.length > 0) {
+                    if (item.purpose == MS1Purpose){
+                        MScheck = [4, 6, 10].every(number =>
+                            pdpaList.some(data =>
+                                data.number === number &&
+                                data.LastestStatus === "approved"
+                            )
+                        );
+                    } else if (item.purpose == MS2Purpose){
+                        MScheck = [2, 3, 5, 7, 10].every(number =>
+                            pdpaList.some(data =>
+                                data.number === number &&
+                                data.LastestStatus === "approved"
+                            )
+                        );
+                    }
+                }
+
+                return `
+                    <div class="consent-box bg-white border rounded p-3 p-xl-4 d-flex align-items-center shadow-sm w-100">
+                        <span class="consent-icon me-3">${isCheck(MScheck)}</span>
+                        <div class="flex-grow-1">
+                            ${descText}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            initPopovers();
+        } else {
+            container.innerHTML = '<div class="text-muted small">ไม่พบข้อมูลรายการยินยอม</div>';
+        }
+    }
 
     const panelBg = document.getElementById("customer-detail-panel-bg");
     if (panelBg) {
@@ -156,7 +315,7 @@ async function performSearch() {
     const val = searchInput.value;
     if (val) {
         try {
-            startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้าทั่วไป กรุณารอสักครู่...');
+            startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้า กรุณารอสักครู่...');
             const originalText = searchBtn.innerHTML;
             searchBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
             
@@ -414,6 +573,9 @@ document.addEventListener('click', function(e) {
             }
 
             // Abort pending requests and clear UI when switching company tabs
+            if (targetId.toLowerCase().startsWith("contact-")) {
+                updateContactTabLabel(targetId);
+            }
             if (targetId.toLowerCase() === "contact-micro" || targetId.toLowerCase() === "contact-mfin" || targetId.toLowerCase() === "contact-mib") {
                 if (typeof currentContactInfoRequestId !== 'undefined') {
                     currentContactInfoRequestId++;
@@ -555,6 +717,7 @@ async function getContact(idno) {
                     data: sortedDataList,
                     destroy: true,
                     columns: [
+                        { data: row => 'A' },
                         { data: row => row.contno || '-' },
                         { data: row => {
                             if (company === 'MIB') {
@@ -643,7 +806,7 @@ const isContractActive = (val) => {
         const lower = val.trim().toLowerCase();
         return lower === 'true' || lower === 'active' || lower === '1';
     }
-    return true; // เพื่อเทส ค่าจริงต้อง return false
+    return false; // เพื่อเทส ค่าจริงต้อง return false
 };
 
 let currentContactInfoRequestId = 0;
@@ -696,11 +859,13 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             if (company === "MIB") {
                 document.getElementById("tab-buttons-normal").classList.add("d-none");
                 document.getElementById("tab-buttons-mib").classList.remove("d-none");
+                updateContactTabLabel("MIB");
                 const mibBtn = document.querySelector('#tab-buttons-mib .button-tab-contact[data-target="tab-content-contact-MIB-detail"]');
                 if (mibBtn) mibBtn.click();
             } else {
                 document.getElementById("tab-buttons-normal").classList.remove("d-none");
                 document.getElementById("tab-buttons-mib").classList.add("d-none");
+                updateContactTabLabel(company);
                 const normalBtn = document.querySelector('#tab-buttons-normal .button-tab-contact[data-target="tab-content-contact-detail"]');
                 if (normalBtn) normalBtn.click();
             }

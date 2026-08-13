@@ -643,7 +643,6 @@ function filterAndRenderProspectTable() {
     } else {
         let html = '';
         filteredItems.forEach(item => {
-            console.log("item",item)
             const dotClass = getStatusDotClass(item.status, item.assignee);
             const statusText = getStatusLabel(item.status, item.assignee);
             html += `

@@ -28,7 +28,6 @@ namespace webCRM.Controllers
             string createdBy = ""
             )
         {
-
             try
             {
                 var handler = new HttpClientHandler
@@ -67,7 +66,7 @@ namespace webCRM.Controllers
                     var response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
-                    if (response.IsSuccessStatusCode)
+                    //if (response.IsSuccessStatusCode)
                     {
                         var apiResponse = System.Text.Json.JsonSerializer.Deserialize<CampainPagedResult>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                         var result = apiResponse;

@@ -4,12 +4,17 @@ const clearBtn = document.getElementById("clearBtn");
 
 let masterData = null;
 let currentContactData = null;
+let currentContactInfoRequestId = 0;
+let currentClaimListRequestId = 0;
+let currentReceiveListRequestId = 0;
+let currentContactRequestId = 0;
 
 async function getmaster() {
     try {
         const response = await fetch('/Home/GetMaster');
         masterData = await response.json();
         renderCompanyTabs();
+        renderProductSummary();
     } catch (error) {
         console.error("Error fetching master data:", error);
     }
@@ -89,6 +94,68 @@ function renderCompanyTabs(contactData = currentContactData) {
     });
 
     updateContactTabLabel();
+}
+
+function renderProductSummary(contactData = currentContactData, isLoading = false) {
+    const container = document.getElementById("product-summary-container");
+    if (!container || !masterData || !Array.isArray(masterData.company)) return;
+
+    container.innerHTML = "";
+
+    masterData.company.forEach((comp, index) => {
+        const compName = comp.company || "";
+        if (!compName) return;
+
+        const compLower = compName.toLowerCase();
+        const isMIB = compLower === 'mib';
+        const unit = isMIB ? 'กรมธรรม์' : 'สัญญา';
+
+        let countText;
+        if (isLoading) {
+            countText = '<span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>';
+        } else {
+            const count = getCompanyCountText(compName, contactData);
+            countText = `${count} ${unit}`;
+        }
+
+        let iconClass = "bi bi-file-earmark-text";
+        let bgClass = "bg-secondary";
+        let iconStyle = "";
+
+        if (compLower === 'micro') {
+            bgClass = "bg-primary";
+            iconClass = "bi bi-window-stack";
+        } else if (compLower === 'mfin') {
+            bgClass = "bg-success";
+            iconClass = "bi bi-graph-up";
+        } else if (compLower === 'mib') {
+            bgClass = "";
+            iconStyle = ' style="background-color: #8b5cf6;"';
+            iconClass = "bi bi-shield-check";
+        }
+
+        const isLast = index === masterData.company.length - 1;
+        const borderClass = isLast ? "" : " border-bottom";
+
+        const itemDiv = document.createElement("div");
+        itemDiv.className = `d-flex justify-content-between align-items-center${borderClass} py-3`;
+
+        const iconBgAttr = bgClass 
+            ? `class="product-icon ${bgClass} text-white rounded d-flex align-items-center justify-content-center"` 
+            : `class="product-icon text-white rounded d-flex align-items-center justify-content-center"${iconStyle}`;
+
+        itemDiv.innerHTML = `
+            <div class="d-flex align-items-center gap-3">
+                <div ${iconBgAttr}>
+                    <i class="${iconClass}"></i>
+                </div>
+                <span class="fw-medium text-dark">${compName}</span>
+            </div>
+            <span class="text-muted" id="summary-${compLower}-count">${countText}</span>
+        `;
+
+        container.appendChild(itemDiv);
+    });
 }
 
 function initPopovers() {
@@ -395,6 +462,9 @@ async function performSearch() {
                 } else {
                     document.getElementById("customerCount").innerText = "0";
                     document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">ไม่พบข้อมูล</td></tr>';
+                    currentContactData = null;
+                    renderProductSummary(null);
+                    renderCompanyTabs(null);
                 }
             } else {
                 console.error("Error fetching data:", response.status);
@@ -672,13 +742,10 @@ document.addEventListener('click', function(e) {
             }
     });
 
-let currentContactRequestId = 0;
 async function getContact(idno) {
     const requestId = ++currentContactRequestId;
     try {
-        document.getElementById('summary-micro-count').innerHTML = '<span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>';
-        document.getElementById('summary-mfin-count').innerHTML = '<span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>';
-        document.getElementById('summary-mib-count').innerHTML = '<span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>';
+        renderProductSummary(currentContactData, true);
 
         const response = await fetch(`/CustomerDetail/GetContact?idno=${encodeURIComponent(idno)}`, {
             method: 'GET',
@@ -698,16 +765,15 @@ async function getContact(idno) {
 
         if (data) {
             currentContactData = data;
-            document.getElementById('summary-micro-count').innerText = (data.contactMicroCount || 0) + ' สัญญา';
-            document.getElementById('summary-mfin-count').innerText = (data.contactMFINCount || 0) + ' สัญญา';
-            document.getElementById('summary-mib-count').innerText = (data.contactMIBCount || 0) + ' กรมธรรม์';
-
+            renderProductSummary(data);
             renderCompanyTabs(data);
 
             function loadDataTable(tableId, dataList, company, idno) {
                 const sortedDataList = [...(dataList || [])].sort((a, b) => {
-                    const aActive = isContractActive(a.active);
-                    const bActive = isContractActive(b.active);
+                    const aEndDate = a.endDate;
+                    const bEndDate = b.endDate;
+                    const aActive = isContractActive(aEndDate);
+                    const bActive = isContractActive(bEndDate);
                     if (aActive && !bActive) return -1;
                     if (!aActive && bActive) return 1;
                     return 0;
@@ -717,7 +783,7 @@ async function getContact(idno) {
                     data: sortedDataList,
                     destroy: true,
                     columns: [
-                        { data: row => 'A' },
+                        { data: row => isContractActive(row.endDate) ? 'A' : '' },
                         { data: row => row.contno || '-' },
                         { data: row => {
                             if (company === 'MIB') {
@@ -732,7 +798,8 @@ async function getContact(idno) {
                         $(row).addClass('hover-row border-bottom cursor-pointer contract-row');
                         $(row).find('td').addClass('text-center py-3 contract-col');
 
-                        if (!isContractActive(data.active)) {
+                        const contractEndDate = data.endDate || data.enddate || data.endDateCover || data.expDate;
+                        if (!isContractActive(contractEndDate)) {
                             $(row).find('td').css('color', '#94a3b8');
                         } else {
                             $(row).find('td').css('color', '#1e293b');
@@ -800,17 +867,19 @@ const formatValues = (value) => {
     }
 };
 
-const isContractActive = (val) => {
-    if (val === true || val === 1) return true;
-    if (typeof val === 'string') {
-        const lower = val.trim().toLowerCase();
-        return lower === 'true' || lower === 'active' || lower === '1';
-    }
-    return false; // เพื่อเทส ค่าจริงต้อง return false
+const isContractActive = (endDate) => {
+    if (!endDate) return false;
+
+    const end = new Date(endDate);
+    if (isNaN(end.getTime())) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    return today <= end;
 };
 
-let currentContactInfoRequestId = 0;
-let currentClaimListRequestId = 0;
 async function getContactInfo(idno, company, encodedC, clickedRow) {
     if (clickedRow && clickedRow.classList.contains('active-row')) return;
     const requestId = ++currentContactInfoRequestId;
@@ -1164,7 +1233,6 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
     }
 }
 
-let currentReceiveListRequestId = 0;
 async function getReceiveList(idno, company){
     const requestId = ++currentReceiveListRequestId;
     try{

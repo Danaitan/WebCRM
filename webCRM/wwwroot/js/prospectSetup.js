@@ -1006,7 +1006,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังบันทึกข้อมูล...", "");
                 try {
                     const currentSelected = getSelectedList();
-                    console.log("currentSelected",currentSelected)
                     const selectedIds = Array.from(new Set(
                         currentSelected.map(c => c.id).filter(Boolean)
                     ));

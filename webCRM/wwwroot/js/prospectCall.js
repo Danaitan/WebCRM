@@ -2,7 +2,7 @@
 
 let selectedCampaignCode = "";
 let selectedCampaignName = "";
-let selectedCampaignObjective = "CS";
+let selectedCampaignObjective = "";
 let selectedCustomerRow = null;
 
 let campaignsData = [];
@@ -31,7 +31,6 @@ async function getCampainList(page = 1, pageSize = 10) {
         const queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : `?status=${status}`;
-        console.log("queryStr", queryStr);
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();
@@ -276,12 +275,10 @@ function selectCampaignCard(code) {
 
     selectedCampaignCode = campaign.code;
     selectedCampaignName = campaign.name;
-    selectedCampaignObjective = campaign.remark || 'CS';
+    selectedCampaignObjective = campaign.Objective_code || '';
 
     $('.pa-card').removeClass('active');
     $(`.pa-card[data-code="${code}"]`).addClass('active');
-
-    const objBadge = getObjectiveBadge(selectedCampaignObjective);
 
     $('#detailId').val(campaign.code);
     $('#detailName').val(campaign.name);
@@ -673,7 +670,7 @@ function openRecordResultModal(trElement) {
     const customer = rawProspectItems.find(item => item.id == itemId || item.contract == contract) || {
         name: $row.data('name') || '-',
         phone: $row.data('phone') || '-',
-        objective: selectedCampaignObjective || 'CS',
+        objective: selectedCampaignObjective || '',
         statusLead: $row.data('statuslead') || 'Follow',
         status: $row.data('status') || 'พร้อมติดต่อ',
         nextAppt: '-',
@@ -682,7 +679,7 @@ function openRecordResultModal(trElement) {
     };
 
     const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
-    const campaignObjectiveCode = activeCampaign ? (activeCampaign.remark || 'CS') : (selectedCampaignObjective || 'CS');
+    const campaignObjectiveCode = activeCampaign ? (activeCampaign.Objective_code || '') : (selectedCampaignObjective || '');
     const objBadge = getObjectiveBadge(campaignObjectiveCode);
 
     // Set modal title & customer summary info
@@ -856,77 +853,29 @@ function saveRecordResult() {
     });
 }
 
-// Make call via 3CX API
-async function makeCall3CX(destinationNumber) {
-    destinationNumber = "0923539608";
-    if (!destinationNumber) {
-        Swal.fire({
-            title: 'ไม่พบเบอร์โทรศัพท์',
-            text: 'กรุณาตรวจสอบเบอร์โทรศัพท์ก่อนทำการโทรออก',
-            icon: 'warning',
-            confirmButtonColor: '#1e5dd1'
-        });
-        return;
-    }
+    async function call3CX(number) {
 
-    const cleanDestination = destinationNumber.replace(/[^0-9]/g, '');
-    if (!cleanDestination) {
-        Swal.fire({
-            title: 'เบอร์โทรศัพท์ไม่ถูกต้อง',
-            text: 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง',
-            icon: 'error',
-            confirmButtonColor: '#1e5dd1'
-        });
-        return;
-    }
-
-    const $btnCall = $('#btnModalCall');
-    const originalHtml = $btnCall.html();
-    $btnCall.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> <span>กำลังโทร...</span>');
-    console.log("cleanDestination", cleanDestination)
-    try {
-        const response = await fetch("https://mlc.my3cx.sg:5001/callcontrol/100/makecall", {
-            method: "POST",
-            headers: {
-                "Authorization": "Bearer YOUR_API_KEY",
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                destination: cleanDestination,
-                timeout: 30
-            })
-        });
-
-        if (response.ok) {
-            Swal.fire({
-                title: 'โทรออกเรียบร้อยแล้ว',
-                text: `กำลังเชื่อมต่อสายไปยังเบอร์ ${cleanDestination}`,
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
+        const agent = document.getElementById('agentExt').value;
+        const customerNumber = number;
+        const status = document.getElementById('statusMsg');
+        try {
+            
+            const response = await fetch('?handler=TriggerCall', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify({ agentExtension: agent, customerNumber: customerNumber })
             });
-        } else {
-            const errText = await response.text();
-            console.error("3CX Call Error:", response.status, errText);
-            Swal.fire({
-                title: 'โทรออกไม่สำเร็จ',
-                text: `เกิดข้อผิดพลาดจากระบบ 3CX (${response.status})`,
-                icon: 'error',
-                confirmButtonColor: '#1e5dd1'
-            });
+
+            const result = await response.json();
+            status.textContent = result.message;
+        } catch (err) {
+            status.textContent = "Failed to connect.";
         }
-    } catch (error) {
-        console.error("3CX MakeCall Exception:", error);
-        Swal.fire({
-            title: 'โทรออกไม่สำเร็จ',
-            text: 'ไม่สามารถเชื่อมต่อกับ 3CX Server ได้ กรุณาตรวจสอบการเชื่อมต่อหรือ API Key',
-            icon: 'error',
-            confirmButtonColor: '#1e5dd1'
-        });
-    } finally {
-        $btnCall.prop('disabled', false).html(originalHtml);
+
     }
-}
 
 // Document Ready
 $(document).ready(function () {
@@ -982,7 +931,7 @@ $(document).ready(function () {
     $('#btnModalCall').on('click', function (e) {
         e.preventDefault();
         const phone = $('#modalCustPhone').text() || '';
-        makeCall3CX(phone);
+        call3CX("0923539608");
     });
 });
 

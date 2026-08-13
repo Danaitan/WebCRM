@@ -24,6 +24,7 @@ $(document).ready(function () {
 
     loadDepartmentOptions();
     loadSuggestionHeaderOptions();
+    loadSuggestionStatusOptions();
 
     var table = $('#suggestionsTable').DataTable({
         order: [[5, 'asc']],
@@ -219,6 +220,65 @@ async function loadSuggestionHeaderOptions() {
     }
 }
 
+window.suggestionStatusMap = {};
+
+async function loadSuggestionStatusOptions() {
+    try {
+        const response = await fetch('/Suggestions/GetSuggestionStatus');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+            const filterStatusSelect = document.getElementById('filterStatus');
+            const popoverEl = document.getElementById('statusInfoPopover');
+
+            if (filterStatusSelect) {
+                filterStatusSelect.innerHTML = '<option value="">สถานะ (ทั้งหมด)</option>';
+            }
+
+            let popoverContentHtml = `<div class="py-1" style="font-size: 0.875rem; line-height: 1.8;">`;
+
+            data.forEach(item => {
+                const nameEn = item.NameEn || item.nameEn || '';
+                const nameTh = item.NameTh || item.nameTh || '';
+                const isActive = item.IsActive !== undefined ? item.IsActive : true;
+
+                if (!isActive || !nameEn) return;
+
+                window.suggestionStatusMap[nameEn.toLowerCase()] = nameTh;
+
+                if (filterStatusSelect) {
+                    const option = document.createElement('option');
+                    option.value = nameEn.toLowerCase();
+                    option.textContent = nameTh ? `${nameEn} - ${nameTh}` : nameEn;
+                    filterStatusSelect.appendChild(option);
+                }
+
+                popoverContentHtml += `<div><strong>${escapeHtml(nameEn)}</strong> ${nameTh ? '- ' + escapeHtml(nameTh) : ''}</div>`;
+            });
+
+            popoverContentHtml += `</div>`;
+
+            if (popoverEl) {
+                popoverEl.setAttribute('data-bs-content', popoverContentHtml);
+
+                const existingPopover = bootstrap.Popover.getInstance(popoverEl);
+                if (existingPopover) {
+                    existingPopover.dispose();
+                }
+                bootstrap.Popover.getOrCreateInstance(popoverEl, {
+                    container: 'body',
+                    html: true,
+                    sanitize: false,
+                    trigger: 'click'
+                });
+            }
+        }
+    } catch (error) {
+        console.error("Error loading suggestion status options:", error);
+    }
+}
+
 function escapeHtml(str) {
     if (str === null || str === undefined || str === '') return '-';
     return String(str)
@@ -299,7 +359,10 @@ function showDetails(row) {
     $('#detail-email').text(getVal('email'));
     $('#detail-line').text(getVal('line'));
     $('#detail-idno').text(getVal('idno'));
-    $('#detail-status').text(getVal('status').toLowerCase());
+    const rawStatus = getVal('status').toLowerCase();
+    const thStatus = (window.suggestionStatusMap && window.suggestionStatusMap[rawStatus]) ? window.suggestionStatusMap[rawStatus] : '';
+    const displayStatusText = (rawStatus !== '-' && thStatus) ? `${rawStatus} - ${thStatus}` : rawStatus;
+    $('#detail-status').text(displayStatusText);
     $('#detail-address').text(getVal('address'));
     $('#detail-date').text(getVal('date'));
     $('#detail-suggestion').text(getVal('suggestion'));

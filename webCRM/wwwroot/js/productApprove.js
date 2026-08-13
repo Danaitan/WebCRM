@@ -224,6 +224,7 @@ function updateDetailPanel(campaign) {
     const end = campaign.endDate || '';
     const status = campaign.status || '';
     const note = campaign.remark || '-';
+    const objective = campaign.objective || campaign.Objective_code || '';
 
     const detailId = document.getElementById('detailId');
     if (detailId) detailId.value = id;
@@ -239,6 +240,9 @@ function updateDetailPanel(campaign) {
 
     const detailNote = document.getElementById('detailNote');
     if (detailNote) detailNote.value = note;
+
+    const detailObjective = document.getElementById('detailObjective');
+    if (detailObjective) detailObjective.value = objective;
 
     const detailStatus = document.getElementById('detailStatus');
     if (detailStatus) {
@@ -259,18 +263,6 @@ async function getCampainList(page, pageSize) {
         let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : '';
-
-        // if (document.getElementById('filterStartDate').value)
-        // {
-        //     var startDate = document.getElementById('filterStartDate').value;
-        //     queryStr += '&startDate=' + startDate;
-        // }
-
-        // if (document.getElementById('filterEndDate').value)
-        // {
-        //     var endDate = document.getElementById('filterEndDate').value;
-        //     queryStr +='&endDate='+endDate;
-        // }
 
         if (document.getElementById('filterBranch').value)
         {
@@ -296,7 +288,8 @@ async function getCampainList(page, pageSize) {
             endDate:   item.product_end    ? item.product_end.substring(0, 10)   : '',
             remark:    item.product_remark || '',
             createdBy: item.createrd_by    || item.created_by || '',
-            created:   item.created        ? item.created.substring(0, 10)       : ''
+            created:   item.created        ? item.created.substring(0, 10)       : '',
+            objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || item.product_objective || ''
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -335,6 +328,7 @@ function initDataTables() {
             page = requestedPage;
             try {
                 const res = await getCampainList(page, pageSize);
+                console.log("rew",res)
                 const rawItems = Array.isArray(res) ? res : (res.data || []);
                 campaigns = rawItems;
                 const totalCount = res.count !== undefined ? res.count : rawItems.length;
@@ -346,6 +340,9 @@ function initDataTables() {
                         selectedCampaignCode = rawItems[0].code;
                         updateDetailPanel(rawItems[0]);
                         loadProspectApproveData(rawItems[0].code, 1, prospectPageSize);
+                    } else {
+                        const currentCampaign = rawItems.find(c => c.code === selectedCampaignCode);
+                        if (currentCampaign) updateDetailPanel(currentCampaign);
                     }
                 }
 
@@ -528,7 +525,6 @@ $(document).ready(function () {
         selectedCampaignCode = code;
         $(".pa-card").removeClass("active");
         $(this).addClass("active");
-
         const campaign = campaigns.find(c => c.code === code);
         if (campaign) {
             updateDetailPanel(campaign);

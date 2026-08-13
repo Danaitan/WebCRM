@@ -126,6 +126,12 @@ namespace webCRM.Models
 
         [JsonPropertyName("active")]
         public object? Active { get; set; }
+
+        [JsonPropertyName("endDate")]
+        public DateTime? EndDate { get; set; }
+
+        [JsonPropertyName("startDate")]
+        public DateTime? StartDate { get; set; }
     }
 
     public class RequestCustomerDetail

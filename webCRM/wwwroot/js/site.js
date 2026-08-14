@@ -5,8 +5,15 @@
 
 let loadingCount = 0;
 
-function startLoading(title = 'กำลังโหลดข้อมูล...', description = 'ระบบกำลังดำเนินการ กรุณารอสักครู่...') {
+function startLoading(title = 'กำลังโหลดข้อมูล...', description = 'ระบบกำลังดำเนินการ กรุณารอสักครู่...', isAutoFetch = false) {
     loadingCount++;
+    // If auto fetch triggers while a custom loading title is already displayed, preserve the custom title
+    if (isAutoFetch && loadingCount > 1) {
+        const overlay = document.getElementById('globalLoadingOverlay');
+        if (overlay && overlay.classList.contains('show')) {
+            return;
+        }
+    }
     showLoading(title, description);
 }
 
@@ -35,6 +42,32 @@ function hideLoading() {
         overlay.classList.remove('show');
     }
 }
+
+// Global fetch interceptor to show loading overlay automatically on API calls
+(function() {
+    if (typeof window !== 'undefined' && window.fetch) {
+        const originalFetch = window.fetch;
+        window.fetch = async function (...args) {
+            const options = args[1] || {};
+            const skipLoading = options && options.skipLoading === true;
+            
+            if (!skipLoading) {
+                const title = (options && options.loadingTitle) ? options.loadingTitle : 'กำลังโหลดข้อมูล...';
+                const description = (options && options.loadingDescription) ? options.loadingDescription : 'ระบบกำลังดำเนินการ กรุณารอสักครู่...';
+                startLoading(title, description, true);
+            }
+            
+            try {
+                const response = await originalFetch.apply(this, args);
+                return response;
+            } finally {
+                if (!skipLoading) {
+                    stopLoading();
+                }
+            }
+        };
+    }
+})();
 
 function showAlert(type, title, text, confirmCallback = null) {
     Swal.fire({

@@ -83,8 +83,6 @@ namespace webCRM.Controllers
                 return new CampainPagedResult();
             }
 
-            return new CampainPagedResult();
-
         }
 
         public async Task<string> DeleteCampain(string productId)
@@ -428,7 +426,6 @@ namespace webCRM.Controllers
             }
 
         }
-        
         
     }
 }

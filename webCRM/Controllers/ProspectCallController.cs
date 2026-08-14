@@ -12,18 +12,92 @@ namespace webCRM.Controllers
     {
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
         string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
-        string? token3CX = Environment.GetEnvironmentVariable("ApiSettings__Token_3CX") ?? configuration["ApiSettings:Token_3CX"];
 
         public async Task<IActionResult> Index()
         {
             return View("prospectCall");
         }
 
-    }
+        public async Task<IActionResult> GetDropDown()
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getMasterDropdown?pageTitle=ขายและติดตาม");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+        }
 
-    public class TriggerCallRequest
-    {
-        public string? destination { get; set; }
+        [HttpPost]
+        public async Task<IActionResult> postHistoryCall([FromBody] JsonElement body)
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    string jsonPayload = body.GetRawText();
+                    var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync($"{domain}/crm/api/v1/p2/postHistoryCall", content);
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetHistoryCall(string prospectBatch, string customerId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(prospectBatch) || string.IsNullOrWhiteSpace(customerId))
+                {
+                    return Content("[]", "application/json");
+                }
+
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getHistoryCall/{prospectBatch}/{customerId}");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+        }
+
     }
     
 }

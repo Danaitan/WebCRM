@@ -197,84 +197,9 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
-        $(document).ready(function() {
-            // สร้าง array ข้อมูลแจ้งเตือน
-            const notifications = [
-                { topic: 'noti1', content: 'testnoti1' },
-                { topic: 'noti2', content: 'testnoti2' },
-                { topic: 'noti3', content: 'testnoti3' }
-            ];
-
-            // เอาความยาวของ array (length) มาเป็นตัวเลขแสดงการแจ้งเตือนบนกระดิ่ง
-            const notiCount = notifications.length;
-            if (notiCount > 0) {
-                $('#notificationBadge').text(notiCount).show();
-                $('#notificationHeaderCount').text(notiCount);
-            } else {
-                $('#notificationBadge').hide();
-                $('#notificationHeaderCount').text('0');
-            }
-            
-            // นำข้อมูล array มาแสดงผลเป็นรายการใน popup card และใน modal
-            const notiListContainer = $('#notificationList');
-            const allNotiModalBody = $('#allNotificationsModalBody');
-            notiListContainer.empty();
-            allNotiModalBody.empty();
-            
-            if (notiCount > 0) {
-                notifications.forEach((noti, index) => {
-                    // HTML สำหรับ dropdown
-                    const itemHtml = `
-                        <div class="p-3 border-bottom position-relative bg-white" style="transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='#fff'">
-                            <div class="d-flex gap-3">
-                                <div class="flex-shrink-0 mt-1">
-                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-                                        <i class="bi bi-info-circle-fill"></i>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1" style="cursor: pointer;">
-                                    <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">${noti.topic}</h6>
-                                    <p class="mb-1 text-muted small" style="font-size: 0.8rem; line-height: 1.4;">${noti.content}</p>
-                                    <small class="text-primary" style="font-size: 0.7rem;"><i class="bi bi-clock me-1"></i>เมื่อสักครู่</small>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    notiListContainer.append(itemHtml);
-
-                    // HTML สำหรับ Modal 
-                    const modalItemHtml = `
-                        <div class="p-3 border-bottom bg-white" style="transition: all 0.3s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='#fff'">
-                            <div class="d-flex gap-3">
-                                <div class="flex-shrink-0 mt-1">
-                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                                        <i class="bi bi-bell fs-5"></i>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <h6 class="mb-0 fw-bold text-dark fs-6">${noti.topic}</h6>
-                                        <small class="text-primary fw-medium" style="font-size: 0.8rem;"><i class="bi bi-clock me-1"></i>เมื่อสักครู่</small>
-                                    </div>
-                                    <p class="mb-0 text-muted" style="font-size: 0.95rem;">${noti.content}</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    allNotiModalBody.append(modalItemHtml);
-                });
-            } else {
-                const emptyHtml = `
-                    <div class="p-5 text-center text-muted bg-white">
-                        <i class="bi bi-bell-slash display-4 mb-3 d-block opacity-25"></i>
-                        <p class="mb-0 fw-medium">ไม่มีการแจ้งเตือนใหม่</p>
-                    </div>
-                `;
-                notiListContainer.append(emptyHtml);
-                allNotiModalBody.append(emptyHtml);
-            }
-        });
+        const userId = "@(User.FindFirst("sub")?.Value ?? Context.Session.GetString("profile_welcome") ?? "")";
     </script>
+    <script src="~/js/layout.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -209,7 +209,7 @@ function allowCard(status) {
 }
 
 async function displayCustomerDetails(customer) {
-    const companyCode = customer.companyCde || customer.CompanyCde || '';
+    const companyCode = customer.companyCde || '';
     let pdpaData = null;
     let checkPDPAData = null;
     let MS1Purpose = null;
@@ -281,7 +281,9 @@ async function displayCustomerDetails(customer) {
         const sortedPdpaList = [...pdpaList].sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0));
 
         let popoverInnerHtml = "";
-        if (sortedPdpaList.length > 0) {
+        if (companyCode === "MIB") {
+            popoverInnerHtml = `<div class="text-muted text-center py-1"></div>`;
+        } else if (sortedPdpaList.length > 0) {
             popoverInnerHtml = sortedPdpaList.map((item, index) => {
                 const isApproved = item.LastestStatus === "approved";
                 const icon = isApproved 
@@ -313,7 +315,9 @@ async function displayCustomerDetails(customer) {
             bootstrap.Popover.getOrCreateInstance(pdpaInfoIcon, { sanitize: false });
         }
 
-        if (items.length > 0) {
+        if (companyCode === "MIB") {
+            container.innerHTML = '<div class="text-muted small"></div>';
+        } else if (items.length > 0) {
             container.innerHTML = items.map((item, idx) => {
                 let descText = item.purposeDesc || '';
                 let MScheck = false;
@@ -417,7 +421,7 @@ async function performSearch() {
                     }).join('');
 
                     // Use Event Delegation for maximum click handling performance (O(1) event listeners instead of O(N))
-                    tbody.onclick = function(e) {
+                    tbody.onclick = async function(e) {
                         const clickedRow = e.target.closest('tr');
                         if (!clickedRow || !clickedRow.dataset.index) return;
                         if (clickedRow.classList.contains('active-row')) return;
@@ -449,9 +453,14 @@ async function performSearch() {
                         const idx = parseInt(clickedRow.dataset.index);
                         const selectedCust = data[idx];
                         if (selectedCust) {
-                            displayCustomerDetails(selectedCust);
-                            const idno = selectedCust.idno || selectedCust.Idno;
-                            if (idno) getContact(idno);
+                            startLoading('กำลังโหลดข้อมูลลูกค้า...', 'ระบบกำลังดึงข้อมูลรายละเอียดและสัญญาของลูกค้า กรุณารอสักครู่...');
+                            try {
+                                await displayCustomerDetails(selectedCust);
+                                const idno = selectedCust.idno || selectedCust.Idno;
+                                if (idno) await getContact(idno);
+                            } finally {
+                                stopLoading();
+                            }
                         }
                     };
 
@@ -883,6 +892,8 @@ const isContractActive = (endDate) => {
 async function getContactInfo(idno, company, encodedC, clickedRow) {
     if (clickedRow && clickedRow.classList.contains('active-row')) return;
     const requestId = ++currentContactInfoRequestId;
+    const itemTypeLabel = (company === "MIB") ? "กรมธรรม์" : "สัญญา";
+    startLoading(`กำลังโหลดข้อมูล${itemTypeLabel}...`, `ระบบกำลังดึงข้อมูลรายละเอียด${itemTypeLabel} การชำระเงิน และรายการเคลม กรุณารอสักครู่...`);
     try {
         // Apply highlight to the clicked row
         if (clickedRow) {
@@ -1230,6 +1241,8 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
         // Hide loading indicator even on error
         document.getElementById("contract-loading-indicator").classList.add("d-none");
         document.getElementById("contract-details-container").classList.remove("d-none");
+    } finally {
+        stopLoading();
     }
 }
 

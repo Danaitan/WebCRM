@@ -256,22 +256,13 @@
                                         <div class="mb-3">
                                             <label class="form-label text-dark small fw-medium mb-1">ผลการติดต่อ <span class="text-danger">*</span></label>
                                             <select class="form-select form-select-sm" id="modalContactResult">
-                                                <option value="">เลือกผลการติดต่อ</option>
-                                                <option value="สนใจ">สนใจ</option>
-                                                <option value="ไม่สนใจ">ไม่สนใจ</option>
-                                                <option value="ขอข้อมูลเพิ่มเติม">ขอข้อมูลเพิ่มเติม</option>
-                                                <option value="ติดต่อไม่ได้">ติดต่อไม่ได้</option>
-                                                <option value="นัดติดตาม">นัดติดตาม</option>
+                                                <option value="" disabled selected>เลือกผลการติดต่อ</option>
                                             </select>
                                         </div>
                                         <div class="mb-0">
                                             <label class="form-label text-dark small fw-medium mb-1">Status Lead <span class="text-danger">*</span></label>
                                             <select class="form-select form-select-sm" id="modalStatusLead">
-                                                <option value="">เลือก Status Lead</option>
-                                                <option value="Follow">Follow</option>
-                                                <option value="Success">Success</option>
-                                                <option value="Cancel">Cancel</option>
-                                                <option value="Call">Call</option>
+                                                <option value="" disabled selected>เลือก Status Lead</option>
                                             </select>
                                         </div>
                                     </div>
@@ -291,28 +282,19 @@
                                     <div class="col-md-4">
                                         <label class="form-label text-dark small fw-medium mb-1">ผลิตภัณฑ์ที่เสนอ</label>
                                         <select class="form-select form-select-sm" id="modalProduct">
-                                            <option value="">เลือกผลิตภัณฑ์</option>
-                                            <option value="สินเชื่อจำนำทะเบียน">สินเชื่อจำนำทะเบียน</option>
-                                            <option value="สินเชื่อรีไฟแนนซ์">สินเชื่อรีไฟแนนซ์</option>
-                                            <option value="ประกันภัย">ประกันภัย</option>
+                                            <option value="" disabled selected>เลือกผลิตภัณฑ์</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label text-dark small fw-medium mb-1">ระดับความสนใจ</label>
                                         <select class="form-select form-select-sm" id="modalInterestLevel">
-                                            <option value="">เลือกระดับความสนใจ</option>
-                                            <option value="High">สนใจมาก (High)</option>
-                                            <option value="Medium">สนใจปานกลาง (Medium)</option>
-                                            <option value="Low">สนใจน้อย (Low)</option>
+                                            <option value="" disabled selected>เลือกระดับความสนใจ</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label text-dark small fw-medium mb-1">ผลการเสนอขาย</label>
+                                        <label class="form-label text-dark small fw-medium mb-1">รายงานผล</label>
                                         <select class="form-select form-select-sm" id="modalSalesResult">
-                                            <option value="">เลือกผลการเสนอขาย</option>
-                                            <option value="เสนอขายสำเร็จ">เสนอขายสำเร็จ</option>
-                                            <option value="ขอคิดดูก่อน">ขอคิดดูก่อน</option>
-                                            <option value="ปฏิเสธ">ปฏิเสธ</option>
+                                            <option value="" disabled selected>เลือกผลการรายงานผล</option>
                                         </select>
                                     </div>
                                 </div>
@@ -332,11 +314,7 @@
                                     <div class="col-md-4">
                                         <label class="form-label text-dark small fw-medium mb-1">ช่องทางการนัดหมาย</label>
                                         <select class="form-select form-select-sm" id="modalContactChannel">
-                                            <option value="">เลือกช่องทาง</option>
-                                            <option value="โทรศัพท์">โทรศัพท์</option>
-                                            <option value="LINE">LINE</option>
-                                            <option value="สาขา">สาขา</option>
-                                            <option value="เข้าพบ">เข้าพบลูกค้า</option>
+                                            <option value="" disabled selected>เลือกช่องทาง</option>
                                         </select>
                                     </div>
                                 </div>
@@ -356,10 +334,9 @@
                     <!-- Right Column: Contact History Sidebar -->
                     <div class="col-lg-4 d-flex flex-column h-100">
                         <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
-                            <h6 class="fw-bold text-dark mb-0 small">ประวัติการติดต่อ <span class="fw-normal text-muted">(ล่าสุด 5 รายการ)</span></h6>
-                            <a href="javascript:void(0);" class="text-primary text-decoration-none small fw-medium">ดูทั้งหมด</a>
+                            <h6 class="fw-bold text-dark mb-0 small">ประวัติการติดต่อ <span class="fw-normal text-muted" id="modalHistoryCount">(ล่าสุด 0 รายการ)</span></h6>
                         </div>
-                        <div class="pc-modal-history-list d-flex flex-column gap-2 flex-grow-1" id="modalHistoryList">
+                        <div class="pc-modal-history-list d-flex flex-column gap-2 flex-grow-1" id="modalHistoryList" style="max-height: 420px; overflow-y: auto; overflow-x: hidden;">
                             <!-- Card Item 1 -->
                             <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -409,6 +386,7 @@
                                 <div class="text-secondary extra-small">ผลการติดต่อ: นัดหมายล่วงหน้า</div>
                                 <div class="text-secondary extra-small">นัดหมาย: 14/05/2024 14:00</div>
                             </div>
+                            
                         </div>
                     </div>
 
@@ -425,6 +403,9 @@
 </div>
 
 @section Scripts {
+    <script>
+        window.CURRENT_USER_ID = '@(Context.Session.GetString("personalId") ?? "")';
+    </script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="~/js/prospectCall.js" asp-append-version="true"></script>

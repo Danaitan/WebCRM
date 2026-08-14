@@ -13,6 +13,8 @@ let rawProspectItems = [];
 let prospectPage = 1;
 let prospectPageSize = 10;
 let prospectTotalCount = 0;
+let dropdownMaster = [];
+let historyCall = [];
 
 function getCampaignStatus(date) {
     if (!date) return 'Expire';
@@ -142,24 +144,48 @@ function extractProspectCustomers(data) {
         }
 
         if (typeof item === 'object') {
-            const idno = item.idno || item.idCard || '';
+            const idno = item.idno || '';
             const id = item.id || '';
-            const name = item.nameCus || item.name || '-';
-            const contract = item.contno || item.contract || '-';
-            const branch = item.branch_Name || item.branch || '-';
-            const carLocation = item.provinceUsecar || item.carLocation || '-';
-            const createdDate = item.created ? String(item.created).substring(0, 10) : (item.createdDate || item.date || '-');
-            const createdBy = item.created_by || item.createdBy || '-';
-            const phone = item.phone || item.tel || item.mobile || '-';
-            const status = item.status || 'พร้อมติดต่อ';
-            const statusLead = item.statusLead || item.leadStatus || 'Follow';
-            const remarks = item.remarks || item.remark || '';
-            const address = item.address || '-';
-            const pdpa = item.pdpa || 'ยินยอมแล้ว';
-            const plan = item.plan || '-';
-            const count = item.count || '1';
-            const objective = item.objective || 'CS';
-            const nextAppt = item.nextAppt || '-';
+            const name = item.nameCus || item.customer_name || '-';
+            const contract = item.contno || '-';
+            const branch = item.branch_Name || '-';
+            const carLocation = item.provinceUsecar || '-';
+            const rawAssignDate = item.assign_date || '';
+            let assignDate = '-';
+            if (rawAssignDate) {
+                const strDate = String(rawAssignDate).trim();
+                if (strDate.includes('T')) {
+                    assignDate = strDate.split('T')[0];
+                } else if (strDate.length >= 10) {
+                    assignDate = strDate.substring(0, 10);
+                } else {
+                    assignDate = strDate;
+                }
+            }
+            const phone = item.mobile || '-';
+            const status = getStatusLeadFromMaster('ผลการติดต่อ', item.isCallCase).NameTh;
+            const statusLead = getStatusLeadFromMaster('statuslead', item.StatusLead).NameEn;
+            const remarks = item.remark || '';
+            const rawNextAppt = item.appointment || '';
+            let nextAppt = '-';
+            if (rawNextAppt) {
+                const strDate = String(rawNextAppt).trim();
+                if (strDate.includes('T')) {
+                    const [dPart, tPart] = strDate.split('T');
+                    const [y, m, d] = dPart.split('-');
+                    const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
+                    const timeFmt = tPart ? tPart.substring(0, 5) : '';
+                    nextAppt = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
+                } else if (strDate.length >= 10) {
+                    const dPart = strDate.substring(0, 10);
+                    const [y, m, d] = dPart.split('-');
+                    const timeFmt = strDate.length > 10 ? strDate.substring(11, 16) : '';
+                    const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
+                    nextAppt = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
+                } else {
+                    nextAppt = strDate;
+                }
+            }
 
             if (id || idno || name !== '-') {
                 items.push({
@@ -171,14 +197,9 @@ function extractProspectCustomers(data) {
                     phone: String(phone).trim(),
                     carLocation: String(carLocation).trim(),
                     status: String(status).trim(),
-                    date: String(createdDate).trim(),
+                    date: String(assignDate).trim(),
                     statusLead: String(statusLead).trim(),
                     remarks: String(remarks).trim(),
-                    address: String(address).trim(),
-                    pdpa: String(pdpa).trim(),
-                    plan: String(plan).trim(),
-                    count: String(count).trim(),
-                    objective: String(objective).trim(),
                     nextAppt: String(nextAppt).trim(),
                     historyList: item.historyList || [],
                     raw: item
@@ -412,7 +433,10 @@ function getStatusBadgeClass(status) {
         'นัดติดตาม': 'bg-warning text-dark',
         'ขอติดตาม': 'bg-warning text-dark',
         'สนใจ': 'bg-success text-white',
+        'ติดต่อเรียบร้อย': 'bg-success text-white',
         'ไม่สนใจ': 'bg-secondary text-white',
+        'ไม่สามารถติดต่อได้': 'bg-secondary text-white',
+        'เบอร์ติดต่อไม่ได้': 'bg-secondary text-white',
         'ขอข้อมูลเพิ่มเติม': 'bg-warning text-dark',
         'ติดต่อไม่ได้': 'bg-secondary text-white',
         'ไม่ผ่านเงื่อนไข': 'bg-danger text-white'
@@ -424,10 +448,14 @@ function getStatusBadgeClass(status) {
 function getStatusLeadBadgeClass(statusLead) {
     const map = {
         'Success': 'bg-success text-white',
+        'สำเร็จ': 'bg-success text-white',
         'Follow': 'bg-info text-white',
+        'ติดตาม': 'bg-info text-white',
         'Cancel': 'bg-secondary text-white',
         'Cancle': 'bg-secondary text-white',
-        'Reject': 'bg-danger text-white'
+        'ยกเลิก': 'bg-secondary text-white',
+        'Reject': 'bg-danger text-white',
+        'ปฏิเสธ': 'bg-danger text-white'
     };
     return map[statusLead] || 'bg-secondary text-white';
 }
@@ -435,12 +463,261 @@ function getStatusLeadBadgeClass(statusLead) {
 function getStatusLeadSubtleBadgeClass(statusLead) {
     const map = {
         'Success': 'bg-success-subtle text-success border-success-subtle',
+        'สำเร็จ': 'bg-success-subtle text-success border-success-subtle',
         'Follow': 'bg-info-subtle text-info border-info-subtle',
+        'ติดตาม': 'bg-info-subtle text-info border-info-subtle',
         'Cancel': 'bg-secondary-subtle text-secondary border-secondary-subtle',
         'Cancle': 'bg-secondary-subtle text-secondary border-secondary-subtle',
-        'Reject': 'bg-danger-subtle text-danger border-danger-subtle'
+        'ยกเลิก': 'bg-secondary-subtle text-secondary border-secondary-subtle',
+        'DD0010': 'bg-danger-subtle text-danger border-danger-subtle',
+        'Reject': 'bg-danger-subtle text-danger border-danger-subtle',
+        'ปฏิเสธ': 'bg-danger-subtle text-danger border-danger-subtle'
     };
     return map[statusLead] || 'bg-secondary-subtle text-secondary border-secondary-subtle';
+}
+
+// Smart Helper: Set select value matching value, text, data-en, data-th, or data-code
+function setSelectValue($select, value) {
+    if (!$select || !$select.length) return;
+    if (value === null || value === undefined || value === '') {
+        $select.val('');
+        return;
+    }
+    const target = String(value).trim().toLowerCase();
+    
+    // 1. Direct jQuery .val() attempt
+    $select.val(value);
+    if ($select.val() === String(value)) return;
+
+    // 2. Loop options to match value, text, data-en, data-th, or data-code
+    let matched = false;
+    $select.find('option').each(function () {
+        const $opt = $(this);
+        const optVal = String($opt.val() || '').trim().toLowerCase();
+        const optText = String($opt.text() || '').trim().toLowerCase();
+        const optEn = String($opt.data('en') || '').trim().toLowerCase();
+        const optTh = String($opt.data('th') || '').trim().toLowerCase();
+        const optCode = String($opt.data('code') || '').trim().toLowerCase();
+
+        if (optVal === target || optText === target || (optCode && optCode === target) || (optEn && optEn === target) || (optTh && optTh === target)) {
+            $select.val($opt.val());
+            matched = true;
+            return false;
+        }
+    });
+
+    if (!matched) {
+        $select.val('');
+    }
+}
+
+let masterDropdownData = [];
+let masterCodeMap = {};
+
+function buildMasterCodeMap(dropdownList) {
+    masterCodeMap = {};
+    if (!Array.isArray(dropdownList)) return;
+
+    dropdownList.forEach(group => {
+        const groupTitle = group.DropdownTitle || group.dropdownTitle || '';
+        const items = group.item || group.Item || group.items || [];
+        if (!Array.isArray(items)) return;
+
+        items.forEach(item => {
+            const code = item.Code || item.code;
+            if (code) {
+                masterCodeMap[String(code).trim().toUpperCase()] = {
+                    code: code,
+                    nameTh: item.NameTh || item.nameTh || '',
+                    nameEn: item.NameEn || item.nameEn || '',
+                    groupTitle: groupTitle
+                };
+            }
+        });
+    });
+}
+
+function getDropdownNameByCode(val, preferEn = false) {
+    if (!val || String(val).trim() === '' || val === 'null' || val === 'undefined') return '-';
+    const key = String(val).trim().toUpperCase();
+    if (masterCodeMap[key]) {
+        const item = masterCodeMap[key];
+        const name = preferEn ? (item.nameEn || item.nameTh || val) : (item.nameTh || item.nameEn || val);
+        return (name && String(name).trim() !== '') ? name : '-';
+    }
+    return String(val).trim() !== '' ? val : '-';
+}
+
+function getStatusLeadFromMaster(dropdownTitle,value) {
+    if (!value || value === '-' || value === 'null' || value === 'undefined') return '-';
+    let dropdownList = [];
+    if (Array.isArray(dropdownMaster)) {
+        if (dropdownMaster.length > 0 && dropdownMaster[0] && Array.isArray(dropdownMaster[0].Dropdown)) {
+            dropdownList = dropdownMaster[0].Dropdown;
+        } else {
+            dropdownList = dropdownMaster;
+        }
+    } else if (dropdownMaster && typeof dropdownMaster === 'object') {
+        if (Array.isArray(dropdownMaster.Dropdown)) {
+            dropdownList = dropdownMaster.Dropdown;
+        } else if (Array.isArray(dropdownMaster.data)) {
+            dropdownList = dropdownMaster.data;
+        }
+    }
+
+    if (Array.isArray(dropdownList)) {
+        const group = dropdownList.find(d => 
+            d && d.DropdownTitle && d.DropdownTitle.trim().toLowerCase() === dropdownTitle
+        );
+        if (group) {
+            const rawItems = group.item || group.Item || group.items || [];
+            if (Array.isArray(rawItems)) {
+                const target = String(value).trim().toLowerCase();
+                const matched = rawItems.find(x => 
+                    x && (
+                        String(x.Code || x.code || '').trim().toLowerCase() === target
+                    )
+                );
+                if (matched) {
+                    return matched || value;
+                }
+            }
+        }
+    }
+
+    return value;
+}
+
+function getStatusLeadDisplayName(statusLead) {
+    if (!statusLead || String(statusLead).trim() === '' || statusLead === 'null' || statusLead === 'undefined') return '-';
+    const name = getDropdownNameByCode(statusLead, true);
+    return (name && String(name).trim() !== '') ? name : '-';
+}
+
+function getContactResultDisplayName(result) {
+    if (!result || String(result).trim() === '' || result === 'null' || result === 'undefined') return '-';
+    const name = getDropdownNameByCode(result, false);
+    return (name && String(name).trim() !== '') ? name : '-';
+}
+
+// Fetch master dropdowns from API
+async function loadMasterDropdowns() {
+    try {
+        const response = await fetch('/ProspectCall/GetDropDown');
+        if (!response.ok) {
+            console.error("GetDropDown HTTP error:", response.status, response.statusText);
+            return;
+        }
+        let data = await response.json();
+        dropdownMaster = data;
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) { return; }
+        }
+
+        let dropdownList = [];
+        if (Array.isArray(data)) {
+            if (data.length > 0 && data[0] && Array.isArray(data[0].Dropdown)) {
+                dropdownList = data[0].Dropdown;
+            } else {
+                dropdownList = data;
+            }
+        } else if (data && typeof data === 'object') {
+            if (Array.isArray(data.Dropdown)) {
+                dropdownList = data.Dropdown;
+            } else if (Array.isArray(data.data)) {
+                dropdownList = data.data;
+            }
+        }
+
+        if (Array.isArray(dropdownList) && dropdownList.length > 0) {
+            masterDropdownData = dropdownList;
+            buildMasterCodeMap(dropdownList);
+            populateDropdownOptions(dropdownList);
+            if (rawProspectItems.length > 0) {
+                filterProspectTable();
+            }
+        }
+    } catch (err) {
+        console.error("Error loading master dropdowns:", err);
+    }
+}
+
+// Populate modal dropdown select options dynamically
+function populateDropdownOptions(dropdownList) {
+    const dropdownMap = {
+        'StatusLead': {
+            selector: '#modalStatusLead',
+            defaultText: 'เลือก Status Lead',
+            useEn: true
+        },
+        'ช่องทางการนัดหมาย': {
+            selector: '#modalContactChannel',
+            defaultText: 'เลือกช่องทาง'
+        },
+        'ผลการติดต่อ': {
+            selector: '#modalContactResult',
+            defaultText: 'เลือกผลการติดต่อ'
+        },
+        'ผลิตภัณฑ์ที่เสนอ': {
+            selector: '#modalProduct',
+            defaultText: 'เลือกผลิตภัณฑ์'
+        },
+        'ระดับความสนใจ': {
+            selector: '#modalInterestLevel',
+            defaultText: 'เลือกระดับความสนใจ'
+        },
+        'รายงานผล': {
+            selector: '#modalSalesResult',
+            defaultText: 'เลือกผลการรายงานผล'
+        }
+    };
+
+    Object.keys(dropdownMap).forEach(titleKey => {
+        const config = dropdownMap[titleKey];
+        const $select = $(config.selector);
+        if (!$select.length) return;
+
+        const group = dropdownList.find(d => 
+            d && d.DropdownTitle && d.DropdownTitle.trim().toLowerCase() === titleKey.toLowerCase()
+        );
+
+        if (!group) return;
+
+        const rawItems = group.item || group.Item || group.items || [];
+        if (!Array.isArray(rawItems)) return;
+
+        // Filter active items (IsActive !== false)
+        const activeItems = rawItems.filter(i => i && i.IsActive !== false && i.isActive !== false);
+
+        // Sort items by SortOrder ascending
+        activeItems.sort((a, b) => {
+            const orderA = a.SortOrder ?? a.sortOrder ?? 0;
+            const orderB = b.SortOrder ?? b.sortOrder ?? 0;
+            return orderA - orderB;
+        });
+
+        // Re-build select options
+        $select.empty();
+        $select.append(`<option value="" disabled selected>${escapeHtml(config.defaultText)}</option>`);
+
+        activeItems.forEach(item => {
+            const nameTh = item.NameTh || item.nameTh || '';
+            const nameEn = item.NameEn || item.nameEn || '';
+            const code = item.Code || item.code || '';
+            
+            const displayText = config.useEn ? (nameEn || nameTh || code) : (nameTh || nameEn || code);
+            const val = code || (config.useEn ? nameEn : nameTh);
+            
+            const $option = $('<option></option>')
+                .val(val)
+                .text(displayText)
+                .attr('data-code', code)
+                .attr('data-en', nameEn)
+                .attr('data-th', nameTh);
+
+            $select.append($option);
+        });
+    });
 }
 
 // Format date string YYYY-MM-DD -> DD/MM/YYYY
@@ -467,6 +744,8 @@ function renderProspectTable(items) {
     items.forEach((item, index) => {
         const badgeClass = getStatusBadgeClass(item.status);
         const badgeClassStatusLead = getStatusLeadBadgeClass(item.statusLead);
+        const displayStatus = getContactResultDisplayName(item.status);
+        const displayStatusLead = getStatusLeadDisplayName(item.statusLead);
         const seq = (prospectPage - 1) * prospectPageSize + index + 1;
         const tr = $(`
             <tr data-id="${escapeHtml(item.id)}"
@@ -481,16 +760,17 @@ function renderProspectTable(items) {
                 data-pdpa="${escapeHtml(item.pdpa)}" 
                 data-plan="${escapeHtml(item.plan)}"
                 data-count="${escapeHtml(item.count)}"
+                data-date="${escapeHtml(item.date)}"
                 data-remarks="${escapeHtml(item.remarks)}">
                 <td style="text-align: center;" class="row-seq">${seq}</td>
-                <td>${escapeHtml(item.branch)}</td>
-                <td>${escapeHtml(item.name)}</td>
-                <td>${escapeHtml(item.contract)}</td>
-                <td>${escapeHtml(item.phone)}</td>
-                <td>${escapeHtml(item.carLocation)}</td>
-                <td><span class="status-badge badge ${badgeClass}">${escapeHtml(item.status)}</span></td>
-                <td>${escapeHtml(item.date)}</td>
-                <td><span class="status-badge badge ${badgeClassStatusLead}">${escapeHtml(item.statusLead)}</span></td>
+                <td>${escapeHtml(item.branch || '-')}</td>
+                <td>${escapeHtml(item.name || '-')}</td>
+                <td>${escapeHtml(item.contract || '-')}</td>
+                <td>${escapeHtml(item.phone || '-')}</td>
+                <td>${escapeHtml(item.carLocation || '-')}</td>
+                <td><span class="status-badge badge ${badgeClass}">${escapeHtml(displayStatus || '-')}</span></td>
+                <td>${escapeHtml(formatDateTh(item.date) || item.date || '-')}</td>
+                <td><span class="status-badge badge ${badgeClassStatusLead}">${escapeHtml(displayStatusLead || '-')}</span></td>
             </tr>
         `);
         $tbody.append(tr);
@@ -603,34 +883,115 @@ function clearFilters() {
     filterProspectTable();
 }
 
+// Fetch History Call from controller endpoint
+async function getHistoryCall(prospectBatch, customerId) {
+    if (!prospectBatch || !customerId) {
+        console.warn("getHistoryCall: Missing prospectBatch or customerId", { prospectBatch, customerId });
+        return [];
+    }
+
+    try {
+        const response = await fetch(`/ProspectCall/GetHistoryCall?prospectBatch=${encodeURIComponent(prospectBatch)}&customerId=${encodeURIComponent(customerId)}`);
+        if (!response.ok) {
+            console.error("getHistoryCall HTTP error:", response.status, response.statusText);
+            return [];
+        }
+
+        let data = await response.json();
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) {}
+        }
+
+        let history = [];
+        if (Array.isArray(data)) {
+            history = data;
+        } else if (data && Array.isArray(data.data)) {
+            history = data.data;
+        } else if (data && Array.isArray(data.history)) {
+            history = data.history;
+        } else if (data && Array.isArray(data.items)) {
+            history = data.items;
+        } else if (data && typeof data === 'object') {
+            const possibleArr = Object.values(data).find(val => Array.isArray(val));
+            if (possibleArr) history = possibleArr;
+        }
+
+        return history;
+    } catch (err) {
+        console.error("Error in getHistoryCall:", err);
+        return [];
+    }
+}
+
 // Render Modal Contact History dynamically from array
 function renderModalContactHistory(historyList) {
     const $list = $('#modalHistoryList');
     $list.empty();
+
+    const countText = historyList ? historyList.length : 0;
+    $('#modalHistoryCount').text(`(ล่าสุด ${countText} รายการ)`);
 
     if (!historyList || historyList.length === 0) {
         $list.html('<div class="text-center text-muted py-4 extra-small">ไม่พบประวัติการติดต่อ</div>');
         return;
     }
 
-    historyList.forEach((item, index) => {
-        const badgeClass = getStatusLeadSubtleBadgeClass(item.statusLead);
-        const iconClass = item.icon || 'bi-telephone';
-
-        let nextApptDisplay = item.nextAppt;
-        if (!nextApptDisplay && item.nextDate) {
-            nextApptDisplay = formatDateTh(item.nextDate) + (item.nextTime ? ' ' + item.nextTime : '');
+    historyList.forEach((rawItem, index) => {
+        const dateStr = rawItem.created || '-';
+        let formattedDate = dateStr;
+        if (dateStr && dateStr.includes('T')) {
+            const [dPart, tPart] = dateStr.split('T');
+            const [y, m, d] = dPart.split('-');
+            const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
+            const timeFmt = tPart ? tPart.substring(0, 5) : '';
+            formattedDate = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
+        } else if (dateStr && dateStr.length >= 10 && dateStr.includes('-')) {
+            const dPart = dateStr.substring(0, 10);
+            const [y, m, d] = dPart.split('-');
+            const timeFmt = dateStr.length > 10 ? dateStr.substring(11, 16) : '';
+            const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
+            formattedDate = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
         }
-        if (!nextApptDisplay) nextApptDisplay = '-';
+
+        const rawStatusLead = rawItem.status_lead || '';
+        const statusLeadCode = getStatusLeadFromMaster('statuslead', rawStatusLead).NameEn || rawStatusLead || 'Follow';
+
+        const rawCallCase = rawItem.call_result || '';
+        const callCaseName = getStatusLeadFromMaster('ผลการติดต่อ', rawCallCase).NameTh || rawCallCase;
+
+        const reportText = rawItem.call_report || '';
+        const remarksText = rawItem.call_remark || '';
+
+        const rawAppt = rawItem.appointment || '';
+        let apptDisplay = '-';
+        if (rawAppt) {
+            const strAppt = String(rawAppt).trim();
+            if (strAppt.includes('T')) {
+                const [dPart, tPart] = strAppt.split('T');
+                const [y, m, d] = dPart.split('-');
+                const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
+                const timeFmt = tPart ? tPart.substring(0, 5) : '';
+                apptDisplay = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
+            } else {
+                apptDisplay = strAppt;
+            }
+        }
+
+        const badgeClass = getStatusLeadSubtleBadgeClass(statusLeadCode);
+        const iconClass = rawItem.icon || 'bi-telephone';
+        const displayStatusLead = getStatusLeadDisplayName(statusLeadCode);
+        const displayResult = getContactResultDisplayName(callCaseName);
 
         const card = $(`
-            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover cursor-pointer" data-index="${index}">
+            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover cursor-pointer mb-2" data-index="${index}">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="small fw-semibold text-dark"><i class="bi ${iconClass} text-primary me-1.5"></i> ${item.date}</span>
-                    <span class="badge ${badgeClass} border px-2 py-0.5 rounded-pill extra-small">${escapeHtml(item.statusLead)}</span>
+                    <span class="small fw-semibold text-dark"><i class="bi ${iconClass} text-primary me-1.5"></i> ${escapeHtml(formattedDate)}</span>
+                    <span class="badge ${badgeClass} border px-2 py-0.5 rounded-pill extra-small">${escapeHtml(displayStatusLead)}</span>
                 </div>
-                <div class="text-secondary extra-small">ผลการติดต่อ: ${escapeHtml(item.result || '')}</div>
-                <div class="text-secondary extra-small">นัดหมาย: ${escapeHtml(nextApptDisplay)}</div>
+                <div class="text-secondary extra-small">ผลการติดต่อ: ${escapeHtml(displayResult)}</div>
+                ${reportText ? `<div class="text-secondary extra-small text-truncate" title="${escapeHtml(reportText)}">รายงาน: ${escapeHtml(reportText)}</div>` : ''}
+                ${remarksText ? `<div class="text-secondary extra-small text-truncate" title="${escapeHtml(remarksText)}">หมายเหตุ: ${escapeHtml(remarksText)}</div>` : ''}
+                <div class="text-secondary extra-small">นัดหมาย: ${escapeHtml(apptDisplay)}</div>
             </div>
         `);
 
@@ -639,16 +1000,28 @@ function renderModalContactHistory(historyList) {
             $('.pc-history-card').removeClass('border-primary bg-primary-subtle');
             $(this).addClass('border-primary bg-primary-subtle');
 
-            $('#modalContactResult').val(item.result || '');
-            $('#modalStatusLead').val(item.statusLead || '');
-            $('#modalContactReport').val(item.report || item.result || '');
-            $('#modalProduct').val(item.product || '');
-            $('#modalInterestLevel').val(item.interestLevel || '');
-            $('#modalSalesResult').val(item.salesResult || '');
-            $('#modalNextDate').val(item.nextDate || '');
-            $('#modalNextTime').val(item.nextTime || '');
-            $('#modalContactChannel').val(item.channel || '');
-            $('#modalRemarks').val(item.remarks || '');
+            setSelectValue($('#modalContactResult'), rawCallCase);
+            setSelectValue($('#modalStatusLead'), statusLeadCode);
+            $('#modalContactReport').val(reportText);
+            setSelectValue($('#modalProduct'), rawItem.product_present || '');
+            setSelectValue($('#modalInterestLevel'), rawItem.interest_level || '');
+            setSelectValue($('#modalSalesResult'), rawItem.call_result_description || '');
+
+            if (rawAppt && rawAppt.includes('T')) {
+                const [dPart, tPart] = rawAppt.split('T');
+                $('#modalNextDate').val(dPart);
+                $('#modalNextTime').val(tPart ? tPart.substring(0, 5) : '');
+            } else if (rawAppt && rawAppt.includes(' ')) {
+                const parts = rawAppt.split(' ');
+                $('#modalNextDate').val(parts[0] || '');
+                $('#modalNextTime').val(parts[1] ? parts[1].substring(0, 5) : '');
+            } else {
+                $('#modalNextDate').val(rawItem.nextDate || rawAppt || '');
+                $('#modalNextTime').val(rawItem.nextTime || '');
+            }
+
+            setSelectValue($('#modalContactChannel'), rawItem.appointment_way || '');
+            $('#modalRemarks').val(remarksText);
 
             // Update character counters
             $('#contactReportCount').text(`${($('#modalContactReport').val() || '').length}/500`);
@@ -660,7 +1033,7 @@ function renderModalContactHistory(historyList) {
 }
 
 // Open Record Result Pop-up Modal
-function openRecordResultModal(trElement) {
+async function openRecordResultModal(trElement) {
     selectedCustomerRow = trElement;
     const $row = $(trElement);
     const itemId = $row.data('id');
@@ -694,35 +1067,34 @@ function openRecordResultModal(trElement) {
 
     const leadStatusClass = getStatusLeadBadgeClass(customer.statusLead);
     const lastResultClass = getStatusBadgeClass(customer.status);
+    const displayStatusLead = getStatusLeadDisplayName(customer.statusLead);
+    const displayStatus = getContactResultDisplayName(customer.status);
 
     $('#modalCustLeadStatus')
         .attr('class', `status-badge badge ${leadStatusClass}`)
-        .text(customer.statusLead);
+        .text(displayStatusLead);
 
     $('#modalCustLastResult')
         .attr('class', `badge ${lastResultClass} border px-3 py-1 rounded-pill fw-semibold`)
-        .text(customer.status);
+        .text(displayStatus);
 
     $('#modalCustNextAppt').text(customer.nextAppt || '-');
 
     // Reset form fields
-    $('#modalContactResult').val('');
-    $('#modalStatusLead').val('');
+    setSelectValue($('#modalContactResult'), '');
+    setSelectValue($('#modalStatusLead'), '');
     $('#modalContactReport').val('');
-    $('#modalProduct').val('');
-    $('#modalInterestLevel').val('');
-    $('#modalSalesResult').val('');
+    setSelectValue($('#modalProduct'), '');
+    setSelectValue($('#modalInterestLevel'), '');
+    setSelectValue($('#modalSalesResult'), '');
     $('#modalNextDate').val('');
     $('#modalNextTime').val('');
-    $('#modalContactChannel').val('');
+    setSelectValue($('#modalContactChannel'), '');
     $('#modalRemarks').val(customer.remarks || '');
 
     // Reset character counters
     $('#contactReportCount').text('0/500');
     $('#remarksCount').text(`${(customer.remarks || '').length}/300`);
-
-    // Render Contact History dynamically from array
-    renderModalContactHistory(customer.historyList || []);
 
     // Show bootstrap modal
     const modalEl = document.getElementById('recordResultModal');
@@ -730,6 +1102,28 @@ function openRecordResultModal(trElement) {
         const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         bsModal.show();
     }
+
+    // Set loading indicator for contact history sidebar
+    $('#modalHistoryList').html('<div class="text-center text-muted py-4 extra-small"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดประวัติการติดต่อ...</div>');
+    $('#modalHistoryCount').text('(กำลังโหลด...)');
+
+    // Get prospectBatch and customerId for API call
+    const rawItem = customer.raw || {};
+    const prospectBatch = rawItem.prospect_batch || '';
+    const customerId = rawItem.id || '';
+
+    let historyList = [];
+    if (prospectBatch && customerId) {
+        historyList = await getHistoryCall(prospectBatch, customerId);
+    }
+
+    // Fallback to customer.historyList if API returned empty but local customer has history
+    if ((!historyList || historyList.length === 0) && customer.historyList && customer.historyList.length > 0) {
+        historyList = customer.historyList;
+    }
+
+    customer.historyList = historyList;
+    renderModalContactHistory(historyList);
 }
 
 // Save Record Result
@@ -737,13 +1131,13 @@ function saveRecordResult() {
     const resultVal = $('#modalContactResult').val();
     const statusLeadVal = $('#modalStatusLead').val();
     const reportVal = $('#modalContactReport').val();
-    const productVal = $('#modalProduct').val();
-    const interestVal = $('#modalInterestLevel').val();
-    const salesResultVal = $('#modalSalesResult').val();
-    const remarksVal = $('#modalRemarks').val();
-    const nextDateVal = $('#modalNextDate').val();
-    const nextTimeVal = $('#modalNextTime').val();
-    const channelVal = $('#modalContactChannel').val();
+    const productVal = $('#modalProduct').val() || '';
+    const interestVal = $('#modalInterestLevel').val() || '';
+    const salesResultVal = $('#modalSalesResult').val() || '';
+    const remarksVal = $('#modalRemarks').val() || '';
+    const nextDateVal = $('#modalNextDate').val() || '';
+    const nextTimeVal = $('#modalNextTime').val() || '';
+    const channelVal = $('#modalContactChannel').val() || '';
 
     if (!resultVal) {
         Swal.fire({
@@ -775,23 +1169,94 @@ function saveRecordResult() {
         return;
     }
 
+    let customerName = $('#modalCustName').text();
+    let targetItem = null;
+    let rawItem = {};
+
+    if (selectedCustomerRow) {
+        const $row = $(selectedCustomerRow);
+        const itemId = $row.data('id');
+        const contract = $row.data('contract');
+        targetItem = rawProspectItems.find(item => item.id == itemId || item.contract == contract);
+        if (targetItem) {
+            rawItem = targetItem.raw || {};
+        } else {
+            rawItem = {
+                id: itemId,
+                contno: contract,
+                name: $row.data('name'),
+                phone: $row.data('phone'),
+                idno: $row.data('idcard')
+            };
+        }
+    }
+
     Swal.fire({
         title: 'ยืนยันการบันทึกผลการติดต่อ?',
-        text: `บันทึกผล: "${resultVal}" สำหรับลูกค้า ${$('#modalCustName').text()}`,
+        text: `บันทึกผล: "${resultVal}" สำหรับลูกค้า ${customerName}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'บันทึกข้อมูล',
         cancelButtonText: 'ยกเลิก'
-    }).then((res) => {
+    }).then(async (res) => {
         if (res.isConfirmed) {
-            if (selectedCustomerRow) {
-                const $row = $(selectedCustomerRow);
-                const itemId = $row.data('id');
-                const contract = $row.data('contract');
+            const currentUserId = window.CURRENT_USER_ID || rawItem.isCallBy || rawItem.isCall_by || '680004';
 
-                const targetItem = rawProspectItems.find(item => item.id == itemId || item.contract == contract);
+            let apptStr = '';
+            if (nextDateVal) {
+                apptStr = nextDateVal + (nextTimeVal ? ` ${nextTimeVal}` : '');
+            }
+            console.log("rawItem", rawItem);
+            const payload = [
+                {
+                    "cid": String(rawItem.id || ''),
+                    "contno": String(rawItem.contno || ''),
+                    "created": new Date().toISOString(),
+                    "idno": String(rawItem.idno || ''),
+                    "isCall": true,
+                    "isCallBy": String(currentUserId),
+                    "isCallCase": String(resultVal),
+                    "isCallLock": false,
+                    "isCallLockTime": "0",
+                    "isCallRemark": String(remarksVal),
+                    "mobile": String(rawItem.mobile || ''),
+                    "prospect_batch": String(rawItem.prospect_batch || ''),
+                    "status_lead": String(statusLeadVal),
+                    "call_result_description": String(salesResultVal),
+                    "product_present": String(productVal),
+                    "interest_level": String(interestVal),
+                    "call_report": String(reportVal),
+                    "appointment": String(apptStr),
+                    "appointment_way": String(channelVal)
+                }
+            ];
+
+            try {
+                if (typeof startLoading === 'function') {
+                    startLoading('กำลังบันทึกข้อมูล...', 'ระบบกำลังส่งข้อมูลผลการติดต่อ กรุณารอสักครู่...');
+                }
+
+                const response = await fetch('/ProspectCall/postHistoryCall', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`เกิดข้อผิดพลาดจากเซิร์ฟเวอร์ (${response.status})`);
+                }
+
+                let resultData;
+                try {
+                    resultData = await response.json();
+                } catch (e) {
+                    resultData = null;
+                }
+
                 if (targetItem) {
                     targetItem.status = resultVal;
                     targetItem.statusLead = statusLeadVal;
@@ -829,56 +1294,61 @@ function saveRecordResult() {
                         icon: 'bi-telephone'
                     });
                 }
+
+                // Close modal
+                const modalEl = document.getElementById('recordResultModal');
+                if (modalEl) {
+                    const bsModal = bootstrap.Modal.getInstance(modalEl);
+                    if (bsModal) bsModal.hide();
+                }
+
+                // Success alert
+                Swal.fire({
+                    title: 'บันทึกสำเร็จ!',
+                    text: 'บันทึกผลการติดต่อเรียบร้อยแล้ว',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // Re-render / filter table
+                filterProspectTable();
+
+            } catch (err) {
+                console.error("Error posting history call:", err);
+                Swal.fire({
+                    title: 'บันทึกไม่สำเร็จ',
+                    text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลผลการติดต่อ',
+                    icon: 'error',
+                    confirmButtonColor: '#1e5dd1'
+                });
+            } finally {
+                if (typeof stopLoading === 'function') {
+                    stopLoading();
+                }
             }
-
-            // Close modal
-            const modalEl = document.getElementById('recordResultModal');
-            if (modalEl) {
-                const bsModal = bootstrap.Modal.getInstance(modalEl);
-                if (bsModal) bsModal.hide();
-            }
-
-            // Success alert
-            Swal.fire({
-                title: 'บันทึกสำเร็จ!',
-                text: 'บันทึกผลการติดต่อเรียบร้อยแล้ว',
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false
-            });
-
-            // Re-render / filter table
-            filterProspectTable();
         }
     });
 }
 
-    async function call3CX(number) {
-
-        const agent = document.getElementById('agentExt').value;
-        const customerNumber = number;
-        const status = document.getElementById('statusMsg');
-        try {
-            
-            const response = await fetch('?handler=TriggerCall', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify({ agentExtension: agent, customerNumber: customerNumber })
-            });
-
-            const result = await response.json();
-            status.textContent = result.message;
-        } catch (err) {
-            status.textContent = "Failed to connect.";
+async function call3CX(number) {
+    try {
+        if (!number) {
+            throw new Error("Phone number is required.");
         }
+        window.location.href = `tel:${number}`;
 
+    } catch (err) {
+        status.textContent = "Failed to connect.";
+        console.error(err);
     }
+}
 
 // Document Ready
 $(document).ready(function () {
+    // Initial Load Master Dropdowns
+    loadMasterDropdowns();
+
     // Initial Load Campaigns
     loadCampaignData();
 
@@ -930,8 +1400,10 @@ $(document).ready(function () {
     // 3CX Call button click handler
     $('#btnModalCall').on('click', function (e) {
         e.preventDefault();
-        const phone = $('#modalCustPhone').text() || '';
-        call3CX("0923539608");
+        let modalCustPhone = $('#modalCustPhone').text() || '';
+        modalCustPhone = modalCustPhone.replace("-","");
+        const phone = "8"+modalCustPhone;
+        call3CX(phone);
     });
 });
 

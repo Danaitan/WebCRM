@@ -328,7 +328,6 @@ function initDataTables() {
             page = requestedPage;
             try {
                 const res = await getCampainList(page, pageSize);
-                console.log("rew",res)
                 const rawItems = Array.isArray(res) ? res : (res.data || []);
                 campaigns = rawItems;
                 const totalCount = res.count !== undefined ? res.count : rawItems.length;

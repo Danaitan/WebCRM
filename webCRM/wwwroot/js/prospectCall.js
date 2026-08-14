@@ -1208,7 +1208,6 @@ function saveRecordResult() {
             if (nextDateVal) {
                 apptStr = nextDateVal + (nextTimeVal ? ` ${nextTimeVal}` : '');
             }
-            console.log("rawItem", rawItem);
             const payload = [
                 {
                     "cid": String(rawItem.id || ''),

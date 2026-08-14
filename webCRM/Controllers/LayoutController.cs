@@ -20,11 +20,10 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetNotification()
+        public async Task<IActionResult> GetNotification(bool isOverall)
         {
             try
             {
-
                 var handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
@@ -32,7 +31,7 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getNotification");
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getNotification?overall={isOverall}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
                     return Content(data, "application/json");

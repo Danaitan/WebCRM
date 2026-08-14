@@ -1,3 +1,4 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -42,6 +43,13 @@
 
         .hover-ring:hover {
             animation: bell-ring 1.2s ease-in-out infinite;
+        }
+
+        .notification-group [data-bs-toggle="collapse"] .bi-chevron-down {
+            transition: transform 0.2s ease-in-out;
+        }
+        .notification-group [data-bs-toggle="collapse"][aria-expanded="true"] .bi-chevron-down {
+            transform: rotate(180deg);
         }
 
     </style>
@@ -140,7 +148,7 @@
                         <div class="text-muted" style="font-size: 0.85rem;">ยินดีต้อนรับ <span class="fw-bold text-primary">@(Context.Session.GetString("profile_welcome") ?? "")</span></div>
                     </div>
                     <div class="dropdown me-2">
-                        <div class="position-relative d-flex align-items-center justify-content-center" style="cursor: pointer; width: 40px; height: 40px;" id="bellNotification" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="position-relative d-flex align-items-center justify-content-center" style="cursor: pointer; width: 40px; height: 40px;" id="bellNotification" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
                             <i class="bi bi-bell fs-5 text-secondary hover-ring d-inline-block"></i>
                             <span id="notificationBadge" class="position-absolute badge rounded-pill bg-danger shadow-sm" style="top: 2px; right: 0px; font-size: 0.6rem; padding: 0.25em 0.4em; display: none;">
                                 0
@@ -180,9 +188,6 @@
                 <div class="modal-body p-0" id="allNotificationsModalBody" style="background-color: #f8fafc;">
                     <!-- Modal notifications will be appended here -->
                 </div>
-                <div class="modal-footer border-top-0 bg-white" style="border-radius: 0 0 12px 12px;">
-                    <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">ปิด</button>
-                </div>
             </div>
         </div>
     </div>
@@ -196,8 +201,22 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @{
+        var personalId = Context.Session.GetString("personalId");
+        if (string.IsNullOrWhiteSpace(personalId))
+        {
+            var profileWelcome = Context.Session.GetString("profile_welcome") ?? "";
+            var match = System.Text.RegularExpressions.Regex.Match(profileWelcome, @"\[(.*?)\]");
+            personalId = match.Success ? match.Groups[1].Value : profileWelcome;
+        }
+        var apiDomain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") 
+                        ?? Configuration["ApiSettings:APIDomain"] 
+                        ?? Configuration.GetSection("ApiSettings")["APIDomain"] 
+                        ?? "";
+    }
     <script>
-        const userId = "@(User.FindFirst("sub")?.Value ?? Context.Session.GetString("profile_welcome") ?? "")";
+        const userId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(personalId ?? ""));
+        const apiDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiDomain ?? ""));
     </script>
     <script src="~/js/layout.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)

@@ -16,6 +16,10 @@ let prospectTotalCount = 0;
 let dropdownMaster = [];
 let historyCall = [];
 
+async function SearchCampaign() {
+    loadCampaignData(1, campaignPageSize);
+}
+
 function getCampaignStatus(date) {
     if (!date) return 'Expire';
     const today = new Date();
@@ -30,10 +34,15 @@ async function getCampainList(page = 1, pageSize = 10) {
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
         const status = "approved";
-        const queryStr = (page !== undefined && pageSize !== undefined) 
+        const searchText = $("#campaignSearch").val() ? $("#campaignSearch").val().trim() : "";
+        let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : `?status=${status}`;
+        if (searchText !== undefined && searchText !== null && searchText !== '') {
+            queryStr += `&search=${searchText}`;
+        }
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
+
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();
         const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
@@ -62,9 +71,9 @@ async function getCampainList(page = 1, pageSize = 10) {
     }
 }
 
-async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+async function getProductBatchByProductCode(productCode){
     try{
-        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}`);
         if (!response.ok) {
             console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
             return [];
@@ -388,15 +397,15 @@ function renderCampaignPagination(total) {
 }
 
 // Filter Campaign List
-function filterCampaignList() {
-    const query = ($('#campaignSearch').val() || '').trim().toLowerCase();
-    const filtered = campaignsData.filter(item => {
-        const code = (item.code || '').toLowerCase();
-        const name = (item.name || '').toLowerCase();
-        return !query || code.includes(query) || name.includes(query);
-    });
-    renderCampaignList(filtered);
-}
+// function filterCampaignList() {
+//     const query = ($('#campaignSearch').val() || '').trim().toLowerCase();
+//     const filtered = campaignsData.filter(item => {
+//         const code = (item.code || '').toLowerCase();
+//         const name = (item.name || '').toLowerCase();
+//         return !query || code.includes(query) || name.includes(query);
+//     });
+//     renderCampaignList(filtered);
+// }
 
 // Fetch Prospect Batch Data for selected campaign
 async function loadProspectCallData(productCode, page = 1, pageSize = 10) {
@@ -414,7 +423,7 @@ async function loadProspectCallData(productCode, page = 1, pageSize = 10) {
     const $tbody = $('#prospectTableBody');
     $tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>');
 
-    const res = await getProductBatchByProductCode(productCode, page, pageSize);
+    const res = await getProductBatchByProductCode(productCode);
     const { items, totalCount } = extractProspectCustomers(res);
 
     rawProspectItems = items;
@@ -1351,8 +1360,13 @@ $(document).ready(function () {
     // Initial Load Campaigns
     loadCampaignData();
 
-    // Campaign search listener
-    $('#campaignSearch').on('input keyup', filterCampaignList);
+    // Campaign search listenert);
+    $("#campaignSearch").off("keydown").on("keydown", function (e) {
+        if (e.key === "Enter" || e.keyCode === 13) {
+            e.preventDefault();
+            SearchCampaign();
+        }
+    });
 
     // Campaign card selection handler (delegated)
     $(document).on('click', '.pa-card', function () {

@@ -1,3 +1,172 @@
+
+let table;
+
+async function searchSuggestion() {
+    if (!table) return;
+
+    var topicVal = $('#filterTopic').val() || '';
+    var statusVal = $('#filterStatus').val() || '';
+    var keyword = $('#customSearchInput').val() || '';
+
+    try {
+        if (typeof showLoading === 'function') {
+            showLoading('กำลังค้นหาข้อมูล', 'กรุณารอสักครู่...');
+        }
+
+        const url = `/Suggestions/GetSuggestions?status=${encodeURIComponent(statusVal)}&header=${encodeURIComponent(topicVal)}&search=${encodeURIComponent(keyword)}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+
+        const data = await response.json();
+        renderSuggestionsTable(data);
+
+    } catch (error) {
+        console.error("Error in searchSuggestion:", error);
+    } finally {
+        if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
+    }
+}
+
+function escapeAttr(str) {
+    if (str === null || str === undefined || str === '') return '-';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function renderSuggestionsTable(data) {
+    if (!table) return;
+
+    table.clear();
+
+    if (Array.isArray(data) && data.length > 0) {
+        data.forEach(item => {
+            let displayCreatedDate = item.createdDate || item.CreatedDate;
+            if (!displayCreatedDate && (item.dateSugges || item.DateSugges)) {
+                let dDate = item.dateSugges || item.DateSugges;
+                let tTime = item.timeSugges || item.TimeSugges;
+                displayCreatedDate = tTime ? `${String(dDate).split('T')[0]}T${String(tTime).includes('T') ? String(tTime).split('T')[1] : tTime}` : dDate;
+            }
+            if (!displayCreatedDate && (item.upDate || item.UpDate)) {
+                displayCreatedDate = item.upDate || item.UpDate;
+            }
+
+            const createdDateStr = formatDateDisplay(displayCreatedDate);
+            const createdDateOrder = parseDateForSort(displayCreatedDate);
+
+            const rawUpDate = item.upDate || item.UpDate;
+            const upDateStr = formatDateDisplay(rawUpDate);
+            const upDateOrder = parseDateForSort(rawUpDate);
+
+            let timeDiffText = '-';
+            let daysOrder = 999999;
+            if (createdDateOrder > 0) {
+                const createdDt = new Date(createdDateOrder);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                createdDt.setHours(0, 0, 0, 0);
+                const diffTime = today - createdDt;
+                const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                daysOrder = days;
+                timeDiffText = `${days} วัน`;
+            }
+
+            const phone = item.phoneProvider || item.PhoneProvider || '-';
+
+            let contactDateStr = '-';
+            if (item.dateSugges || item.DateSugges) {
+                const rawContact = item.dateSugges || item.DateSugges;
+                contactDateStr = formatDateDisplay(rawContact).split(' ')[0];
+                if (item.timeSugges || item.TimeSugges) {
+                    const timePart = item.timeSugges || item.TimeSugges;
+                    const timeMatch = String(timePart).match(/\d{2}:\d{2}/);
+                    if (timeMatch) contactDateStr += ' ' + timeMatch[0];
+                }
+            }
+
+            const email = item.emailProvider || item.EmailProvider || '-';
+            const line = item.lineProvider || item.LineProvider || '-';
+            const idno = item.idno || item.Idno || '-';
+            const statusTask = item.statusTask || item.StatusTask || '-';
+            const statusLower = statusTask.toLowerCase();
+            const address = item.addressProvider || item.AddressProvider || '-';
+            const recordedBy = item.personalName || item.PersonalName || '-';
+            const reply = item.reply || item.Reply || '-';
+            const nameProvider = item.nameProvider || item.NameProvider || '-';
+            const suggestion = item.suggestion || item.Suggestion || '-';
+            const title = item.suggestionTitle || item.SuggestionTitle || '-';
+            const guid = item.guid || item.Guid || '-';
+            const updBy = item.updBy || item.UpdBy || '-';
+            const sendTo = item.sendTo || item.SendTo || '-';
+            const detailsJson = (item.detail || item.Detail) ? JSON.stringify(item.detail || item.Detail) : '[]';
+
+            const $tr = $(`
+                <tr style="cursor: pointer;"
+                    data-phone="${escapeAttr(phone)}"
+                    data-contact="${escapeAttr(contactDateStr)}"
+                    data-email="${escapeAttr(email)}"
+                    data-line="${escapeAttr(line)}"
+                    data-idno="${escapeAttr(idno)}"
+                    data-status="${escapeAttr(statusLower)}"
+                    data-address="${escapeAttr(address)}"
+                    data-date="${escapeAttr(createdDateStr)}"
+                    data-recordedby="${escapeAttr(recordedBy)}"
+                    data-reply="${escapeAttr(reply)}"
+                    data-nameprovider="${escapeAttr(nameProvider)}"
+                    data-suggestion="${escapeAttr(suggestion)}"
+                    data-guid="${escapeAttr(guid)}"
+                    data-updby="${escapeAttr(updBy)}"
+                    data-sendto="${escapeAttr(sendTo)}"
+                    data-details='${escapeAttr(detailsJson)}'>
+                    <td class="text-center py-2" data-order="${createdDateOrder}"><div class="fw-medium text-dark">${escapeHtml(createdDateStr)}</div></td>
+                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(title)}</div></td>
+                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(nameProvider)}</div></td>
+                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(statusLower)}</div></td>
+                    <td class="text-center py-2" data-order="${upDateOrder}"><div class="fw-medium text-dark">${escapeHtml(upDateStr)}</div></td>
+                    <td class="text-center py-2" data-order="${daysOrder}"><div class="fw-medium text-dark">${escapeHtml(timeDiffText)}</div></td>
+                </tr>
+            `);
+
+            table.row.add($tr[0]);
+        });
+    }
+
+    table.draw();
+
+    const firstRow = $('#suggestionsTable tbody tr').first();
+    if (firstRow.length && firstRow.find('td').length > 1) {
+        showDetails(firstRow[0]);
+    } else {
+        clearDetails();
+    }
+}
+
+function clearDetails() {
+    $('#detail-nameprovider').text('-');
+    $('#detail-phone').text('-');
+    $('#detail-contact-back').text('-');
+    $('#detail-email').text('-');
+    $('#detail-line').text('-');
+    $('#detail-idno').text('-');
+    $('#detail-status').text('-');
+    $('#detail-address').text('-');
+    $('#detail-date').text('-');
+    $('#detail-suggestion').text('-');
+    $('#reply-input').val('');
+    $('#detail-guid').text('');
+    $('#detail-updBy').text('');
+    $('#detail-sendTo').text('');
+    $('#detail-reply-list').html('<tr><td colspan="3" class="text-center text-muted py-3">ไม่มีข้อมูลการตอบกลับ</td></tr>');
+    $('#replyHistoryTotalBadge').text('ทั้งหมด 0 รายการ');
+}
+
 $(document).ready(function () {
     // Initialize Bootstrap Popovers
     const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
@@ -26,7 +195,7 @@ $(document).ready(function () {
     loadSuggestionHeaderOptions();
     loadSuggestionStatusOptions();
 
-    var table = $('#suggestionsTable').DataTable({
+    table = $('#suggestionsTable').DataTable({
         order: [[5, 'asc']],
         searching: true,
         dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
@@ -52,21 +221,26 @@ $(document).ready(function () {
     table.on('draw.dt init.dt', updateSuggestionsTotalCount);
     updateSuggestionsTotalCount();
 
-    // ค้นหาเมื่อพิมพ์
-    $('#customSearchInput').on('keyup input', function () {
-        table.search(this.value).draw();
+    // ค้นหาเมื่อพิมพ์ Enter
+    $('#customSearchInput').on('keyup', function (e) {
+        if (e.key === 'Enter') {
+            searchSuggestion();
+        }
     });
 
     // กรองตามหัวข้อ
     $('#filterTopic').on('change', function () {
-        var val = $.fn.dataTable.util.escapeRegex($(this).val());
-        table.column(1).search(val ? val : '', true, false).draw();
+        searchSuggestion();
     });
 
     // กรองตามสถานะ
     $('#filterStatus').on('change', function () {
-        var val = $.fn.dataTable.util.escapeRegex($(this).val());
-        table.column(3).search(val ? val : '', true, false).draw();
+        searchSuggestion();
+    });
+
+    // ปุ่มค้นหา
+    $('#btnSearch').on('click', function () {
+        searchSuggestion();
     });
 
     // Event delegation สำหรับคลิกเลือกรายการในตาราง

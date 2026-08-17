@@ -20,10 +20,13 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetNotification(bool isOverall)
+        public async Task<IActionResult> GetNotification()
         {
             try
             {
+                string queryString = Request.QueryString.Value ?? "";
+                queryString = queryString.Replace("isOverall=", "overall=");
+
                 var handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
@@ -31,7 +34,7 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getNotification?overall={isOverall}");
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getNotification{queryString}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
                     return Content(data, "application/json");
@@ -42,6 +45,68 @@ namespace webCRM.Controllers
                 return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
             }
         }
- 
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateNotification([FromBody] UpdateNotificationRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateNotification",
+                        new StringContent(JsonSerializer.Serialize(request),
+                        Encoding.UTF8,
+                        "application/json"
+                        ));
+
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    if (long.TryParse(HttpContext.Session.GetString("personalId"), out long pId))
+                    {
+                        request.receiver = pId;
+                    }
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/deleteNotification",
+                        new StringContent(JsonSerializer.Serialize(request),
+                        Encoding.UTF8,
+                        "application/json"
+                        ));
+
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+        }
+        
     }
 }

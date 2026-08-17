@@ -9,6 +9,33 @@ let currentClaimListRequestId = 0;
 let currentReceiveListRequestId = 0;
 let currentContactRequestId = 0;
 
+async function getPDPAbg(checkPDPA,company) {
+
+    if (company == 'MIB') return '';
+
+    const isAllApproved = checkPDPA.every(
+        item => item.LastestStatus === 'approved'
+    );
+
+    const isSomeApproved = checkPDPA.some(
+        item => item.LastestStatus === 'approved'
+    );
+
+    const isNoDeclined = !checkPDPA.some(
+        item => item.LastestStatus === 'approved'
+    );
+
+    if (isAllApproved) {
+        return 'green';
+    } else if (isSomeApproved) {
+        return 'yellow';
+    } else if (isNoDeclined) {
+        return 'red';
+    }
+
+    return '';
+}
+
 async function getmaster() {
     try {
         const response = await fetch('/Home/GetMaster');
@@ -208,7 +235,115 @@ function allowCard(status) {
     }
 }
 
+function clearContractDetails() {
+    if (typeof currentContactInfoRequestId !== 'undefined') {
+        currentContactInfoRequestId++;
+    }
+    if (typeof currentClaimListRequestId !== 'undefined') {
+        currentClaimListRequestId++;
+    }
+    if (typeof currentReceiveListRequestId !== 'undefined') {
+        currentReceiveListRequestId++;
+    }
+
+    const fieldsToClear = [
+        // ข้อมูลสัญญา (Normal Contract Details)
+        'contract-detail-contno', 'contract-detail-loantype', 'contract-detail-company',
+        'contract-detail-veh-type', 'contract-detail-veh-brand', 'contract-detail-veh-year',
+        'contract-detail-channel', 'contract-detail-license', 'contract-detail-old-contno',
+        'contract-detail-province', 'contract-detail-branch', 'contract-detail-collector',
+
+        // ข้อมูลสินเชื่อ (Loan Details)
+        'loan-detail-fianlamount', 'loan-detail-aging', 'loan-detail-appraisal',
+        'loan-detail-status', 'loan-detail-ltv', 'loan-detail-open-date',
+        'loan-detail-balance', 'loan-detail-first-due-date', 'loan-detail-terms',
+        'loan-detail-last-due-date', 'loan-detail-termpaid', 'loan-detail-close-date',
+        'loan-detail-overdue-days', 'loan-detail-installment-amount', 'loan-detail-overdue-terms',
+        'loan-detail-insurance-due-date', 'loan-detail-interest-rate', 'loan-detail-tax-due-date',
+
+        // ข้อมูลกรมธรรม์ (MIB Details)
+        'mib-detail-policy-no', 'mib-detail-veh-category', 'mib-detail-veh-year',
+        'mib-detail-veh-brand', 'mib-detail-channel', 'mib-detail-register',
+        'mib-detail-claim-count',
+
+        // ข้อมูลแผนประกัน (MIB Insurance)
+        'mib-ins-plan', 'mib-ins-premium', 'mib-ins-company',
+        'mib-ins-terms', 'mib-ins-cover-amount', 'mib-ins-status-install',
+        'mib-ins-start-date', 'mib-ins-end-date', 'mib-ins-payment-type',
+        'mib-ins-status', 'mib-ins-remaining-days'
+    ];
+
+    fieldsToClear.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '-';
+    });
+
+    const statusElem = document.getElementById("mib-ins-status");
+    const statusContainer = document.getElementById("mib-ins-status-container") || (statusElem ? statusElem.closest('.d-flex') : null);
+    if (statusContainer) {
+        statusContainer.style.removeProperty('background-color');
+        statusContainer.style.removeProperty('padding');
+        statusContainer.style.removeProperty('border-radius');
+        const labelSpan = statusContainer.querySelector('.detail-label-sm span') || statusContainer.querySelector('.detail-label-sm') || statusContainer.children[0];
+        if (labelSpan) labelSpan.style.removeProperty('color');
+        if (statusElem) statusElem.style.removeProperty('color');
+    }
+
+    if (window.jQuery && $.fn && $.fn.DataTable) {
+        ['#tab-table-guarantor', '#tab-table-payment', '#tab-table-claim'].forEach(tableId => {
+            if ($.fn.DataTable.isDataTable(tableId)) {
+                $(tableId).DataTable().clear().draw();
+            }
+        });
+    }
+
+    document.querySelectorAll('.contract-row.active-row').forEach(r => {
+        r.classList.remove('active-row');
+        r.classList.add('hover-row');
+        r.querySelectorAll('.contract-col').forEach(col => col.classList.remove('fw-medium', 'text-primary'));
+    });
+}
+
+function clearCustomerDetails() {
+    const fieldsToClear = [
+        'detail-idno',
+        'detail-name',
+        'detail-type',
+        'detail-dob',
+        'detail-gender',
+        'detail-marital',
+        'detail-mobile',
+        'detail-phone1',
+        'detail-phone2',
+        'detail-occupation',
+        'detail-email',
+        'detail-BW',
+        'detail-pdpaCheck',
+        'detail-marketing-consent',
+        'detail-cross-sell-consent',
+        'contract-detail-idno',
+        'contract-detail-name'
+    ];
+
+    fieldsToClear.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '-';
+    });
+
+    const pdpaContainer = document.getElementById("pdpa-consent-container");
+    if (pdpaContainer) pdpaContainer.innerHTML = '';
+
+    document.querySelectorAll(".cus-name-consent").forEach(el => { el.innerText = '-'; });
+
+    const panelBg = document.getElementById("customer-detail-panel-bg");
+    if (panelBg) {
+        panelBg.classList.remove("bg-danger-light", "bg-warning-light", "bg-success-light");
+    }
+}
+
 async function displayCustomerDetails(customer) {
+    clearContractDetails();
+    clearCustomerDetails();
     const companyCode = customer.companyCde || '';
     let pdpaData = null;
     let checkPDPAData = null;
@@ -262,6 +397,7 @@ async function displayCustomerDetails(customer) {
     document.getElementById("detail-BW").innerText = customer.BLWL || '-';
 
     const container = document.getElementById("pdpa-consent-container");
+
     if (container) {
         let items = [];
         if (Array.isArray(pdpaData)) {
@@ -354,12 +490,12 @@ async function displayCustomerDetails(customer) {
             container.innerHTML = '<div class="text-muted small">ไม่พบข้อมูลรายการยินยอม</div>';
         }
     }
-
+    const bgColor = await getPDPAbg(checkPDPAData,companyCode)
     const panelBg = document.getElementById("customer-detail-panel-bg");
     if (panelBg) {
         panelBg.classList.remove("bg-danger-light", "bg-warning-light", "bg-success-light");
-        
-        let pdpaVal = customer.pdpaCheck || customer.PdpaCheck;
+        // let pdpaVal = customer.pdpaCheck;
+        let pdpaVal = bgColor;
         if (typeof pdpaVal === 'string') {
             pdpaVal = pdpaVal.toLowerCase();
         }
@@ -402,9 +538,9 @@ async function performSearch() {
                     const tbody = document.getElementById("searchResultBody");
                     
                     tbody.innerHTML = data.map((cust, index) => {
-                        const name = cust.nameCus || cust.NameCus || '-';
-                        const idno = cust.idno || cust.Idno || '-';
-                        const licno = cust.licno || cust.Licno || '-';
+                        const name = cust.nameCus || '-';
+                        const idno = cust.idno || '-';
+                        const licno = cust.licno || '-';
                         
                         return `
                             <tr class="${index === 0 ? 'active-row cursor-pointer border-bottom' : 'cursor-pointer border-bottom hover-row'}" data-index="${index}">
@@ -474,6 +610,8 @@ async function performSearch() {
                     currentContactData = null;
                     renderProductSummary(null);
                     renderCompanyTabs(null);
+                    clearContractDetails();
+                    clearCustomerDetails();
                 }
             } else {
                 console.error("Error fetching data:", response.status);
@@ -510,6 +648,17 @@ if (clearBtn) {
     clearBtn.addEventListener("click", function(e) {
         e.preventDefault();
         searchInput.value = '';
+        clearContractDetails();
+        clearCustomerDetails();
+        document.getElementById("customerCount").innerText = "0";
+        document.getElementById("searchResultBody").innerHTML = '';
+        document.getElementById("dt-contact-Micro").innerHTML = '';
+        document.getElementById("dt-contact-MFIN").innerHTML = '';
+        document.getElementById("dt-contact-MIB").innerHTML = '';
+
+        currentContactData = null;
+        renderProductSummary(null);
+        renderCompanyTabs(null);
     });
 }
 
@@ -656,32 +805,13 @@ document.addEventListener('click', function(e) {
                 updateContactTabLabel(targetId);
             }
             if (targetId.toLowerCase() === "contact-micro" || targetId.toLowerCase() === "contact-mfin" || targetId.toLowerCase() === "contact-mib") {
-                if (typeof currentContactInfoRequestId !== 'undefined') {
-                    currentContactInfoRequestId++;
-                }
-                if (typeof currentClaimListRequestId !== 'undefined') {
-                    currentClaimListRequestId++;
-                }
                 const loadingInd = document.getElementById("contract-loading-indicator");
                 const detailsCont = document.getElementById("contract-details-container");
                 if (loadingInd && detailsCont) {
                     loadingInd.classList.add("d-none");
                     detailsCont.classList.remove("d-none");
                 }
-
-                // Reset key fields to '-' to avoid confusion
-                ['contract-detail-contno', 'contract-detail-loantype', 'contract-detail-company', 
-                 'loan-detail-status', 'mib-detail-policy-no'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerText = '-';
-                });
-
-                // Deselect active rows
-                document.querySelectorAll('.contract-row.active-row').forEach(r => {
-                    r.classList.remove('active-row');
-                    r.classList.add('hover-row');
-                    r.querySelectorAll('.contract-col').forEach(col => col.classList.remove('fw-medium', 'text-primary'));
-                });
+                clearContractDetails();
             }
 
             // Change tab layout when switching company tab
@@ -807,7 +937,7 @@ async function getContact(idno) {
                         $(row).addClass('hover-row border-bottom cursor-pointer contract-row');
                         $(row).find('td').addClass('text-center py-3 contract-col');
 
-                        const contractEndDate = data.endDate || data.enddate || data.endDateCover || data.expDate;
+                        const contractEndDate = data.endDate;
                         if (!isContractActive(contractEndDate)) {
                             $(row).find('td').css('color', '#94a3b8');
                         } else {

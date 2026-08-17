@@ -179,14 +179,32 @@
 
     <!-- All Notifications Modal -->
     <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; max-height: 85vh;">
                 <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%); border-radius: 12px 12px 0 0;">
                     <h5 class="modal-title fw-bold" id="allNotificationsModalLabel"><i class="bi bi-bell-fill me-2"></i>การแจ้งเตือนทั้งหมด</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-0" id="allNotificationsModalBody" style="background-color: #f8fafc;">
-                    <!-- Modal notifications will be appended here -->
+                <div class="modal-body p-0" style="background-color: #f8fafc; overflow: hidden;">
+                    <div class="row g-0" style="min-height: 480px; max-height: 72vh;">
+                        <!-- Left Pane: List of items -->
+                        <div class="col-12 col-md-5 border-end overflow-auto p-3" id="allNotificationsModalBody" style="max-height: 72vh; background-color: #f8fafc;">
+                            <!-- Modal notifications will be appended here -->
+                        </div>
+                        <!-- Right Pane: Detail view -->
+                        <div class="col-12 col-md-7 overflow-auto p-4 bg-white" id="allNotificationsModalDetail" style="max-height: 72vh;">
+                            <!-- Notification detail will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top d-flex justify-content-between align-items-center px-3 py-2" style="border-radius: 0 0 12px 12px;">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-2 shadow-sm transition-all" onclick="deleteReadNotifications()">
+                        <i class="bi bi-trash3-fill"></i>
+                        <span class="fw-medium">ลบที่อ่านแล้วทั้งหมด</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">
+                        ปิด
+                    </button>
                 </div>
             </div>
         </div>

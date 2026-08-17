@@ -6,11 +6,14 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using webCRM.Models;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace webCRM.Controllers
 {
-    public class HomeController(IConfiguration configuration) : Controller
+    public class HomeController(
+        IConfiguration configuration) : Controller
     {
+    
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
         string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
@@ -25,7 +28,7 @@ namespace webCRM.Controllers
             {
                 return RedirectToAction("Index", "Login");
             }
-            
+
             return View();
         }
 
@@ -35,8 +38,9 @@ namespace webCRM.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        public async Task<MasterData> GetMaster(){
-
+        public async Task<MasterData> GetMaster()
+        {
+            
             try
             {
                 var handler = new HttpClientHandler
@@ -50,6 +54,7 @@ namespace webCRM.Controllers
                     var response = await client.GetAsync($"{domain}/crm/api/v1/master");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
+                    
                     if (response.IsSuccessStatusCode)
                     {
                         var apiResponse = System.Text.Json.JsonSerializer.Deserialize<MasterData>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });

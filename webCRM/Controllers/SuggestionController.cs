@@ -8,6 +8,7 @@ using webCRM.Models;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Linq;
 
 namespace webCRM.Controllers
 {
@@ -28,6 +29,14 @@ namespace webCRM.Controllers
             var personalId = HttpContext.Session.GetString("personalId") ?? "";
             var suggestions = await GetSuggestionList(personalId);
             return View("suggestions", suggestions);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSuggestions(string? status = null, string? header = null, string? search = null)
+        {
+            var personalId = HttpContext.Session.GetString("personalId") ?? "";
+            var suggestions = await GetSuggestionList(personalId, status, header, search);
+            return Json(suggestions);
         }
 
         public async Task<string> AddRequestSuggestions(RequestSuggestionsModel request)
@@ -57,7 +66,7 @@ namespace webCRM.Controllers
             }
         }
 
-        public async Task<List<ResponseSuggestion>> GetSuggestionList(string personalId)
+        public async Task<List<ResponseSuggestion>> GetSuggestionList(string personalId, string? status = null, string? header = null, string? search = null)
         {
             try
             {
@@ -68,13 +77,45 @@ namespace webCRM.Controllers
                 using var client = new HttpClient(handler);
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                var response = await client.GetAsync($"{domain}/crm/api/v1/suggestions/0/{personalId}");
+
+                var queryParams = new List<string>();
+                if (!string.IsNullOrWhiteSpace(status)) queryParams.Add($"status={Uri.EscapeDataString(status)}");
+                if (!string.IsNullOrWhiteSpace(header)) queryParams.Add($"header={Uri.EscapeDataString(header)}");
+                if (!string.IsNullOrWhiteSpace(search)) queryParams.Add($"search={Uri.EscapeDataString(search)}");
+
+                var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+                var response = await client.GetAsync($"{domain}/crm/api/v1/suggestions/0/{personalId}{queryString}");
                 response.EnsureSuccessStatusCode();
                 string data = await response.Content.ReadAsStringAsync();
                 if (response.IsSuccessStatusCode)
                 {
                     var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ResponseSuggestion>>(data, _jsonSerializerOptions);
-                    return apiResponse ?? new List<ResponseSuggestion>();
+                    var list = apiResponse ?? new List<ResponseSuggestion>();
+
+                    if (!string.IsNullOrWhiteSpace(status))
+                    {
+                        list = list.Where(x => string.Equals(x.StatusTask, status, StringComparison.OrdinalIgnoreCase)).ToList();
+                    }
+                    if (!string.IsNullOrWhiteSpace(header))
+                    {
+                        list = list.Where(x => string.Equals(x.SuggestionTitle, header, StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(x.DepartCde, header, StringComparison.OrdinalIgnoreCase)).ToList();
+                    }
+                    if (!string.IsNullOrWhiteSpace(search))
+                    {
+                        var s = search.Trim();
+                        list = list.Where(x =>
+                            (x.SuggestionTitle != null && x.SuggestionTitle.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.NameProvider != null && x.NameProvider.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.StatusTask != null && x.StatusTask.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.Suggestion != null && x.Suggestion.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.PhoneProvider != null && x.PhoneProvider.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.EmailProvider != null && x.EmailProvider.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.Idno != null && x.Idno.Contains(s, StringComparison.OrdinalIgnoreCase))
+                        ).ToList();
+                    }
+
+                    return list;
                 }
 
             }
@@ -85,7 +126,6 @@ namespace webCRM.Controllers
             }
             return new List<ResponseSuggestion>();
         }
-
         public async Task<IActionResult> UpdateSuggestion(string guid, string reply, string updBy)
         {
             try

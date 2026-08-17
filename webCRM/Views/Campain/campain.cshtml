@@ -21,50 +21,12 @@
                             <span class="ps-3 text-muted"><i class="bi bi-search"></i></span>
                             <input type="text" id="campaignSearchInput" placeholder="ค้นหา Campaign" class="w-100" style="border: none; outline: none; font-size: 0.875rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
                         </div>
-                        @* <div class="sort-select-container">
-                            <div class="sort-dropdown-panel" id="sortDropdownPanel">
-                                <div class="sort-section-title">Sort by</div>
-                                <div class="sort-option" data-field="code">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>product_code</span>
-                                </div>
-                                <div class="sort-option" data-field="name">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>product_name</span>
-                                </div>
-                                <div class="sort-option" data-field="status">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>product_status</span>
-                                </div>
-                                <div class="sort-option" data-field="startDate">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>product_start</span>
-                                </div>
-                                <div class="sort-option selected" data-field="endDate">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>product_end</span>
-                                </div>
-                                
-                                <hr class="sort-divider">
-                                
-                                <div class="sort-section-title">Sort order</div>
-                                <div class="sort-order-option selected" data-order="asc">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>A to Z</span>
-                                </div>
-                                <div class="sort-order-option" data-order="desc">
-                                    <i class="bi bi-check check-icon"></i>
-                                    <span>Z to A</span>
-                                </div>
-                                
-                                <hr class="sort-divider">
-                                
-                                <div class="sort-actions">
-                                    <button type="button" class="btn-sort-apply" id="applySortBtn">Apply</button>
-                                    <button type="button" class="btn-sort-cancel" id="cancelSortBtn">Cancel</button>
-                                </div>
-                            </div>
-                        </div> *@
+                        <div>
+                            <button type="button" id="btnSearch" class="btn btn-primary px-4 py-2 fw-medium d-flex align-items-center gap-2 rounded-3 shadow-sm">
+                                <i class="bi bi-search"></i>
+                                <span>ค้นหา</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- List Header & Refresh -->
@@ -158,9 +120,42 @@
                             </div>
                             
                             <div class="col-md-6">
+                                <label class="form-label">
+                                    ใช้กับสาขา <span class="required-star">*</span>
+                                </label>
+
+                                <div class="branch-select-container" id="branchSelectContainer">
+
+                                    <div class="branch-select-input-display"
+                                        id="branchSelectDisplay">
+                                        <span class="branch-placeholder" id="branchSelectPlaceholder">
+                                            เลือกสาขา
+                                        </span>
+                                        <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
+                                    </div>
+
+                                    <div class="branch-dropdown-panel" id="branchDropdownPanel">
+                                        <div class="branch-search-box">
+                                            <input type="text"
+                                                id="branchSearchInput"
+                                                placeholder="ค้นหาสาขา">
+
+                                            <i class="bi bi-search"></i>
+                                        </div>
+
+                                        <div class="branch-list-wrapper">
+                                            <div id="branchesListContainer">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            @* <div class="col-md-6">
                                 <label class="form-label">ใช้กับสาขา <span class="required-star">*</span></label>
                                 
-                                <div class="branch-select-container">
+                                <div class="branch-select-container" readonly>
                                     <div class="branch-select-input-display disabled" id="branchSelectDisplay" style="pointer-events: none;">
                                         <span class="branch-placeholder" id="branchSelectPlaceholder">เลือกสาขา</span>
                                         <i class="bi bi-chevron-down branch-dropdown-arrow"></i>
@@ -179,19 +174,19 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> *@
 
                             <!-- หมายเหตุ -->
                             <div class="col-md-12">
                                 <label class="form-label" for="remarks">หมายเหตุ</label>
-                                <textarea id="remarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;" disabled></textarea>
+                                <textarea id="remarks" class="form-control" rows="4" placeholder="กรอกหมายเหตุ (ถ้ามี)" maxlength="500" style="border-radius: 8px; resize: none;" disabled readonly></textarea>
                                 <div class="char-counter" id="remarksCharCounter">0 / 500</div>
                             </div>
 
                             <!-- ปุ่มแนบไฟล์ -->
                             <div class="col-12" id="importExcelContainer">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel" disabled>
+                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportExcel" readonly>
                                         <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
                                     </button>
                                     

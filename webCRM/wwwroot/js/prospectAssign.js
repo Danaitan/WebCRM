@@ -1,11 +1,11 @@
 
 let selectedCampaignCode = "";
-let prospectPage = 1;
-let prospectPageSize = 10;
 let prospectTotalCount = 0;
 let rawProspectItems = [];
 let activeStatusFilter = 'all';
 let allBranch = [];
+let prospectPage = 1;
+let prospectPageSize = 10;
 
 async function getAllBranch() {
     if (allBranch && allBranch.length > 0) {
@@ -372,9 +372,9 @@ async function UpdateProspectCustomer(overrideParams = {}){
 }
 
 // Fetch prospect batch for selected campaign from API
-async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+async function getProductBatchByProductCode(productCode){
     try{
-        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}`);
         if (!response.ok) {
             console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
             return [];
@@ -566,24 +566,24 @@ async function getCampainList(page, pageSize) {
     }
 }
 
-async function loadProspectAssignData(productCode, page = 1, pageSize = 10) {
+async function loadProspectAssignData(productCode) {
     if (!productCode) {
         rawProspectItems = [];
         prospectTotalCount = 0;
+        prospectPage = 1;
         filterAndRenderProspectTable();
         return;
     }
 
     selectedCampaignCode = productCode;
-    prospectPage = page;
-    prospectPageSize = pageSize;
+    prospectPage = 1;
 
     const tbody = document.getElementById('prospectAssignTableBody');
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>`;
     }
 
-    const res = await getProductBatchByProductCode(productCode, page, pageSize);
+    const res = await getProductBatchByProductCode(productCode);
     const { items, totalCount } = extractProspectCustomers(res);
 
     rawProspectItems = items;
@@ -638,11 +638,20 @@ function filterAndRenderProspectTable() {
         });
     }
 
+    const displayTotal = filteredItems.length;
+
     if (filteredItems.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบรายการ Prospect</td></tr>`;
     } else {
+        const totalPages = Math.ceil(filteredItems.length / prospectPageSize) || 1;
+        if (prospectPage > totalPages) prospectPage = totalPages;
+        if (prospectPage < 1) prospectPage = 1;
+
+        const startIndex = (prospectPage - 1) * prospectPageSize;
+        const pageItems = filteredItems.slice(startIndex, startIndex + prospectPageSize);
+
         let html = '';
-        filteredItems.forEach(item => {
+        pageItems.forEach(item => {
             const dotClass = getStatusDotClass(item.status, item.assignee);
             const statusText = getStatusLabel(item.status, item.assignee);
             html += `
@@ -675,7 +684,6 @@ function filterAndRenderProspectTable() {
 
     updateSelectedCount();
 
-    const displayTotal = prospectTotalCount || filteredItems.length;
     const badge = document.getElementById('prospectAssignTotalBadge');
     if (badge) badge.textContent = `ทั้งหมด ${displayTotal} รายการ`;
 
@@ -753,7 +761,7 @@ function renderProspectPagination(total) {
         e.preventDefault();
         if (prospectPage > 1) {
             prospectPage--;
-            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+            filterAndRenderProspectTable();
         }
     });
     paginationEl.appendChild(prevLi);
@@ -772,7 +780,7 @@ function renderProspectPagination(total) {
                 e.preventDefault();
                 if (p !== prospectPage) {
                     prospectPage = p;
-                    loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+                    filterAndRenderProspectTable();
                 }
             });
         }
@@ -787,7 +795,7 @@ function renderProspectPagination(total) {
         e.preventDefault();
         if (prospectPage < totalPages) {
             prospectPage++;
-            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+            filterAndRenderProspectTable();
         }
     });
     paginationEl.appendChild(nextLi);
@@ -817,6 +825,7 @@ function buildPageRange(current, total) {
             this.classList.add('active');
 
             activeStatusFilter = this.getAttribute('data-status') || 'all';
+            prospectPage = 1;
             filterAndRenderProspectTable();
         });
     });
@@ -826,7 +835,7 @@ function buildPageRange(current, total) {
         rowsPerPageSelect.addEventListener('change', function () {
             prospectPageSize = parseInt(this.value, 10) || 10;
             prospectPage = 1;
-            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+            filterAndRenderProspectTable();
         });
     }
 
@@ -841,7 +850,6 @@ function buildPageRange(current, total) {
     }
 })();
 
-// BATCH LIST & CAMPAIGN DATA LOADING
 (function () {
     let campaigns = [];
     let filteredCampaigns = [];
@@ -895,7 +903,7 @@ function buildPageRange(current, total) {
             setSelectedBranches(campaign.offcde);
 
             // Fetch prospects for selected campaign code
-            loadProspectAssignData(campaign.code, 1, prospectPageSize);
+            loadProspectAssignData(campaign.code);
         }
     }
 
@@ -1044,9 +1052,9 @@ function buildPageRange(current, total) {
         }
     }
 
-    const searchInput = document.getElementById('batchSearchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
+    $("#batchSearchInput").off("keydown").on("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
             const q = this.value.toLowerCase().trim();
             if (!q) {
                 filteredCampaigns = [...campaigns];
@@ -1063,8 +1071,8 @@ function buildPageRange(current, total) {
             if (filteredCampaigns.length > 0) {
                 selectCampaign(0);
             }
-        });
-    }
+        }
+    });
 
     document.getElementById('batchFirstBtn')?.addEventListener('click', function () {
         if (batchPage > 1) { loadBatch(1); }
@@ -1236,7 +1244,7 @@ function buildPageRange(current, total) {
                     if (typeof showAlert === 'function') {
                         showAlert('success', 'Assign เรียบร้อยแล้ว', 'ทำการ Assign เรียบร้อยแล้ว', function() {
                             if (selectedCampaignCode) {
-                                loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+                                loadProspectAssignData(selectedCampaignCode);
                             } else {
                                 window.location.reload();
                             }
@@ -1296,7 +1304,7 @@ function buildPageRange(current, total) {
                 if (typeof showAlert === 'function') {
                     showAlert('success', 'ReAssign เรียบร้อยแล้ว', 'ทำการ ReAssign เรียบร้อยแล้ว', function() {
                         if (selectedCampaignCode) {
-                            loadProspectAssignData(selectedCampaignCode, prospectPage, prospectPageSize);
+                            loadProspectAssignData(selectedCampaignCode);
                         } else {
                             window.location.reload();
                         }
@@ -1309,3 +1317,4 @@ function buildPageRange(current, total) {
         });
     }
 })();
+

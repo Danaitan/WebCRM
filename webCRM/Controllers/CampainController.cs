@@ -25,7 +25,8 @@ namespace webCRM.Controllers
             string startDate = "",
             string endDate = "",
             string branch = "",
-            string createdBy = ""
+            string createdBy = "",
+            string search = ""
             )
         {
             try
@@ -47,21 +48,16 @@ namespace webCRM.Controllers
                     }
 
                     string url = $"{domain}/crm/api/v1/p2/getProductsPhase3/{createdBy}/{reqPage}/{reqPageSize}";
-                    if (!string.IsNullOrEmpty(status))
+                    var queryParams = new List<string>();
+                    if (!string.IsNullOrEmpty(status)) queryParams.Add($"status={Uri.EscapeDataString(status)}");
+                    if (!string.IsNullOrEmpty(startDate)) queryParams.Add($"startDate={Uri.EscapeDataString(startDate)}");
+                    if (!string.IsNullOrEmpty(endDate)) queryParams.Add($"endDate={Uri.EscapeDataString(endDate)}");
+                    if (!string.IsNullOrEmpty(branch)) queryParams.Add($"branch={Uri.EscapeDataString(branch)}");
+                    if (!string.IsNullOrEmpty(search)) queryParams.Add($"search={Uri.EscapeDataString(search)}");
+
+                    if (queryParams.Count > 0)
                     {
-                        url += $"?status={status}";
-                    }
-                    if (!string.IsNullOrEmpty(startDate))
-                    {
-                        url += $"?startDate={startDate}";
-                    }
-                    if (!string.IsNullOrEmpty(endDate))
-                    {
-                        url += $"?endDate={endDate}";
-                    }
-                    if (!string.IsNullOrEmpty(branch))
-                    {
-                        url += $"?branch={branch}";
+                        url += "?" + string.Join("&", queryParams);
                     }
                     var response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();

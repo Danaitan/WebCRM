@@ -21,7 +21,7 @@
                 <i class="bi bi-search"></i>
                 <input type="text" id="campaignSearch" placeholder="ค้นหาแคมเปญ / รหัสแคมเปญ">
             </div>
-            <button class="btn btn-primary" id="btnSearchCpCode">
+            <button class="btn btn-primary" id="btnSearchbtn">
                 <i class="bi bi-search"></i> ค้นหา
             </button>
         </div>
@@ -105,12 +105,12 @@
                             <i class="bi bi-people"></i> รายละเอียด Prospect
                             <span class="badge bg-primary rounded-pill fs-7 ms-2" id="prospectApproveTotalBadge">ทั้งหมด 0 รายการ</span>
                         </div>
-                        <div class="pa-table-controls" style="flex-grow: 1; max-width: 320px;">
+                        @* <div class="pa-table-controls" style="flex-grow: 1; max-width: 320px;">
                             <div class="pa-search-input-group" style="width: 100%;">
                                 <i class="bi bi-search"></i>
                                 <input type="text" id="prospectSearch" placeholder="ค้นหา ชื่อ-นามสกุล, เลขที่สัญญา, สาขา">
                             </div>
-                        </div>
+                        </div> *@
                     </div>
                     
                     <div style="overflow: auto; flex-grow: 1; min-height: 0;">
@@ -163,14 +163,14 @@
                 <div class="pa-filter-item">
                     <span class="pa-filter-label">วันที่เริ่มต้น</span>
                     <div class="pa-form-control-icon">
-                        <input type="date" id="filterStartDate" class="pa-form-control bg-white" value="2024-05-01">
+                        <input type="date" id="filterStartDate" class="pa-form-control bg-white">
                     </div>
                 </div>
 
                 <div class="pa-filter-item">
                     <span class="pa-filter-label">วันที่สิ้นสุด</span>
                     <div class="pa-form-control-icon">
-                        <input type="date" id="filterEndDate" class="pa-form-control bg-white" value="2024-07-31">
+                        <input type="date" id="filterEndDate" class="pa-form-control bg-white">
                     </div>
                 </div>
 
@@ -190,21 +190,16 @@
                     <span class="pa-filter-label">สาขา</span>
                     <select id="filterBranch" class="pa-form-control bg-white">
                         <option value="">ทั้งหมด</option>
-                        <option value="ไมโครลิสซิ่ง สาขาเชียงใหม่">สาขาเชียงใหม่</option>
-                        <option value="ไมโครลิสซิ่ง สาขาขอนแก่น">สาขาขอนแก่น</option>
-                        <option value="ไมโครลิสซิ่ง สาขาอุดรธานี">สาขาอุดรธานี</option>
-                        <option value="ไมโครลิสซิ่ง สาขาสงขลา">สาขาสงขลา</option>
-                        <option value="ไมโครลิสซิ่ง สาขาภูเก็ต">สาขาภูเก็ต</option>
                     </select>
                 </div>
 
-                <div class="pa-filter-item">
+                @* <div class="pa-filter-item">
                     <span class="pa-filter-label">โดย</span>
                     <div class="pa-search-input-group">
                         <i class="bi bi-search"></i>
                         <input type="text" id="filterBy" class="pa-form-control bg-white" placeholder="พิมพ์รหัสพนักงานเพื่อค้นหา...">
                     </div>
-                </div>
+                </div> *@
 
                 <button class="btn-pa-clear" id="btnClearFilter">
                     <i class="bi bi-arrow-repeat"></i> ล้างเงื่อนไข

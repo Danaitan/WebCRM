@@ -13,11 +13,44 @@ let currentProductBatches = [];
 let currentBatchCustomers = [];
 let removedBatchCustomerIds = new Set();
 
-async function getCampainList(page = 1, pageSize = 20) {
+const $campaignSearchInput = $("#campaignSearchInput");
+
+$campaignSearchInput.off("keyup").on("keyup", function (e) {
+    if (e.key === "Enter" || e.keyCode === 13) {
+        SearchCampaign();
+    }
+});
+
+$campaignSearchInput.off("input").on("input", function () {
+    if ($(this).val().trim() === "") {
+        SearchCampaign();
+    }
+});
+
+$(".search-box i").off("click").on("click", function () {
+    SearchCampaign();
+});
+
+async function SearchCampaign() {
+    page = 1;
+    const searchText = $("#campaignSearchInput").val() ? $("#campaignSearchInput").val().trim() : "";
+    if (typeof campaignTable !== "undefined" && campaignTable) {
+        campaignTable.page(0).draw(false);
+    } else {
+        await loadBatchList(1, currentBatchPageSize, searchText);
+    }
+}   
+
+async function getCampainList(page = 1, pageSize = 20, searchText) {
     try {
         startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
-
-        const response = await fetch(`/Campain/GetCampainList?page=${page}&pageSize=${pageSize}`);
+        let queryStr = (page !== undefined && pageSize !== undefined) 
+            ? `?page=${page}&pageSize=${pageSize}`
+            : '';
+        if (searchText !== undefined && searchText !== null && searchText !== '') {
+            queryStr += `&search=${searchText}`;
+        }
+        const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         const jsonResult = await response.json();
         const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
         const mapped = items.map(item => ({
@@ -228,11 +261,15 @@ if (company == "MICRO") {
 
 }
 
-async function loadBatchList(page = 1, pageSize = 5) {
+async function loadBatchList(page = 1, pageSize = 5, searchText) {
     currentBatchPage = page;
     currentBatchPageSize = pageSize;
 
-    const res = await getCampainList(page, pageSize);
+    if (searchText === undefined) {
+        searchText = $("#campaignSearchInput").val() ? $("#campaignSearchInput").val().trim() : "";
+    }
+
+    const res = await getCampainList(page, pageSize, searchText);
     const campainData = res.data;
 
     const foundCountEl = document.getElementById('batchFoundCount');
@@ -364,13 +401,14 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
     if (!paginationEl) return;
     paginationEl.innerHTML = '';
     const totalPages = Math.max(1, Math.ceil(totalCount / (pageSize || 1)));
+    const searchText = $("#campaignSearchInput").val() ? $("#campaignSearchInput").val().trim() : "";
 
     const prevLi = document.createElement('li');
     prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
     prevLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>`;
     prevLi.addEventListener('click', (e) => {
         e.preventDefault();
-        if (currentPage > 1) loadBatchList(currentPage - 1, pageSize);
+        if (currentPage > 1) loadBatchList(currentPage - 1, pageSize, searchText);
     });
     paginationEl.appendChild(prevLi);
 
@@ -380,7 +418,7 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
         li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
         li.addEventListener('click', (e) => {
             e.preventDefault();
-            loadBatchList(p, pageSize);
+            loadBatchList(p, pageSize, searchText);
         });
         paginationEl.appendChild(li);
     }
@@ -390,7 +428,7 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
     nextLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>`;
     nextLi.addEventListener('click', (e) => {
         e.preventDefault();
-        if (currentPage < totalPages) loadBatchList(currentPage + 1, pageSize);
+        if (currentPage < totalPages) loadBatchList(currentPage + 1, pageSize, searchText);
     });
     paginationEl.appendChild(nextLi);
 }
@@ -1136,9 +1174,9 @@ async function getProductFilterByGuid(guid) {
     }
 }
 
-async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+async function getProductBatchByProductCode(productCode){
     try{
-        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}`);
         if (!response.ok) {
             console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
             return [];
@@ -1154,7 +1192,7 @@ async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10
 async function refreshSelectedCampaignCustomers() {
     if (selectedCampaign && selectedCampaign.code) {
         currentSelectedPage = 1;
-        const batchRes = await getProductBatchByProductCode(selectedCampaign.code, 1, 9000000);
+        const batchRes = await getProductBatchByProductCode(selectedCampaign.code);
         currentBatchCustomers = extractCustomers(batchRes);
         updateSelectedList();
 

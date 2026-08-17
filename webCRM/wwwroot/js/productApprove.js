@@ -3,16 +3,92 @@ let page = 1;
 let campaigns = [];
 let selectedCampaignCode = "";
 let campaignTable;
+let masterData = null;
 
 let prospectPage = 1;
 let prospectPageSize = 10;
 let prospectTotalCount = 0;
 let rawProspectItems = [];
 
-// Fetch prospect batch for selected campaign from API
-async function getProductBatchByProductCode(productCode, page = 1, pageSize = 10){
+async function getBranchList(){
     try{
-        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}&page=${page}&pageSize=${pageSize}`);
+        const response = await fetch(`/Campain/getBranchListForCRM`);
+        if (!response.ok) {
+            console.error("getMaster HTTP error:", response.status, response.statusText);
+            return [];
+        }
+        const data = await response.json();
+        return data || [];
+    }catch(err){
+        console.error("Error in getMaster:", err);
+        return [];
+    }
+}
+
+function renderBranchOptions(branches) {
+    const branchSelect = document.getElementById('filterBranch');
+    if (!branchSelect) return;
+    branchSelect.innerHTML = '<option value="">ทั้งหมด</option>';
+
+    if (Array.isArray(branches) && branches.length > 0) {
+        const currentCompany = ((typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")) || "").trim().toUpperCase();
+
+        let filteredBranches = branches;
+        if (currentCompany) {
+            const matchingCompanyDepts = branches.filter(item => item && item.company && item.company.trim().toUpperCase() === currentCompany);
+            if (matchingCompanyDepts.length > 0) {
+                filteredBranches = matchingCompanyDepts;
+            }
+        }
+
+        const uniqueBranches = [];
+        const addedCodes = new Set();
+
+        filteredBranches.forEach(item => {
+            if (!item) return;
+
+            const offcde = (typeof item === 'string'
+                ? item
+                : (item.offcde || '')
+            ).trim();
+
+            const branchName = (typeof item === 'string'
+                ? item
+                : (item.branch_name || '')
+            ).trim();
+
+            if (offcde && !addedCodes.has(offcde)) {
+                addedCodes.add(offcde);
+                uniqueBranches.push({
+                    offcde: offcde,
+                    name: branchName || offcde
+                });
+            }
+        });
+
+        uniqueBranches.forEach(branchItem => {
+            const option = document.createElement('option');
+            option.value = branchItem.offcde;
+            option.textContent = branchItem.name;
+            branchSelect.appendChild(option);
+        });
+    }
+}
+
+async function SearchCampaign() {
+    page = 1;
+    const searchText = $("#campaignSearch").val() ? $("#campaignSearch").val().trim() : "";
+    if (typeof campaignTable !== "undefined" && campaignTable) {
+        campaignTable.page(0).draw(false);
+    } else {
+        await loadBatchList(1, currentBatchPageSize, searchText);
+    }
+}   
+
+// Fetch prospect batch for selected campaign from API
+async function getProductBatchByProductCode(productCode){
+    try{
+        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}`);
         if (!response.ok) {
             console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
             return [];
@@ -98,6 +174,7 @@ function extractProspectCustomers(data) {
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
             const branch = item.branch_Name || '-';
+            const offcde = item.offcde || item.contractoffcde || item.branch_offcde || item.Offcde || '';
             const carLocation = item.provinceUsecar || '-';
             const createdDate = item.created || '-';
             const createdBy = item.created_by || '-';
@@ -107,6 +184,7 @@ function extractProspectCustomers(data) {
                     id: String(id || '').trim(),
                     idno: String(idno || '').trim(),
                     branch: String(branch).trim(),
+                    offcde: String(offcde).trim(),
                     name: String(name).trim(),
                     contract: String(contract).trim(),
                     carLocation: String(carLocation).trim(),
@@ -169,7 +247,7 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 10) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>`;
     }
 
-    const res = await getProductBatchByProductCode(productCode, page, pageSize);
+    const res = await getProductBatchByProductCode(productCode);
 
     const { items, totalCount } = extractProspectCustomers(res);
 
@@ -255,26 +333,46 @@ function updateDetailPanel(campaign) {
 async function getCampainList(page, pageSize) {
     startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
     try {
+        const queryParams = [];
+
+        if (page !== undefined && pageSize !== undefined) {
+            queryParams.push(`page=${encodeURIComponent(page)}`);
+            queryParams.push(`pageSize=${encodeURIComponent(pageSize)}`);
+        }
+
+        const filterStatusEl = document.getElementById('filterStatus');
         let status = "waiting approve,approved";
-        if (document.getElementById('filterStatus').value)
-        {
-            status = document.getElementById('filterStatus').value;
+        if (filterStatusEl && filterStatusEl.value) {
+            status = filterStatusEl.value;
         }
-        let queryStr = (page !== undefined && pageSize !== undefined) 
-            ? `?page=${page}&pageSize=${pageSize}&status=${status}`
-            : '';
+        queryParams.push(`status=${encodeURIComponent(status)}`);
 
-        if (document.getElementById('filterBranch').value)
-        {
-            var branch = document.getElementById('filterBranch').value;
-            queryStr += '&branch=' + branch;
+        const campaignSearchInput = document.getElementById('campaignSearch');
+        if (campaignSearchInput && campaignSearchInput.value.trim()) {
+            queryParams.push(`search=${encodeURIComponent(campaignSearchInput.value.trim())}`);
         }
 
-        if (document.getElementById('filterBy').value)
-        {
-            var createdBy = document.getElementById('filterBy').value;
-            queryStr += '&createdBy=' + createdBy;
+        const filterStartDateEl = document.getElementById('filterStartDate');
+        if (filterStartDateEl && filterStartDateEl.value) {
+            queryParams.push(`startDate=${encodeURIComponent(filterStartDateEl.value)}`);
         }
+
+        const filterEndDateEl = document.getElementById('filterEndDate');
+        if (filterEndDateEl && filterEndDateEl.value) {
+            queryParams.push(`endDate=${encodeURIComponent(filterEndDateEl.value)}`);
+        }
+
+        const filterBranchEl = document.getElementById('filterBranch');
+        if (filterBranchEl && filterBranchEl.value) {
+            queryParams.push(`branch=${encodeURIComponent(filterBranchEl.value)}`);
+        }
+
+        const filterByEl = document.getElementById('filterBy');
+        if (filterByEl && filterByEl.value) {
+            queryParams.push(`createdBy=${encodeURIComponent(filterByEl.value)}`);
+        }
+
+        const queryStr = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
 
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
@@ -424,7 +522,10 @@ function filterProspectTable() {
             item.carLocation.toLowerCase().includes(query) ||
             item.createdBy.toLowerCase().includes(query);
 
-        var matchBranch = !branch || item.branch === branch;
+        var matchBranch = !branch ||
+            item.branch === branch ||
+            item.offcde === branch ||
+            (item.raw && (item.raw.offcde === branch || item.raw.contractoffcde === branch || item.raw.branch_offcde === branch || item.raw.branch_Name === branch));
         var matchBy = !byUser || item.createdBy.toLowerCase().includes(byUser.toLowerCase());
 
         return matchText && matchBranch && matchBy;
@@ -496,10 +597,9 @@ function renderProspectPaginationControls(total) {
 }
 
 function applyAllFilters() {
-    var campaignSearchInput = document.getElementById('campaignSearch');
-    var query = campaignSearchInput ? campaignSearchInput.value.trim() : '';
-    if (campaignTable) {
-        campaignTable.search(query).draw();
+    page = 1;
+    if (typeof campaignTable !== "undefined" && campaignTable) {
+        campaignTable.page(0).draw(false);
     }
     filterProspectTable();
 }
@@ -510,15 +610,15 @@ function clearAllFilters() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    if (campaignTable) {
-        campaignTable.search('').draw();
-    }
-    filterProspectTable();
+    applyAllFilters();
 }
 
-$(document).ready(function () {
+$(document).ready(async function () {
     initDataTables();
-
+    branch = await getBranchList();
+    if (branch) {
+        renderBranchOptions(branch);
+    }
     $("#campaignsTable").on("click", ".pa-card", function () {
         const code = String($(this).data("code"));
         selectedCampaignCode = code;
@@ -561,31 +661,18 @@ $(document).ready(function () {
         loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
     });
 
-    const campaignSearchInput = document.getElementById('campaignSearch');
-    if (campaignSearchInput) {
-        campaignSearchInput.addEventListener('input', function () {
-            const query = $(this).val().trim();
-            if (campaignTable) {
-                campaignTable.search(query).draw();
-            }
-        });
-    }
-
-    const prospectSearchInput = document.getElementById('prospectSearch');
-    if (prospectSearchInput) {
-        prospectSearchInput.addEventListener('input', filterProspectTable);
-    }
-
-    ['filterStartDate', 'filterEndDate', 'filterStatus'].forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', applyAllFilters);
+    $("#btnSearch, #btnSearchbtn").off("click").on("click", function (e) {
+        e.preventDefault();
+        applyAllFilters();
     });
 
-    const filterBranch = document.getElementById('filterBranch');
-    if (filterBranch) filterBranch.addEventListener('change', filterProspectTable);
 
-    const filterBy = document.getElementById('filterBy');
-    if (filterBy) filterBy.addEventListener('input', filterProspectTable);
+    $("#campaignSearch, #filterBy, #prospectSearch, #filterStartDate, #filterEndDate").off("keydown").on("keydown", function (e) {
+        if (e.key === "Enter" || e.keyCode === 13) {
+            e.preventDefault();
+            applyAllFilters();
+        }
+    });
 
     const btnClear = document.getElementById('btnClearFilter');
     if (btnClear) btnClear.addEventListener('click', clearAllFilters);
@@ -757,7 +844,7 @@ $(document).ready(function () {
                 try {
                     var request = {
                         product_code: code || "",
-                        status: "cancle",
+                        status: "reject",
                         product_remark: result.value,
                     };
                     const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {

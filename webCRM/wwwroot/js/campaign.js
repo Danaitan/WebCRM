@@ -7,6 +7,18 @@ let selectedCampaignId = 0;
 const pageSize = 5;
 let page = 1;
 let rawMasterFilters = [];
+let campaignTable;
+
+async function SearchCampaign() {
+    page = 1;
+    if (campaignTable) {
+        campaignTable.page(0).draw(false);
+    } else {
+        const searchText = $("#campaignSearchInput").val();
+        const response = await getCampainList(page, pageSize, searchText);
+        console.log("response", response);
+    }
+}   
 
 async function GetMasterObjective() {
     const response = await fetch(`/Campain/GetMasterObjective`);
@@ -331,12 +343,15 @@ function updateSelectedFiltersDisplay() {
     });
 }
 
-async function getCampainList(page, pageSize) {
+async function getCampainList(page, pageSize, searchText) {
     startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Campaign...');
     try {
-        const queryStr = (page !== undefined && pageSize !== undefined) 
+        let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}`
             : '';
+        if (searchText !== undefined && searchText !== null && searchText !== '') {
+            queryStr += `&search=${searchText}`;
+        }
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();
@@ -379,10 +394,10 @@ $(document).ready(async function () {
         const branchRes = await fetch(`/Campain/getBranchListForCRM`);
         const branchList = await branchRes.json();
         branchesData = (branchList || [])
-            .filter(b => (b.offcde || b.Offcde || "") !== "99")
+            .filter(b => (b.offcde || "") !== "99")
             .map(b => ({
                 code: String(b.offcde || b.Offcde || "").trim(),
-                name: b.branch_name || b.branchName || b.bname || b.Bname || "ไม่ทราบชื่อ"
+                name: b.branch_name || "ไม่ทราบชื่อ"
             }));
 
         // Always add virtual "ทุกสาขา" (code 99) option at the top
@@ -598,14 +613,14 @@ $(document).ready(async function () {
             updateFilterSelectionUI();
 
             $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportExcel, #submitFormBtn").prop("disabled", true);
-            $("#branchSelectDisplay").addClass("disabled").css("pointer-events", "none");
+            $("#branchSelectDisplay, #branchSelectContainer").addClass("disabled").css("pointer-events", "none");
             $(".branch-chk").prop("disabled", true);
             $(".filter-chk, #chkSelectAllFilters").prop("disabled", true);
 
             $(".campaign-card").removeClass("active");
         } else {
             $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportExcel, #submitFormBtn").prop("disabled", false);
-            $("#branchSelectDisplay").removeClass("disabled").css("pointer-events", "auto");
+            $("#branchSelectDisplay, #branchSelectContainer").removeClass("disabled").css("pointer-events", "auto");
             $(".branch-chk").prop("disabled", false);
             $(".filter-chk, #chkSelectAllFilters").prop("disabled", false);
         }
@@ -613,6 +628,7 @@ $(document).ready(async function () {
 
     // Remove tag click event handler (using event delegation)
     $branchSelectDisplay.on("click", ".tag-remove-btn", function (e) {
+        if ($("#branchSelectDisplay").hasClass("disabled") || $("#branchSelectContainer").hasClass("disabled")) return;
         e.stopPropagation(); // Avoid opening the dropdown
         const code = $(this).closest(".branch-tag").attr("data-code");
         selectedBranches = selectedBranches.filter(b => b !== code);
@@ -625,6 +641,7 @@ $(document).ready(async function () {
     // Toggle Dropdown Panel
     $branchSelectDisplay.on("click", function (e) {
         if (!selectedCampaignCode) return;
+        if ($(this).hasClass("disabled") || $("#branchSelectContainer").hasClass("disabled")) return;
         e.stopPropagation();
         $branchSelectDisplay.toggleClass("open");
         $branchDropdownPanel.toggleClass("show");
@@ -714,8 +731,6 @@ $(document).ready(async function () {
         });
     });
 
-    let campaignTable;
-
     function initDataTables() {
         campaignTable = $campaignsTable.DataTable({
             serverSide: true,
@@ -739,7 +754,8 @@ $(document).ready(async function () {
                 const requestedPage = Math.floor(data.start / data.length) + 1;
                 page = requestedPage;
                 try {
-                    const res = await getCampainList(page, pageSize);
+                    const searchText = $("#campaignSearchInput").val();
+                    const res = await getCampainList(page, pageSize, searchText);
                     const rawItems = Array.isArray(res) ? res : (res.data || []);
                     campaigns = rawItems;
                     totalCampaignsCountValue = res.count !== undefined ? res.count : rawItems.length;
@@ -809,6 +825,36 @@ $(document).ready(async function () {
             selectedCampaignId = campaign.id || 0;
             setProductFormState(true);
             
+            //#region setReadonly
+            let canEdit = true;
+
+            //#region setcanEdit
+            const statusCanEdit = [
+                "waiting prospect",
+                "reject"
+            ]
+
+            if(statusCanEdit.includes(campaign.status)) {
+                canEdit = false;
+            } 
+
+            //#endregion
+
+            $('#campaignName').prop('disabled', canEdit);
+            $('#startDate').prop('disabled', canEdit);
+            $('#endDate').prop('disabled', canEdit);
+            $('#campaignObjective').prop('disabled', canEdit);
+            $('#remarks').prop('disabled', canEdit);
+            $('#branchSelectContainer').toggleClass('disabled', canEdit);
+            $('#branchSelectDisplay').toggleClass('disabled', canEdit);
+            $('.branch-chk').prop('disabled', canEdit);
+            if (canEdit) {
+                $('#branchSelectDisplay, #branchSelectContainer').css('pointer-events', 'none');
+            } else {
+                $('#branchSelectDisplay, #branchSelectContainer').css('pointer-events', 'auto');
+            }
+
+            //#endregion
             // Populate inputs
             $("#campaignCode").val(campaign.code);
             $("#campaignName").val(campaign.name);
@@ -908,10 +954,13 @@ $(document).ready(async function () {
     });
 
     // Search/Filter Campaigns in Sidebar List
-    $campaignSearchInput.on("input", function () {
-        const query = $(this).val().trim();
-        if (campaignTable) {
-            campaignTable.search(query).draw();
+    $("#btnSearch").off("click").on("click", function () {
+        SearchCampaign();
+    });
+
+    $campaignSearchInput.off("keyup").on("keyup", function (e) {
+        if (e.key === "Enter" || e.keyCode === 13) {
+            SearchCampaign();
         }
     });
 
@@ -1632,11 +1681,22 @@ async function getCheckProductNo() {
     }
 });
 
-    $("#btnGotoETL").off("click").on("click", function () {
-        if (!selectedCampaignGuid) return;
-        var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignGuid;
-        window.location.href = url;
-    });
+$("#btnGotoETL").off("click").on("click", function () {
+    if (!selectedCampaignGuid) return;
+    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignGuid;
+    window.location.href = url;
+});
+
+$("#btnSearch").off("click").on("click", function () {
+    SearchCampaign();
+});
+
+$("#campaignSearchInput").off("keydown").on("keydown", function (e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        SearchCampaign();
+    }
+});
 
 document.addEventListener("DOMContentLoaded", function() {
     const btnImport = document.getElementById('btnImportExcel');

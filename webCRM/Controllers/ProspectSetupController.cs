@@ -177,12 +177,10 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> getProductBatchByProductCode(string productCode, int pageSize = 0, int page = 0)
+        public async Task<IActionResult> getProductBatchByProductCode(string productCode)
         {
             try
             {
-                if (pageSize == 0) pageSize = 10;
-                if (page == 0) page = 1;
                 var handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
@@ -191,7 +189,7 @@ namespace webCRM.Controllers
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var response = await client.GetAsync(
-                        $"{domain}/crm/api/v1/p3/getProductBatchByProductCode?product_code={Uri.EscapeDataString(productCode)}&pageSize={pageSize}&page={page}"
+                        $"{domain}/crm/api/v1/p3/getProductBatchByProductCode?product_code={Uri.EscapeDataString(productCode)}"
                     );
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)

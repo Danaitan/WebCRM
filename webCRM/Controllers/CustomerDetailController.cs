@@ -279,7 +279,6 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    idno = "3800900722999";
                     var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getCheckPDPA?idno={idno}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();

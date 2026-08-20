@@ -1,0 +1,244 @@
+@{
+    ViewData["Title"] = "Dashboard - ข้อเสนอแนะ / ข้อร้องเรียน";
+    ViewData["HeaderTitle"] = "Dashboard";
+    ViewData["HideSidebar"] = false;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboardSuggestion.css" asp-append-version="true" />
+}
+
+<div class="p-3 p-md-4">
+    <div class="mb-4">
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="sg-card p-3 p-md-4">
+                    <div class="row g-3 align-items-end">
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                            <label class="form-label text-muted small fw-medium">มุมมอง Dashboard</label>
+                            <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                                <option value="@Url.Action("Index", "Home")">ข้อมูลลูกค้า</option>
+                                <option value="@Url.Action("Index", "DashboardProspectCall")">การติดต่อลูกค้า</option>
+                                <option value="@Url.Action("Index", "DashboardSuggestion")" selected>ข้อเสนอแนะ/ร้องเรียน</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <label class="form-label text-muted small fw-medium">ช่วงเวลา</label>
+                            <div class="filter-date-range">
+                                <input type="date" id="filterStartDate" class="form-control form-control-sm" />
+                                <span class="text-muted small flex-shrink-0">ถึง</span>
+                                <input type="date" id="filterEndDate" class="form-control form-control-sm" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                            <label class="form-label text-muted small fw-medium">ประเภทเรื่อง</label>
+                            <select id="filterType" class="form-select form-select-sm" onchange="applySuggestionFilters()">
+                                <option value="">ทั้งหมด</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                            <label class="form-label text-muted small fw-medium">สาขา</label>
+                            <select id="filterBranch" class="form-select form-select-sm" onchange="applySuggestionFilters()">
+                                <option value="">สำนักงานใหญ่</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                            <label class="form-label text-muted small fw-medium">ผู้รับผิดชอบ</label>
+                            <select id="filterProvider" class="form-select form-select-sm" onchange="applySuggestionFilters()">
+                                <option value="">ทั้งหมด</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                            <label class="form-label text-muted small fw-medium">หัวข้อเรื่อง</label>
+                            <select id="filterTopic" class="form-select form-select-sm" onchange="applySuggestionFilters()">
+                                <option value="">ทั้งหมด</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                            <label class="form-label text-muted small fw-medium">สถานะ</label>
+                            <select id="filterStatus" class="form-select form-select-sm" onchange="applySuggestionFilters()">
+                                <option value="">ทั้งหมด</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 d-flex gap-2 justify-content-end align-items-center flex-wrap mt-2">
+                            <button id="btnSearchFilter" class="btn btn-primary btn-sm px-3 shadow-sm" onclick="applySuggestionFilters()">
+                                <i class="bi bi-search me-1"></i> ค้นหารายงาน
+                            </button>
+                            <button id="btnResetFilter" class="btn btn-outline-secondary btn-sm px-3" onclick="resetSuggestionFilters()">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> ล้างตัวกรอง
+                            </button>
+                            <button id="btnExportExcel" class="btn btn-success btn-sm px-3 shadow-sm" style="background-color: #1d6f42; border-color: #1d6f42;" onclick="exportSuggestionExcel()">
+                                <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Excel
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+
+        <div class="sg-card p-3 p-md-4">
+            <div class="row g-3 row-cols-2 row-cols-sm-3 row-cols-md-5 mb-3">
+                <div class="col">
+                    <div class="kpi-card kpi-total">
+                        <div class="kpi-icon-circle">
+                            <i class="bi bi-file-earmark-text-fill"></i>
+                        </div>
+                        <div class="kpi-title">รายการทั้งหมด</div>
+                        <div class="kpi-value" id="statTotalCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="kpi-card kpi-pending">
+                        <div class="kpi-icon-circle">
+                            <i class="bi bi-hourglass-split"></i>
+                        </div>
+                        <div class="kpi-title">Pending</div>
+                        <div class="kpi-value" id="statPendingCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="kpi-card kpi-forward">
+                        <div class="kpi-icon-circle">
+                            <i class="bi bi-reply-fill"></i>
+                        </div>
+                        <div class="kpi-title">Forward</div>
+                        <div class="kpi-value" id="statForwardCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="kpi-card kpi-reply">
+                        <div class="kpi-icon-circle">
+                            <i class="bi bi-chat-dots-fill"></i>
+                        </div>
+                        <div class="kpi-title">Reply</div>
+                        <div class="kpi-value" id="statReplyCount">0</div>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <div class="kpi-card kpi-close">
+                        <div class="kpi-icon-circle">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                        <div class="kpi-title">Close</div>
+                        <div class="kpi-value" id="statCloseCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="mb-4">
+
+        <div class="sg-card p-3 p-md-4">
+            <div class="row g-4">
+                <div class="col-12 col-lg-7 border-end-lg">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-bar-chart-fill text-primary"></i>
+                        <span class="fw-bold small text-dark">จำนวนรายการตามหัวข้อ</span>
+                    </div>
+                    <div class="position-relative" style="height: 240px;">
+                        <canvas id="topicBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-5">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-pie-chart-fill text-primary"></i>
+                        <span class="fw-bold small text-dark">สัดส่วนตามสถานะ</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                        <div class="position-relative" style="width: 160px; height: 160px;">
+                            <canvas id="statusDoughnutChart"></canvas>
+                            <div class="donut-center-text">
+                                <div class="fw-bold fs-5 text-dark" id="doughnutTotalCount">0</div>
+                                <div class="text-muted extra-small">รายการ</div>
+                            </div>
+                        </div>
+                        <div id="statusLegend" class="small lh-lg">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="sg-card p-3 p-md-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                        <div class="fw-bold text-dark small d-flex align-items-center gap-2">
+                            <i class="bi bi-list-task text-primary fs-5"></i>
+                            <span>รายการข้อเสนอแนะ / ร้องเรียน</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted extra-small">แสดง</span>
+                            <select id="tablePageSize" class="form-select form-select-sm py-0" style="width: auto;" onchange="changePageSize(this.value)">
+                                <option value="5">5 / หน้า</option>
+                                <option value="10" selected>10 / หน้า</option>
+                                <option value="20">20 / หน้า</option>
+                                <option value="50">50 / หน้า</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 suggestion-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-secondary small fw-bold">วันที่รับเรื่อง</th>
+                                    <th class="text-secondary small fw-bold">หัวข้อเรื่อง</th>
+                                    <th class="text-secondary small fw-bold">ลูกค้า</th>
+                                    <th class="text-secondary small fw-bold">สาขา</th>
+                                    <th class="text-secondary small fw-bold">ผู้รับผิดชอบ</th>
+                                    <th class="text-secondary small fw-bold text-center">สถานะ</th>
+                                    <th class="text-secondary small fw-bold">อัปเดตล่าสุด</th>
+                                    <th class="text-secondary small fw-bold text-center">จำนวนวัน</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suggestionTableBody">
+                                <!-- Table rows populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top">
+                        <div class="text-muted extra-small" id="tableInfoText">
+                            0 จาก 0 รายการ
+                        </div>
+                        <ul class="pagination pagination-sm mb-0" id="tablePagination">
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/DashboardSuggestion.js" asp-append-version="true"></script>
+}

@@ -531,7 +531,7 @@ function getStatusLabel(status, assignee) {
 }
 
 async function getCampainList(page, pageSize) {
-    startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const status = "approved";
         const queryStr = (page !== undefined && pageSize !== undefined) 

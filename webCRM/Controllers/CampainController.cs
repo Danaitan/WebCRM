@@ -41,8 +41,8 @@ namespace webCRM.Controllers
                     string userId = HttpContext.Session.GetString("personalId") ?? "";
                     string reqPage = string.IsNullOrEmpty(page) ? "1" : page;
                     string reqPageSize = string.IsNullOrEmpty(pageSize) ? "20" : pageSize;
-                    
-                    if(string.IsNullOrEmpty(createdBy))
+
+                    if (string.IsNullOrEmpty(createdBy))
                     {
                         createdBy = userId;
                     }
@@ -71,7 +71,6 @@ namespace webCRM.Controllers
                     }
 
                 }
-
             }
             catch (System.Exception ex)
             {

@@ -43,7 +43,7 @@ async function SearchCampaign() {
 
 async function getCampainList(page = 1, pageSize = 20, searchText) {
     try {
-        startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}`
             : '';
@@ -318,7 +318,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 selectedCampaign = item;
                 removedBatchCustomerIds.clear();
 
-                startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+                startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
                 try {
                     await refreshSelectedCampaignCustomers();
@@ -449,7 +449,7 @@ async function getProspect(page = 1, pageSize = 10) {
 
 async function loadProspectList(page = 1, pageSize = 10) {
 
-    startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
     try {
         currentProspectPage = page;

@@ -83,7 +83,7 @@ async function renderMasterObjectives() {
 async function GetFilterByGuid(productGuid) {
     const guid = productGuid || selectedCampaignGuid || "";
     if (!guid) return [];
-    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Filter ของ Campaign...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const response = await fetch(`/Campain/GetFilterByGuid?fguid=${guid}`);
         if (!response.ok) return [];
@@ -182,7 +182,7 @@ async function postFilter(productGuid) {
 }
 
 async function getMasterFilter() {
-    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Filter...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const data = await fetchRawMasterFilters();
         const mappedData = (data || [])
@@ -344,7 +344,7 @@ function updateSelectedFiltersDisplay() {
 }
 
 async function getCampainList(page, pageSize, searchText) {
-    startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูล Campaign...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}`
@@ -386,11 +386,11 @@ async function getCampainList(page, pageSize, searchText) {
 }
 
 $(document).ready(async function () {
-    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่ ระบบกำลังดึงข้อมูล Campaign...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     // Fetch Branches Data
     let branchesData = [];
     try {
-        startLoading('กำลังโหลดข้อมูล...', 'กำลังดึงข้อมูลสาขา...');
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         const branchRes = await fetch(`/Campain/getBranchListForCRM`);
         const branchList = await branchRes.json();
         branchesData = (branchList || [])
@@ -818,7 +818,7 @@ $(document).ready(async function () {
         const campaign = campaigns.find(c => c.code === code);
         if (!campaign) return;
         
-        startLoading('กำลังโหลดข้อมูล...', 'กำลังโหลดรายละเอียด Campaign...');
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
             selectedCampaignCode = code;
             selectedCampaignGuid = campaign.guid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
@@ -967,7 +967,7 @@ $(document).ready(async function () {
     // Refresh List Buttons Action
     $("#refreshCampaignsListBtn").off("click").on("click", async function () {
         $campaignSearchInput.val("");
-        startLoading('กำลังโหลดข้อมูล...', 'กำลังรีเฟรชรายการ Campaign...');
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
             renderCampaignsList();
             if (campaignTable) {
@@ -983,7 +983,7 @@ $(document).ready(async function () {
 
     // Refresh Filters Button Action
     $("#refreshFiltersBtn").off("click").on("click", async function () {
-        startLoading('กำลังโหลดข้อมูล...', 'กำลังรีเฟรชข้อมูล Filter...');
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
             await renderMasterFilters();
             if (selectedCampaignGuid) {

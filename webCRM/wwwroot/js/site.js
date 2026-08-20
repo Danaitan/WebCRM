@@ -5,7 +5,7 @@
 
 let loadingCount = 0;
 
-function startLoading(title = 'กำลังโหลดข้อมูล...', description = 'ระบบกำลังดำเนินการ กรุณารอสักครู่...', isAutoFetch = false) {
+function startLoading(title = 'กำลังโหลดข้อมูล...', description = 'กรุณารอสักครู่', isAutoFetch = false) {
     loadingCount++;
     // If auto fetch triggers while a custom loading title is already displayed, preserve the custom title
     if (isAutoFetch && loadingCount > 1) {
@@ -53,7 +53,7 @@ function hideLoading() {
             
             if (!skipLoading) {
                 const title = (options && options.loadingTitle) ? options.loadingTitle : 'กำลังโหลดข้อมูล...';
-                const description = (options && options.loadingDescription) ? options.loadingDescription : 'ระบบกำลังดำเนินการ กรุณารอสักครู่...';
+                const description = (options && options.loadingDescription) ? options.loadingDescription : 'กรุณารอสักครู่';
                 startLoading(title, description, true);
             }
             

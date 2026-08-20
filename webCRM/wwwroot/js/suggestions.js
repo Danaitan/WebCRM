@@ -360,19 +360,11 @@ async function loadSuggestionHeaderOptions() {
             if (filterTopicSelect) {
                 filterTopicSelect.innerHTML = '<option value="">หัวข้อ (ทั้งหมด)</option>';
             }
-
+            console.log("data", data);
             data.forEach(item => {
-                const title = item.Title || item.title || item.name || '';
+                const title = item.suggesDesc || '';
                 if (!title) return;
-
-                let code = item.suggesCde || item.SuggesCde || item.code || item.Code;
-                if (!code && (item.Id !== undefined && item.Id !== null)) {
-                    code = String(item.Id).padStart(2, '0');
-                } else if (!code && (item.id !== undefined && item.id !== null)) {
-                    code = String(item.id).padStart(2, '0');
-                } else if (!code) {
-                    code = title;
-                }
+                let code = item.suggesCde;
 
                 if (postTitleSelect) {
                     const option = document.createElement('option');

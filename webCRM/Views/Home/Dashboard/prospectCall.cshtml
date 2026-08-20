@@ -1,0 +1,267 @@
+@{
+    ViewData["Title"] = "Dashboard - การติดต่อลูกค้า";
+    ViewData["HeaderTitle"] = "Dashboard";
+    ViewData["HideSidebar"] = false;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboardProspectCall.css" asp-append-version="true" />
+}
+
+<div class="pc-dashboard-container p-3 p-md-4">
+    <div class="mb-4">
+        <div class="pc-card p-3 p-md-4">
+            <div class="row g-3 align-items-end">
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <label class="form-label text-muted small fw-medium">มุมมอง Dashboard</label>
+                    <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                        <option value="@Url.Action("Index", "Home")">ข้อมูลลูกค้า</option>
+                        <option value="@Url.Action("Index", "DashboardProspectCall")" selected>การติดต่อลูกค้า</option>
+                        <option value="@Url.Action("Index", "DashboardSuggestion")">ข้อเสนอแนะ/ร้องเรียน</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <label class="form-label text-muted small fw-medium">ช่วงเวลา</label>
+                    <div class="filter-date-range">
+                        <input type="date" id="filterStartDate" class="form-control form-control-sm" />
+                        <span class="text-muted small flex-shrink-0">ถึง</span>
+                        <input type="date" id="filterEndDate" class="form-control form-control-sm" />
+                    </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <label class="form-label text-muted small fw-medium">ประเภทการโทร</label>
+                    <select id="filterCallType" class="form-select form-select-sm">
+                        <option value="">ทั้งหมด</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <label class="form-label text-muted small fw-medium">สาขา</label>
+                    <select id="filterBranch" class="form-select form-select-sm">
+                        <option value="">สำนักงานใหญ่</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <label class="form-label text-muted small fw-medium">ผู้โทร</label>
+                    <select id="filterCaller" class="form-select form-select-sm">
+                        <option value="">ทั้งหมด</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <label class="form-label text-muted small fw-medium">แคมเปญ / สัญญา</label>
+                    <input type="text" id="filterCampaign" class="form-control form-control-sm" placeholder="ค้นหาแคมเปญ" />
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <label class="form-label text-muted small fw-medium">ผลการติดต่อ</label>
+                    <select id="filterCallResult" class="form-select form-select-sm">
+                        <option value="">ทั้งหมด</option>
+                    </select>
+                </div>
+
+                <div class="col-12 d-flex gap-2 justify-content-end align-items-center flex-wrap mt-2">
+                    <button id="btnSearchFilter" class="btn btn-primary btn-sm px-3 shadow-sm" onclick="applyFilters()">
+                        <i class="bi bi-search me-1"></i> ค้นหารายงาน
+                    </button>
+                    <button id="btnResetFilter" class="btn btn-outline-secondary btn-sm px-3" onclick="resetFilters()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> ล้างตัวกรอง
+                    </button>
+                    <button id="btnExportExcel" class="btn btn-success btn-sm px-3 shadow-sm" style="background-color: #1d6f42; border-color: #1d6f42;" onclick="exportExcel()">
+                        <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-xl-4 d-flex flex-column">
+            <div class="pc-card p-3 flex-grow-1 d-flex flex-column justify-content-between">
+                <div class="row g-3 my-auto">
+
+                    <div class="col-6">
+                        <div class="metric-card metric-called p-3 text-center rounded-3">
+                            <div class="metric-icon-circle mx-auto mb-2 bg-success text-white">
+                                <i class="bi bi-telephone-outbound-fill"></i>
+                            </div>
+                            <div class="metric-title text-muted small fw-bold mb-1">ติดต่อแล้ว</div>
+                            <div class="metric-value text-success fw-bold display-6 mb-1" id="statCalledCount">0</div>
+                            <div class="metric-subtext text-muted extra-small">
+                                <span id="statCalledPercent" class="fw-bold">0%</span> ของทั้งหมด
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="metric-card metric-not-called p-3 text-center rounded-3">
+                            <div class="metric-icon-circle mx-auto mb-2 bg-danger text-white">
+                                <i class="bi bi-telephone-x-fill"></i>
+                            </div>
+                            <div class="metric-title text-muted small fw-bold mb-1">ยังไม่ได้ติดต่อ</div>
+                            <div class="metric-value text-danger fw-bold display-6 mb-1" id="statNotCalledCount">0</div>
+                            <div class="metric-subtext text-muted extra-small">
+                                <span id="statNotCalledPercent" class="fw-bold">0%</span> ของทั้งหมด
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-8">
+            <div class="pc-card p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12 col-md-5">
+                        <div class="chart-header-title text-dark fw-bold small mb-2 text-center">
+                            ผลการติดต่อจำแนกประเภทที่ติดต่อได้
+                        </div>
+                        <div class="chart-wrapper position-relative" style="height: 220px;">
+                            <canvas id="callResultChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4 border-start border-end">
+                        <div class="chart-header-title text-dark fw-bold small mb-2 text-center">
+                            สัดส่วนตามวัตถุประสงค์ ทั้งหมด
+                        </div>
+                        <div class="d-flex align-items-center justify-content-center h-100 pb-2">
+                            <div class="position-relative" style="width: 140px; height: 140px;">
+                                <canvas id="objectiveChart"></canvas>
+                                <div class="donut-center-text">
+                                    <div class="fw-bold fs-5 text-dark" id="objectiveTotalCount">0</div>
+                                    <div class="text-muted extra-small">รายการ</div>
+                                </div>
+                            </div>
+                            <div id="objectiveLegend" class="ms-3 small lh-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <div class="objective-desc-box p-3 rounded-3 h-100 d-flex flex-column justify-content-center">
+                            <div class="fw-bold small text-dark mb-3 pb-2 border-bottom d-flex align-items-center gap-2">
+                                <span class="d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle" style="width: 24px; height: 24px; font-size: 0.75rem;">
+                                    <i class="bi bi-info-circle-fill"></i>
+                                </span>
+                                <span>คำอธิบายวัตถุประสงค์</span>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="objective-item">
+                                    <span class="badge badge-objective-cs objective-badge">CS</span>
+                                    <div class="lh-sm">
+                                        <div class="fw-bold text-dark extra-small">Cost Sales</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">ขายผลิตภัณฑ์</div>
+                                    </div>
+                                </div>
+                                <div class="objective-item">
+                                    <span class="badge badge-objective-mc objective-badge">MC</span>
+                                    <div class="lh-sm">
+                                        <div class="fw-bold text-dark extra-small">Marketing Collector</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">ตามหนี้</div>
+                                    </div>
+                                </div>
+                                <div class="objective-item">
+                                    <span class="badge badge-objective-fl objective-badge">FL</span>
+                                    <div class="lh-sm">
+                                        <div class="fw-bold text-dark extra-small">Following</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">เฟิร์สสายตามหนี้</div>
+                                    </div>
+                                </div>
+                                <div class="objective-item">
+                                    <span class="badge badge-objective-rm objective-badge">RM</span>
+                                    <div class="lh-sm">
+                                        <div class="fw-bold text-dark extra-small">Relation Management</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">ตามหนี้</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-12 col-xl-4 d-flex flex-column" id="topCallers">
+            <div class="pc-card p-3 flex-grow-1 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                        <div class="fw-bold text-dark small d-flex align-items-center gap-1.5" id="callerTitle">
+                            <i class="bi bi-trophy-fill text-warning" id="callerTitleIcon"></i>
+                            <span id="callerTitleText">&nbsp; 5 อันดับสูงสุด</span>
+                        </div>
+                        <button type="button" id="btnToggleCaller" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1.5 extra-small text-dark fw-semibold shadow-sm" onclick="toggleCallerSort()">
+                            <i class="bi bi-arrow-down-up text-primary" id="callerArrowIcon"></i>
+                            <span id="callerBtnText">สลับดู 5 อันดับต่ำสุด</span>
+                        </button>
+                    </div>
+                    <div id="topCallersList" class="top-callers-container">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-8" id="campaignTableCol">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted extra-small">แสดง</span>
+                    <select id="tablePageSize" class="form-select form-select-sm py-0" style="width: auto;" onchange="changePageSize(this.value)">
+                        <option value="5">5 / หน้า</option>
+                        <option value="10" selected>10 / หน้า</option>
+                        <option value="20">20 / หน้า</option>
+                        <option value="50">50 / หน้า</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pc-card p-3 p-md-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-nowrap campaign-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-secondary small fw-bold">วันที่สร้าง</th>
+                                <th class="text-secondary small fw-bold">ชื่อแคมเปญ</th>
+                                <th class="text-secondary small fw-bold text-center">วัตถุประสงค์</th>
+                                <th class="text-secondary small fw-bold">วันที่เริ่ม - สิ้นสุด</th>
+                                <th class="text-secondary small fw-bold text-end">จำนวนลูกค้า</th>
+                                <th class="text-secondary small fw-bold text-end">จำนวนที่ติดต่อ</th>
+                                <th class="text-secondary small fw-bold text-end">สัดส่วนที่ติดต่อ</th>
+                                <th class="text-secondary small fw-bold text-center">สถานะแคมเปญ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaignTableBody">
+                            <!-- Table rows populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top">
+                    <div class="text-muted extra-small" id="tableInfoText">
+                        0 จาก 0 รายการ
+                    </div>
+                    <ul class="pagination pagination-sm mb-0" id="tablePagination">
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/DashboardProspectCall.js" asp-append-version="true"></script>
+}

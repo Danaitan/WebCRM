@@ -331,7 +331,7 @@ function updateDetailPanel(campaign) {
 
 // Fetch campaign list from API with page and pageSize
 async function getCampainList(page, pageSize) {
-    startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const queryParams = [];
 

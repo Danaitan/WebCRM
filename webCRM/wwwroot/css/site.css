@@ -32,6 +32,21 @@ body {
   text-align: start;
 }
 
+/* Dashboard Filter Bar Helper Styles */
+.filter-date-range {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.filter-date-range input[type="date"] {
+  min-width: 0;
+  flex: 1 1 0%;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
 /* Loading Overlay Style */
 .loading-overlay {
   position: fixed;

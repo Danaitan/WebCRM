@@ -31,7 +31,7 @@ function getCampaignStatus(date) {
 
 // Fetch campaign list from API with page and pageSize
 async function getCampainList(page = 1, pageSize = 10) {
-    startLoading('กำลังโหลดข้อมูล...', 'ระบบกำลังดำเนินการ กรุณารอสักครู่...');
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const status = "approved";
         const searchText = $("#campaignSearch").val() ? $("#campaignSearch").val().trim() : "";

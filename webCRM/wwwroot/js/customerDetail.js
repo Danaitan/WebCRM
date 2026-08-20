@@ -525,8 +525,7 @@ async function performSearch() {
             startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้า กรุณารอสักครู่...');
             const originalText = searchBtn.innerHTML;
             searchBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
-            
-            const response = await fetch('/CustomerDetail/GetCustomerList?idno=' + encodeURIComponent(val));
+            const response = await fetch('/CustomerDetail/GetCustomerList?idno=' + encodeURIComponent(val.trim()));
 
             if (response.ok) {
                 const data = await response.json();

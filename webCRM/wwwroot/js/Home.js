@@ -388,6 +388,10 @@ function initAgeChart(data) {
 async function getmaster() {
     try {
         const response = await fetch('/Home/GetMaster');
+        if (!response.ok) {
+            console.error("HTTP error fetching master data:", response.status);
+            return;
+        }
         masterData = await response.json();
         renderBranchOptions();
     } catch (error) {
@@ -398,21 +402,36 @@ async function getmaster() {
 async function getDashboardCustomerInfo() {
     try {
         const response = await fetch('/Home/GetCustommerDashboard');
+        if (!response.ok) {
+            console.error("HTTP error fetching dashboard customer info:", response.status);
+            return;
+        }
         const data = await response.json();
-        setDataDashboardCustomer(data);
-        initProductChart(data.graph.product);
-        initOccupationChart(data.graph.occupation);
-        initAgeChart(data.graph.customerAge)
+        if (!data || data.status === false) {
+            console.error("Error fetching dashboard customer info:", data ? data.message : "No data received");
+            return;
+        }
+        if (data.companyCus) {
+            setDataDashboardCustomer(data);
+        }
+        if (data.graph) {
+            if (data.graph.product) initProductChart(data.graph.product);
+            if (data.graph.occupation) initOccupationChart(data.graph.occupation);
+            if (data.graph.customerAge) initAgeChart(data.graph.customerAge);
+        }
     } catch (error) {
         console.error("Error fetching dashboard customer info:", error);
     }
-
 }
 
 async function setDataDashboardCustomer(data) {
+    if (!data || !Array.isArray(data.companyCus)) return;
     const customerTotal = data.companyCus.map(item => item.count).reduce((a, b) => a + b, 0);
     const customerList = data.companyCus;
-    document.getElementById('statTotalCount').innerText = customerTotal.toLocaleString();
+    const statTotalEl = document.getElementById('statTotalCount');
+    if (statTotalEl) {
+        statTotalEl.innerText = customerTotal.toLocaleString();
+    }
     const cardColor = ['card-green', 'card-orange', 'card-purple'];
     const customerCardContainer = document.getElementById('customerCard');
     if (customerCardContainer) {

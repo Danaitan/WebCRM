@@ -76,7 +76,8 @@ namespace webCRM.Controllers
             catch (System.Exception ex)
             {
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message);
+                string errJson = System.Text.Json.JsonSerializer.Serialize(new { status = false, message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message, data = new object[] { } });
+                return Content(errJson, "application/json");
             }
         }
 

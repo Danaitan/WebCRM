@@ -89,15 +89,19 @@ namespace webCRM.Controllers
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var response = await client.GetAsync($"{domain}/crm/api/v1/p3/customerDashboard");
-                    response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\"}}" : data, "application/json");
+                    }
                     return Content(data, "application/json");
                 }
             }
             catch (System.Exception ex)
             {
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message);
+                string errJson = JsonSerializer.Serialize(new { status = false, message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message });
+                return Content(errJson, "application/json");
             }
         }
     

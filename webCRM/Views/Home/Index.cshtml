@@ -6,6 +6,8 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/home.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 }
 
 <div class="pc-wrapper">
@@ -26,28 +28,27 @@
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">สาขา</label>
-                        <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
-
+                        <select class="form-select form-select-sm select2-filter" id="dashboardBranch">
                         </select>
                     </div>
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">ประเภทลูกค้า</label>
-                        <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardCustomerType">
 
                         </select>
                     </div>
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">เพศ</label>
-                        <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardGender">
 
                         </select>
                     </div>
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">สถานะสัญญา</label>
-                        <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardContactStatus">
 
                         </select>
                     </div>
@@ -55,8 +56,8 @@
                 </div>
 
                 <div class="d-flex gap-2 mt-3 justify-content-end">
-                    <button class="btn btn-primary btn-sm px-3"><i class="bi bi-search me-2"></i>ค้นหา</button>
-                    <button class="btn btn-outline-secondary btn-sm px-3"><i class="bi bi-arrow-counterclockwise me-2"></i>ล้างตัวกรอง</button>
+                    <button class="btn btn-primary btn-sm px-3" id="dashboardSearch"><i class="bi bi-search me-2"></i>ค้นหา</button>
+                    <button class="btn btn-outline-secondary btn-sm px-3" id="dashboardClear"><i class="bi bi-arrow-counterclockwise me-2"></i>ล้างตัวกรอง</button>
                 </div>
 
             </div>
@@ -119,5 +120,6 @@
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="~/js/Home.js" asp-append-version="true"></script>
 }

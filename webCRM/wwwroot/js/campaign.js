@@ -1462,6 +1462,7 @@ async function getCheckProductNo() {
 
         const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
         const currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
+        const currentCampaignStatus = existingIdx > -1 ? campaigns[existingIdx].status : "";
         const campaignData = {
             id: currentCampaignId,
             code: code,
@@ -1505,6 +1506,10 @@ async function getCheckProductNo() {
                                 Objective_code: Objective_code
                             }
                         };
+                        if (currentCampaignStatus == "reject")
+                        {
+                            updatePayload.productInfo.product_status = "waiting prospect"
+                        }
                         await fetch(`/Campain/UpdateCampaign`, {
                             method: 'PUT',
                             headers: {

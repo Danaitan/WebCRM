@@ -5,6 +5,7 @@ let objectiveChartInstance = null;
 let rawDashboardData = null;
 let currentCallerMode = 'top';
 let rawCallerData = [];
+let rawEmployeeData = [];
 
 let currentTableData = [];
 let currentPage = 1;
@@ -17,20 +18,30 @@ const objectiveColors = {
     'RM': '#6b7280'
 };
 
-async function getDashboardCall() {
-    try {
-        const response = await fetch('/DashboardProspectCall/GetCallDashboard');
-        if (!response.ok) {
-            throw new Error(`HTTP error status: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        console.error("Error fetching dashboard call info:", error);
-        return null;
-    }
-}
+async function setDashboard() {
+    const startDate = $('#filterStartDate').val() || '';
+    const endDate = $('#filterEndDate').val() || '';
+    const callType = $('#filterCallType').val() || '';
+    const branch = $('#filterBranch').val() || '';
+    const callBy = $('#filterCaller').val() || '';
+    const campaignName = $('#filterCampaign').val() || '';
+    const callResult = $('#filterCallResult').val() || '';
 
-function setDashboard(data) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startdate', startDate);
+    if (endDate) params.append('enddate', endDate);
+    if (callType) params.append('call_type', callType);
+    if (branch) params.append('branch', branch);
+    if (callBy) params.append('call_by', callBy);
+    if (callResult) params.append('call_result', callResult);
+    if (campaignName) params.append('campaign_name', campaignName);
+
+    const queryString = params.toString();
+    const url = `/DashboardProspectCall/GetCallDashboard${queryString ? '?' + queryString : ''}`;
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
     if (!data) return;
     rawDashboardData = data;
 
@@ -422,37 +433,39 @@ function changePageSize(size) {
     renderCampaignTable();
 }
 
-function applyFilters() {
-    if (!rawDashboardData || !rawDashboardData.table) return;
-
-    const campaignSearch = (document.getElementById('filterCampaign')?.value || '').toLowerCase().trim();
-
-    if (!campaignSearch) {
-        currentTableData = rawDashboardData.table;
-    } else {
-        currentTableData = rawDashboardData.table.filter(item => 
-            (item.product_name || '').toLowerCase().includes(campaignSearch) ||
-            (item.Objective_code || '').toLowerCase().includes(campaignSearch)
-        );
+async function applyFilters() {
+    if (typeof startLoading === 'function') {
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     }
-
-    currentPage = 1;
-    renderCampaignTable();
+    try {
+        await setDashboard();
+    } catch (error) {
+        console.error("Error searching dashboard info:", error);
+    } finally {
+        if (typeof stopLoading === 'function') {
+            stopLoading();
+        }
+    }
 }
 
-function resetFilters() {
-    const campaignInput = document.getElementById('filterCampaign');
-    if (campaignInput) campaignInput.value = '';
-    const startDateInput = document.getElementById('filterStartDate');
-    if (startDateInput) startDateInput.value = '';
-    const endDateInput = document.getElementById('filterEndDate');
-    if (endDateInput) endDateInput.value = '';
+async function resetFilters() {
+    $('#filterStartDate').val('');
+    $('#filterEndDate').val('');
+    $('#filterCampaign').val('');
 
-    if (rawDashboardData && rawDashboardData.table) {
-        currentTableData = rawDashboardData.table;
-        currentPage = 1;
-        renderCampaignTable();
-    }
+    const select2Ids = ['#filterCallType', '#filterBranch', '#filterCaller', '#filterCallResult'];
+    select2Ids.forEach(id => {
+        const $el = $(id);
+        if ($el.length) {
+            $el.val('');
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $el.trigger('change');
+            }
+        }
+    });
+
+    await setFilterEmployee();
+    await applyFilters();
 }
 
 function exportExcel() {
@@ -480,11 +493,187 @@ function exportExcel() {
     link.click();
 }
 
+async function GetMasterObjective() {
+    const response = await fetch(`/Campain/GetMasterObjective`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const res = await response.json();
+    return res;
+}
+    
+async function setFilterCallType(){
+
+    const objectives = await GetMasterObjective();
+    const filterCallType = document.getElementById('filterCallType');
+    filterCallType.innerHTML = '<option value="">ทั้งหมด</option>';
+    objectives.forEach(obj => {                
+        const code = obj.Code || "";
+        const nameEn = obj.NameEn || "";
+        const nameTh = obj.NameTh || "";
+        filterCallType.innerHTML += `<option value="${code}">${code}: ${nameEn} ${nameTh}</option>`;
+    });
+
+}
+
+async function setFilterBranch(data) {
+    const selectEl = document.getElementById('filterBranch');
+    if (!selectEl) return;
+
+    const branchResponse = await fetch('/Home/getBranchListForCRM');
+    const data = await branchResponse.json();
+
+    const currentValue = selectEl.value || '';
+
+    if (selectEl.options.length > 1) {
+        if (currentValue) selectEl.value = currentValue;
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    if (Array.isArray(data)) {
+        data.forEach(item => {
+            if (item) {
+     
+                const code = String(item.offcde || '').trim();
+                const name = item.branch_name;
+                optionsHtml += `<option value="${code}">${name}</option>`;
+            }
+        });
+    }
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue) {
+        selectEl.value = currentValue;
+    }
+}
+
+async function getCallresult(){
+    const response = await fetch(`/DashboardProspectCall/GetCallResult`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const res = await response.json();
+    return res;
+}
+
+async function setFilterCallResult(){
+    try {
+        const response = await getCallresult();
+        const filterCallResult = document.getElementById('filterCallResult');
+        if (!filterCallResult) return;
+
+        filterCallResult.innerHTML = '<option value="">ทั้งหมด</option>';
+        const items = response?.[0]?.Dropdown?.[0]?.item || [];
+        if (Array.isArray(items)) {
+            items.forEach(obj => {                
+                if (!obj) return;
+                const code = obj.Code || "";
+                const nameTh = obj.NameTh || "";
+                const labelText = nameTh || "";
+                filterCallResult.innerHTML += `<option value="${code}">${labelText}</option>`;
+            });
+        }
+    } catch (err) {
+        console.error("Error setting filter call result:", err);
+    }
+}
+
+async function getEmployeeList(){
+    if (rawEmployeeData && rawEmployeeData.length > 0) {
+        return rawEmployeeData;
+    }
+    const response = await fetch(`/DashboardProspectCall/GetEmployeeList`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const res = await response.json();
+    rawEmployeeData = Array.isArray(res) ? res : [];
+    return rawEmployeeData;
+}
+
+async function setFilterEmployee(){
+    try {
+        const items = await getEmployeeList();
+        const filterEmployee = document.getElementById('filterCaller');
+        if (!filterEmployee) return;
+
+        const selectedBranchVal = ($('#filterBranch').val() || '').trim();
+        const selectedOption = document.querySelector('#filterBranch option:checked');
+        const selectedBranchText = (selectedOption ? selectedOption.textContent : '').trim();
+
+        let cleanBranchName = "";
+        if (selectedBranchText && selectedBranchText !== "ทั้งหมด") {
+            cleanBranchName = selectedBranchText.includes('-')
+                ? selectedBranchText.split('-').slice(1).join('-').trim()
+                : selectedBranchText.trim();
+        }
+
+        const filteredItems = cleanBranchName
+            ? items.filter(obj => {
+                if (!obj) return false;
+                const empBranch = (obj.branch || obj.branch_name_th || obj.branch_name || obj.Branch || obj.BranchNameTH || '').trim();
+                const empBranchNo = (obj.branch_no || obj.offcde || obj.branch_code || obj.BranchNo || '').trim();
+                return (empBranch && (empBranch === cleanBranchName || empBranch.includes(cleanBranchName))) ||
+                       (empBranchNo && (empBranchNo === selectedBranchVal || empBranchNo === cleanBranchName));
+            })
+            : items;
+
+        const optionsHtml = ['<option value="">ทั้งหมด</option>'].concat(
+            filteredItems.map(obj => {
+                const code = (obj.personnel_code || obj.code || obj.personnel_id || obj.emp_code || "").trim();
+                const firstName = (obj.personnel_name_TH || obj.personnel_name || obj.first_name || "").trim();
+                const lastName = (obj.personnel_last_TH || obj.personnel_last || obj.last_name || "").trim();
+                const nameTh = (obj.thname || `${firstName} ${lastName}`).trim();
+                const labelText = (code && nameTh && code !== nameTh && !nameTh.includes(code)) 
+                    ? `${code} - ${nameTh}` 
+                    : (nameTh || code);
+                return `<option value="${code}">${labelText}</option>`;
+            })
+        ).join('');
+
+        const currentVal = $(filterEmployee).val() || '';
+        filterEmployee.innerHTML = optionsHtml;
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(filterEmployee).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                language: {
+                    noResults: function () {
+                        return "ไม่พบข้อมูล";
+                    }
+                }
+            });
+            if (currentVal && $(filterEmployee).find(`option[value="${CSS.escape(currentVal)}"]`).length > 0) {
+                $(filterEmployee).val(currentVal).trigger('change');
+            } else {
+                $(filterEmployee).val('').trigger('change');
+            }
+        }
+    } catch (err) {
+        console.error("Error setting filter employee:", err);
+    }
+}
+
 $(document).ready(async function () {
     if (typeof startLoading === 'function') {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     }
     try {
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $('.select2-filter').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                language: {
+                    noResults: function () {
+                        return "ไม่พบข้อมูล";
+                    }
+                }
+            });
+
+            $(document).on('select2:open', () => {
+                setTimeout(() => {
+                    const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+                    if (searchInput) {
+                        searchInput.focus();
+                    }
+                }, 10);
+            });
+        }
+
         const topCallers = document.getElementById('topCallers');
         const campaignTableCol = document.getElementById('campaignTableCol');
         const isEmployee = false;
@@ -507,8 +696,17 @@ $(document).ready(async function () {
                 campaignTableCol.classList.add('col-xl-8');
             }
         }
-        const data = await getDashboardCall();
-        setDashboard(data);
+
+        await setFilterCallType();
+        await setFilterBranch();
+        await setFilterCallResult();
+        await setFilterEmployee();
+        await setDashboard();
+
+        $('#filterBranch').on('change', function () {
+            setFilterEmployee();
+        });
+
     } catch (error) {
         console.error("Error in document ready:", error);
     } finally {
@@ -516,4 +714,14 @@ $(document).ready(async function () {
             stopLoading();
         }
     }
+});
+
+$("#btnSearchFilter").off("click").on("click", async function (e) {
+    if (e) e.preventDefault();
+    await applyFilters();
+});
+
+$("#btnResetFilter").off("click").on("click", async function (e) {
+    if (e) e.preventDefault();
+    await resetFilters();
 });

@@ -1,12 +1,11 @@
-using Microsoft.AspNetCore.Http.HttpResults;
+
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using webCRM.Models;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace webCRM.Controllers
 {
@@ -77,7 +76,7 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCustommerDashboard()
+        public async Task<IActionResult> GetCustommerDashboard(string branch, string cusType, string gender, string contactStatus)
         {
             try
             {
@@ -88,7 +87,22 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/customerDashboard");
+
+                    var queryParams = new Dictionary<string, string?>();
+                    if (!string.IsNullOrEmpty(branch))
+                        queryParams["branch"] = branch;
+                    if (!string.IsNullOrEmpty(cusType))
+                        queryParams["cusType"] = cusType;
+                    if (!string.IsNullOrEmpty(gender))
+                        queryParams["gender"] = gender;
+                    if (!string.IsNullOrEmpty(contactStatus))
+                        queryParams["contactStatus"] = contactStatus;
+
+                    var url = QueryHelpers.AddQueryString(
+                        $"{domain}/crm/api/v1/p3/customerDashboard", queryParams);
+
+                    var response = await client.GetAsync(url);
+
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {
@@ -104,6 +118,39 @@ namespace webCRM.Controllers
                 return Content(errJson, "application/json");
             }
         }
-    
+
+        [HttpGet]
+        public async Task<List<Branch>> getBranchListForCRM()
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getBranchListForCRM");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string data = await response.Content.ReadAsStringAsync();
+                        var apiResponse = JsonSerializer.Deserialize<List<Branch>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        return apiResponse ?? new List<Branch>();
+                    }
+                    else
+                    {
+                        return new List<Branch>();
+                    }
+                }
+            }
+            catch (System.Exception)
+            {
+                return new List<Branch>();
+            }
+        }
+
     }
 }
+

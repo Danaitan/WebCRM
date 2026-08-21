@@ -9,19 +9,22 @@ let currentClaimListRequestId = 0;
 let currentReceiveListRequestId = 0;
 let currentContactRequestId = 0;
 
-async function getPDPAbg(checkPDPA,company) {
+async function getPDPAbg(checkPDPA, company) {
 
     if (company == 'MIB') return '';
 
-    const isAllApproved = checkPDPA.every(
+    const list = Array.isArray(checkPDPA) ? checkPDPA : (Array.isArray(checkPDPA?.data) ? checkPDPA.data : []);
+    if (!list || list.length === 0) return '';
+
+    const isAllApproved = list.every(
         item => item.LastestStatus === 'approved'
     );
 
-    const isSomeApproved = checkPDPA.some(
+    const isSomeApproved = list.some(
         item => item.LastestStatus === 'approved'
     );
 
-    const isNoDeclined = !checkPDPA.some(
+    const isNoDeclined = !list.some(
         item => item.LastestStatus === 'approved'
     );
 
@@ -412,7 +415,7 @@ async function displayCustomerDetails(customer) {
             }));
         }
 
-        const pdpaList = Array.isArray(checkPDPAData) ? checkPDPAData : (checkPDPAData?.data || []);
+        const pdpaList = Array.isArray(checkPDPAData) ? checkPDPAData : (Array.isArray(checkPDPAData?.data) ? checkPDPAData.data : []);
 
         const sortedPdpaList = [...pdpaList].sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0));
 

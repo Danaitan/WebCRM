@@ -15,91 +15,148 @@ const statusColors = {
     'Close': '#10b981'
 };
 
-async function getSuggestionDashboard() {
-    try {
-        const response = await fetch('/DashboardSuggestion/GetSuggestionDashboard');
-        if (!response.ok) {
-            throw new Error(`HTTP error status: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        console.error("Error fetching dashboard suggestion info:", error);
-        return null;
+async function setFilterBranch(data) {
+    const selectEl = document.getElementById('filterBranch');
+    if (!selectEl) return;
+
+    const currentValue = selectEl.value || '';
+
+    if (selectEl.options.length > 1) {
+        if (currentValue) selectEl.value = currentValue;
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    if (Array.isArray(data)) {
+        data.forEach(item => {
+            if (item) {
+     
+                const code = item.e_mail;
+                const name = item.name + ": " + item.branch;
+                optionsHtml += `<option value="${code}">${name}</option>`;
+            }
+        });
+    }
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue) {
+        selectEl.value = currentValue;
     }
 }
 
-function setDashboard(data) {
-    if (!data) return;
+async function setFilterprovider (data){
+
+    try {
+
+        const filterProvider = document.getElementById('filterProvider');
+        if (!filterProvider) return;
+        
+        const items = data && Array.isArray(data.data) 
+            ? data.data 
+            : (Array.isArray(data) ? data : []);
+
+        const currentValue = filterProvider.value || '';
+        let optionsHtml = '<option value="">ทั้งหมด</option>';
+        items.forEach(obj => {                
+            const name = obj.name || obj.e_mail || "";
+            if (name) {
+                optionsHtml += `<option value="${name}">${name}</option>`;
+            }
+        });
+        filterProvider.innerHTML = optionsHtml;
+        if (currentValue) filterProvider.value = currentValue;
+    } catch (e) {
+        console.error("Error setting filter provider:", e);
+    }
+
+}
+
+async function setFilterTitle (data){
+
+    const filterTitle = document.getElementById('filterTopic');
+    if (!filterTitle) return;
+    const items = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
+    const currentValue = filterTitle.value || '';
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    items.forEach(obj => {                
+        const name = obj.name || obj.topic || obj.suggesDesc || "";
+        if (name) {
+            optionsHtml += `<option value="${name}">${name}</option>`;
+        }
+    });
+    filterTitle.innerHTML = optionsHtml;
+    if (currentValue) filterTitle.value = currentValue;
+
+}
+
+async function setFilterStatus (data){
+
+    const filterStatus = document.getElementById('filterStatus');
+    if (!filterStatus) return;
+    const items = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
+    const currentValue = filterStatus.value || '';
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    items.forEach(obj => {                
+        const name = obj.name || obj.status || "";
+        if (name) {
+            optionsHtml += `<option value="${name}">${name}</option>`;
+        }
+    });
+    filterStatus.innerHTML = optionsHtml;
+    if (currentValue) filterStatus.value = currentValue;
+
+}
+
+async function setDashboard() {
+
+    const startDate = $('#filterStartDate').val() || '';
+    const endDate = $('#filterEndDate').val() || '';
+    const branch = $('#filterBranch').val() || '';
+    const provider = $('#filterProvider').val() || '';
+    const topic = $('#filterTopic').val() || '';
+    const status = $('#filterStatus').val() || '';
+
+    const params = new URLSearchParams();
+    if (startDate) params.append('startdate', startDate);
+    if (endDate) params.append('enddate', endDate);
+    if (branch) params.append('branch', branch);
+    if (provider) params.append('provider', provider);
+    if (topic) params.append('topic', topic);
+    if (status) params.append('status', status);
+
+    const queryString = params.toString();
+    const url = `/DashboardSuggestion/GetSuggestionDashboard${queryString ? '?' + queryString : ''}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        console.error("Network response was not ok", response.statusText);
+        return;
+    }
+    const jsonResult = await response.json();
+    if (!jsonResult) return;
+
+    // Support both root payload and wrapped data payload
+    const data = (jsonResult && jsonResult.data && typeof jsonResult.data === 'object' && !Array.isArray(jsonResult.data))
+        ? jsonResult.data
+        : jsonResult;
+
     rawDashboardData = data;
 
+    if (data.statusMenu) await setFilterStatus(data.statusMenu);
+    if (data.titleMenu) await setFilterTitle(data.titleMenu);
+
     const graph = data.graph || {};
-    const table = data.table || [];
+    const table = data.table || (Array.isArray(data) ? data : (data.data || []));
 
-    currentTableData = table;
+    currentTableData = Array.isArray(table) ? table : [];
 
-    populateFilters(table, graph);
-    renderOverview(graph.overAll || graph.graphStatus || []);
-    initTopicBarChart(graph.graphTitle || []);
-    initStatusDoughnutChart(graph.graphStatus || graph.overAll || []);
+    renderOverview(graph.overAll || graph.graphStatus || graph.status || []);
+    initTopicBarChart(graph.graphTitle || graph.topic || []);
+    initStatusDoughnutChart(graph.graphStatus || graph.overAll || graph.status || []);
 
     currentPage = 1;
     renderSuggestionTable();
-}
-
-function populateFilters(table, graph) {
-    // Populate Topic Filter
-    const filterTopic = document.getElementById('filterTopic');
-    if (filterTopic) {
-        const topics = new Set();
-        (graph.graphTitle || []).forEach(item => {
-            if (item.name) topics.add(item.name);
-        });
-        table.forEach(item => {
-            if (item.suggesDesc) topics.add(item.suggesDesc);
-        });
-
-        let currentVal = filterTopic.value;
-        filterTopic.innerHTML = '<option value="">ทั้งหมด</option>';
-        topics.forEach(t => {
-            filterTopic.innerHTML += `<option value="${t}">${t}</option>`;
-        });
-        if (currentVal) filterTopic.value = currentVal;
-    }
-
-    // Populate Provider Filter
-    const filterProvider = document.getElementById('filterProvider');
-    if (filterProvider) {
-        const providers = new Set();
-        table.forEach(item => {
-            if (item.nameProvider) providers.add(item.nameProvider);
-        });
-
-        let currentVal = filterProvider.value;
-        filterProvider.innerHTML = '<option value="">ทั้งหมด</option>';
-        providers.forEach(p => {
-            filterProvider.innerHTML += `<option value="${p}">${p}</option>`;
-        });
-        if (currentVal) filterProvider.value = currentVal;
-    }
-
-    // Populate Status Filter
-    const filterStatus = document.getElementById('filterStatus');
-    if (filterStatus) {
-        const statuses = new Set();
-        (graph.graphStatus || graph.overAll || []).forEach(item => {
-            if (item.name) statuses.add(item.name);
-        });
-        table.forEach(item => {
-            if (item.StatusTask) statuses.add(item.StatusTask);
-        });
-
-        let currentVal = filterStatus.value;
-        filterStatus.innerHTML = '<option value="">ทั้งหมด</option>';
-        statuses.forEach(s => {
-            filterStatus.innerHTML += `<option value="${s}">${s}</option>`;
-        });
-        if (currentVal) filterStatus.value = currentVal;
-    }
 }
 
 function renderOverview(overAllData) {
@@ -305,7 +362,12 @@ function renderSuggestionTable() {
         const firstUpdStr = formatDate(row.FirstUpdDate);
         const lastUpdStr = formatDate(row.LastUpdDate);
 
-        const status = (row.StatusTask || '').trim();
+        const suggesDesc = row.suggesDesc || '-';
+        const nameCus = row.nameCus || '-';
+        const provider = row.sendToPerson || row.sendToGroupAbb || '-';
+        const branch = row.sendToPersonAbb || row.sendToGroupFull || '-';
+
+        const status = String(row.StatusTask);
         let statusBadge = '<span class="badge bg-secondary">Unknown</span>';
         const statusLower = status.toLowerCase();
 
@@ -321,15 +383,16 @@ function renderSuggestionTable() {
             statusBadge = `<span class="badge bg-light text-dark border px-2.5 py-1 rounded-pill">${status}</span>`;
         }
 
-        const days = row.Day !== undefined && row.Day !== null ? `${row.Day} วัน` : '-';
+        const rawDay = row.Day !== undefined && row.Day !== null ? row.Day : (row.day !== undefined && row.day !== null ? row.day : null);
+        const days = rawDay !== null ? `${rawDay} วัน` : '-';
 
         rowsHtml += `
             <tr>
                 <td class="text-muted extra-small">${firstUpdStr}</td>
-                <td class="fw-medium text-dark">${row.suggesDesc || '-'}</td>
-                <td class="text-dark">${row.nameCus || '-'}</td>
-                <td class="text-muted small">${row.branch || 'สำนักงานใหญ่'}</td>
-                <td class="text-dark small">${row.nameProvider || '-'}</td>
+                <td class="fw-medium text-dark">${suggesDesc}</td>
+                <td class="text-dark">${nameCus}</td>
+                <td class="text-dark small">${provider}</td>
+                <td class="text-muted small">${branch}</td>
                 <td class="text-center">${statusBadge}</td>
                 <td class="text-muted extra-small">${lastUpdStr}</td>
                 <td class="text-center fw-semibold text-secondary small">${days}</td>
@@ -421,12 +484,15 @@ function applySuggestionFilters() {
     renderSuggestionTable();
 }
 
-function resetSuggestionFilters() {
-    ['filterTopic', 'filterProvider', 'filterStatus', 'filterType', 'filterBranch'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    ['filterStartDate', 'filterEndDate'].forEach(id => {
+async function resetSuggestionFilters() {
+    [
+        'filterStartDate', 
+        'filterEndDate', 
+        'filterBranch', 
+        'filterProvider', 
+        'filterTopic',
+        'filterStatus'
+    ].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -474,8 +540,18 @@ $(document).ready(async function () {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     }
     try {
-        const data = await getSuggestionDashboard();
-        setDashboard(data);
+
+        const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup');
+        if (!response.ok) return;
+        const jsonResult = await response.json();
+        const branch = [
+            ...jsonResult.group,
+            ...jsonResult.personalAbb
+        ];
+        await setFilterBranch(branch);
+        await setFilterprovider(jsonResult.personal);
+        await setDashboard();
+
     } catch (error) {
         console.error("Error in document ready:", error);
     } finally {
@@ -483,4 +559,15 @@ $(document).ready(async function () {
             stopLoading();
         }
     }
+});
+
+$("#btnSearchFilter").off("click").on("click", async function (e) {
+    if (e) e.preventDefault();
+    await setDashboard();
+});
+
+$("#btnResetFilter").off("click").on("click", async function (e) {
+    if (e) e.preventDefault();
+    await resetSuggestionFilters();
+    await setDashboard();
 });

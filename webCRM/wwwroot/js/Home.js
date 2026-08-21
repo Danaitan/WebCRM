@@ -385,28 +385,34 @@ function initAgeChart(data) {
     });
 }
 
-async function getmaster() {
-    try {
-        const response = await fetch('/Home/GetMaster');
-        if (!response.ok) {
-            console.error("HTTP error fetching master data:", response.status);
-            return;
-        }
-        masterData = await response.json();
-        renderBranchOptions();
-    } catch (error) {
-        console.error("Error fetching master data:", error);
-    }
-}
-
 async function getDashboardCustomerInfo() {
     try {
-        const response = await fetch('/Home/GetCustommerDashboard');
+        const branch = document.getElementById('dashboardBranch')?.value || '';
+        const cusType = document.getElementById('dashboardCustomerType')?.value || '';
+        const gender = document.getElementById('dashboardGender')?.value || '';
+        const contactStatus = document.getElementById('dashboardContactStatus')?.value || '';
+
+        const params = new URLSearchParams();
+        if (branch) params.append('branch', branch);
+        if (cusType) params.append('cusType', cusType);
+        if (gender) params.append('gender', gender);
+        if (contactStatus) params.append('contactStatus', contactStatus);
+
+        const queryString = params.toString();
+        const url = '/Home/GetCustommerDashboard' + (queryString ? `?${queryString}` : '');
+
+        const response = await fetch(url);
         if (!response.ok) {
             console.error("HTTP error fetching dashboard customer info:", response.status);
             return;
         }
         const data = await response.json();
+        const branchResponse = await fetch('/Home/getBranchListForCRM');
+        const branchData = await branchResponse.json();
+        await setFilterCustType(data.custypMenu);
+        await setFilterGender(data.genderMenu);
+        await setFilterContractStatus(data.contractStatusMenu);
+        await setFilterBranch(branchData)
         if (!data || data.status === false) {
             console.error("Error fetching dashboard customer info:", data ? data.message : "No data received");
             return;
@@ -419,6 +425,7 @@ async function getDashboardCustomerInfo() {
             if (data.graph.occupation) initOccupationChart(data.graph.occupation);
             if (data.graph.customerAge) initAgeChart(data.graph.customerAge);
         }
+
     } catch (error) {
         console.error("Error fetching dashboard customer info:", error);
     }
@@ -462,12 +469,232 @@ async function setDataDashboardCustomer(data) {
     }
 }
 
+async function setFilterCustType(data) {
+    const selectEl = document.getElementById('dashboardCustomerType');
+    if (!selectEl) return;
+
+    const currentValue = selectEl.value || '';
+
+    if (selectEl.options.length > 1) {
+        if (currentValue) selectEl.value = currentValue;
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    if (Array.isArray(data)) {
+        data.forEach(item => {
+            if (item && item.name) {
+                optionsHtml += `<option value="${item.name}">${item.name}</option>`;
+            }
+        });
+    }
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue) {
+        selectEl.value = currentValue;
+    }
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(selectEl).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+        if (currentValue) {
+            $(selectEl).val(currentValue).trigger('change');
+        }
+    }
+}
+
+async function setFilterGender(data) {
+    const selectEl = document.getElementById('dashboardGender');
+    if (!selectEl) return;
+
+    const currentValue = selectEl.value || '';
+
+    if (selectEl.options.length > 1) {
+        if (currentValue) selectEl.value = currentValue;
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    if (Array.isArray(data)) {
+        data.forEach(item => {
+            if (item && item.name) {
+                optionsHtml += `<option value="${item.name}">${item.name}</option>`;
+            }
+        });
+    }
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue) {
+        selectEl.value = currentValue;
+    }
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(selectEl).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+        if (currentValue) {
+            $(selectEl).val(currentValue).trigger('change');
+        }
+    }
+}
+
+async function setFilterContractStatus(data) {
+    const selectEl = document.getElementById('dashboardContactStatus');
+    if (!selectEl) return;
+
+    const currentValue = selectEl.value || '';
+
+    if (selectEl.options.length > 1) {
+        if (currentValue) selectEl.value = currentValue;
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    if (Array.isArray(data)) {
+        data.forEach(item => {
+            if (item && item.name) {
+                optionsHtml += `<option value="${item.name}">${item.name}</option>`;
+            }
+        });
+    }
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue) {
+        selectEl.value = currentValue;
+    }
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(selectEl).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+        if (currentValue) {
+            $(selectEl).val(currentValue).trigger('change');
+        }
+    }
+}
+
+async function setFilterBranch(data) {
+    const selectEl = document.getElementById('dashboardBranch');
+    if (!selectEl) return;
+
+    const currentValue = selectEl.value || '';
+
+    if (selectEl.options.length > 1) {
+        if (currentValue) selectEl.value = currentValue;
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    if (Array.isArray(data)) {
+        data.forEach(item => {
+            if (item) {
+                const code = String(item.offcde || '').trim();
+                const name = item.branch_name;
+                optionsHtml += `<option value="${name}">${name}</option>`;
+            }
+        });
+    }
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue) {
+        selectEl.value = currentValue;
+    }
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(selectEl).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+        if (currentValue) {
+            $(selectEl).val(currentValue).trigger('change');
+        }
+    }
+}
+
 $(document).ready(async function () {
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $('.select2-filter').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+
+        $(document).on('select2:open', () => {
+            setTimeout(() => {
+                const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }, 10);
+        });
+    }
+
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         await getDashboardCustomerInfo();
     } catch (error) {
         console.error("Error in document ready:", error);
+    } finally {
+        stopLoading();
+    }
+
+    $('#dashboardSearch').on('click', async function () {
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
+        try {
+            await getDashboardCustomerInfo();
+        } catch (error) {
+            console.error("Error searching dashboard customer info:", error);
+        } finally {
+            stopLoading();
+        }
+    });
+
+    $('#dashboardClear').on('click', async function () {
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $('.select2-filter').val('').trigger('change');
+        } else {
+            $('#dashboardBranch').val('');
+            $('#dashboardCustomerType').val('');
+            $('#dashboardGender').val('');
+            $('#dashboardContactStatus').val('');
+        }
+        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
+        try {
+            await getDashboardCustomerInfo();
+        } catch (error) {
+            console.error("Error clearing dashboard filters:", error);
+        } finally {
+            stopLoading();
+        }
+    });
+});
+
+$("#dashboardSearch").off("click").on("click", async function () {
+    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
+    try {
+        await getDashboardCustomerInfo();
+    } catch (error) {
+        console.error("Error searching dashboard customer info:", error);
     } finally {
         stopLoading();
     }

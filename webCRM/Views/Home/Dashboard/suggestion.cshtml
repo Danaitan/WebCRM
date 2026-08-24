@@ -6,6 +6,8 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/dashboardSuggestion.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 }
 
 <div class="p-3 p-md-4">
@@ -35,28 +37,28 @@
 
                         <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                             <label class="form-label text-muted small fw-medium">ฝ่ายงาน / สังกัด</label>
-                            <select id="filterBranch" class="form-select form-select-sm">
+                            <select id="filterBranch" class="form-select form-select-sm select2-filter">
                                 <option value="">ทั้งหมด</option>
                             </select>
                         </div>
 
                         <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                             <label class="form-label text-muted small fw-medium">ผู้รับผิดชอบ</label>
-                            <select id="filterProvider" class="form-select form-select-sm">
+                            <select id="filterProvider" class="form-select form-select-sm select2-filter">
                                 <option value="">ทั้งหมด</option>
                             </select>
                         </div>
 
                         <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                             <label class="form-label text-muted small fw-medium">หัวข้อเรื่อง</label>
-                            <select id="filterTopic" class="form-select form-select-sm">
+                            <select id="filterTopic" class="form-select form-select-sm select2-filter">
                                 <option value="">ทั้งหมด</option>
                             </select>
                         </div>
 
                         <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                             <label class="form-label text-muted small fw-medium">สถานะ</label>
-                            <select id="filterStatus" class="form-select form-select-sm">
+                            <select id="filterStatus" class="form-select form-select-sm select2-filter">
                                 <option value="">ทั้งหมด</option>
                             </select>
                         </div>
@@ -232,5 +234,6 @@
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="~/js/DashboardSuggestion.js" asp-append-version="true"></script>
 }

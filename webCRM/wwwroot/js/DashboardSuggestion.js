@@ -19,10 +19,15 @@ async function setFilterBranch(data) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
 
-    const currentValue = selectEl.value || '';
+    const currentValue = $(selectEl).val() || selectEl.value || '';
 
     if (selectEl.options.length > 1) {
-        if (currentValue) selectEl.value = currentValue;
+        if (currentValue) {
+            $(selectEl).val(currentValue);
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $(selectEl).trigger('change');
+            }
+        }
         return;
     }
 
@@ -30,7 +35,6 @@ async function setFilterBranch(data) {
     if (Array.isArray(data)) {
         data.forEach(item => {
             if (item) {
-     
                 const code = item.e_mail;
                 const name = item.name + ": " + item.branch;
                 optionsHtml += `<option value="${code}">${name}</option>`;
@@ -38,63 +42,96 @@ async function setFilterBranch(data) {
         });
     }
     selectEl.innerHTML = optionsHtml;
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(selectEl).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+    }
     if (currentValue) {
-        selectEl.value = currentValue;
+        $(selectEl).val(currentValue).trigger('change');
     }
 }
 
 async function setFilterprovider (data){
-
     try {
-
         const filterProvider = document.getElementById('filterProvider');
         if (!filterProvider) return;
         
         const items = data && Array.isArray(data.data) 
             ? data.data 
             : (Array.isArray(data) ? data : []);
-
-        const currentValue = filterProvider.value || '';
+        const currentValue = $(filterProvider).val() || filterProvider.value || '';
         let optionsHtml = '<option value="">ทั้งหมด</option>';
-        items.forEach(obj => {                
-            const name = obj.name || obj.e_mail || "";
+        items.forEach(obj => {
+            const code = obj.e_mail;
+            const name = obj.name;
+            const branch = obj.branch;
             if (name) {
-                optionsHtml += `<option value="${name}">${name}</option>`;
+                optionsHtml += `<option value="${code}">${name} (${branch})</option>`;
             }
         });
         filterProvider.innerHTML = optionsHtml;
-        if (currentValue) filterProvider.value = currentValue;
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(filterProvider).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                language: {
+                    noResults: function () {
+                        return "ไม่พบข้อมูล";
+                    }
+                }
+            });
+        }
+        if (currentValue) {
+            $(filterProvider).val(currentValue).trigger('change');
+        }
     } catch (e) {
         console.error("Error setting filter provider:", e);
     }
-
 }
 
 async function setFilterTitle (data){
-
     const filterTitle = document.getElementById('filterTopic');
     if (!filterTitle) return;
     const items = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
-    const currentValue = filterTitle.value || '';
+    const currentValue = $(filterTitle).val() || filterTitle.value || '';
 
     let optionsHtml = '<option value="">ทั้งหมด</option>';
-    items.forEach(obj => {                
-        const name = obj.name || obj.topic || obj.suggesDesc || "";
+    items.forEach(obj => {        
+        const code = obj.count;    
+        const name = obj.name || "";
         if (name) {
-            optionsHtml += `<option value="${name}">${name}</option>`;
+            optionsHtml += `<option value="0${code}">${name}</option>`;
         }
     });
     filterTitle.innerHTML = optionsHtml;
-    if (currentValue) filterTitle.value = currentValue;
-
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(filterTitle).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+    }
+    if (currentValue) {
+        $(filterTitle).val(currentValue).trigger('change');
+    }
 }
 
 async function setFilterStatus (data){
-
     const filterStatus = document.getElementById('filterStatus');
     if (!filterStatus) return;
     const items = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
-    const currentValue = filterStatus.value || '';
+    const currentValue = $(filterStatus).val() || filterStatus.value || '';
 
     let optionsHtml = '<option value="">ทั้งหมด</option>';
     items.forEach(obj => {                
@@ -104,8 +141,20 @@ async function setFilterStatus (data){
         }
     });
     filterStatus.innerHTML = optionsHtml;
-    if (currentValue) filterStatus.value = currentValue;
-
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(filterStatus).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+    }
+    if (currentValue) {
+        $(filterStatus).val(currentValue).trigger('change');
+    }
 }
 
 async function setDashboard() {
@@ -122,7 +171,7 @@ async function setDashboard() {
     if (endDate) params.append('enddate', endDate);
     if (branch) params.append('branch', branch);
     if (provider) params.append('provider', provider);
-    if (topic) params.append('topic', topic);
+    if (topic) params.append('title', topic);
     if (status) params.append('status', status);
 
     const queryString = params.toString();
@@ -485,16 +534,18 @@ function applySuggestionFilters() {
 }
 
 async function resetSuggestionFilters() {
-    [
-        'filterStartDate', 
-        'filterEndDate', 
-        'filterBranch', 
-        'filterProvider', 
-        'filterTopic',
-        'filterStatus'
-    ].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
+    $('#filterStartDate').val('');
+    $('#filterEndDate').val('');
+
+    const select2Ids = ['#filterBranch', '#filterProvider', '#filterTopic', '#filterStatus'];
+    select2Ids.forEach(id => {
+        const $el = $(id);
+        if ($el.length) {
+            $el.val('');
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $el.trigger('change');
+            }
+        }
     });
 
     if (rawDashboardData) {
@@ -536,6 +587,27 @@ function exportSuggestionExcel() {
 }
 
 $(document).ready(async function () {
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $('.select2-filter').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+
+        $(document).on('select2:open', () => {
+            setTimeout(() => {
+                const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }, 10);
+        });
+    }
+
     if (typeof startLoading === 'function') {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     }
@@ -548,8 +620,12 @@ $(document).ready(async function () {
             ...jsonResult.group,
             ...jsonResult.personalAbb
         ];
+        const provider = [
+            ...jsonResult.group,
+            ...jsonResult.personal
+        ];
         await setFilterBranch(branch);
-        await setFilterprovider(jsonResult.personal);
+        await setFilterprovider(provider);
         await setDashboard();
 
     } catch (error) {

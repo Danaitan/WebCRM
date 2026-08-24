@@ -21,7 +21,8 @@ namespace webCRM.Controllers
             string? startdate,
             string? enddate,
             string? provider,
-            string? topic,
+            string? branch,
+            string? title,
             string? status
         )
         {
@@ -42,10 +43,12 @@ namespace webCRM.Controllers
                         queryParams["enddate"] = enddate;
                     if (!string.IsNullOrEmpty(provider))
                         queryParams["provider"] = provider;
-                    if (!string.IsNullOrEmpty(topic))
-                        queryParams["topic"] = topic;
+                    if (!string.IsNullOrEmpty(title))
+                        queryParams["title"] = title;
                     if (!string.IsNullOrEmpty(status))
                         queryParams["status"] = status;
+                    if (!string.IsNullOrEmpty(branch))
+                        queryParams["branch"] = branch;
 
                     var url = QueryHelpers.AddQueryString(
                         $"{domain}/crm/api/v1/p3/suggestionDashboard", queryParams);

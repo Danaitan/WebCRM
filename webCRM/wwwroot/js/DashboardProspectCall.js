@@ -514,12 +514,15 @@ async function setFilterCallType(){
 
 }
 
-async function setFilterBranch(data) {
+async function setFilterBranch(branchData) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
 
-    const branchResponse = await fetch('/Home/getBranchListForCRM');
-    const data = await branchResponse.json();
+    let data = branchData;
+    if (!data) {
+        const branchResponse = await fetch('/Home/getBranchListForCRM');
+        data = await branchResponse.json();
+    }
 
     const currentValue = selectEl.value || '';
 

@@ -19,6 +19,8 @@ let selectedFilterCodes = [];
 let selectedCampaignCode = "";
 let selectedCampaignGuid = "";
 let selectedCampaignId = 0;
+let selectedCampaignFileId = "";
+let fileIdToDelete = "";
 const pageSize = 5;
 let page = 1;
 let rawMasterFilters = [];
@@ -31,7 +33,6 @@ async function SearchCampaign() {
     } else {
         const searchText = $("#campaignSearchInput").val();
         const response = await getCampainList(page, pageSize, searchText);
-        console.log("response", response);
     }
 }   
 
@@ -382,6 +383,7 @@ async function getCampainList(page, pageSize, searchText) {
             objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || "",
             branches: item.offcde ? item.offcde.split(',') : [],
             remarks: item.product_remark || "",
+            file_id: item.file_id || item.FileId || item.fileId || "",
             isImportFromExcel: false
         }));
         
@@ -605,6 +607,8 @@ $(document).ready(async function () {
             selectedCampaignCode = "";
             selectedCampaignGuid = "";
             selectedCampaignId = 0;
+            selectedCampaignFileId = "";
+            fileIdToDelete = "";
 
             $("#campaignCode").val("");
             $("#campaignName").val("");
@@ -619,7 +623,7 @@ $(document).ready(async function () {
             updateBranchDisplay();
 
             $("#chkImportExcel").prop("checked", false);
-            $("#excelFileInput").val("");
+            $("#fileInput").val("");
             $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
             $("#filterSelectedRow").hide();
             $("#btnGotoETL").hide();
@@ -627,17 +631,19 @@ $(document).ready(async function () {
             selectedFilterCodes = [];
             updateFilterSelectionUI();
 
-            $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportExcel, #submitFormBtn").prop("disabled", true);
+            $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportFile, #submitFormBtn").prop("disabled", true);
             $("#branchSelectDisplay, #branchSelectContainer").addClass("disabled").css("pointer-events", "none");
             $(".branch-chk").prop("disabled", true);
             $(".filter-chk, #chkSelectAllFilters").prop("disabled", true);
+            $("#btnRemoveFile").addClass("d-none");
 
             $(".campaign-card").removeClass("active");
         } else {
-            $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportExcel, #submitFormBtn").prop("disabled", false);
+            $("#campaignName, #startDate, #endDate, #campaignObjective, #remarks, #chkImportExcel, #btnImportFile, #submitFormBtn").prop("disabled", false);
             $("#branchSelectDisplay, #branchSelectContainer").removeClass("disabled").css("pointer-events", "auto");
             $(".branch-chk").prop("disabled", false);
             $(".filter-chk, #chkSelectAllFilters").prop("disabled", false);
+            $("#btnRemoveFile").removeClass("d-none");
         }
     }
 
@@ -836,37 +842,38 @@ $(document).ready(async function () {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
             selectedCampaignCode = code;
-            selectedCampaignGuid = campaign.guid || "c0fdef43-449f-4fc8-bcd7-d7cfe9050721";
+            selectedCampaignGuid = campaign.guid || "";
             selectedCampaignId = campaign.id || 0;
+            selectedCampaignFileId = campaign.file_id || "";
+            fileIdToDelete = "";
             setProductFormState(true);
             
             //#region setReadonly
-            let canEdit = true;
-
-            //#region setcanEdit
             const statusCanEdit = [
                 "waiting prospect",
                 "reject"
-            ]
+            ];
 
-            if(statusCanEdit.includes(campaign.status)) {
-                canEdit = false;
-            } 
+            // ตรวจสอบว่าอยู่ในสถานะที่สามารถแก้ไขได้หรือไม่
+            const campaignStatus = (campaign.status || "").toLowerCase().trim();
+            const canEdit = statusCanEdit.includes(campaignStatus);
+            const isDisabled = !canEdit;
 
-            //#endregion
-
-            $('#campaignName').prop('disabled', canEdit);
-            $('#startDate').prop('disabled', canEdit);
-            $('#endDate').prop('disabled', canEdit);
-            $('#campaignObjective').prop('disabled', canEdit);
-            $('#remarks').prop('disabled', canEdit);
-            $('#branchSelectContainer').toggleClass('disabled', canEdit);
-            $('#branchSelectDisplay').toggleClass('disabled', canEdit);
-            $('.branch-chk').prop('disabled', canEdit);
-            if (canEdit) {
+            $('#btnImportFile').prop('disabled', isDisabled);
+            $('#campaignName').prop('disabled', isDisabled);
+            $('#startDate').prop('disabled', isDisabled);
+            $('#endDate').prop('disabled', isDisabled);
+            $('#campaignObjective').prop('disabled', isDisabled);
+            $('#remarks').prop('disabled', isDisabled);
+            $('#branchSelectContainer').toggleClass('disabled', isDisabled);
+            $('#branchSelectDisplay').toggleClass('disabled', isDisabled);
+            $('.branch-chk').prop('disabled', isDisabled);
+            if (isDisabled) {
                 $('#branchSelectDisplay, #branchSelectContainer').css('pointer-events', 'none');
+                $('#btnRemoveFile').addClass('d-none');
             } else {
                 $('#branchSelectDisplay, #branchSelectContainer').css('pointer-events', 'auto');
+                $('#btnRemoveFile').removeClass('d-none');
             }
 
             //#endregion
@@ -892,6 +899,46 @@ $(document).ready(async function () {
             syncCheckboxesState();
             updateBranchDisplay();
             
+            // Populate file input display
+            $("#fileInput").val("");
+            if (selectedCampaignFileId) {
+                try {
+                    const fileRes = await fetch(`/Campain/getFile?Id=${selectedCampaignFileId}`);
+                    if (fileRes.ok) {
+                        const fileData = await fileRes.json();
+                        const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
+                        const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
+  
+                        if (fileName) {
+                            $("#selectedFileNameText")
+                                .text(fileName)
+                                .attr("data-filepath", filePath)
+                                .css("cursor", "pointer")
+                                .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                            $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+                            if (isDisabled) {
+                                $("#btnRemoveFile").addClass("d-none");
+                            } else {
+                                $("#btnRemoveFile").removeClass("d-none");
+                            }
+                        } else {
+                            $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
+                            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+                        }
+                    } else {
+                        $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
+                        $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+                    }
+                } catch (e) {
+                    console.error("Error fetching file info:", e);
+                    $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
+                    $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+                }
+            } else {
+                $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
+                $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+            }
+            
             // Fetch assigned filters for selected campaign via GetFilterByGuid
             if (selectedCampaignGuid) {
                 try {
@@ -900,8 +947,8 @@ $(document).ready(async function () {
                     const importCode = importFilterObj ? (importFilterObj.fcode || importFilterObj.fCode || importFilterObj.FCode || importFilterObj.f_code || "") : "";
 
                     const hasImportFilter = Array.isArray(filterData) && filterData.some(item => {
-                        const fname = (item.fname || item.fName || item.FName || "").toString().toLowerCase();
-                        const fcode = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString();
+                        const fname = (item.fname || "").toString().toLowerCase();
+                        const fcode = (item.fcode || "").toString();
                         return fname === "import" || (importCode && fcode === importCode);
                     });
 
@@ -1251,7 +1298,7 @@ async function getCheckProductNo() {
         
         // Reset isImportFromExcel checkbox & file inputs in modal
         $("#modalChkImportExcel").prop("checked", false);
-        $("#modalExcelFileInput").val("");
+        $("#modalfileInput").val("");
         $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
 
         // Fetch and populate Product Code from GetCheckProductNo
@@ -1323,6 +1370,25 @@ async function getCheckProductNo() {
                         }
                     }
 
+                    let modalFileId = "";
+                    const modalFileInput = document.getElementById("modalfileInput");
+                    if (modalFileInput && modalFileInput.files && modalFileInput.files.length > 0) {
+                        const uploadRes = await uploadCampaignFile(modalFileInput, true, false);
+                        if (uploadRes && uploadRes.status === "success") {
+                            if (uploadRes.id) {
+                                modalFileId = String(uploadRes.id);
+                            } else if (uploadRes.data) {
+                                let rawData = uploadRes.data;
+                                if (typeof rawData === 'string') {
+                                    try { rawData = JSON.parse(rawData); } catch(e){}
+                                }
+                                if (rawData && rawData.Id) {
+                                    modalFileId = String(rawData.Id);
+                                }
+                            }
+                        }
+                    }
+
                     const postData = {
                         productInfo: {
                             product_code: code,
@@ -1334,7 +1400,8 @@ async function getCheckProductNo() {
                             createrd_by: window.CURRENT_USER_ID,
                             product_company: company,
                             offcde: modalSelectedBranches.filter(b => b !== "99").join(","),
-                            Objective_code: Objective_code
+                            Objective_code: Objective_code,
+                            file_id: modalFileId
                         },
                         filtersInfo: filterCodesToPost.map(c => ({
                             fguid: newGuid,
@@ -1364,13 +1431,15 @@ async function getCheckProductNo() {
                             objective: Objective_code,
                             branches: [...modalSelectedBranches],
                             remarks: note,
+                            file_id: modalFileId,
                             isImportFromExcel: isImportFromExcel
                         };
 
                         campaigns.unshift(campaignData);
                         selectedCampaignCode = code;
                         selectedCampaignGuid = newGuid;
-                        
+                        selectedCampaignFileId = modalFileId;
+
                         Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                         await loadCampaignToForm(code);
                     } else {
@@ -1445,7 +1514,11 @@ async function getCheckProductNo() {
     // Submit Form Button
     $("#submitFormBtn").off("click").on("click", function () {
         if (!selectedCampaignCode) {
-            Swal.fire({ title: "กรุณาเลือก Campaign", text: "กรุณาเลือก Campaign จากรายการทางด้านซ้ายก่อนทำการบันทึกข้อมูล", icon: "warning" });
+            Swal.fire({ 
+                title: "กรุณาเลือก Campaign", 
+                text: "กรุณาเลือก Campaign จากรายการทางด้านซ้ายก่อนทำการบันทึกข้อมูล", 
+                icon: "warning" 
+            });
             return;
         }
         const name = ($("#campaignName").val() || "").trim();
@@ -1489,6 +1562,40 @@ async function getCheckProductNo() {
                 if (result.isConfirmed) {
                     startLoading("กำลังบันทึกข้อมูล...", "ระบบกำลังบันทึกข้อมูลแคมเปญและ Filter...");
                     try {
+                        if (fileIdToDelete) {
+                            try {
+                                const delRes = await fetch(`/Campain/DeleteFile?Id=${fileIdToDelete}`, {
+                                    method: 'PUT'
+                                });
+                                if (!delRes.ok) {
+                                    console.error("DeleteFile failed:", await delRes.text());
+                                }
+                            } catch (deleteErr) {
+                                console.error("Error calling DeleteFile:", deleteErr);
+                            }
+                            fileIdToDelete = "";
+                        }
+
+                        let fileIdToSave = selectedCampaignFileId || "";
+                        const mainFileInput = document.getElementById("fileInput");
+                        if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
+                            const uploadRes = await uploadCampaignFile(mainFileInput, false, false);
+                            if (uploadRes && uploadRes.status === "success") {
+                                if (uploadRes.id) {
+                                    fileIdToSave = String(uploadRes.id);
+                                } else if (uploadRes.data) {
+                                    let rawData = uploadRes.data;
+                                    if (typeof rawData === 'string') {
+                                        try { rawData = JSON.parse(rawData); } catch(e){}
+                                    }
+                                    if (rawData && rawData.Id) {
+                                        fileIdToSave = String(rawData.Id);
+                                    }
+                                }
+                                selectedCampaignFileId = fileIdToSave;
+                            }
+                        }
+
                         const filterRes = await postFilter(selectedCampaignGuid);
                         const company = window.CURRENT_COMPANY || "MICRO";
                         const updatePayload = {
@@ -1503,7 +1610,8 @@ async function getCheckProductNo() {
                                 updated_by: window.CURRENT_USER_ID || "system",
                                 product_company: company,
                                 offcde: selectedBranches.filter(b => b !== "99").join(","),
-                                Objective_code: Objective_code
+                                Objective_code: Objective_code,
+                                file_id: fileIdToSave
                             }
                         };
                         if (currentCampaignStatus == "reject")
@@ -1519,7 +1627,9 @@ async function getCheckProductNo() {
                         });
 
                         if (filterRes && (filterRes.status === "success" || filterRes.status === "warning")) {
+                            campaignData.file_id = fileIdToSave;
                             campaigns[existingIdx] = campaignData;
+
                             Swal.fire({ title: "บันทึกข้อมูลสำเร็จ", text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                             await loadCampaignToForm(code);
                         } else {
@@ -1550,6 +1660,25 @@ async function getCheckProductNo() {
                     try {
                         const newGuid = generateUUID();
                         const company = window.CURRENT_COMPANY || "MICRO";
+                        let mainFileId = "";
+                        const mainFileInput = document.getElementById("fileInput");
+                        if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
+                            const uploadRes = await uploadCampaignFile(mainFileInput, false, false);
+                            if (uploadRes && uploadRes.status === "success") {
+                                if (uploadRes.id) {
+                                    mainFileId = String(uploadRes.id);
+                                } else if (uploadRes.data) {
+                                    let rawData = uploadRes.data;
+                                    if (typeof rawData === 'string') {
+                                        try { rawData = JSON.parse(rawData); } catch(e){}
+                                    }
+                                    if (rawData && rawData.Id) {
+                                        mainFileId = String(rawData.Id);
+                                    }
+                                }
+                            }
+                        }
+
                         const postData = {
                             productInfo: {
                                 product_code: code,
@@ -1561,7 +1690,8 @@ async function getCheckProductNo() {
                                 createrd_by: window.CURRENT_USER_ID || "system",
                                 product_company: company,
                                 offcde: selectedBranches.filter(b => b !== "99").join(","),
-                                Objective_code: Objective_code
+                                Objective_code: Objective_code,
+                                file_id: mainFileId
                             },
                             filtersInfo: selectedFilterCodes.map(c => ({
                                 fguid: newGuid,
@@ -1582,9 +1712,12 @@ async function getCheckProductNo() {
                         
                         if (data.status === "success") {
                             campaignData.guid = newGuid;
+                            campaignData.file_id = mainFileId;
                             campaigns.unshift(campaignData);
                             selectedCampaignCode = code;
                             selectedCampaignGuid = newGuid;
+                            selectedCampaignFileId = mainFileId;
+
                             Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                             await loadCampaignToForm(code);
                         } else {
@@ -1639,55 +1772,56 @@ async function getCheckProductNo() {
             }
         });
 
-        $("#btnImportExcel").off("click").on("click", function () {
-            $("#excelFileInput").trigger("click");
+        $("#btnImportFile").off("click").on("click", function () {
+            $("#fileInput").trigger("click");
         });
 
         $("#btnModalImportExcel").off("click").on("click", function () {
-            $("#modalExcelFileInput").trigger("click");
+            $("#modalfileInput").trigger("click");
         });
 
-        $("#excelFileInput").off("change").on("change", function () {
-            const file = this.files && this.files[0];
-            if (file) {
-                $("#selectedFileNameText").text(file.name);
-                $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
-                Swal.fire({
-                    title: "เลือกไฟล์สำเร็จ",
-                    text: `ไฟล์ที่เลือก: ${file.name}`,
-                    icon: "success",
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            } else {
-                $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+        $("#fileInput").off("change").on("change", function () {
+            if (selectedCampaignFileId) {
+                fileIdToDelete = selectedCampaignFileId;
+                selectedCampaignFileId = "";
+            }
+            handleFileSelect(this, false);
+        });
+
+        $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+            const filePath = $(this).attr("data-filepath");
+            if (filePath) {
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
             }
         });
 
-        $(document).off("click", "#btnRemoveExcelFile").on("click", "#btnRemoveExcelFile", function () {
-            $("#excelFileInput").val("");
+        $(document).off("click", "#modalSelectedFileNameText").on("click", "#modalSelectedFileNameText", function () {
+            const filePath = $(this).attr("data-filepath");
+            if (filePath) {
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+            }
+        });
+
+        $(document).off("click", "#btnRemoveFile").on("click", "#btnRemoveFile", function (e) {
+            e.stopPropagation();
+            if ($("#btnRemoveFile").hasClass("d-none") || $("#btnImportFile").is(":disabled")) return;
+            $("#fileInput").val("");
+            if (selectedCampaignFileId) {
+                fileIdToDelete = selectedCampaignFileId;
+            }
+            selectedCampaignFileId = "";
+            $("#selectedFileNameText").text("").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
             $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
         });
 
-        $("#modalExcelFileInput").off("change").on("change", function () {
-            const file = this.files && this.files[0];
-            if (file) {
-                $("#modalSelectedFileNameText").text(file.name);
-                $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
-                Swal.fire({
-                    title: "เลือกไฟล์สำเร็จ",
-                    text: `ไฟล์ที่เลือก: ${file.name}`,
-                    icon: "success",
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            } else {
-                $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
-            }
+        $("#modalfileInput").off("change").on("change", function () {
+            handleFileSelect(this, true);
         });
 
-        $(document).off("click", "#btnRemoveModalExcelFile").on("click", "#btnRemoveModalExcelFile", function () {
-            $("#modalExcelFileInput").val("");
+        $(document).off("click", "#btnRemoveModalExcelFile").on("click", "#btnRemoveModalExcelFile", function (e) {
+            e.stopPropagation();
+            $("#modalfileInput").val("");
+            $("#modalSelectedFileNameText").text("").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
             $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
         });
 
@@ -1701,9 +1835,156 @@ async function getCheckProductNo() {
     }
 });
 
+function handleFileSelect(fileInputEl, isModal = false) {
+    const file = fileInputEl.files && fileInputEl.files[0];
+    if (!file) return;
+
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.png', '.jpg', '.jpeg'];
+    const fileName = file.name;
+    const fileExtension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+        Swal.fire({
+            title: "ประเภทไฟล์ไม่ถูกต้อง",
+            text: `กรุณาอัปโหลดเฉพาะไฟล์: ${allowedExtensions.join(', ')}`,
+            icon: "error",
+            timer: 2000,
+            showConfirmButton: true
+        });
+        fileInputEl.value = '';
+        if (isModal) {
+            $("#modalSelectedFileNameText").text('');
+            $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+        } else {
+            $("#selectedFileNameText").text('');
+            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+        }
+        return;
+    }
+
+    if (isModal) {
+        $("#modalSelectedFileNameText").text(file.name);
+        $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+    } else {
+        $("#selectedFileNameText").text(file.name);
+        $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+        if ($("#btnImportFile").is(":disabled")) {
+            $("#btnRemoveFile").addClass("d-none");
+        } else {
+            $("#btnRemoveFile").removeClass("d-none");
+        }
+    }
+}
+
+async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true) {
+    const file = fileInputEl.files && fileInputEl.files[0];
+    if (!file) return { status: "success" };
+
+    const campaignCode = isModal
+        ? ($("#modalCampaignCode").val() || "").trim()
+        : (selectedCampaignCode || $("#campaignCode").val() || "").trim();
+
+    if (!campaignCode) {
+        if (showSwal) {
+            Swal.fire({
+                title: "ไม่พบรหัสแคมเปญ",
+                text: "กรุณาเลือกหรือสร้างรหัสแคมเปญก่อนแนบเอกสาร",
+                icon: "warning"
+            });
+        }
+        fileInputEl.value = '';
+        return { status: "error", message: "ไม่พบรหัสแคมเปญ" };
+    }
+
+    startLoading('กำลังอัปโหลดไฟล์...', 'ระบบกำลังบันทึกไฟล์แนบในแคมเปญ...');
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("campaignCode", campaignCode);
+
+        const response = await fetch('/Campain/UploadCampaignFile', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+            let returnedFileName = file.name;
+            let returnedPath = "";
+            if (data.data) {
+                let rawData = data.data;
+                if (typeof rawData === 'string') {
+                    try { rawData = JSON.parse(rawData); } catch (e) { }
+                }
+                if (rawData) {
+                    if (rawData.Name || rawData.name) {
+                        returnedFileName = rawData.Name || rawData.name;
+                    }
+                    if (rawData.Path || rawData.path) {
+                        returnedPath = rawData.Path || rawData.path;
+                    }
+                }
+            }
+
+            const uploadedPath = returnedPath || `campaignFile/${campaignCode}/${returnedFileName}`;
+            if (isModal) {
+                $("#modalSelectedFileNameText").text(returnedFileName).attr("data-filepath", uploadedPath).css("cursor", "pointer").attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+            } else {
+                $("#selectedFileNameText").text(returnedFileName).attr("data-filepath", uploadedPath).css("cursor", "pointer").attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+                if ($("#btnImportFile").is(":disabled")) {
+                    $("#btnRemoveFile").addClass("d-none");
+                } else {
+                    $("#btnRemoveFile").removeClass("d-none");
+                }
+            }
+            if (showSwal) {
+                Swal.fire({
+                    title: "แนบเอกสารสำเร็จ",
+                    text: `บันทึกไฟล์ ${returnedFileName} เรียบร้อยแล้ว`,
+                    icon: "success",
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+            return data;
+        } else {
+            if (showSwal) {
+                Swal.fire({
+                    title: "เกิดข้อผิดพลาดในการแนบไฟล์",
+                    text: data.message || "ไม่สามารถอัปโหลดไฟล์ได้",
+                    icon: "error"
+                });
+            }
+            fileInputEl.value = '';
+            if (isModal) {
+                $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+            } else {
+                $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+            }
+            return data;
+        }
+    } catch (err) {
+        console.error("Upload error:", err);
+        if (showSwal) {
+            Swal.fire({
+                title: "เกิดข้อผิดพลาด",
+                text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ในการอัปโหลดไฟล์",
+                icon: "error"
+            });
+        }
+        return { status: "error", message: err.message };
+    } finally {
+        stopLoading();
+    }
+}
+
 $("#btnGotoETL").off("click").on("click", function () {
     if (!selectedCampaignGuid) return;
-    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignGuid;
+    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignGuid + 
+    "&user=" + HttpContext.Session.GetString("personalId");
     window.location.href = url;
 });
 
@@ -1715,59 +1996,5 @@ $("#campaignSearchInput").off("keydown").on("keydown", function (e) {
     if (e.key === "Enter") {
         e.preventDefault();
         SearchCampaign();
-    }
-});
-
-document.addEventListener("DOMContentLoaded", function() {
-    const btnImport = document.getElementById('btnImportExcel');
-    const fileInput = document.getElementById('excelFileInput');
-    const fileDisplay = document.getElementById('selectedFileNameDisplay');
-    const fileNameText = document.getElementById('selectedFileNameText');
-    const btnRemove = document.getElementById('btnRemoveExcelFile');
-
-    // นามสกุลไฟล์ที่อนุญาต
-    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.png', '.jpg', '.jpeg'];
-    btnImport.addEventListener('click', () => {
-        fileInput.click();
-    });
-
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        
-        if (file) {
-            const fileName = file.name;
-            // หานามสกุลไฟล์ (แปลงเป็นพิมพ์เล็กเพื่อเทียบ)
-            const fileExtension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
-
-            // ตรวจสอบว่านามสกุลไฟล์อยู่ใน list ที่อนุญาตหรือไม่
-            if (!allowedExtensions.includes(fileExtension)) {
-
-                Swal.fire({
-                    title: "ประเภทไฟล์ไม่ถูกต้อง",
-                    text: `กรุณาอัปโหลดเฉพาะไฟล์: ${allowedExtensions.join(', ')}`,
-                    icon: "error",
-                    timer: 2000,
-                    showConfirmButton: true
-                });
-                removeFile(); // ลบค่าที่เลือกออก
-                return;
-            }
-
-            // ถ้าไฟล์ถูกต้อง ให้แสดงชื่อไฟล์
-            fileNameText.textContent = fileName;
-            
-            // สลับคลาสเพื่อแสดงกล่องชื่อไฟล์
-            fileDisplay.classList.remove('d-none');
-            fileDisplay.classList.add('d-flex');
-        }
-    });
-    btnRemove.addEventListener('click', removeFile);
-
-    // ฟังก์ชันเคลียร์ไฟล์
-    function removeFile() {
-        fileInput.value = '';
-        fileNameText.textContent = '';
-        fileDisplay.classList.remove('d-flex');
-        fileDisplay.classList.add('d-none');
     }
 });

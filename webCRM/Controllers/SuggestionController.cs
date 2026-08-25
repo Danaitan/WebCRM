@@ -79,12 +79,13 @@ namespace webCRM.Controllers
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 var queryParams = new List<string>();
-                if (!string.IsNullOrWhiteSpace(status)) queryParams.Add($"status={Uri.EscapeDataString(status)}");
-                if (!string.IsNullOrWhiteSpace(header)) queryParams.Add($"header={Uri.EscapeDataString(header)}");
-                if (!string.IsNullOrWhiteSpace(search)) queryParams.Add($"search={Uri.EscapeDataString(search)}");
+                if (!string.IsNullOrWhiteSpace(status)) queryParams.Add($"status={Uri.EscapeDataString(status.Trim())}");
+                if (!string.IsNullOrWhiteSpace(header)) queryParams.Add($"header={Uri.EscapeDataString(header.Trim())}");
+                if (!string.IsNullOrWhiteSpace(search)) queryParams.Add($"search={Uri.EscapeDataString(search.Trim())}");
 
                 var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
-                var response = await client.GetAsync($"{domain}/crm/api/v1/suggestions/0/{personalId}{queryString}");
+                var pId = string.IsNullOrWhiteSpace(personalId) ? "0" : personalId.Trim();
+                var response = await client.GetAsync($"{domain}/crm/api/v1/suggestions/0/{pId}{queryString}");
                 response.EnsureSuccessStatusCode();
                 string data = await response.Content.ReadAsStringAsync();
                 if (response.IsSuccessStatusCode)
@@ -94,12 +95,12 @@ namespace webCRM.Controllers
 
                     if (!string.IsNullOrWhiteSpace(status))
                     {
-                        list = list.Where(x => string.Equals(x.StatusTask, status, StringComparison.OrdinalIgnoreCase)).ToList();
+                        list = list.Where(x => string.Equals(x.StatusTask?.Trim(), status.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
                     }
                     if (!string.IsNullOrWhiteSpace(header))
                     {
-                        list = list.Where(x => string.Equals(x.SuggestionTitle, header, StringComparison.OrdinalIgnoreCase) ||
-                                               string.Equals(x.DepartCde, header, StringComparison.OrdinalIgnoreCase)).ToList();
+                        list = list.Where(x => string.Equals(x.SuggestionTitle?.Trim(), header.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(x.DepartCde?.Trim(), header.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
                     }
                     if (!string.IsNullOrWhiteSpace(search))
                     {
@@ -107,13 +108,28 @@ namespace webCRM.Controllers
                         list = list.Where(x =>
                             (x.SuggestionTitle != null && x.SuggestionTitle.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
                             (x.NameProvider != null && x.NameProvider.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                            (x.PersonalName != null && x.PersonalName.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
                             (x.StatusTask != null && x.StatusTask.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
                             (x.Suggestion != null && x.Suggestion.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
                             (x.PhoneProvider != null && x.PhoneProvider.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
-                            (x.EmailProvider != null && x.EmailProvider.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
-                            (x.Idno != null && x.Idno.Contains(s, StringComparison.OrdinalIgnoreCase))
+                            (x.EmailProvider != null && x.EmailProvider.Contains(s, StringComparison.OrdinalIgnoreCase))
                         ).ToList();
                     }
+
+                    list = list.OrderByDescending(x => {
+                        DateTime? dt = (x.CreatedDate.HasValue && x.CreatedDate.Value.Year > 1900) ? x.CreatedDate : null;
+                        if (!dt.HasValue && x.DateSugges.HasValue && x.DateSugges.Value.Year > 1900)
+                        {
+                            dt = x.TimeSugges.HasValue && x.TimeSugges.Value.Year > 1900
+                                ? x.DateSugges.Value.Date.Add(x.TimeSugges.Value.TimeOfDay)
+                                : x.DateSugges.Value;
+                        }
+                        if (!dt.HasValue && x.UpDate.HasValue && x.UpDate.Value.Year > 1900)
+                        {
+                            dt = x.UpDate;
+                        }
+                        return dt ?? DateTime.MinValue;
+                    }).ToList();
 
                     return list;
                 }
@@ -219,6 +235,14 @@ namespace webCRM.Controllers
                 }
 
                 request.UpdDate = DateOnly.FromDateTime(DateTime.Today);
+
+                if (!string.IsNullOrWhiteSpace(request.ccMail))
+                {
+                    var emails = request.ccMail.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                               .Select(e => e.Trim())
+                                               .Where(e => !string.IsNullOrEmpty(e));
+                    request.ccMail = string.Join(" , ", emails);
+                }
 
                 var content = new StringContent(
                     JsonSerializer.Serialize(request),
@@ -365,6 +389,86 @@ namespace webCRM.Controllers
                 return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
             }
         }
-        
+
+        [HttpPost]
+        public async Task<IActionResult> SendEmail([FromBody] SendEmailRequest request)
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                request.ContentType = "HTML";
+                request.From = HttpContext.Session.GetString("email") ?? ""; ;
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync(
+                    $"{domain}/crm/api/v1/p3/sendEmail",
+                    content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+
+                return Ok(new { status = "success" });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PostNotification([FromBody] PostNotiRequest request)
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                request.Sender = HttpContext.Session.GetString("personalId") ?? "";;
+                request.CreateBy = HttpContext.Session.GetString("personalId") ?? "";;
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync(
+                    $"{domain}/crm/api/v1/p3/postNotification",
+                    content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+
+                return Ok(new { status = "success" });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+
+        }
+
     }
 }

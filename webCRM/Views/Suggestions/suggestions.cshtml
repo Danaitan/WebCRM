@@ -7,6 +7,8 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/suggestions.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 }
 
     <div class="container-fluid p-4 crm-main">
@@ -121,26 +123,26 @@
                                 {
                                     foreach (var item in Model)
                                     {
-                                         DateTime? displayCreatedDate = item.CreatedDate;
-                                         if (!displayCreatedDate.HasValue && item.DateSugges.HasValue)
+                                         DateTime? displayCreatedDate = (item.CreatedDate.HasValue && item.CreatedDate.Value.Year > 1900) ? item.CreatedDate : null;
+                                         if (!displayCreatedDate.HasValue && item.DateSugges.HasValue && item.DateSugges.Value.Year > 1900)
                                          {
-                                             displayCreatedDate = item.TimeSugges.HasValue 
+                                             displayCreatedDate = item.TimeSugges.HasValue && item.TimeSugges.Value.Year > 1900
                                                  ? item.DateSugges.Value.Date.Add(item.TimeSugges.Value.TimeOfDay) 
                                                  : item.DateSugges.Value;
                                          }
-                                         if (!displayCreatedDate.HasValue && item.UpDate.HasValue)
+                                         if (!displayCreatedDate.HasValue && item.UpDate.HasValue && item.UpDate.Value.Year > 1900)
                                          {
                                              displayCreatedDate = item.UpDate;
                                          }
                                          var createdDateStr = displayCreatedDate?.ToString("dd/MM/yyyy HH:mm") ?? "-";
                                          var createdDateOrder = displayCreatedDate?.ToString("yyyyMMddHHmmss") ?? "0";
 
-                                         var upDateStr = item.UpDate?.ToString("dd/MM/yyyy HH:mm") ?? "-";
-                                         var upDateOrder = item.UpDate?.ToString("yyyyMMddHHmmss") ?? "0";
+                                         var upDateStr = item.UpDate is { Year: > 1900 } upDateVal ? upDateVal.ToString("dd/MM/yyyy HH:mm") : "-";
+                                         var upDateOrder = item.UpDate is { Year: > 1900 } upDateValOrder ? upDateValOrder.ToString("yyyyMMddHHmmss") : "0";
 
                                          var timeDiffText = "-";
                                          var daysOrder = 999999;
-                                         if (displayCreatedDate.HasValue)
+                                         if (displayCreatedDate.HasValue && displayCreatedDate.Value.Year > 1900)
                                          {
                                              var days = (DateTime.Now.Date - displayCreatedDate.Value.Date).Days;
                                              daysOrder = days;
@@ -261,79 +263,51 @@
                                 <span id="detail-sendTo" class="d-none"></span>
                             </div>
 
-                            <h6 style="text-decoration: underline; text-decoration-style: double;" class="mb-2 mt-2 fw-bold">
-                                บันทึกข้อมูล
-                            </h6>
-                            
-                            <div class="col-12 mt-1">
-                                <div class="border p-3 bg-white" style="border-radius: 6px; border-color: #e2e8f0;">
-                                    <div class="mb-2" style="font-size: 0.95rem; word-break: break-word; overflow-wrap: break-word;">
-                                        <span class="fw-bold" style="color: #0f5132;">ข้อความตอบกลับ:</span>
-                                    </div>
-                                    <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;" placeholder="กรอกข้อความตอบกลับที่นี่..."></textarea>
-                                    <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
-                                        <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
-                                        <span>@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</span>
-                                    </div>
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <button type="button" class="btn btn-primary px-4 fw-bold" onclick="UpdateSuggestion()" style="border-radius: 4px;">บันทึก</button>
-                                        @* <button type="button" class="btn btn-secondary px-4 fw-bold" onclick="$('#reply-input').val('')" style="border-radius: 4px;">ยกเลิก</button> *@
+                            <div id="replyBoxSection">
+                                <h6 style="text-decoration: underline; text-decoration-style: double;" class="mb-2 mt-2 fw-bold">
+                                    บันทึกข้อมูล
+                                </h6>
+                                
+                                <div class="col-12 mt-1">
+                                    <div class="border p-3 bg-white" style="border-radius: 6px; border-color: #e2e8f0;">
+                                        <div class="mb-2" style="font-size: 0.95rem; word-break: break-word; overflow-wrap: break-word;">
+                                            <span class="fw-bold" style="color: #0f5132;">ข้อความตอบกลับ:</span>
+                                        </div>
+                                        <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;" placeholder="กรอกข้อความตอบกลับที่นี่..."></textarea>
+                                        <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
+                                            <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
+                                            <span>@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                        </div>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button type="button" class="btn btn-primary px-4 fw-bold" id="saveReplyBtn" style="border-radius: 4px;">บันทึก</button>
+                                        </div>
                                     </div>
                                 </div>
-
-                                @* <div class="d-flex justify-content-end gap-2 mt-2">
-
-                                    <div class="d-flex justify-content-end gap-2 mt-2">
-                                        <button 
-                                        type="button" 
-                                        class="btn btn-warning px-4 fw-bold" 
-                                        onclick="ForwardSuggestion()" 
-                                        style="border-radius: 4px;"
-                                        >
-                                        ส่งต่อ
-                                        </button>
-                                    </div>
-
-                                    <div class="d-flex justify-content-end gap-2 mt-2">
-                                        <button 
-                                        type="button" 
-                                        class="btn btn-danger px-4 fw-bold" 
-                                        onclick="PutSuggestionStatusUpd()" 
-                                        style="border-radius: 4px;"
-                                        >
-                                        ปิดงาน
-                                        </button>
-                                    </div>
-
-                                </div> *@
-
                             </div>
 
-                                <div class="d-flex justify-content-end gap-2 mt-2">
-                                    
-                                    <div class="d-flex justify-content-end gap-2 mt-2">
-                                        <button 
-                                        type="button" 
-                                        class="btn btn-warning px-4 fw-bold" 
-                                        onclick="ForwardSuggestion()" 
-                                        style="border-radius: 4px;"
-                                        >
-                                        ส่งต่อ
-                                        </button>
-                                    </div>
-
-                                    <div class="d-flex justify-content-end gap-2 mt-2">
-                                        <button 
-                                        type="button" 
-                                        class="btn btn-danger px-4 fw-bold" 
-                                        onclick="PutSuggestionStatusUpd()" 
-                                        style="border-radius: 4px;"
-                                        >
-                                        ปิดงาน
-                                        </button>
-                                    </div>
-
+                            <div class="d-flex justify-content-end gap-2 mt-2">
+                                <div id="forwardBtnContainer">
+                                    <button 
+                                    type="button" 
+                                    class="btn btn-warning px-4 fw-bold" 
+                                    id="forwardBtn" 
+                                    style="border-radius: 4px;"
+                                    >
+                                    ส่งต่อ
+                                    </button>
                                 </div>
+
+                                <div id="closeBtnContainer">
+                                    <button 
+                                    type="button" 
+                                    class="btn btn-danger px-4 fw-bold" 
+                                    id="closeBtn"
+                                    style="border-radius: 4px;"
+                                    >
+                                    ปิดงาน
+                                    </button>
+                                </div>
+                            </div>
                                 
                         </div>
                     </div>
@@ -348,9 +322,11 @@
     <partial name="~/Views/Component/NotiModal.cshtml" />
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         var currentUserEmail = '@(Context.Session.GetString("email") ?? "")';
         var userCompany = '@(Context.Session.GetString("company") ?? "")';
+        var userFullNameTh = '@(Context.Session.GetString("fullNameTh") ?? "")';
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
     </script>
     <script src="~/js/suggestions.js" asp-append-version="true"></script>
@@ -374,8 +350,8 @@
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-medium small">หัวข้อ <span class="text-danger">*</span></label>
-                                <select class="form-select text-muted" aria-label="Topic" id="post-title">
-                                    <option value="" selected>เลือกหัวข้อ</option>
+                                <select class="form-select text-dark" aria-label="Topic" id="post-title">
+                                    <option value="" selected class="text-muted">เลือกหัวข้อ</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -397,12 +373,12 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-medium small">เบอร์โทรศัพท์</label>
-                                        <input type="text" class="form-control" id="post-phone" placeholder="ตัวอย่าง: 081-234-5678">
+                                        <input type="text" class="form-control" id="post-phone" placeholder="ตัวอย่าง: 0812345678" maxlength="10" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-medium small">Line ID</label>
                                         <div class="position-relative">
-                                            <input type="text" id="post-line-id" class="form-control" placeholder="ตัวอย่าง: @@username">
+                                            <input type="text" id="post-line-id" class="form-control" placeholder="ตัวอย่าง: username">
                                             <i class="bi position-absolute top-50 end-0 translate-middle-y me-3 text-muted small pointer-events-none"></i>
                                         </div>
                                     </div>
@@ -459,7 +435,7 @@
                             <button type="button" class="btn btn-outline-secondary px-4 fw-medium bg-white btn-no-hover" data-bs-dismiss="modal">
                                 <i class="bi bi-x-lg small me-1"></i> ยกเลิก
                             </button>
-                            <button type="button" class="btn btn-primary px-4 fw-medium text-white d-flex align-items-center gap-2" style="background-color: #0b3d91; border-color: #0b3d91;" onclick="AddSuggestion()">
+                            <button type="button" class="btn btn-primary px-4 fw-medium text-white d-flex align-items-center gap-2" style="background-color: #0b3d91; border-color: #0b3d91;" id="btnSaveSuggestion">
                                 <i class="bi bi-save"></i> บันทึก
                             </button>
                         </div>

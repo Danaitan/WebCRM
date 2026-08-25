@@ -109,3 +109,9 @@ body.crm-body {
     border-color: #6c757d !important;
     box-shadow: none !important;
 }
+
+/* Select option text color */
+.form-select option,
+select option {
+    color: #000000 !important;
+}

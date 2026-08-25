@@ -550,7 +550,8 @@ async function getCampainList(page, pageSize) {
             remark:    item.product_remark || '',
             createdBy: item.createrd_by    || item.created_by || '',
             created:   item.created        ? item.created.substring(0, 10)       : '',
-            offcde:    item.offcde         || ''
+            offcde:    item.offcde         || '',
+            file_id:   item.file_id        || item.FileId || item.fileId || ""
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -870,6 +871,44 @@ function buildPageRange(current, total) {
         return Math.max(1, Math.ceil(totalBatchCount / batchPerPage));
     }
 
+async function displayCampaignFile(fileId) {
+    const $fileNameText = $("#selectedFileNameText");
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+
+    if (fileId) {
+        try {
+            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`);
+            if (fileRes.ok) {
+                const fileData = await fileRes.json();
+                const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
+                const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
+
+                if (fileName) {
+                    $fileNameText
+                        .text(fileName)
+                        .attr("data-filepath", filePath)
+                        .css("cursor", "pointer")
+                        .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                    $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching file info:", e);
+        }
+    }
+
+    $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+}
+
+$(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+    const filePath = $(this).attr("data-filepath");
+    if (filePath) {
+        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+    }
+});
+
     function selectCampaign(index) {
         selectedIndex = index;
         const container = document.getElementById('batchListContainer');
@@ -904,6 +943,9 @@ function buildPageRange(current, total) {
 
             // Fetch prospects for selected campaign code
             loadProspectAssignData(campaign.code);
+            displayCampaignFile(campaign.file_id);
+        } else {
+            displayCampaignFile("");
         }
     }
 

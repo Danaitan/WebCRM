@@ -253,6 +253,8 @@ body {
 .suggestion-table td {
     font-size: 0.82rem;
     padding: 10px 12px;
+    line-height: 1.5;
+    vertical-align: middle;
 }
 
 /* Info Note Box */

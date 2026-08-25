@@ -147,8 +147,8 @@ namespace webCRM.Models
         [JsonPropertyName("suggestion")]
         public string? Suggestion { get; set; }
 
-        [JsonPropertyName("cc")]
-        public string? Cc { get; set; }
+        [JsonPropertyName("ccMail")]
+        public string? ccMail { get; set; }
 
         [JsonPropertyName("dateSugges")]
         public DateOnly? DateSugges { get; set; }
@@ -168,5 +168,46 @@ namespace webCRM.Models
         [JsonPropertyName("guid")]
         public string? Guid { get; set; }
     }
+
+    public class SendEmailRequest
+    {
+        [JsonPropertyName("from")]
+        public string? From { get; set; }
+        [JsonPropertyName("to")]
+        public string? To { get; set; }
+        [JsonPropertyName("cc")]
+        public List<string>? Cc { get; set; }
+        [JsonPropertyName("bcc")]
+        public List<string>? Bcc { get; set; }
+        [JsonPropertyName("subject")]
+        public string? Subject { get; set; }
+        [JsonPropertyName("content")]
+        public string? Content { get; set; }
+        [JsonPropertyName("contentType")]
+        public string? ContentType { get; set; }
+        [JsonPropertyName("attachments")]
+        public List<string>? Attachments { get; set; }
+    }
+
+    public class PostNotiRequest
+    {
+        [JsonPropertyName("header")]
+        public string? Header { get; set; }
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+        [JsonPropertyName("message")]
+        public string? Message { get; set; }
+        [JsonPropertyName("receiver")]
+        public string? Receiver { get; set; }
+        [JsonPropertyName("sender")]
+        public string? Sender { get; set; }
+        [JsonPropertyName("create_by")]
+        public string? CreateBy { get; set; }
+        [JsonPropertyName("end_date")]
+        public DateTime? EndDate { get; set; }
+        [JsonPropertyName("receiver_email")]
+        public string? ReceiverEmail { get; set; }
+    }
+
 
 }

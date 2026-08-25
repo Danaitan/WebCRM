@@ -65,6 +65,7 @@ async function getCampainList(page = 1, pageSize = 20, searchText) {
             guid:      item.product_guid  || "",
             offcde:    item.offcde || "",
             product_company: item.product_company || "", 
+            file_id:   item.file_id || item.FileId || item.fileId || "",
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -81,6 +82,44 @@ async function getCampainList(page = 1, pageSize = 20, searchText) {
         stopLoading();
     }
 }
+
+async function displayCampaignFile(fileId) {
+    const $fileNameText = $("#selectedFileNameText");
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+
+    if (fileId) {
+        try {
+            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`);
+            if (fileRes.ok) {
+                const fileData = await fileRes.json();
+                const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
+                const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
+
+                if (fileName) {
+                    $fileNameText
+                        .text(fileName)
+                        .attr("data-filepath", filePath)
+                        .css("cursor", "pointer")
+                        .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                    $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching file info:", e);
+        }
+    }
+
+    $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+}
+
+$(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+    const filePath = $(this).attr("data-filepath");
+    if (filePath) {
+        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+    }
+});
 
 function productFilterHTML(filtercode) {
 
@@ -318,6 +357,8 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 selectedCampaign = item;
                 removedBatchCustomerIds.clear();
 
+                displayCampaignFile(item.file_id);
+
                 startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
                 try {
@@ -478,7 +519,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
                     const idno = item.idno || '';
                     const id = item.id || '';
-                    const prospectBatch = item.prospect_batch || item.prospectBatch || item.product_batch || item.productBatch || item.batch_id || item.batch || '';
+                    const prospectBatch = item.prospect_batch || '';
 
                     let matchedBatch = null;
                     if (Array.isArray(currentProductBatches) && currentProductBatches.length > 0) {

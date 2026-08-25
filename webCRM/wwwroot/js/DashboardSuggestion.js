@@ -15,6 +15,25 @@ const statusColors = {
     'Close': '#10b981'
 };
 
+async function safeFetchJson(url, options) {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            console.error(`Fetch error HTTP ${response.status} for ${url}: ${response.statusText}`);
+            return null;
+        }
+        const text = await response.text();
+        if (!text || !text.trim()) {
+            console.warn(`Empty response body received from ${url}`);
+            return null;
+        }
+        return JSON.parse(text);
+    } catch (e) {
+        console.error(`Failed to parse JSON from ${url}:`, e);
+        return null;
+    }
+}
+
 async function setFilterBranch(data) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
@@ -177,12 +196,7 @@ async function setDashboard() {
     const queryString = params.toString();
     const url = `/DashboardSuggestion/GetSuggestionDashboard${queryString ? '?' + queryString : ''}`;
 
-    const response = await fetch(url);
-    if (!response.ok) {
-        console.error("Network response was not ok", response.statusText);
-        return;
-    }
-    const jsonResult = await response.json();
+    const jsonResult = await safeFetchJson(url);
     if (!jsonResult) return;
 
     // Support both root payload and wrapped data payload
@@ -199,6 +213,11 @@ async function setDashboard() {
     const table = data.table || (Array.isArray(data) ? data : (data.data || []));
 
     currentTableData = Array.isArray(table) ? table : [];
+    currentTableData.sort((a, b) => {
+        const timeA = a.FirstUpdDate ? new Date(a.FirstUpdDate).getTime() : 0;
+        const timeB = b.FirstUpdDate ? new Date(b.FirstUpdDate).getTime() : 0;
+        return timeB - timeA;
+    });
 
     renderOverview(graph.overAll || graph.graphStatus || graph.status || []);
     initTopicBarChart(graph.graphTitle || graph.topic || []);
@@ -528,6 +547,12 @@ function applySuggestionFilters() {
         });
     }
 
+    filtered.sort((a, b) => {
+        const timeA = a.FirstUpdDate ? new Date(a.FirstUpdDate).getTime() : 0;
+        const timeB = b.FirstUpdDate ? new Date(b.FirstUpdDate).getTime() : 0;
+        return timeB - timeA;
+    });
+
     currentTableData = filtered;
     currentPage = 1;
     renderSuggestionTable();
@@ -555,35 +580,420 @@ async function resetSuggestionFilters() {
     }
 }
 
-function exportSuggestionExcel() {
-    if (!currentTableData || currentTableData.length === 0) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'info',
-                title: 'ไม่มีข้อมูล',
-                text: 'ไม่มีข้อมูลสำหรับส่งออก Excel',
-                confirmButtonText: 'ตกลง'
-            });
-        } else {
-            alert('ไม่มีข้อมูลสำหรับส่งออก Excel');
-        }
-        return;
+let isExportingSuggestionExcel = false;
+
+async function exportSuggestionExcel() {
+    if (isExportingSuggestionExcel) return;
+    isExportingSuggestionExcel = true;
+
+    if (typeof startLoading === 'function') {
+        startLoading('กำลังส่งออกข้อมูล Excel...', 'กรุณารอสักครู่');
     }
+    try {
+        const startDate = $('#filterStartDate').val() || '';
+        const endDate = $('#filterEndDate').val() || '';
+        const branch = $('#filterBranch').val() || '';
+        const provider = $('#filterProvider').val() || '';
+        const topic = $('#filterTopic').val() || '';
+        const status = $('#filterStatus').val() || '';
 
-    let csv = '\uFEFF';
-    csv += 'วันที่รับเรื่อง,หัวข้อเรื่อง,ชื่อลูกค้า,สาขา,ผู้รับผิดชอบ,สถานะ,อัปเดตล่าสุด,จำนวนวัน\n';
+        const params = new URLSearchParams();
+        if (startDate) params.append('startdate', startDate);
+        if (endDate) params.append('enddate', endDate);
+        if (branch) params.append('branch', branch);
+        if (provider) params.append('provider', provider);
+        if (topic) params.append('title', topic);
+        if (status) params.append('status', status);
 
-    currentTableData.forEach(row => {
-        const firstDate = formatDate(row.FirstUpdDate);
-        const lastDate = formatDate(row.LastUpdDate);
-        csv += `"${firstDate}","${row.suggesDesc || ''}","${row.nameCus || ''}","${row.branch || 'สำนักงานใหญ่'}","${row.nameProvider || ''}","${row.StatusTask || ''}","${lastDate}",${row.Day || 0}\n`;
-    });
+        const queryString = params.toString();
+        const url = `/DashboardSuggestion/GetSuggestionDashboardExcel${queryString ? '?' + queryString : ''}`;
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Suggestion_Dashboard_Report_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
+        const res = await safeFetchJson(url, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+
+        let exportRows = [];
+        if (res) {
+            if (Array.isArray(res)) {
+                exportRows = res;
+            } else if (Array.isArray(res.data)) {
+                exportRows = res.data;
+            } else if (res.data && Array.isArray(res.data.table)) {
+                exportRows = res.data.table;
+            } else if (res.table && Array.isArray(res.table)) {
+                exportRows = res.table;
+            }
+        }
+
+        if ((!exportRows || exportRows.length === 0) && currentTableData && currentTableData.length > 0) {
+            exportRows = currentTableData;
+        }
+
+        if (!exportRows || exportRows.length === 0) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่พบข้อมูล',
+                    text: 'ไม่มีข้อมูลสำหรับส่งออก Excel',
+                    confirmButtonText: 'ตกลง'
+                });
+            } else {
+                alert('ไม่มีข้อมูลสำหรับส่งออก Excel');
+            }
+            return;
+        }
+
+        const headers = [
+            { title: 'วันที่รับเรื่อง', width: 22, align: 'center' },
+            { title: 'หัวข้อเรื่อง', width: 28, align: 'center' },
+            { title: 'ลูกค้า', width: 28, align: 'center' },
+            { title: 'เบอร์โทร', width: 18, align: 'center' },
+            { title: 'E-mail', width: 28, align: 'center' },
+            { title: 'ที่อยู่/จังหวัด', width: 25, align: 'center' },
+            { title: 'ผู้รับผิดชอบ', width: 25, align: 'center' },
+            { title: 'CC E-mail', width: 32, align: 'center' },
+            { title: 'รายละเอียดข้อเสนอแนะ/ร้องเรียน', width: 45, align: 'center' },
+            { title: 'อัปเดทล่าสุด', width: 20, align: 'center' },
+            { title: 'Reply / การตอบกลับ', width: 40, align: 'center' },
+            { title: 'สถานะ', width: 16, align: 'center' }
+        ];
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const fileName = `Suggestion_Dashboard_Report_${todayStr}.xlsx`;
+
+        if (typeof XLSX !== 'undefined') {
+            const sheetData = [headers.map(h => h.title)];
+            const rowHeights = [{ hpt: 28 }];
+
+            exportRows.forEach(row => {
+                const getVal = (key, fallbackKeys = [], isDate = false) => {
+                    let raw = row[key];
+                    if (raw === undefined || raw === null) {
+                        for (const fbKey of fallbackKeys) {
+                            if (row[fbKey] !== undefined && row[fbKey] !== null) {
+                                raw = row[fbKey];
+                                break;
+                            }
+                        }
+                    }
+                    if (raw === undefined || raw === null) return '';
+                    if (isDate || (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw))) {
+                        return formatDate(raw);
+                    }
+                    return String(raw);
+                };
+
+                const dateRec = getVal('วันที่รับเรื่อง', ['วันที่รับเรื่อง', 'FirstUpdDate'], true);
+                const topicVal = getVal('หัวข้อเรื่อง', ['หัวข้อเรื่อง', 'suggesDesc']);
+                const customerVal = getVal('ลูกค้า', ['ลูกค้า', 'nameCus']);
+                const phoneVal = getVal('เบอร์โทร', ['เบอร์โทร', 'telCus']);
+                const emailVal = getVal('E-mail', ['E-mail', 'emailCus']);
+                const addressVal = getVal('ที่อยู่', ['ที่อยู่', 'addressCus']);
+                const providerVal = getVal('ผู้รับผิดชอบ', ['ผู้รับผิดชอบ', 'sendToPerson', 'sendToGroupAbb']);
+                const rawCcEmail = getVal('CC E-mail', ['CC E-mail', 'ccEmail', 'cc_email', 'cceMail']);
+                const ccEmailVal = rawCcEmail
+                    ? String(rawCcEmail)
+                        .split(/[\r\n;,]+/)
+                        .map(e => e.trim())
+                        .filter(Boolean)
+                        .join('\n')
+                    : '';
+                const detailVal = getVal('รายละเอียดข้อเสนอแนะ/ร้องเรียน', ['รายละเอียดข้อเสนอแนะ/ร้องเรียน', 'suggesDetail']);
+                const lastUpdVal = getVal('อัปเดทล่าสุด', ['อัปเดทล่าสุด', 'LastUpdDate'], true);
+                const replyVal = getVal('Reply / การตอบกลับ', ['Reply / การตอบกลับ', 'replyDetail']);
+                const statusVal = getVal('สถานะ', ['สถานะ', 'StatusTask']);
+
+                const estimateCellLines = (val, colWidth) => {
+                    if (!val) return 1;
+                    const str = String(val);
+                    const lines = str.split(/\r?\n/);
+                    let totalLines = 0;
+                    const effWidth = Math.max(8, colWidth - 3);
+                    lines.forEach(line => {
+                        if (!line.length) {
+                            totalLines += 1;
+                        } else {
+                            totalLines += Math.max(1, Math.ceil(line.length / effWidth));
+                        }
+                    });
+                    return Math.max(1, totalLines);
+                };
+
+                const maxLines = Math.max(
+                    1,
+                    estimateCellLines(topicVal, headers[1].width),
+                    estimateCellLines(customerVal, headers[2].width),
+                    estimateCellLines(emailVal, headers[4].width),
+                    estimateCellLines(addressVal, headers[5].width),
+                    estimateCellLines(providerVal, headers[6].width),
+                    estimateCellLines(ccEmailVal, headers[7].width),
+                    estimateCellLines(detailVal, headers[8].width),
+                    estimateCellLines(replyVal, headers[10].width)
+                );
+                rowHeights.push({ hpt: Math.max(26, Math.ceil(maxLines * 20 + 8)) });
+
+                sheetData.push([
+                    dateRec,
+                    topicVal,
+                    customerVal,
+                    phoneVal,
+                    emailVal,
+                    addressVal,
+                    providerVal,
+                    ccEmailVal,
+                    detailVal,
+                    lastUpdVal,
+                    replyVal,
+                    statusVal
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+            ws['!cols'] = headers.map(h => ({ wch: h.width }));
+            ws['!rows'] = rowHeights;
+
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!ws[cellRef]) continue;
+
+                    const isHeader = (R === 0);
+                    const isOddRow = (R % 2 === 1);
+                    const align = headers[C]?.align || 'left';
+
+                    if (isHeader) {
+                        ws[cellRef].s = {
+                            fill: { fgColor: { rgb: "387699" } },
+                            font: { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+                            border: {
+                                top: { style: "thin", color: { rgb: "0F374A" } },
+                                bottom: { style: "thin", color: { rgb: "0F374A" } },
+                                left: { style: "thin", color: { rgb: "0F374A" } },
+                                right: { style: "thin", color: { rgb: "0F374A" } }
+                            }
+                        };
+                    } else {
+                        let statusColor = "000000";
+                        if (C === 11) {
+                            const val = String(ws[cellRef].v || '').toLowerCase();
+                            if (val === 'pending') statusColor = "D97706";
+                            else if (val === 'forward') statusColor = "0284C7";
+                            else if (val === 'reply' || val === 'replying') statusColor = "7C3AED";
+                            else if (val === 'close') statusColor = "059669";
+                        }
+
+                        ws[cellRef].s = {
+                            fill: { fgColor: { rgb: isOddRow ? "EBF3F9" : "FFFFFF" } },
+                            font: { name: "Segoe UI", sz: 9.5, bold: (C === 11), color: { rgb: statusColor } },
+                            alignment: { horizontal: align, vertical: "center", wrapText: true },
+                            border: {
+                                top: { style: "thin", color: { rgb: "D9D9D9" } },
+                                bottom: { style: "thin", color: { rgb: "D9D9D9" } },
+                                left: { style: "thin", color: { rgb: "D9D9D9" } },
+                                right: { style: "thin", color: { rgb: "D9D9D9" } }
+                            }
+                        };
+                    }
+                }
+            }
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Suggestion Report");
+            XLSX.writeFile(wb, fileName);
+        } else {
+            let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+            <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+            <!--[if gte mso 9]>
+            <xml>
+            <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+            <x:ExcelWorksheet>
+                <x:Name>Suggestion Report</x:Name>
+                <x:WorksheetOptions>
+                <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+            <style>
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    font-family: 'Segoe UI', Tahoma, 'Prompt', sans-serif;
+                    font-size: 10pt;
+                }
+                th {
+                    background-color: #387699 !important;
+                    color: #ffffff !important;
+                    font-weight: bold;
+                    text-align: center;
+                    vertical-align: middle;
+                    height: 36px;
+                    border: 1px solid #0f374a;
+                    padding: 6px 10px;
+                    white-space: nowrap;
+                }
+                td {
+                    vertical-align: middle;
+                    border: 1px solid #d9d9d9;
+                    padding: 6px 10px;
+                    mso-number-format: "\\@";
+                }
+                .status-pending { color: #d97706; font-weight: bold; text-align: center; }
+                .status-forward { color: #0284c7; font-weight: bold; text-align: center; }
+                .status-replying { color: #7c3aed; font-weight: bold; text-align: center; }
+                .status-close { color: #059669; font-weight: bold; text-align: center; }
+                .text-center { text-align: center; }
+                .text-left { text-align: left; }
+            </style>
+            </head>
+            <body>
+            <table>
+            <thead>
+                <tr>
+            `;
+
+            headers.forEach(h => {
+                html += `        <th style="background-color: #387699; color: #ffffff;">${h.title}</th>\n`;
+            });
+
+            html += `    </tr>
+        </thead>
+        <tbody>
+        `;
+
+            exportRows.forEach((row, index) => {
+                const getVal = (key, fallbackKeys = [], isDate = false) => {
+                    let raw = row[key];
+                    if (raw === undefined || raw === null) {
+                        for (const fbKey of fallbackKeys) {
+                            if (row[fbKey] !== undefined && row[fbKey] !== null) {
+                                raw = row[fbKey];
+                                break;
+                            }
+                        }
+                    }
+                    if (raw === undefined || raw === null) return '';
+                    if (isDate || (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw))) {
+                        return formatDate(raw);
+                    }
+                    return String(raw);
+                };
+
+                const dateRec = getVal('วันที่รับเรื่อง', ['วันที่รับเรื่อง', 'FirstUpdDate'], true);
+                const topicVal = getVal('หัวข้อเรื่อง', ['หัวข้อเรื่อง', 'suggesDesc']);
+                const customerVal = getVal('ลูกค้า', ['ลูกค้า', 'nameCus']);
+                const phoneVal = getVal('เบอร์โทร', ['เบอร์โทร', 'telCus']);
+                const emailVal = getVal('E-mail', ['E-mail', 'emailCus']);
+                const addressVal = getVal('ที่อยู่', ['ที่อยู่', 'addressCus']);
+                const providerVal = getVal('ผู้รับผิดชอบ', ['ผู้รับผิดชอบ', 'sendToPerson', 'sendToGroupAbb']);
+                const rawCcEmail = getVal('CC E-mail', ['CC E-mail', 'ccEmail', 'cc_email', 'cceMail']);
+                const ccEmailVal = rawCcEmail
+                    ? String(rawCcEmail)
+                        .split(/[\r\n;,]+/)
+                        .map(e => e.trim())
+                        .filter(Boolean)
+                        .join('\n')
+                    : '';
+                const detailVal = getVal('รายละเอียดข้อเสนอแนะ/ร้องเรียน', ['รายละเอียดข้อเสนอแนะ/ร้องเรียน', 'suggesDetail']);
+                const lastUpdVal = getVal('อัปเดทล่าสุด', ['อัปเดทล่าสุด', 'LastUpdDate'], true);
+                const replyVal = getVal('Reply / การตอบกลับ', ['Reply / การตอบกลับ', 'replyDetail']);
+                const statusVal = getVal('สถานะ', ['สถานะ', 'StatusTask']);
+
+                const estimateCellLines = (val, colWidth) => {
+                    if (!val) return 1;
+                    const str = String(val);
+                    const lines = str.split(/\r?\n/);
+                    let totalLines = 0;
+                    const effWidth = Math.max(8, colWidth - 3);
+                    lines.forEach(line => {
+                        if (!line.length) {
+                            totalLines += 1;
+                        } else {
+                            totalLines += Math.max(1, Math.ceil(line.length / effWidth));
+                        }
+                    });
+                    return Math.max(1, totalLines);
+                };
+
+                const maxLines = Math.max(
+                    1,
+                    estimateCellLines(topicVal, headers[1].width),
+                    estimateCellLines(customerVal, headers[2].width),
+                    estimateCellLines(emailVal, headers[4].width),
+                    estimateCellLines(addressVal, headers[5].width),
+                    estimateCellLines(providerVal, headers[6].width),
+                    estimateCellLines(ccEmailVal, headers[7].width),
+                    estimateCellLines(detailVal, headers[8].width),
+                    estimateCellLines(replyVal, headers[10].width)
+                );
+                const rowHeight = Math.max(30, Math.ceil(maxLines * 22 + 10));
+
+                let statusClass = '';
+                const stLower = (statusVal || '').toLowerCase();
+                if (stLower === 'pending') statusClass = 'status-pending';
+                else if (stLower === 'forward') statusClass = 'status-forward';
+                else if (stLower === 'reply' || stLower === 'replying') statusClass = 'status-replying';
+                else if (stLower === 'close') statusClass = 'status-close';
+
+                const rowBg = (index % 2 === 1) ? 'background-color: #ebf3f9;' : 'background-color: #ffffff;';
+
+                const escapeXml = (str) => {
+                    if (!str) return '';
+                    return String(str)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;"/>');
+                };
+
+                html += `    <tr style="${rowBg} height: ${rowHeight}px;">
+            <td class="text-center">${escapeXml(dateRec)}</td>
+            <td class="text-left">${escapeXml(topicVal)}</td>
+            <td class="text-left">${escapeXml(customerVal)}</td>
+            <td class="text-center">${escapeXml(phoneVal)}</td>
+            <td class="text-left">${escapeXml(emailVal)}</td>
+            <td class="text-left">${escapeXml(addressVal)}</td>
+            <td class="text-left">${escapeXml(providerVal)}</td>
+            <td class="text-left">${escapeXml(ccEmailVal)}</td>
+            <td class="text-left">${escapeXml(detailVal)}</td>
+            <td class="text-center">${escapeXml(lastUpdVal)}</td>
+            <td class="text-left">${escapeXml(replyVal)}</td>
+            <td class="${statusClass}">${escapeXml(statusVal)}</td>
+        </tr>\n`;
+            });
+
+            html += `</tbody>
+</table>
+</body>
+</html>`;
+
+            const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    } catch (err) {
+        console.error("Error exporting excel:", err);
+    } finally {
+        isExportingSuggestionExcel = false;
+        if (typeof stopLoading === 'function') {
+            stopLoading();
+        }
+    }
 }
 
 $(document).ready(async function () {
@@ -613,19 +1023,23 @@ $(document).ready(async function () {
     }
     try {
 
-        const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup');
-        if (!response.ok) return;
-        const jsonResult = await response.json();
-        const branch = [
-            ...jsonResult.group,
-            ...jsonResult.personalAbb
-        ];
-        const provider = [
-            ...jsonResult.group,
-            ...jsonResult.personal
-        ];
-        await setFilterBranch(branch);
-        await setFilterprovider(provider);
+        const jsonResult = await safeFetchJson('/DashboardSuggestion/GetPersonalAndGroup');
+        if (jsonResult) {
+            const group = Array.isArray(jsonResult.group) ? jsonResult.group : [];
+            const personalAbb = Array.isArray(jsonResult.personalAbb) ? jsonResult.personalAbb : [];
+            const personal = Array.isArray(jsonResult.personal) ? jsonResult.personal : [];
+
+            const branch = [
+                ...group,
+                ...personalAbb
+            ];
+            const provider = [
+                ...group,
+                ...personal
+            ];
+            await setFilterBranch(branch);
+            await setFilterprovider(provider);
+        }
         await setDashboard();
 
     } catch (error) {
@@ -646,4 +1060,9 @@ $("#btnResetFilter").off("click").on("click", async function (e) {
     if (e) e.preventDefault();
     await resetSuggestionFilters();
     await setDashboard();
+});
+
+$("#btnExportExcel").off("click").on("click", async function (e) {
+    if (e) e.preventDefault();
+    await exportSuggestionExcel();
 });

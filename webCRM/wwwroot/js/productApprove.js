@@ -293,6 +293,44 @@ function formatDate(dateStr) {
     return dateStr;
 }
 
+async function displayCampaignFile(fileId) {
+    const $fileNameText = $("#selectedFileNameText");
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+
+    if (fileId) {
+        try {
+            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`);
+            if (fileRes.ok) {
+                const fileData = await fileRes.json();
+                const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
+                const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
+
+                if (fileName) {
+                    $fileNameText
+                        .text(fileName)
+                        .attr("data-filepath", filePath)
+                        .css("cursor", "pointer")
+                        .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                    $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching file info:", e);
+        }
+    }
+
+    $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+}
+
+$(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+    const filePath = $(this).attr("data-filepath");
+    if (filePath) {
+        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+    }
+});
+
 // Update detail panel from a campaign object
 function updateDetailPanel(campaign) {
     if (!campaign) return;
@@ -327,6 +365,8 @@ function updateDetailPanel(campaign) {
         detailStatus.textContent = status;
         detailStatus.className = 'pa-status-box ' + statusClass(status);
     }
+
+    displayCampaignFile(campaign.file_id);
 }
 
 // Fetch campaign list from API with page and pageSize
@@ -387,7 +427,8 @@ async function getCampainList(page, pageSize) {
             remark:    item.product_remark || '',
             createdBy: item.createrd_by    || item.created_by || '',
             created:   item.created        ? item.created.substring(0, 10)       : '',
-            objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || item.product_objective || ''
+            objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || item.product_objective || '',
+            file_id:   item.file_id        || item.FileId || item.fileId || ""
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),

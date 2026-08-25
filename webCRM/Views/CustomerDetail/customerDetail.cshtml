@@ -920,7 +920,7 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-medium small">เบอร์โทรศัพท์</label>
-                                        <input type="text" class="form-control" placeholder="ตัวอย่าง: 081-234-5678">
+                                        <input type="text" class="form-control" placeholder="ตัวอย่าง: 0812345678" maxlength="10" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-medium small">Line ID</label>

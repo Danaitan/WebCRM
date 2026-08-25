@@ -1,7 +1,63 @@
 
 let table;
 
-async function searchSuggestion() {
+async function PostNoti(PostNotiData){
+    try {
+        const payload = {
+            header: PostNotiData.header || PostNotiData.Header,
+            title: PostNotiData.title || PostNotiData.Title,
+            message: PostNotiData.message || PostNotiData.Message,
+            receiver: PostNotiData.receiver || PostNotiData.Receiver,
+            sender: PostNotiData.sender || PostNotiData.Sender,
+            create_by: PostNotiData.create_by || PostNotiData.CreateBy,
+            end_date: PostNotiData.end_date || PostNotiData.EndDate,
+            receiver_email: PostNotiData.receiver_email || PostNotiData.ReceiverEmail
+        };
+
+        const response = await fetch('/Suggestions/PostNotification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        return response;
+    } catch (error) {
+        console.error("Error in PostNotification:", error);
+    }
+}
+
+async function GetPersonalAndGroup() {
+    try {
+        const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup');
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in GetPersonalAndGroup:", error);
+    }
+}
+
+async function sendEmail(to, cc, subject, content) {
+    const ccArray = Array.isArray(cc)
+        ? cc
+        : (typeof cc === 'string' && cc.trim() !== '' ? cc.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const response = await fetch("/Suggestions/SendEmail", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            to: to,
+            cc: ccArray,
+            subject: subject,
+            content: content
+        })
+    });
+
+    return response;
+}
+
+async function searchSuggestion(selectedGuidToPreserve = null) {
     if (!table) return;
 
     var topicVal = $('#filterTopic').val() || '';
@@ -20,7 +76,7 @@ async function searchSuggestion() {
         }
 
         const data = await response.json();
-        renderSuggestionsTable(data);
+        renderSuggestionsTable(data, selectedGuidToPreserve);
 
     } catch (error) {
         console.error("Error in searchSuggestion:", error);
@@ -41,39 +97,43 @@ function escapeAttr(str) {
         .replace(/>/g, '&gt;');
 }
 
-function renderSuggestionsTable(data) {
+function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     if (!table) return;
 
     table.clear();
 
     if (Array.isArray(data) && data.length > 0) {
         data.forEach(item => {
-            let displayCreatedDate = item.createdDate || item.CreatedDate;
-            if (!displayCreatedDate && (item.dateSugges || item.DateSugges)) {
-                let dDate = item.dateSugges || item.DateSugges;
-                let tTime = item.timeSugges || item.TimeSugges;
-                displayCreatedDate = tTime ? `${String(dDate).split('T')[0]}T${String(tTime).includes('T') ? String(tTime).split('T')[1] : tTime}` : dDate;
+            let rawCreated = getValidDateStr(item.createdDate || item.CreatedDate);
+            let displayCreatedDate = rawCreated;
+
+            if (!displayCreatedDate) {
+                let dDate = getValidDateStr(item.dateSugges || item.DateSugges);
+                if (dDate) {
+                    let tTime = item.timeSugges || item.TimeSugges;
+                    displayCreatedDate = tTime ? `${String(dDate).split('T')[0]}T${String(tTime).includes('T') ? String(tTime).split('T')[1] : tTime}` : dDate;
+                }
             }
-            if (!displayCreatedDate && (item.upDate || item.UpDate)) {
-                displayCreatedDate = item.upDate || item.UpDate;
+            if (!displayCreatedDate) {
+                displayCreatedDate = getValidDateStr(item.upDate || item.UpDate);
             }
 
             const createdDateStr = formatDateDisplay(displayCreatedDate);
             const createdDateOrder = parseDateForSort(displayCreatedDate);
 
-            const rawUpDate = item.upDate || item.UpDate;
+            const rawUpDate = getValidDateStr(item.upDate || item.UpDate);
             const upDateStr = formatDateDisplay(rawUpDate);
             const upDateOrder = parseDateForSort(rawUpDate);
 
             let timeDiffText = '-';
             let daysOrder = 999999;
-            if (createdDateOrder > 0) {
-                const createdDt = new Date(createdDateOrder);
+            const createdDt = parseDateToLocalObject(displayCreatedDate);
+            if (createdDt) {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                createdDt.setHours(0, 0, 0, 0);
-                const diffTime = today - createdDt;
-                const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const createdDateOnly = new Date(createdDt.getFullYear(), createdDt.getMonth(), createdDt.getDate());
+                const diffTime = today.getTime() - createdDateOnly.getTime();
+                const days = Math.round(diffTime / (1000 * 60 * 60 * 24));
                 daysOrder = days;
                 timeDiffText = `${days} วัน`;
             }
@@ -101,30 +161,14 @@ function renderSuggestionsTable(data) {
             const reply = item.reply || item.Reply || '-';
             const nameProvider = item.nameProvider || item.NameProvider || '-';
             const suggestion = item.suggestion || item.Suggestion || '-';
-            const title = item.suggestionTitle || item.SuggestionTitle || '-';
+            const title = item.suggestion_title || item.suggestionTitle || item.SuggestionTitle || '-';
             const guid = item.guid || item.Guid || '-';
             const updBy = item.updBy || item.UpdBy || '-';
             const sendTo = item.sendTo || item.SendTo || '-';
             const detailsJson = (item.detail || item.Detail) ? JSON.stringify(item.detail || item.Detail) : '[]';
 
             const $tr = $(`
-                <tr style="cursor: pointer;"
-                    data-phone="${escapeAttr(phone)}"
-                    data-contact="${escapeAttr(contactDateStr)}"
-                    data-email="${escapeAttr(email)}"
-                    data-line="${escapeAttr(line)}"
-                    data-idno="${escapeAttr(idno)}"
-                    data-status="${escapeAttr(statusLower)}"
-                    data-address="${escapeAttr(address)}"
-                    data-date="${escapeAttr(createdDateStr)}"
-                    data-recordedby="${escapeAttr(recordedBy)}"
-                    data-reply="${escapeAttr(reply)}"
-                    data-nameprovider="${escapeAttr(nameProvider)}"
-                    data-suggestion="${escapeAttr(suggestion)}"
-                    data-guid="${escapeAttr(guid)}"
-                    data-updby="${escapeAttr(updBy)}"
-                    data-sendto="${escapeAttr(sendTo)}"
-                    data-details='${escapeAttr(detailsJson)}'>
+                <tr style="cursor: pointer;">
                     <td class="text-center py-2" data-order="${createdDateOrder}"><div class="fw-medium text-dark">${escapeHtml(createdDateStr)}</div></td>
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(title)}</div></td>
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(nameProvider)}</div></td>
@@ -134,17 +178,124 @@ function renderSuggestionsTable(data) {
                 </tr>
             `);
 
+            $tr.attr({
+                'data-phone': phone,
+                'data-contact': contactDateStr,
+                'data-email': email,
+                'data-line': line,
+                'data-idno': idno,
+                'data-status': statusLower,
+                'data-address': address,
+                'data-date': createdDateStr,
+                'data-recordedby': recordedBy,
+                'data-reply': reply,
+                'data-nameprovider': nameProvider,
+                'data-suggestion': suggestion,
+                'data-guid': guid,
+                'data-updby': updBy,
+                'data-sendto': sendTo,
+                'data-details': detailsJson
+            });
+
             table.row.add($tr[0]);
         });
     }
 
     table.draw();
 
-    const firstRow = $('#suggestionsTable tbody tr').first();
-    if (firstRow.length && firstRow.find('td').length > 1) {
-        showDetails(firstRow[0]);
+    let targetRow = null;
+    if (selectedGuidToPreserve) {
+        $('#suggestionsTable tbody tr').each(function () {
+            if ($(this).attr('data-guid') === selectedGuidToPreserve) {
+                targetRow = this;
+                return false;
+            }
+        });
+    }
+
+    if (!targetRow) {
+        const firstRow = $('#suggestionsTable tbody tr').first();
+        if (firstRow.length && firstRow.find('td').length > 1) {
+            targetRow = firstRow[0];
+        }
+    }
+
+    if (targetRow) {
+        showDetails(targetRow);
     } else {
         clearDetails();
+    }
+}
+
+/**
+ * ตรวจสอบสิทธิ์การแสดงผล "กล่องบันทึกข้อมูล"
+ * @param {string} status - สถานะของเคส
+ * @returns {boolean} true ถ้าให้แสดงผล, false ถ้าให้ซ่อน
+ */
+function canShowReplyBox(status) {
+    if (!status) return true;
+    const lowerStatus = String(status).toLowerCase().trim();
+    if (lowerStatus === 'close') {
+        return false;
+    }
+    // สามารถขยายเงื่อนไขสิทธิ์เพิ่มเติมในอนาคตได้ที่นี่
+    return true;
+}
+
+/**
+ * ตรวจสอบสิทธิ์การแสดงผล "ปุ่มส่งต่อ"
+ * @param {string} status - สถานะของเคส
+ * @returns {boolean} true ถ้าให้แสดงผล, false ถ้าให้ซ่อน
+ */
+function canShowForwardBtn(status) {
+    if (!status) return true;
+    const lowerStatus = String(status).toLowerCase().trim();
+    if (lowerStatus === 'close') {
+        return false;
+    }
+    // สามารถขยายเงื่อนไขสิทธิ์เพิ่มเติมในอนาคตได้ที่นี่
+    return true;
+}
+
+/**
+ * ตรวจสอบสิทธิ์การใช้งาน "ปุ่มปิดงาน" (Enable / Disable)
+ * @param {string} status - สถานะของเคส
+ * @returns {boolean} true ถ้าให้เปิดใช้งาน (Enable), false ถ้าให้ปิดใช้งาน (Disable)
+ */
+function canEnableCloseBtn(status) {
+    if (!status) return true;
+    const lowerStatus = String(status).toLowerCase().trim();
+    if (lowerStatus === 'close') {
+        return false;
+    }
+    // สามารถขยายเงื่อนไขสิทธิ์เพิ่มเติมในอนาคตได้ที่นี่
+    return true;
+}
+
+/**
+ * อัปเดตสถานะการแสดงผลและ Disable/Enable ของปุ่มต่าง ๆ ในหน้าจอรายละเอียด
+ * @param {string} status - สถานะเคสปัจจุบัน
+ */
+function updateActionButtonsState(status) {
+    // 1. กล่องบันทึกข้อมูล
+    if (canShowReplyBox(status)) {
+        $('#replyBoxSection').show();
+    } else {
+        $('#replyBoxSection').hide();
+    }
+
+    // 2. ปุ่มส่งต่อ
+    if (canShowForwardBtn(status)) {
+        $('#forwardBtnContainer').show();
+    } else {
+        $('#forwardBtnContainer').hide();
+    }
+
+    // 3. ปุ่มปิดงาน
+    if (canEnableCloseBtn(status)) {
+        $('#closeBtn').prop('disabled', false);
+    } else {
+        $('#closeBtn').prop('disabled', true);
     }
 }
 
@@ -165,6 +316,8 @@ function clearDetails() {
     $('#detail-sendTo').text('');
     $('#detail-reply-list').html('<tr><td colspan="3" class="text-center text-muted py-3">ไม่มีข้อมูลการตอบกลับ</td></tr>');
     $('#replyHistoryTotalBadge').text('ทั้งหมด 0 รายการ');
+
+    updateActionButtonsState('');
 }
 
 $(document).ready(function () {
@@ -196,7 +349,7 @@ $(document).ready(function () {
     loadSuggestionStatusOptions();
 
     table = $('#suggestionsTable').DataTable({
-        order: [[5, 'asc']],
+        order: [[0, 'desc']],
         searching: true,
         dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
         language: {
@@ -248,19 +401,23 @@ $(document).ready(function () {
         showDetails(this);
     });
 
-    // เลือกรายการแรกโดยอัตโนมัติหากมีข้อมูล
+    // เลือกรายการแรกโดยอัตโนมัติหากมีข้อมูล หรือโหลดข้อมูลหากยังไม่มีข้อมูล
     const firstRow = $('#suggestionsTable tbody tr').first();
     if (firstRow.length && firstRow.find('td').length > 1) {
         showDetails(firstRow[0]);
+    } else {
+        searchSuggestion();
     }
 });
 
 async function loadDepartmentOptions() {
     try {
-        const response = await fetch('/Home/GetMaster');
-        if (!response.ok) return;
-        const data = await response.json();
+        const [masterRes, personalData] = await Promise.all([
+            fetch('/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
+            GetPersonalAndGroup().catch(() => null)
+        ]);
 
+        const data = masterRes;
         const currentCompany = (typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")).trim().toUpperCase();
 
         const deptSelect = document.getElementById('post-department');
@@ -295,13 +452,14 @@ async function loadDepartmentOptions() {
         const sendToSelect = document.getElementById('post-send-to');
         const ccDropdownMenu = document.getElementById('cc-dropdown-menu');
 
+        const uniqueEmails = [];
+
         if (data && Array.isArray(data.email)) {
             const filteredEmails = data.email.filter(item => {
                 if (!currentCompany) return true;
                 return item.company && item.company.trim().toUpperCase() === currentCompany;
             });
 
-            const uniqueEmails = [];
             filteredEmails.forEach(item => {
                 if (item.groupEmail && item.groupEmail.trim() !== '') {
                     const emailVal = item.groupEmail.trim();
@@ -310,33 +468,63 @@ async function loadDepartmentOptions() {
                     }
                 }
             });
+        }
 
-            if (sendToSelect) {
-                sendToSelect.innerHTML = '<option value="" selected>เลือกผู้รับผิดชอบ</option>';
-                uniqueEmails.forEach(emailVal => {
-                    const option = document.createElement('option');
-                    option.value = emailVal;
-                    option.textContent = emailVal;
-                    sendToSelect.appendChild(option);
+        if (personalData && Array.isArray(personalData.personal)) {
+            personalData.personal.forEach(item => {
+                const emailVal = (item.e_mail || item.e_Mail || item.email || '').trim();
+                if (emailVal !== '' && !uniqueEmails.includes(emailVal)) {
+                    uniqueEmails.push(emailVal);
+                }
+            });
+        }
+
+        if (sendToSelect) {
+            sendToSelect.innerHTML = '<option value="" selected>เลือกผู้รับผิดชอบ</option>';
+            uniqueEmails.forEach(emailVal => {
+                const option = document.createElement('option');
+                option.value = emailVal;
+                option.textContent = emailVal;
+                sendToSelect.appendChild(option);
+            });
+
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $(sendToSelect).select2({
+                    theme: 'bootstrap-5',
+                    dropdownParent: $('#complaintModal'),
+                    placeholder: 'เลือกผู้รับผิดชอบ',
+                    allowClear: true,
+                    width: '100%'
                 });
             }
+        }
 
-            if (ccDropdownMenu) {
-                ccDropdownMenu.innerHTML = '';
-                if (uniqueEmails.length === 0) {
-                    ccDropdownMenu.innerHTML = '<li><span class="dropdown-item text-muted small">ไม่มีข้อมูล</span></li>';
-                } else {
-                    uniqueEmails.forEach(emailVal => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <a class="dropdown-item d-flex align-items-center justify-content-between rounded py-2 cc-option-item" href="javascript:void(0)" data-value="${emailVal}">
-                                <span class="small">${emailVal}</span>
-                                <i class="bi bi-check2 text-primary d-none cc-check-icon fs-6"></i>
-                            </a>
-                        `;
-                        ccDropdownMenu.appendChild(li);
-                    });
-                }
+        if (ccDropdownMenu) {
+            ccDropdownMenu.innerHTML = '';
+            if (uniqueEmails.length === 0) {
+                ccDropdownMenu.innerHTML = '<li><span class="dropdown-item text-muted small">ไม่มีข้อมูล</span></li>';
+            } else {
+                const searchLi = document.createElement('li');
+                searchLi.className = 'p-1 sticky-top bg-white border-bottom mb-1';
+                searchLi.id = 'cc-search-item';
+                searchLi.innerHTML = `
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="cc-search-input" class="form-control border-start-0" placeholder="ค้นหา CC..." autocomplete="off">
+                    </div>
+                `;
+                ccDropdownMenu.appendChild(searchLi);
+
+                uniqueEmails.forEach(emailVal => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <a class="dropdown-item d-flex align-items-center justify-content-between rounded py-2 cc-option-item" href="javascript:void(0)" data-value="${emailVal}">
+                            <span class="small">${emailVal}</span>
+                            <i class="bi bi-check2 text-primary d-none cc-check-icon fs-6"></i>
+                        </a>
+                    `;
+                    ccDropdownMenu.appendChild(li);
+                });
             }
         }
     } catch (error) {
@@ -455,24 +643,50 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-function parseDateForSort(dateStr) {
-    if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') return 0;
-    if (typeof dateStr === 'string' && (dateStr.toLowerCase().includes('invalid') || dateStr.startsWith('0001-01-01'))) return 0;
-    
-    let ts = Date.parse(dateStr);
-    if (!isNaN(ts)) {
-        let d = new Date(ts);
-        if (d.getFullYear() <= 1900) return 0;
-        return ts;
+function getValidDateStr(dateVal) {
+    if (!dateVal || dateVal === '-' || dateVal === 'null' || dateVal === 'undefined') return null;
+    if (typeof dateVal === 'string' && (dateVal.toLowerCase().includes('invalid') || dateVal.startsWith('0001-01-01'))) return null;
+    return dateVal;
+}
+
+function parseDateToLocalObject(dateStr) {
+    const validStr = getValidDateStr(dateStr);
+    if (!validStr) return null;
+
+    if (typeof validStr === 'object' && validStr instanceof Date) {
+        return isNaN(validStr.getTime()) ? null : validStr;
     }
-    
-    if (typeof dateStr === 'string' && dateStr.includes('/')) {
-        const parts = dateStr.trim().split(' ');
+
+    const str = String(validStr).trim();
+
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (isoMatch) {
+        const year = parseInt(isoMatch[1], 10);
+        const month = parseInt(isoMatch[2], 10) - 1;
+        const day = parseInt(isoMatch[3], 10);
+        const hours = isoMatch[4] ? parseInt(isoMatch[4], 10) : 0;
+        const minutes = isoMatch[5] ? parseInt(isoMatch[5], 10) : 0;
+        const seconds = isoMatch[6] ? parseInt(isoMatch[6], 10) : 0;
+
+        if (year <= 1900) return null;
+        const dt = new Date(year, month, day, hours, minutes, seconds);
+        return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    if (str.includes('/')) {
+        const parts = str.split(' ');
         const dateParts = parts[0].split('/');
         if (dateParts.length === 3) {
-            const day = parseInt(dateParts[0], 10);
-            const month = parseInt(dateParts[1], 10) - 1;
-            const year = parseInt(dateParts[2], 10);
+            let day, month, year;
+            if (dateParts[0].length === 4) {
+                year = parseInt(dateParts[0], 10);
+                month = parseInt(dateParts[1], 10) - 1;
+                day = parseInt(dateParts[2], 10);
+            } else {
+                day = parseInt(dateParts[0], 10);
+                month = parseInt(dateParts[1], 10) - 1;
+                year = parseInt(dateParts[2], 10);
+            }
             let hours = 0, minutes = 0, seconds = 0;
             if (parts[1]) {
                 const timeParts = parts[1].split(':');
@@ -480,28 +694,39 @@ function parseDateForSort(dateStr) {
                 minutes = parseInt(timeParts[1] || 0, 10);
                 seconds = parseInt(timeParts[2] || 0, 10);
             }
+            if (year <= 1900) return null;
             const dt = new Date(year, month, day, hours, minutes, seconds);
-            if (!isNaN(dt.getTime()) && dt.getFullYear() > 1900) {
-                return dt.getTime();
-            }
+            return isNaN(dt.getTime()) ? null : dt;
         }
     }
-    return 0;
+
+    const ts = Date.parse(str);
+    if (!isNaN(ts)) {
+        const dt = new Date(ts);
+        if (dt.getFullYear() <= 1900) return null;
+        return dt;
+    }
+
+    return null;
+}
+
+function parseDateForSort(dateStr) {
+    const dt = parseDateToLocalObject(dateStr);
+    return dt ? dt.getTime() : 0;
 }
 
 function formatDateDisplay(dateStr) {
-    if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') return '-';
-    if (typeof dateStr === 'string' && (dateStr.toLowerCase().includes('invalid') || dateStr.startsWith('0001-01-01'))) return '-';
-    
-    if (typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}/.test(dateStr.trim())) {
-        return dateStr.trim();
+    const validStr = getValidDateStr(dateStr);
+    if (!validStr) return '-';
+
+    if (typeof validStr === 'string' && /^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}/.test(validStr.trim())) {
+        return validStr.trim();
     }
-    
-    let ts = parseDateForSort(dateStr);
-    if (ts > 0) {
-        const d = new Date(ts);
+
+    const dt = parseDateToLocalObject(validStr);
+    if (dt) {
         const pad = (n) => n.toString().padStart(2, '0');
-        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
     }
     return '-';
 }
@@ -539,6 +764,9 @@ function showDetails(row) {
     $('#detail-guid').text(getVal('guid'));
     $('#detail-updBy').text(getVal('updby'));
     $('#detail-sendTo').text(getVal('sendto'));
+
+    // อัปเดตการแสดงผลและสถานะปุ่มตามสิทธิ์/สถานะเคส
+    updateActionButtonsState(rawStatus);
 
     // Render Reply History Table
     let detailsData = $row.data('details');
@@ -610,6 +838,13 @@ async function UpdateSuggestion() {
         return;
     }
 
+    var $activeRow = $('#suggestionsTable tbody tr.table-active');
+    var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
+    if (!canShowReplyBox(currentStatus)) {
+        showAlert('warning', 'แจ้งเตือน', 'เคสนี้อยู่ในสถานะปิดงานแล้ว ไม่สามารถบันทึกข้อความตอบกลับได้');
+        return;
+    }
+
     try {
         var result = await AlertComponent.confirmSave('ต้องการบันทึกข้อความตอบกลับหรือไม่');
 
@@ -623,10 +858,54 @@ async function UpdateSuggestion() {
             if (msg && msg.status === "error") {
                 throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
             }
+
+            var sendToVal = $("#detail-sendTo").text().trim();
+            if (sendToVal === '-' || sendToVal === 'undefined') {
+                sendToVal = '';
+            }
+
+            if (sendToVal) {
+                try {
+                    const sendToText = sendToVal;
+                    const $activeRow = $('#suggestionsTable tbody tr.table-active');
+                    const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
+                    const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                    const emailContent = `เรียน ${sendToText}<br><br>` +
+                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาดังนี้ ${reply} ` +
+                        `ขอขอบคุณ<br>` +
+                        `${fullNameTh}`;
+
+                    await sendEmail(
+                        sendToVal,
+                        null,
+                        "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
+                        emailContent
+                    );
+                    const endDate = new Date();
+                    endDate.setFullYear(endDate.getFullYear() + 10);
+
+                    const senderId = typeof userId !== 'undefined' ? userId : '';
+
+                    PostNoti({
+                        header: "ข้อเสนอแนะ/ร้องเรียน",
+                        title: "เรื่อง : " + topicTitle,
+                        message: emailContent,
+                        receiver_email: sendToVal,
+                        sender: senderId,
+                        create_by: senderId,
+                        end_date: endDate,
+                    });
+
+                } catch (emailErr) {
+                    console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
+                }
+
+            }
+
             hideLoading();
             $("#reply-input").val("");
             showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function () {
-                window.location.reload();
+                searchSuggestion(guid);
             });
         }
 
@@ -652,6 +931,14 @@ async function AddSuggestion() {
         timeVal = null;
     }
 
+    const sendToVal = $("#post-send-to").val() ? $("#post-send-to").val().toString() : null;
+    const sendToText = $('#post-send-to option:selected').text() || sendToVal || '';
+    const topicTitle = $('#post-title option:selected').text() || $('#post-title').val() || '';
+    const suggestionDetail = $("#post-reply").val()?.toString() || '';
+    const contactDate = $("#post-contact-date").val()?.toString() || '';
+    const contactTime = $("#post-contact-time").val() || '';
+    const contactDateTime = contactTime ? `${contactDate} ${contactTime}` : contactDate;
+
     var requestData = {
         suggesCde: $("#post-title").val()?.toString(),
         nameProvider: $("#post-personal-name").val()?.toString(),
@@ -660,33 +947,34 @@ async function AddSuggestion() {
         phoneProvider: $("#post-phone").val()?.toString(),
         lineProvider: $("#post-line-id").val()?.toString(),
         department: $("#post-department").val() ? $("#post-department").val().toString() : null,
-        sendTo: $("#post-send-to").val() ? $("#post-send-to").val().toString() : null,
-        dateSugges: $("#post-contact-date").val()?.toString(),
+        sendTo: sendToVal,
+        dateSugges: contactDate,
         timeSugges: timeVal,
         chanelProvider: $("#post-additional-contact").val()?.toString(),
-        suggestion: $("#post-reply").val()?.toString(),
-        cc: selectedCc.length > 0 ? selectedCc.join(",") : null
+        suggestion: suggestionDetail,
+        ccMail: selectedCc.length > 0 ? selectedCc.join(" , ") : null,
+        cc: selectedCc.length > 0 ? selectedCc.join(" , ") : null
     };
 
     if (!requestData.suggesCde || requestData.suggesCde === "เลือกหัวข้อ" || requestData.suggesCde.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกหัวข้อ');
-        return;
+        return false;
     }
     if (!requestData.nameProvider || requestData.nameProvider.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณากรอกชื่อ-นามสกุล');
-        return;
+        return false;
     }
     if (!requestData.sendTo || requestData.sendTo.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบ');
-        return;
+        return false;
     }
     if (!requestData.suggestion || requestData.suggestion.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณากรอกบันทึกข้อเสนอแนะ / ร้องเรียน');
-        return;
+        return false;
     }
     if (!requestData.dateSugges || requestData.dateSugges.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกวันที่และเวลาให้ติดต่อกลับ');
-        return;
+        return false;
     }
 
     try {
@@ -712,6 +1000,42 @@ async function AddSuggestion() {
                 throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
             }
 
+            if (sendToVal) {
+                try {
+                    const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                    const emailContent = `เรียน ${sendToText}<br><br>` +
+                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail} ` +
+                        `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
+                        `ขอขอบคุณ<br>` +
+                        `${fullNameTh}`;
+
+                    await sendEmail(
+                        sendToVal,
+                        selectedCc,
+                        "CRM : การมอบหมายข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
+                        emailContent
+                    );
+                    const endDate = new Date();
+                    endDate.setFullYear(endDate.getFullYear() + 10);
+
+                    const senderId = typeof userId !== 'undefined' ? userId : '';
+
+                    PostNoti({
+                        header: "ข้อเสนอแนะ/ร้องเรียน",
+                        title: "เรื่อง : " + topicTitle,
+                        message: emailContent,
+                        receiver_email: sendToVal,
+                        sender: senderId,
+                        create_by: senderId,
+                        end_date: endDate,
+                    });
+
+                } catch (emailErr) {
+                    console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
+                }
+
+            }
+
             hideLoading();
 
             // Clear fields
@@ -722,7 +1046,7 @@ async function AddSuggestion() {
             $("#post-phone").val("");
             $("#post-line-id").val("");
             $("#post-department").val("");
-            $("#post-send-to").val("");
+            $("#post-send-to").val("").trigger("change");
             $("#post-contact-date").val("");
             $("#post-contact-time").val("00:00");
             $("#post-additional-contact").val("");
@@ -731,6 +1055,8 @@ async function AddSuggestion() {
             $('#post-cc').empty();
             $('#cc-tags-container .badge').remove();
             $('#cc-placeholder').show();
+            $('#cc-search-input').val('');
+            $('#cc-dropdown-menu li').show();
 
             // Close Modal if using bootstrap
             var modalEl = document.getElementById('complaintModal');
@@ -740,7 +1066,7 @@ async function AddSuggestion() {
             }
 
             showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function () {
-                window.location.reload();
+                searchSuggestion();
             });
 
         }
@@ -799,15 +1125,71 @@ $(document).on('click', '.cc-option-item', function (e) {
     updateCcSelection();
 });
 
+$(document).on('keyup input', '#cc-search-input', function (e) {
+    var searchVal = $(this).val().toLowerCase().trim();
+    $('#cc-dropdown-menu .cc-option-item').each(function () {
+        var text = $(this).text().toLowerCase();
+        if (text.includes(searchVal)) {
+            $(this).closest('li').show();
+        } else {
+            $(this).closest('li').hide();
+        }
+    });
+});
+
+$(document).on('click', '#cc-search-item', function (e) {
+    e.stopPropagation();
+});
+
+$(document).on('shown.bs.dropdown', '.custom-multi-select', function () {
+    $('#cc-search-input').val('').focus();
+    $('#cc-dropdown-menu li').show();
+});
+
+$(document).on('select2:open', () => {
+    setTimeout(() => {
+        const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    }, 10);
+});
+
 async function PutSuggestionStatusUpd (){
     var guid = $("#detail-guid").text();
-    showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่...');
-    var response = await fetch(`/Suggestions/PutSuggestionStatusUpd?guid=${encodeURIComponent(guid)}`);
-    var msg = await response.json();
-    window.location.reload();
-    hideLoading();
-    if (msg && msg.status === "error") {
-        throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+    if (!guid || guid.trim() === "-" || guid.trim() === "") {
+        showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการที่ต้องการปิดงาน');
+        return;
+    }
+
+    var $activeRow = $('#suggestionsTable tbody tr.table-active');
+    var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
+    if (!canEnableCloseBtn(currentStatus)) {
+        showAlert('warning', 'แจ้งเตือน', 'เคสนี้อยู่ในสถานะปิดงานแล้ว');
+        return;
+    }
+
+    try {
+        var result = await AlertComponent.confirmSave('ต้องการปิดงานข้อเสนอแนะ / ร้องเรียนหรือไม่');
+        if (result.isConfirmed) {
+            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่...');
+            var response = await fetch(`/Suggestions/PutSuggestionStatusUpd?guid=${encodeURIComponent(guid)}`);
+            if (!response.ok) {
+                throw new Error("HTTP error " + response.status);
+            }
+            var msg = await response.json();
+            hideLoading();
+            if (msg && msg.status === "error") {
+                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+            }
+            showAlert('success', 'สำเร็จ', 'ปิดงานเรียบร้อยแล้ว', function () {
+                searchSuggestion(guid);
+            });
+        }
+    } catch (error) {
+        console.error(error);
+        hideLoading();
+        showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
 
@@ -815,6 +1197,13 @@ async function ForwardSuggestion() {
     var guid = $("#detail-guid").text();
     if (!guid || guid.trim() === "-" || guid.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการที่ต้องการส่งต่อ');
+        return;
+    }
+
+    var $activeRow = $('#suggestionsTable tbody tr.table-active');
+    var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
+    if (!canShowForwardBtn(currentStatus)) {
+        showAlert('warning', 'แจ้งเตือน', 'เคสนี้อยู่ในสถานะปิดงานแล้ว ไม่สามารถส่งต่อได้');
         return;
     }
 
@@ -849,6 +1238,13 @@ async function ForwardSuggestion() {
                     swalSelect.value = currentSendTo;
                 }
             }
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $('#swal-send-to').select2({
+                    theme: 'bootstrap-5',
+                    dropdownParent: Swal.getPopup(),
+                    width: '100%'
+                });
+            }
         },
         preConfirm: () => {
             const sendToVal = document.getElementById('swal-send-to').value;
@@ -863,17 +1259,63 @@ async function ForwardSuggestion() {
     if (result.isConfirmed && result.value) {
         try {
             showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังส่งต่อข้อมูล กรุณารอสักครู่...');
-            var response = await fetch(`/Suggestions/UpdateSuggestionStatus?guid=${encodeURIComponent(guid)}&statusTask=Forward&sendTo=${encodeURIComponent(result.value)}`);
+
+            const sendToVal = result.value;
+            const sendToText = $('#swal-send-to option:selected').text().trim() || sendToVal;
+            const $activeRow = $('#suggestionsTable tbody tr.table-active');
+            const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
+            const suggestionDetail = $('#detail-suggestion').text().trim();
+            const contactDateTime = $('#detail-contact-back').text().trim();
+
+            var response = await fetch(`/Suggestions/UpdateSuggestionStatus?guid=${encodeURIComponent(guid)}&statusTask=Forward&sendTo=${encodeURIComponent(sendToVal)}`);
             if (!response.ok) {
                 throw new Error("HTTP error " + response.status);
             }
             var msg = await response.json();
-            hideLoading();
+
             if (msg && msg.status === "error") {
                 throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
             }
+
+            if (sendToVal) {
+                try {
+                    const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                    const emailContent = `เรียน ${sendToText}<br><br>` +
+                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้ถูกส่งต่อให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail} ` +
+                        `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
+                        `ขอขอบคุณ<br>` +
+                        `${fullNameTh}`;
+
+                    await sendEmail(
+                        sendToVal,
+                        null,
+                        "CRM : การส่งต่อข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
+                        emailContent
+                    );
+                    const endDate = new Date();
+                    endDate.setFullYear(endDate.getFullYear() + 10);
+
+                    const senderId = typeof userId !== 'undefined' ? userId : '';
+
+                    PostNoti({
+                        header: "ข้อเสนอแนะ/ร้องเรียน",
+                        title: "เรื่อง : " + topicTitle,
+                        message: emailContent,
+                        receiver_email: sendToVal,
+                        sender: senderId,
+                        create_by: senderId,
+                        end_date: endDate,
+                    });
+
+                } catch (emailErr) {
+                    console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
+                }
+
+            }
+
+            hideLoading();
             showAlert('success', 'สำเร็จ', 'ส่งต่อเรียบร้อยแล้ว', function () {
-                window.location.reload();
+                searchSuggestion(guid);
             });
         } catch (error) {
             console.error(error);
@@ -882,3 +1324,23 @@ async function ForwardSuggestion() {
         }
     }
 }
+
+$("#btnSaveSuggestion").click(async function () {
+    await AddSuggestion();
+});
+
+$("#post-phone").on("input", function () {
+    this.value = this.value.replace(/[^0-9]/g, "");
+});
+
+$("#forwardBtn").click(async function () {
+    await ForwardSuggestion();
+});
+
+$("#closeBtn").click(async function () {
+    await PutSuggestionStatusUpd();
+});
+
+$("#saveReplyBtn").click(async function () {
+    await UpdateSuggestion();
+});

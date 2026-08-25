@@ -210,6 +210,32 @@
         </div>
     </div>
 
+    <!-- Notification Detail Popup Modal -->
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-labelledby="notificationDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%);">
+                    <h5 class="modal-title fw-bold" id="notificationDetailModalLabel">
+                        <i class="bi bi-bell-fill me-2"></i>รายละเอียดการแจ้งเตือน
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-white" id="notificationDetailModalBody" style="max-height: 70vh; overflow-y: auto;">
+                    <!-- Notification details will be loaded here -->
+                </div>
+                <div class="modal-footer bg-light border-top d-flex justify-content-between align-items-center px-3 py-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1 shadow-sm" id="notiDetailDeleteBtn">
+                        <i class="bi bi-trash3-fill"></i>
+                        <span>ลบ</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">
+                        ปิด
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Global Loading Overlay -->
     <partial name="~/Views/Component/Loading.cshtml" />
 
@@ -233,8 +259,11 @@
                         ?? "";
     }
     <script>
-        const userId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(personalId ?? ""));
-        const apiDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiDomain ?? ""));
+        var userId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(personalId ?? ""));
+        var apiDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiDomain ?? ""));
+        var currentUserEmail = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("email") ?? ""));
+        var userFullNameEn = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameEn") ?? ""));
+        var userFullNameTh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameTh") ?? ""));
     </script>
     <script src="~/js/layout.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)

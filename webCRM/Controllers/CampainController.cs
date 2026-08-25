@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 
 namespace webCRM.Controllers
 {
-    public class CampainController(IConfiguration configuration) : Controller
+    public class CampainController(IConfiguration configuration, IWebHostEnvironment webHostEnvironment) : Controller
     {
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
         string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
@@ -421,6 +421,245 @@ namespace webCRM.Controllers
             }
 
         }
-        
+
+        [HttpPost]
+        public async Task<IActionResult> PostFile([FromBody] PostFile request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                request.created_by = HttpContext.Session.GetString("personalId") ?? "";
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync(
+                    $"{domain}/crm/api/v1/p3/postFile",
+                    content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+
+                string json = await response.Content.ReadAsStringAsync();
+
+                long fileId = 0;
+                try
+                {
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("Id", out var idProp) || root.TryGetProperty("id", out idProp))
+                    {
+                        if (idProp.ValueKind == JsonValueKind.Number)
+                        {
+                            fileId = idProp.GetInt64();
+                        }
+                        else if (idProp.ValueKind == JsonValueKind.String && long.TryParse(idProp.GetString(), out long parsedId))
+                        {
+                            fileId = parsedId;
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                return Ok(new { status = "success", id = fileId, data = json });
+            }
+            catch (System.Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> getFile(long Id)
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getFile?Id={Id}");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
+            }
+
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadCampaignFile(IFormFile file, string campaignCode)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Ok(new { status = "error", message = "กรุณาเลือกไฟล์" });
+                }
+
+                if (string.IsNullOrWhiteSpace(campaignCode))
+                {
+                    return Ok(new { status = "error", message = "ไม่พบรหัสแคมเปญ กรุณาเลือกหรือสร้างแคมเปญก่อนแนบเอกสาร" });
+                }
+
+                string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
+                string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
+                string folderPath = Path.Combine(rootPath, "campaignFile", campaignCode);
+
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string originalFileName = Path.GetFileName(file.FileName);
+                string nameWithoutExt = Path.GetFileNameWithoutExtension(originalFileName);
+                string extension = Path.GetExtension(originalFileName);
+
+                string fileName = originalFileName;
+                string filePath = Path.Combine(folderPath, fileName);
+                int index = 1;
+
+                while (System.IO.File.Exists(filePath))
+                {
+                    fileName = $"{nameWithoutExt}({index}){extension}";
+                    filePath = Path.Combine(folderPath, fileName);
+                    index++;
+                }
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                string relativePath = $"campaignFile/{campaignCode}/{fileName}";
+
+                var postFileRequest = new PostFile
+                {
+                    name = fileName,
+                    path = relativePath
+                };
+
+                return await PostFile(postFileRequest);
+            }
+            catch (System.Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult DownloadFile(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    return NotFound("File path is empty.");
+                }
+
+                string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
+                string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
+
+                string cleanedRelativePath = filePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+                string fullPath = Path.GetFullPath(Path.Combine(rootPath, cleanedRelativePath));
+
+                string fullRootPath = Path.GetFullPath(rootPath);
+                string fullContentRootPath = Path.GetFullPath(contentRootPath);
+
+                if (!fullPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) &&
+                    !fullPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Invalid file path.");
+                }
+
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    string altPath = Path.GetFullPath(Path.Combine(contentRootPath, cleanedRelativePath));
+                    if (System.IO.File.Exists(altPath) && altPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        fullPath = altPath;
+                    }
+                    else
+                    {
+                        return NotFound("File not found on server.");
+                    }
+                }
+
+                string fileName = Path.GetFileName(fullPath);
+                string contentType = "application/octet-stream";
+                string ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                switch (ext)
+                {
+                    case ".pdf": contentType = "application/pdf"; break;
+                    case ".doc": contentType = "application/msword"; break;
+                    case ".docx": contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; break;
+                    case ".xls": contentType = "application/vnd.ms-excel"; break;
+                    case ".xlsx": contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; break;
+                    case ".png": contentType = "image/png"; break;
+                    case ".jpg": case ".jpeg": contentType = "image/jpeg"; break;
+                    case ".txt": contentType = "text/plain; charset=utf-8"; break;
+                }
+
+                byte[] fileBytes = System.IO.File.ReadAllBytes(fullPath);
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest("Error downloading file: " + ex.Message);
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> DeleteFile(long Id)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                    var response = await client.PutAsync(
+                        $"{domain}/crm/api/v1/p3/updateFile",
+                        new StringContent(
+                            JsonSerializer.Serialize(new { Id = Id, IsActive = false }),
+                            Encoding.UTF8,
+                            "application/json"
+                            )
+                        );
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest("Error updating file: " + ex.Message);
+            }
+        }
+
     }
 }

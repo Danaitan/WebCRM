@@ -25,7 +25,6 @@ namespace webCRM.Controllers
             try
             {
                 string queryString = Request.QueryString.Value ?? "";
-                queryString = queryString.Replace("isOverall=", "overall=");
 
                 var handler = new HttpClientHandler
                 {

@@ -114,6 +114,7 @@ namespace webCRM.Controllers
                 HttpContext.Session.SetString("personalId", result.PersonnelCode ?? "");
                 HttpContext.Session.SetString("email", result.EMail ?? "");
                 HttpContext.Session.SetString("company", company);
+                HttpContext.Session.SetString("fullNameTh", $"{result.PersonnelNameTH} {result.PersonnelLastTH}");
 
                 var loginLog = new 
                 {

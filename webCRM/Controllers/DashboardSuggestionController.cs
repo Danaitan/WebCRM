@@ -54,9 +54,11 @@ namespace webCRM.Controllers
                         $"{domain}/crm/api/v1/p3/suggestionDashboard", queryParams);
                     var response = await client.GetAsync(url);
                     string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                    if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(data))
                     {
-                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                        return Content(string.IsNullOrWhiteSpace(data)
+                            ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}"
+                            : data, "application/json");
                     }
                     return Content(data, "application/json");
                 }
@@ -84,9 +86,11 @@ namespace webCRM.Controllers
 
                     var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getPersonalAndGroup");
                     string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                    if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(data))
                     {
-                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                        return Content(string.IsNullOrWhiteSpace(data)
+                            ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"group\": [], \"personal\": [], \"personalAbb\": []}}"
+                            : data, "application/json");
                     }
                     return Content(data, "application/json");
                 }
@@ -97,8 +101,62 @@ namespace webCRM.Controllers
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
                 return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
             }
-            
+
         }
-        
+
+        public async Task<IActionResult> GetSuggestionDashboardExcel(
+            string? startdate,
+            string? enddate,
+            string? provider,
+            string? branch,
+            string? title,
+            string? status
+        )
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                    var queryParams = new Dictionary<string, string?>();
+                    if (startdate != null)
+                        queryParams["startdate"] = startdate;
+                    if (enddate != null)
+                        queryParams["enddate"] = enddate;
+                    if (!string.IsNullOrEmpty(provider))
+                        queryParams["provider"] = provider;
+                    if (!string.IsNullOrEmpty(title))
+                        queryParams["title"] = title;
+                    if (!string.IsNullOrEmpty(status))
+                        queryParams["status"] = status;
+                    if (!string.IsNullOrEmpty(branch))
+                        queryParams["branch"] = branch;
+
+                    var url = QueryHelpers.AddQueryString(
+                        $"{domain}/crm/api/v1/p3/suggestionDashboardExcel", queryParams);
+                    var response = await client.GetAsync(url);
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(data))
+                    {
+                        return Content(string.IsNullOrWhiteSpace(data)
+                            ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}"
+                            : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+    
     }
 }

@@ -468,29 +468,8 @@ async function resetFilters() {
     await applyFilters();
 }
 
-function exportExcel() {
-    if (!currentTableData || currentTableData.length === 0) {
-        Swal.fire({
-            icon: 'info',
-            title: 'ไม่มีข้อมูล',
-            text: 'ไม่มีข้อมูลสำหรับส่งออก Excel',
-            confirmButtonText: 'ตกลง'
-        });
-        return;
-    }
-
-    let csv = '\uFEFF';
-    csv += 'วันที่สร้าง,ชื่อแคมเปญ,วัตถุประสงค์,วันที่เริ่ม-สิ้นสุด,จำนวนลูกค้า,จำนวนที่ติดต่อ,สถานะแคมเปญ\n';
-
-    currentTableData.forEach(row => {
-        csv += `"${row.created || ''}","${row.product_name || ''}","${row.Objective_code || ''}","${row['startDate-endDate'] || ''}",${row.totalCustomer || 0},${row.calledCustomer || 0},"${row.activeStatus || ''}"\n`;
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Prospect_Call_Report_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
+async function exportExcel() {
+    await exportCallExcel();
 }
 
 async function GetMasterObjective() {
@@ -651,6 +630,221 @@ async function setFilterEmployee(){
     }
 }
 
+let isCallExcelExporting = false;
+
+async function exportCallExcel() {
+    if (isCallExcelExporting) return;
+    isCallExcelExporting = true;
+
+    if (typeof startLoading === 'function') {
+        startLoading('กำลังส่งออกข้อมูล Excel...', 'กรุณารอสักครู่');
+    }
+
+    try {
+        const startDate = $('#filterStartDate').val() || '';
+        const endDate = $('#filterEndDate').val() || '';
+        const callType = $('#filterCallType').val() || '';
+        const branch = $('#filterBranch').val() || '';
+        const callBy = $('#filterCaller').val() || '';
+        const campaignName = $('#filterCampaign').val() || '';
+        const callResult = $('#filterCallResult').val() || '';
+
+        const params = new URLSearchParams();
+        if (startDate) params.append('startdate', startDate);
+        if (endDate) params.append('enddate', endDate);
+        if (callType) params.append('call_type', callType);
+        if (branch) params.append('branch', branch);
+        if (callBy) params.append('call_by', callBy);
+        if (callResult) params.append('call_result', callResult);
+        if (campaignName) params.append('campaign_name', campaignName);
+
+        const queryString = params.toString();
+        const url = `/DashboardProspectCall/GetCallDashboardExcel${queryString ? '?' + queryString : ''}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const res = await response.json();
+
+        let exportRows = [];
+        if (Array.isArray(res)) {
+            exportRows = res;
+        } else if (res && Array.isArray(res.data)) {
+            exportRows = res.data;
+        } else if (res && res.data && Array.isArray(res.data.table)) {
+            exportRows = res.data.table;
+        } else if (res && Array.isArray(res.table)) {
+            exportRows = res.table;
+        }
+
+        if (!exportRows || exportRows.length === 0) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'ไม่พบข้อมูล',
+                    text: 'ไม่มีข้อมูลสำหรับการส่งออก Excel ตามตัวกรองที่เลือก',
+                    confirmButtonText: 'ตกลง'
+                });
+            } else {
+                alert('ไม่มีข้อมูลสำหรับการส่งออก Excel');
+            }
+            return;
+        }
+
+        const headers = [
+            { title: 'รหัส Campaign', keys: ['product_code'], width: 15, align: 'center' },
+            { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
+            { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
+            { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
+            { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
+            { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
+            { title: 'Status Lead', keys: ['Status Lead'], width: 15, align: 'center' }
+        ];
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+
+        const getVal = (row, keyList, isDate = false) => {
+            let raw = undefined;
+            for (const k of keyList) {
+                if (row[k] !== undefined && row[k] !== null) {
+                    raw = row[k];
+                    break;
+                }
+            }
+            if (raw === undefined || raw === null) return '';
+            if (isDate) {
+                if (!raw) return '';
+                const d = new Date(raw);
+                if (!isNaN(d.getTime())) {
+                    const m = d.getMonth() + 1;
+                    const day = d.getDate();
+                    const y = d.getFullYear();
+                    return `${m}/${day}/${y}`;
+                }
+                return String(raw);
+            }
+            return String(raw);
+        };
+
+        const fileName = `Prospect_Call_Report_${todayStr}.xls`;
+        const escapeXml = (str) => {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;"/>');
+        };
+
+        let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <!--[if gte mso 9]>
+        <xml>
+        <x:ExcelWorkbook>
+        <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+            <x:Name>Call Report</x:Name>
+            <x:WorksheetOptions>
+                <x:DisplayGridlines/>
+            </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+        </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                font-family: 'Segoe UI', Tahoma, 'Prompt', sans-serif;
+                font-size: 10pt;
+            }
+            th {
+                background-color: #1d6f42 !important;
+                color: #ffffff !important;
+                font-weight: bold;
+                text-align: center;
+                vertical-align: middle;
+                height: 38px;
+                border: 1px solid #144d2e;
+                padding: 8px 12px;
+                white-space: nowrap;
+            }
+            td {
+                vertical-align: middle;
+                border: 1px solid #d0d7de;
+                padding: 8px 12px;
+                mso-number-format: "\\@";
+            }
+            .text-center { text-align: center; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+        </style>
+        </head>
+        <body>
+        <table>
+        <thead>
+            <tr>
+        `;
+
+        headers.forEach(h => {
+            html += `        <th style="background-color: #1d6f42; color: #ffffff;">${escapeXml(h.title)}</th>\n`;
+        });
+
+        html += `    </tr>
+        </thead>
+        <tbody>
+        `;
+
+        exportRows.forEach((row, index) => {
+            const rowBg = (index % 2 === 1) ? 'background-color: #f4f9f5;' : 'background-color: #ffffff;';
+            html += `    <tr style="${rowBg}">\n`;
+            headers.forEach(h => {
+                const val = getVal(row, h.keys, h.isDate);
+                const alignClass = h.align === 'center' ? 'text-center' : (h.align === 'right' ? 'text-right' : 'text-left');
+                
+                let customStyle = '';
+                if (val === 'ไปตามLead' || val === 'Fee Text') {
+                    customStyle = ' background-color: #fef08a !important; font-weight: bold;';
+                }
+
+                html += `        <td class="${alignClass}" style="${customStyle}">${escapeXml(val)}</td>\n`;
+            });
+            html += `    </tr>\n`;
+        });
+
+        html += `</tbody>
+        </table>
+        </body>
+        </html>`;
+
+        const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (err) {
+        console.error("Error exporting call excel:", err);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: 'ไม่สามารถส่งออกข้อมูล Excel ได้: ' + err.message,
+                confirmButtonText: 'ตกลง'
+            });
+        }
+    } finally {
+        if (typeof stopLoading === 'function') {
+            stopLoading();
+        }
+        isCallExcelExporting = false;
+    }
+}
+
 $(document).ready(async function () {
     if (typeof startLoading === 'function') {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
@@ -727,4 +921,9 @@ $("#btnSearchFilter").off("click").on("click", async function (e) {
 $("#btnResetFilter").off("click").on("click", async function (e) {
     if (e) e.preventDefault();
     await resetFilters();
+});
+
+$("#btnExportExcel").off("click").on("click", async function (e) {
+    if (e) e.preventDefault();
+    await exportCallExcel();
 });

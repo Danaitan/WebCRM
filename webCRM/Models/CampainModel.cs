@@ -47,6 +47,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("Objective_code")]
         public string? ObjectiveCode { get; set; }
+
+        [JsonPropertyName("file_id")]
+        public int? file_id { get; set; }
     }
 
     public class FilterInfo
@@ -111,6 +114,10 @@ namespace webCRM.Models
 
         [JsonPropertyName("updated_by")]
         public string? UpdatedBy { get; set; }
+
+        [JsonPropertyName("file_id")]
+        [JsonConverter(typeof(FlexibleStringConverter))]
+        public string? file_id { get; set; }
     }
 
     public class Branch
@@ -212,6 +219,47 @@ namespace webCRM.Models
 
         [JsonPropertyName("data")]
         public List<ProductGet> Data { get; set; } = new List<ProductGet>();
+    }
+
+    public class PostFile
+    {
+        [JsonPropertyName("name")]
+        public string? name { get; set; }
+
+        [JsonPropertyName("path")]
+        public string? path { get; set; }
+        
+        [JsonPropertyName("created_by")]
+        public string? created_by { get; set; }
+    }
+
+    public class FlexibleStringConverter : JsonConverter<string>
+    {
+        public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                if (reader.TryGetInt64(out long l))
+                    return l.ToString();
+                if (reader.TryGetDouble(out double d))
+                    return d.ToString();
+            }
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return reader.GetString();
+            }
+            if (reader.TokenType == JsonTokenType.True) return "true";
+            if (reader.TokenType == JsonTokenType.False) return "false";
+            if (reader.TokenType == JsonTokenType.Null) return null;
+
+            using var doc = JsonDocument.ParseValue(ref reader);
+            return doc.RootElement.ToString();
+        }
+
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value);
+        }
     }
 
 }

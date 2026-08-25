@@ -220,7 +220,13 @@ namespace webCRM.Controllers
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                     var personalId = HttpContext.Session.GetString("personalId") ?? "";
                     request.updated_by = personalId;
-                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateProductBatchStatus", new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json"));
+                    var response = await client.PutAsync(
+                        $"{domain}/crm/api/v1/p3/updateProductBatchStatus",
+                        new StringContent(
+                            JsonSerializer.Serialize(request),
+                            Encoding.UTF8,
+                            "application/json"
+                            ));
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {

@@ -316,6 +316,8 @@ function selectCampaignCard(code) {
     $('#detailEnd').val(campaign.endDate);
     $('#detailObjective').val(campaign.Objective_code || '');
 
+    populateProductDropdownOptions(masterDropdownData, selectedCampaignObjective);
+
     loadProspectCallData(campaign.code, 1, prospectPageSize);
 }
 
@@ -619,6 +621,7 @@ async function loadMasterDropdowns() {
         }
         let data = await response.json();
         dropdownMaster = data;
+        console.log("dropdownMaster",dropdownMaster)
         if (typeof data === 'string') {
             try { data = JSON.parse(data); } catch (e) { return; }
         }
@@ -652,7 +655,7 @@ async function loadMasterDropdowns() {
 }
 
 // Populate modal dropdown select options dynamically
-function populateDropdownOptions(dropdownList) {
+function populateDropdownOptions(dropdownList, objective) {
     const dropdownMap = {
         'StatusLead': {
             selector: '#modalStatusLead',
@@ -666,10 +669,6 @@ function populateDropdownOptions(dropdownList) {
         'ผลการติดต่อ': {
             selector: '#modalContactResult',
             defaultText: 'เลือกผลการติดต่อ'
-        },
-        'ผลิตภัณฑ์ที่เสนอ': {
-            selector: '#modalProduct',
-            defaultText: 'เลือกผลิตภัณฑ์'
         },
         'ระดับความสนใจ': {
             selector: '#modalInterestLevel',
@@ -727,6 +726,84 @@ function populateDropdownOptions(dropdownList) {
             $select.append($option);
         });
     });
+
+    populateProductDropdownOptions(dropdownList, objective);
+}
+
+// Populate product dropdown (#modalProduct) options based on Objective (CS/RM -> "ผลิตภัณฑ์ที่เสนอ_CS/RM", MC/FL -> "ผลิตภัณฑ์ที่เสนอ_MC/FL")
+function populateProductDropdownOptions(dropdownList, objective) {
+    const list = dropdownList || masterDropdownData;
+    if (!Array.isArray(list) || list.length === 0) return;
+
+    const $select = $('#modalProduct');
+    if (!$select.length) return;
+
+    const objUpper = String(objective || selectedCampaignObjective || '').trim().toUpperCase();
+
+    let targetTitle = '';
+    if (objUpper === 'CS' || objUpper === 'RM') {
+        targetTitle = 'ผลิตภัณฑ์ที่เสนอ_CS/RM';
+    } else if (objUpper === 'MC' || objUpper === 'FL') {
+        targetTitle = 'ผลิตภัณฑ์ที่เสนอ_MC/FL';
+    }
+
+    let group = null;
+    if (targetTitle) {
+        group = list.find(d => 
+            d && d.DropdownTitle && d.DropdownTitle.trim().toLowerCase() === targetTitle.toLowerCase()
+        );
+    }
+
+    // Fallback search if exact objective title was not found
+    if (!group) {
+        group = list.find(d => 
+            d && d.DropdownTitle && (
+                d.DropdownTitle.trim().toLowerCase() === 'ผลิตภัณฑ์ที่เสนอ_cs/rm' ||
+                d.DropdownTitle.trim().toLowerCase() === 'ผลิตภัณฑ์ที่เสนอ_mc/fl' ||
+                d.DropdownTitle.trim().toLowerCase() === 'ผลิตภัณฑ์ที่เสนอ'
+            )
+        );
+    }
+
+    if (!group) return;
+
+    const rawItems = group.item || group.Item || group.items || [];
+    if (!Array.isArray(rawItems)) return;
+
+    const activeItems = rawItems.filter(i => i && i.IsActive !== false && i.isActive !== false);
+
+    activeItems.sort((a, b) => {
+        const orderA = a.SortOrder ?? a.sortOrder ?? 0;
+        const orderB = b.SortOrder ?? b.sortOrder ?? 0;
+        return orderA - orderB;
+    });
+
+    const currentVal = $select.val();
+
+    $select.empty();
+    $select.append('<option value="" disabled selected>เลือกผลิตภัณฑ์</option>');
+
+    activeItems.forEach(item => {
+        const nameTh = item.NameTh || item.nameTh || '';
+        const nameEn = item.NameEn || item.nameEn || '';
+        const code = item.Code || item.code || '';
+
+        const displayText = nameTh || nameEn || code;
+        const val = code || nameTh;
+
+        const $option = $('<option></option>')
+            .val(val)
+            .text(displayText)
+            .attr('data-code', code)
+            .attr('data-en', nameEn)
+            .attr('data-th', nameTh);
+
+        $select.append($option);
+    });
+
+    if (currentVal) {
+        setSelectValue($select, currentVal);
+    }
 }
 
 // Format date string YYYY-MM-DD -> DD/MM/YYYY
@@ -1061,8 +1138,11 @@ async function openRecordResultModal(trElement) {
     };
 
     const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
-    const campaignObjectiveCode = activeCampaign ? (activeCampaign.Objective_code || '') : (selectedCampaignObjective || '');
+    const campaignObjectiveCode = (customer && (customer.objective || customer.Objective_code)) || (activeCampaign ? (activeCampaign.Objective_code || '') : (selectedCampaignObjective || ''));
     const objBadge = getObjectiveBadge(campaignObjectiveCode);
+
+    // Populate modalProduct dropdown based on Objective (CS/RM vs MC/FL)
+    populateProductDropdownOptions(masterDropdownData, campaignObjectiveCode);
 
     // Set modal title & customer summary info
     $('#modalCustName').text(customer.name);

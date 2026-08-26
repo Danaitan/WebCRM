@@ -5,6 +5,7 @@
     --pa-yellow: #f5b026;
     --pa-purple: #7952b3;
     --pa-red: #dc3545;
+    --pa-orange: #f97316;
     --pa-gray: #6c757d;
     --pa-border: #e0e6ed;
     --pa-bg: #f5f7fb;
@@ -154,6 +155,8 @@ body {
 .pa-card-icon.green { background-color: var(--pa-green); }
 .pa-card-icon.yellow { background-color: var(--pa-yellow); }
 .pa-card-icon.purple { background-color: var(--pa-purple); }
+.pa-card-icon.orange { background-color: var(--pa-orange, #f97316); }
+.pa-card-icon.red { background-color: var(--pa-red); }
 
 .pa-card-content {
     flex-grow: 1;
@@ -661,6 +664,22 @@ input[type="date"].pa-form-control {
     background-image: linear-gradient(180deg, #b45309 0%, #78350f 100%) !important;
 }
 .btn-pa-cancel { background-color: var(--pa-gray); }
+
+/* Disabled state for action buttons */
+.btn-pa:disabled,
+.btn-pa[disabled] {
+    background: #cbd5e1 !important;
+    background-image: none !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+    opacity: 0.65;
+}
+.btn-pa:disabled i,
+.btn-pa[disabled] i {
+    transform: none !important;
+}
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {

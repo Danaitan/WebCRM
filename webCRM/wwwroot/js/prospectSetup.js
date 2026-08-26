@@ -387,6 +387,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 this.classList.add('active');
                 selectedCampaign = item;
                 removedBatchCustomerIds.clear();
+                updateSendForApprovalButtonState();
 
                 displayCampaignFile(item.file_id);
 
@@ -470,6 +471,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
     }
 
     renderBatchPaginationControls(res.page, res.pageSize, res.count);
+    updateSendForApprovalButtonState();
 }
 
 function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
@@ -859,37 +861,57 @@ function updateSelectedList() {
 
 function updateSendForApprovalButtonState() {
     const sendBtn = document.getElementById('sendForApprovalBtn');
-    if (!sendBtn) return;
+    const saveBtn = document.getElementById('saveDraftBtn');
 
-    const selectedList = getSelectedList();
-    const hasSelectedItems = selectedList.length > 0;
+    const isWaitingProspect = selectedCampaign && String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase() === "waiting prospect";
 
-    const rowCheckboxes = document.querySelectorAll('#dataTableBody .row-checkbox');
-    let hasCheckedInTable = false;
-
-    rowCheckboxes.forEach(cb => {
-        if (cb.checked) {
-            const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
-            const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === cbId);
-            if (!isSavedInBatch) {
-                hasCheckedInTable = true;
-            }
+    if (saveBtn) {
+        const shouldDisableSave = !isWaitingProspect;
+        saveBtn.disabled = shouldDisableSave;
+        if (shouldDisableSave) {
+            saveBtn.classList.add('disabled');
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.pointerEvents = 'none';
+            saveBtn.style.cursor = 'not-allowed';
+        } else {
+            saveBtn.classList.remove('disabled');
+            saveBtn.style.opacity = '1';
+            saveBtn.style.pointerEvents = 'auto';
+            saveBtn.style.cursor = 'pointer';
         }
-    });
+    }
 
-    const shouldDisable = !hasSelectedItems || hasCheckedInTable || !(selectedCampaign.status == "waiting prospect");
+    if (sendBtn) {
+        const selectedList = getSelectedList();
+        const hasSelectedItems = selectedList.length > 0;
 
-    sendBtn.disabled = shouldDisable;
-    if (shouldDisable) {
-        sendBtn.classList.add('disabled');
-        sendBtn.style.opacity = '0.5';
-        sendBtn.style.pointerEvents = 'none';
-        sendBtn.style.cursor = 'not-allowed';
-    } else {
-        sendBtn.classList.remove('disabled');
-        sendBtn.style.opacity = '1';
-        sendBtn.style.pointerEvents = 'auto';
-        sendBtn.style.cursor = 'pointer';
+        const rowCheckboxes = document.querySelectorAll('#dataTableBody .row-checkbox');
+        let hasCheckedInTable = false;
+
+        rowCheckboxes.forEach(cb => {
+            if (cb.checked) {
+                const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
+                const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === cbId);
+                if (!isSavedInBatch) {
+                    hasCheckedInTable = true;
+                }
+            }
+        });
+
+        const shouldDisableSend = !isWaitingProspect || !hasSelectedItems || hasCheckedInTable;
+
+        sendBtn.disabled = shouldDisableSend;
+        if (shouldDisableSend) {
+            sendBtn.classList.add('disabled');
+            sendBtn.style.opacity = '0.5';
+            sendBtn.style.pointerEvents = 'none';
+            sendBtn.style.cursor = 'not-allowed';
+        } else {
+            sendBtn.classList.remove('disabled');
+            sendBtn.style.opacity = '1';
+            sendBtn.style.pointerEvents = 'auto';
+            sendBtn.style.cursor = 'pointer';
+        }
     }
 }
 
@@ -998,6 +1020,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     // --- 2. Load Prospect List ---
     await loadProspectList(currentProspectPage, currentProspectPageSize);
 
+    updateSendForApprovalButtonState();
+
     // --- 3. Rows per page selector event listener ---
     const rowsPerPageSelect = document.getElementById('rowsPerPage');
     if (rowsPerPageSelect) {
@@ -1105,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
     $("#saveDraftBtn").off("click").on("click", function () {
+        if ($(this).is(":disabled") || $(this).hasClass("disabled")) return;
         if (!selectedCampaign) {
             Swal.fire({
                 title: "แจ้งเตือน",
@@ -1177,6 +1202,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     $("#sendForApprovalBtn").off("click").on("click", function () {
+        if ($(this).is(":disabled") || $(this).hasClass("disabled")) return;
         const selectedList = getSelectedList();
         if (selectedList.length === 0) {
             Swal.fire({

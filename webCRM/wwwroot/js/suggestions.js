@@ -4,14 +4,14 @@ let table;
 async function PostNoti(PostNotiData){
     try {
         const payload = {
-            header: PostNotiData.header || PostNotiData.Header,
-            title: PostNotiData.title || PostNotiData.Title,
-            message: PostNotiData.message || PostNotiData.Message,
-            receiver: PostNotiData.receiver || PostNotiData.Receiver,
-            sender: PostNotiData.sender || PostNotiData.Sender,
-            create_by: PostNotiData.create_by || PostNotiData.CreateBy,
-            end_date: PostNotiData.end_date || PostNotiData.EndDate,
-            receiver_email: PostNotiData.receiver_email || PostNotiData.ReceiverEmail
+            header: PostNotiData.header,
+            title: PostNotiData.title,
+            message: PostNotiData.message,
+            receiver: PostNotiData.receiver,
+            sender: PostNotiData.sender,
+            create_by: PostNotiData.create_by,
+            end_date: PostNotiData.end_date,
+            receiver_email: PostNotiData.receiver_email
         };
 
         const response = await fetch('/Suggestions/PostNotification', {
@@ -227,71 +227,49 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     }
 }
 
-/**
- * ตรวจสอบสิทธิ์การแสดงผล "กล่องบันทึกข้อมูล"
- * @param {string} status - สถานะของเคส
- * @returns {boolean} true ถ้าให้แสดงผล, false ถ้าให้ซ่อน
- */
 function canShowReplyBox(status) {
     if (!status) return true;
     const lowerStatus = String(status).toLowerCase().trim();
     if (lowerStatus === 'close') {
         return false;
     }
-    // สามารถขยายเงื่อนไขสิทธิ์เพิ่มเติมในอนาคตได้ที่นี่
     return true;
 }
 
-/**
- * ตรวจสอบสิทธิ์การแสดงผล "ปุ่มส่งต่อ"
- * @param {string} status - สถานะของเคส
- * @returns {boolean} true ถ้าให้แสดงผล, false ถ้าให้ซ่อน
- */
 function canShowForwardBtn(status) {
     if (!status) return true;
     const lowerStatus = String(status).toLowerCase().trim();
     if (lowerStatus === 'close') {
         return false;
     }
-    // สามารถขยายเงื่อนไขสิทธิ์เพิ่มเติมในอนาคตได้ที่นี่
     return true;
 }
 
-/**
- * ตรวจสอบสิทธิ์การใช้งาน "ปุ่มปิดงาน" (Enable / Disable)
- * @param {string} status - สถานะของเคส
- * @returns {boolean} true ถ้าให้เปิดใช้งาน (Enable), false ถ้าให้ปิดใช้งาน (Disable)
- */
 function canEnableCloseBtn(status) {
     if (!status) return true;
     const lowerStatus = String(status).toLowerCase().trim();
     if (lowerStatus === 'close') {
         return false;
     }
-    // สามารถขยายเงื่อนไขสิทธิ์เพิ่มเติมในอนาคตได้ที่นี่
     return true;
 }
 
-/**
- * อัปเดตสถานะการแสดงผลและ Disable/Enable ของปุ่มต่าง ๆ ในหน้าจอรายละเอียด
- * @param {string} status - สถานะเคสปัจจุบัน
- */
 function updateActionButtonsState(status) {
-    // 1. กล่องบันทึกข้อมูล
+    // กล่องบันทึกข้อมูล
     if (canShowReplyBox(status)) {
         $('#replyBoxSection').show();
     } else {
         $('#replyBoxSection').hide();
     }
 
-    // 2. ปุ่มส่งต่อ
+    // ปุ่มส่งต่อ
     if (canShowForwardBtn(status)) {
         $('#forwardBtnContainer').show();
     } else {
         $('#forwardBtnContainer').hide();
     }
 
-    // 3. ปุ่มปิดงาน
+    // ปุ่มปิดงาน
     if (canEnableCloseBtn(status)) {
         $('#closeBtn').prop('disabled', false);
     } else {

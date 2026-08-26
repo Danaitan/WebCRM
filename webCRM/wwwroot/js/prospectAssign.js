@@ -7,6 +7,92 @@ let allBranch = [];
 let prospectPage = 1;
 let prospectPageSize = 10;
 
+async function PostNoti(PostNotiData){
+    try {
+        if (!PostNotiData.receiver && !PostNotiData.receiver_email) {
+            console.warn("PostNoti skipped: Both receiver and receiver_email are empty.");
+            return null;
+        }
+        const payload = {
+            header: PostNotiData.header || "",
+            title: PostNotiData.title || "",
+            message: PostNotiData.message || "",
+            receiver: PostNotiData.receiver || "",
+            sender: PostNotiData.sender || "",
+            create_by: PostNotiData.create_by || "",
+            end_date: PostNotiData.end_date,
+            receiver_email: PostNotiData.receiver_email || ""
+        };
+
+        const response = await fetch('/Suggestions/PostNotification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        return response;
+    } catch (error) {
+        console.error("Error in PostNotification:", error);
+    }
+}
+
+async function sendPostNotiForAssign(requestData, actionType) {
+    try {
+        if (!requestData || !requestData.assign_to) return;
+
+        const campaignCode = document.getElementById('filterCampaignCode')?.value || selectedCampaignCode || '';
+        const campaignName = document.getElementById('filterCampaignName')?.value || '';
+        const ids = requestData.id || [];
+        const count = Array.isArray(ids) ? ids.length : 0;
+        const remark = requestData.assign_remark || '';
+
+        let typeName = actionType || 'Assign';
+        if (requestData.assign_status === 'reassign') {
+            typeName = 'ReAssign';
+        } else if (requestData.assign_case === 'group') {
+            typeName = 'Assign To Group';
+        } else if (requestData.assign_case === 'Auto Bot') {
+            typeName = 'Auto Assign';
+        }
+
+        const campaignLabel = campaignCode ? `${campaignCode}${campaignName ? ` (${campaignName})` : ''}` : '';
+        const header = "Prospect Assign";
+        const title = `${typeName} Prospect${campaignCode ? `: Campaign ${campaignCode}` : ''}`;
+
+        const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+        const message =
+            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ท่านได้รับการ <b>${typeName} Prospect</b>${campaignLabel ? ` จาก Campaign <b>${campaignLabel}</b>` : ''} จำนวน <b>${count}</b> รายการ<br>` +
+            (remark ? `หมายเหตุ: ${escapeHtml(remark)}<br>` : '') +
+            `<br>ขอขอบคุณ<br>` +
+            `${fullNameTh}`;
+
+        const endDate = new Date();
+        endDate.setFullYear(endDate.getFullYear() + 10);
+        const senderId = typeof userId !== 'undefined' ? userId : '';
+
+        const receivers = String(requestData.assign_to)
+            .split(',')
+            .map(r => r.trim())
+            .filter(Boolean);
+
+        for (const receiver of receivers) {
+            await PostNoti({
+                header: header,
+                title: title,
+                message: message,
+                receiver: receiver,
+                sender: senderId,
+                create_by: senderId,
+                end_date: endDate
+            });
+        }
+    } catch (err) {
+        console.error("Error sending PostNoti for Assign:", err);
+    }
+}
+
+
 async function getAllBranch() {
     if (allBranch && allBranch.length > 0) {
         return allBranch;
@@ -186,115 +272,7 @@ async function loadAndRenderStaffList(branchId) {
     if (newDropdownMenu) newDropdownMenu.innerHTML = newHtml;
 }
 
-async function AutoAssign(overrideParams = {}){
-    try {
-        const selectedCheckboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
-        const ids = overrideParams.id || Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-id')).filter(Boolean);
-        if (!ids || ids.length === 0) {
-            if (typeof showAlert === 'function') {
-                showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
-            } else {
-                alert('กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
-            }
-            return null;
-        }
 
-        let assignee = overrideParams.assign_to;
-        if (!assignee) {
-            const assigneeTags = document.querySelectorAll('#responsibleSelectBox .branch-tag');
-            const assigneeList = Array.from(assigneeTags).map(tag => tag.getAttribute('data-value')).filter(Boolean);
-            assignee = assigneeList.join(',');
-        }
-
-        if (!assignee) {
-            if (typeof showAlert === 'function') {
-                showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบ');
-            } else {
-                alert('กรุณาเลือกผู้รับผิดชอบ');
-            }
-            return null;
-        }
-
-        if (!overrideParams.skipConfirm) {
-            let confirmResult = false;
-            if (typeof Swal !== 'undefined') {
-                const swalRes = await Swal.fire({
-                    title: 'ยืนยันการทำรายการ',
-                    text: 'คุณต้องการทำรายการ Auto Assign ใช่หรือไม่?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#0b3d91',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'ยืนยัน',
-                    cancelButtonText: 'ยกเลิก'
-                });
-                confirmResult = swalRes.isConfirmed;
-            } else {
-                confirmResult = confirm('คุณต้องการทำรายการ Auto Assign ใช่หรือไม่?');
-            }
-
-            if (!confirmResult) {
-                return null;
-            }
-        }
-
-        const filterStartDateEl = document.getElementById('filterStartDate');
-        const filterEndDateEl = document.getElementById('filterEndDate');
-        const request = {
-            id : ids,
-            assign_to : assignee,
-            assign_date : filterStartDateEl ? filterStartDateEl.value : '',
-            assign_expire : filterEndDateEl ? filterEndDateEl.value : '',
-            assign_remark : 'Assigned by Auto Bot',
-            assign_status : 'assigned',
-            assign_case : 'Auto Bot',
-        };
-
-        if (typeof startLoading === 'function') {
-            startLoading('กำลังบันทึกข้อมูล...', 'ระบบกำลังทำการ Auto Assign Prospect กรุณารอสักครู่...');
-        }
-
-        const response = await fetch(`/ProspectAssign/updateProspectCustomer`, 
-            { 
-                method: 'PUT', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify(request), 
-            });
-
-        if (typeof stopLoading === 'function') {
-            stopLoading();
-        }
-
-        if (!response.ok) {
-            console.error("AutoAssign HTTP error:", response.status, response.statusText);
-            if (typeof showAlert === 'function') {
-                showAlert('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถทำรายการ Auto Assign ได้');
-            } else {
-                alert('ไม่สามารถทำรายการ Auto Assign ได้');
-            }
-            return null;
-        }
-
-        const data = await response.json();
-        if (typeof showAlert === 'function') {
-            showAlert('success', 'Assign เรียบร้อยแล้ว', 'ทำการ Auto Assign เรียบร้อยแล้ว', function() {
-                if (typeof getProspectCustomer === 'function' && selectedCampaignCode) {
-                    getProspectCustomer(selectedCampaignCode, activeStatusFilter);
-                }
-            });
-        }
-        return data || null;
-    } catch(err) {
-        if (typeof stopLoading === 'function') {
-            stopLoading();
-        }
-        console.error("Error in AutoAssign:", err);
-        if (typeof showAlert === 'function') {
-            showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
-        }
-        return null;
-    }
-}
 
 async function UpdateProspectCustomer(overrideParams = {}){
     try{
@@ -324,14 +302,15 @@ async function UpdateProspectCustomer(overrideParams = {}){
             return null;
         }
 
-        let assignee = overrideParams.assign_to;
-        if (!assignee) {
+        let assigneeList = [];
+        if (overrideParams.assign_to) {
+            assigneeList = String(overrideParams.assign_to).split(',').map(s => s.trim()).filter(Boolean);
+        } else {
             const assigneeTags = document.querySelectorAll('#responsibleSelectBox .branch-tag');
-            const assigneeList = Array.from(assigneeTags).map(tag => tag.getAttribute('data-value')).filter(Boolean);
-            assignee = assigneeList.join(',');
+            assigneeList = Array.from(assigneeTags).map(tag => tag.getAttribute('data-value')).filter(Boolean);
         }
 
-        if (!assignee) {
+        if (!assigneeList || assigneeList.length === 0) {
             if (typeof showAlert === 'function') {
                 showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบ');
             } else {
@@ -342,29 +321,56 @@ async function UpdateProspectCustomer(overrideParams = {}){
 
         const filterStartDateEl = document.getElementById('filterStartDate');
         const filterEndDateEl = document.getElementById('filterEndDate');
-        const request = {
-            id : ids,
-            assign_to : assignee,
-            assign_date : filterStartDateEl ? filterStartDateEl.value : '',
-            assign_expire : filterEndDateEl ? filterEndDateEl.value : '',
-            assign_remark : 'Assigned manually',
-            assign_status : 'assigned',
-            assign_case : assign_case,
-        };
+        const assignDate = filterStartDateEl ? filterStartDateEl.value : '';
+        const assignExpire = filterEndDateEl ? filterEndDateEl.value : '';
+        const assignRemark = overrideParams.assign_remark || 'Assigned manually';
+        const assignStatus = overrideParams.assign_status || 'assigned';
 
-        const response = await fetch(`/ProspectAssign/updateProspectCustomer`, 
-            { 
-                method: 'PUT', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify(request), 
-            });
+        // Group prospect IDs per staff member (Round-Robin distribution)
+        const staffAssignments = {};
+        assigneeList.forEach(staffId => { staffAssignments[staffId] = []; });
+        ids.forEach((prospectId, index) => {
+            const staffId = assigneeList[index % assigneeList.length];
+            staffAssignments[staffId].push(prospectId);
+        });
 
-        if (!response.ok) {
-            console.error("UpdateProspectCustomer HTTP error:", response.status, response.statusText);
-            return null;
+        let successCount = 0;
+        let lastResult = null;
+
+        for (const staffId of assigneeList) {
+            const assignedIds = staffAssignments[staffId];
+            if (!assignedIds || assignedIds.length === 0) continue;
+
+            const request = {
+                id: assignedIds,
+                assign_to: staffId,
+                assign_date: assignDate,
+                assign_expire: assignExpire,
+                assign_remark: assignRemark,
+                assign_status: assignStatus,
+                assign_case: assign_case,
+            };
+
+            const response = await fetch(`/ProspectAssign/updateProspectCustomer`, 
+                { 
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(request), 
+                });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data && (data.status === true || data.status === "success" || data.status !== false)) {
+                    successCount++;
+                    lastResult = data;
+                    await sendPostNotiForAssign(request, overrideParams.assign_status === 'reassign' ? 'ReAssign' : btnText);
+                }
+            } else {
+                console.error("UpdateProspectCustomer HTTP error:", response.status, response.statusText);
+            }
         }
-        const data = await response.json();
-        return data || null;
+
+        return successCount > 0 ? (lastResult || { status: true }) : null;
     }catch(err){
         console.error("Error in UpdateProspectCustomer:", err);
         return null;
@@ -699,7 +705,7 @@ function updateAssignButtonDisabledState() {
     if (!assignBtn) return;
 
     const assigneeTags = document.querySelectorAll('#responsibleSelectBox .branch-tag');
-    if (assigneeTags.length > 1) {
+    if (assigneeTags.length === 0) {
         assignBtn.disabled = true;
     } else {
         assignBtn.disabled = false;
@@ -1143,17 +1149,7 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     init();
 })();
 
-// AUTO ASSIGN METHOD TOGGLE
-(function () {
-    const assignMethodBtns = document.querySelectorAll('.assign-method-btn');
-    assignMethodBtns.forEach(btn => {
-        btn.addEventListener('click', async function() {
-            assignMethodBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            await AutoAssign();
-        });
-    });
-})();
+
 
 // RESPONSIBLE PERSON MULTI-SELECT
 (function () {
@@ -1285,15 +1281,11 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
                 if (result) {
                     if (typeof showAlert === 'function') {
                         showAlert('success', 'Assign เรียบร้อยแล้ว', 'ทำการ Assign เรียบร้อยแล้ว', function() {
-                            if (selectedCampaignCode) {
-                                loadProspectAssignData(selectedCampaignCode);
-                            } else {
-                                window.location.reload();
-                            }
+                            loadProspectAssignData(selectedCampaignCode);
                         });
                     } else {
                         alert('ทำการ Assign เรียบร้อยแล้ว');
-                        window.location.reload();
+                        loadProspectAssignData(selectedCampaignCode);
                     }
                 }
             }
@@ -1345,15 +1337,11 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
             if (result) {
                 if (typeof showAlert === 'function') {
                     showAlert('success', 'ReAssign เรียบร้อยแล้ว', 'ทำการ ReAssign เรียบร้อยแล้ว', function() {
-                        if (selectedCampaignCode) {
-                            loadProspectAssignData(selectedCampaignCode);
-                        } else {
-                            window.location.reload();
-                        }
+                        loadProspectAssignData(selectedCampaignCode);
                     });
                 } else {
                     alert('ทำการ ReAssign เรียบร้อยแล้ว');
-                    window.location.reload();
+                    loadProspectAssignData(selectedCampaignCode);
                 }
             }
         });

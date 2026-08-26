@@ -241,27 +241,29 @@
                     </div>
                 </div>
 
-                <!-- Main Content: Form & History -->
                 <div class="row g-4">
                     <!-- Left Column: Form -->
                     <div class="col-lg-8 d-flex flex-column">
                         <div class="row g-3 flex-grow-1 d-flex flex-column">
-                            <!-- Row 1: Select 1 & 2 + Textarea on Right -->
+
                             <div class="col-12">
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <label class="form-label text-dark small fw-medium mb-1">ผลการติดต่อ <span class="text-danger">*</span></label>
-                                            <select class="form-select form-select-sm" id="modalContactResult">
-                                                <option value="" disabled selected>เลือกผลการติดต่อ</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-0">
-                                            <label class="form-label text-dark small fw-medium mb-1">Status Lead <span class="text-danger">*</span></label>
-                                            <select class="form-select form-select-sm" id="modalStatusLead">
-                                                <option value="" disabled selected>เลือก Status Lead</option>
-                                            </select>
-                                        </div>
+
+                                    <div class="md-3">
+                                        <label class="form-label text-dark small fw-medium mb-1">ผลิตภัณฑ์ที่เสนอ</label>
+                                        <select class="form-select form-select-sm" id="modalProduct">
+                                            <option value="" disabled selected>เลือกผลิตภัณฑ์</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label text-dark small fw-medium mb-1">ผลการติดต่อ <span class="text-danger">*</span></label>
+                                        <select class="form-select form-select-sm" id="modalContactResult">
+                                            <option value="" disabled selected>เลือกผลการติดต่อ</option>
+                                        </select>
+                                    </div>
+
                                     </div>
                                     <div class="col-md-8">
                                         <label class="form-label text-dark small fw-medium mb-1">รายงานผลการติดต่อ <span class="text-danger">*</span></label>
@@ -273,31 +275,33 @@
                                 </div>
                             </div>
 
-                            <!-- Row 2: Products, Interest Level, Sales Result -->
                             <div class="col-12">
                                 <div class="row g-3">
+
                                     <div class="col-md-4">
-                                        <label class="form-label text-dark small fw-medium mb-1">ผลิตภัณฑ์ที่เสนอ</label>
-                                        <select class="form-select form-select-sm" id="modalProduct">
-                                            <option value="" disabled selected>เลือกผลิตภัณฑ์</option>
+                                        <label class="form-label text-dark small fw-medium mb-1">Status Lead <span class="text-danger">*</span></label>
+                                        <select class="form-select form-select-sm" id="modalStatusLead">
+                                            <option value="" disabled selected>เลือก Status Lead</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-dark small fw-medium mb-1">ระดับความสนใจ</label>
-                                        <select class="form-select form-select-sm" id="modalInterestLevel">
-                                            <option value="" disabled selected>เลือกระดับความสนใจ</option>
-                                        </select>
-                                    </div>
+
                                     <div class="col-md-4">
                                         <label class="form-label text-dark small fw-medium mb-1">รายงานผล</label>
                                         <select class="form-select form-select-sm" id="modalSalesResult">
                                             <option value="" disabled selected>เลือกผลการรายงานผล</option>
                                         </select>
                                     </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label text-dark small fw-medium mb-1">ระดับคะแนน</label>
+                                        <select class="form-select form-select-sm" id="modalInterestLevel">
+                                            <option value="" disabled selected>เลือกระดับความสนใจ</option>
+                                        </select>
+                                    </div>
+
                                 </div>
                             </div>
 
-                            <!-- Row 3: Next Appt Date, Next Appt Time, Channel -->
                             <div class="col-12">
                                 <div class="row g-3">
                                     <div class="col-md-4">
@@ -317,7 +321,6 @@
                                 </div>
                             </div>
 
-                            <!-- Row 4: Additional Remarks (Flex Expand Height) -->
                             <div class="col-12 flex-grow-1 d-flex flex-column">
                                 <label class="form-label text-dark small fw-medium mb-1">หมายเหตุเพิ่มเติม</label>
                                 <div class="position-relative flex-grow-1 d-flex flex-column">
@@ -334,56 +337,6 @@
                             <h6 class="fw-bold text-dark mb-0 small">ประวัติการติดต่อ <span class="fw-normal text-muted" id="modalHistoryCount">(ล่าสุด 0 รายการ)</span></h6>
                         </div>
                         <div class="pc-modal-history-list d-flex flex-column gap-2 flex-grow-1" id="modalHistoryList" style="max-height: 420px; overflow-y: auto; overflow-x: hidden;">
-                            <!-- Card Item 1 -->
-                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 15/05/2024 10:22</span>
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
-                                </div>
-                                <div class="text-secondary extra-small">ผลการติดต่อ: ขอข้อมูลเพิ่มเติม</div>
-                                <div class="text-secondary extra-small">นัดหมาย: 20/05/2024 14:00</div>
-                            </div>
-
-                            <!-- Card Item 2 -->
-                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 10/05/2024 09:45</span>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill extra-small">Success</span>
-                                </div>
-                                <div class="text-secondary extra-small">ผลการติดต่อ: ติดต่อได้</div>
-                                <div class="text-secondary extra-small">นัดหมาย: 15/05/2024 10:00</div>
-                            </div>
-
-                            <!-- Card Item 3 -->
-                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 14/05/2024 16:10</span>
-                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
-                                </div>
-                                <div class="text-secondary extra-small">ผลการติดต่อ: ไม่รับสาย</div>
-                                <div class="text-secondary extra-small">นัดหมาย: -</div>
-                            </div>
-
-                            <!-- Card Item 4 -->
-                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="small fw-semibold text-dark"><i class="bi bi-telephone text-primary me-1.5"></i> 14/05/2024 14:05</span>
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
-                                </div>
-                                <div class="text-secondary extra-small">ผลการติดต่อ: ติดต่อได้ แต่ยังไม่สนใจ</div>
-                                <div class="text-secondary extra-small">นัดหมาย: 20/05/2024 14:00</div>
-                            </div>
-
-                            <!-- Card Item 5 -->
-                            <div class="pc-history-card p-3 rounded-3 border bg-white shadow-sm-hover">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="small fw-semibold text-dark"><i class="bi bi-calendar-event text-primary me-1.5"></i> 13/05/2024 11:40</span>
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 rounded-pill extra-small">Follow</span>
-                                </div>
-                                <div class="text-secondary extra-small">ผลการติดต่อ: นัดหมายล่วงหน้า</div>
-                                <div class="text-secondary extra-small">นัดหมาย: 14/05/2024 14:00</div>
-                            </div>
-                            
                         </div>
                     </div>
 

@@ -48,6 +48,9 @@ namespace webCRM.Models
         [JsonPropertyName("Objective_code")]
         public string? ObjectiveCode { get; set; }
 
+        [JsonPropertyName("product_status")]
+        public string? product_status { get; set; }
+
         [JsonPropertyName("file_id")]
         public int? file_id { get; set; }
     }

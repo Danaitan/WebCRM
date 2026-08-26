@@ -1,0 +1,11 @@
+หน้า Portfolio - ทุกคน
+หน้า Dashboard สำนักงานใหญ่/ ผู้จัดการสาขา - สำนักงานใหญ่/ ผู้จัดการสาขา
+หน้า Dashboard พนักงานทั่วไป - ทุกคน
+หน้า Dashboard ข้อเสนอแนะร้องเรียน ข้อเสนอแนะ - Editor
+หน้า ข้อมูลลูกค้า/ขอมูสัญญา - ทุกคน
+หน้า ขอเสนอแนะ/ ร้องเรียน - Editor
+หน้า สร้าง Campaign - สร้าง Campaign
+หน้า Pospect Setup - สร้าง Campaign
+หน้า product Approve - อนุมัติ Campaign
+หน้า Prospect Assign - แจกงาน
+หน้าขายและติดตาม - ทุกคน

@@ -2,6 +2,7 @@ const pageSize = 5;
 let page = 1;
 let campaigns = [];
 let selectedCampaignCode = "";
+let selectedCampaignCreatedBy = "";
 let campaignTable;
 let masterData = null;
 
@@ -9,6 +10,36 @@ let prospectPage = 1;
 let prospectPageSize = 10;
 let prospectTotalCount = 0;
 let rawProspectItems = [];
+
+async function PostNoti(PostNotiData){
+    try {
+        if (!PostNotiData.receiver && !PostNotiData.receiver_email) {
+            console.warn("PostNoti skipped: Both receiver and receiver_email are empty.");
+            return null;
+        }
+        const payload = {
+            header: PostNotiData.header || "",
+            title: PostNotiData.title || "",
+            message: PostNotiData.message || "",
+            receiver: PostNotiData.receiver || "",
+            sender: PostNotiData.sender || "",
+            create_by: PostNotiData.create_by || "",
+            end_date: PostNotiData.end_date,
+            receiver_email: PostNotiData.receiver_email || ""
+        };
+
+        const response = await fetch('/Suggestions/PostNotification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        return response;
+    } catch (error) {
+        console.error("Error in PostNotification:", error);
+    }
+}
 
 async function getBranchList(){
     try{
@@ -83,7 +114,17 @@ async function SearchCampaign() {
     } else {
         await loadBatchList(1, currentBatchPageSize, searchText);
     }
-}   
+}
+
+function reloadCampaignComponent() {
+    if (typeof campaignTable !== "undefined" && campaignTable) {
+        campaignTable.ajax.reload(null, false);
+    } else {
+        if (selectedCampaignCode) {
+            loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
+        }
+    }
+}
 
 // Fetch prospect batch for selected campaign from API
 async function getProductBatchByProductCode(productCode){
@@ -286,11 +327,14 @@ function statusClass(status) {
 // format date from YYYY-MM-DD to DD/MM/YYYY
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    var parts = dateStr.split('-');
+    var str = String(dateStr).trim();
+    if (str.includes('T')) str = str.split('T')[0];
+    else if (str.includes(' ')) str = str.split(' ')[0];
+    var parts = str.split('-');
     if (parts.length === 3) {
         return parts[2] + '/' + parts[1] + '/' + parts[0];
     }
-    return dateStr;
+    return str;
 }
 
 async function displayCampaignFile(fileId) {
@@ -331,17 +375,44 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     }
 });
 
+// Check if campaign status is waiting approve
+function isWaitingApprove(status) {
+    if (!status) return false;
+    const s = String(status).trim().toLowerCase();
+    return s === 'waiting approve' || s === 'รออนุมัติ' || s === 'waiting_approve';
+}
+
+function updateActionButtons(campaign) {
+    const canApprove = campaign && isWaitingApprove(campaign.status);
+    $("#btnApprove, .btn-pa-approve, #btnReject, .btn-pa-reject, #btnReturn, .btn-pa-return").prop("disabled", !canApprove);
+}
+
 // Update detail panel from a campaign object
 function updateDetailPanel(campaign) {
-    if (!campaign) return;
+    if (!campaign) {
+        if (document.getElementById('detailId')) document.getElementById('detailId').value = '';
+        if (document.getElementById('detailName')) document.getElementById('detailName').value = '';
+        if (document.getElementById('detailStart')) document.getElementById('detailStart').value = '';
+        if (document.getElementById('detailEnd')) document.getElementById('detailEnd').value = '';
+        if (document.getElementById('detailNote')) document.getElementById('detailNote').value = '';
+        if (document.getElementById('detailObjective')) document.getElementById('detailObjective').value = '';
+        const detailStatus = document.getElementById('detailStatus');
+        if (detailStatus) {
+            detailStatus.textContent = '';
+            detailStatus.className = 'pa-status-box';
+        }
+        updateActionButtons(null);
+        return;
+    }
     const id = campaign.code || '';
     const name = campaign.name || '';
     const start = campaign.startDate || '';
     const end = campaign.endDate || '';
     const status = campaign.status || '';
     const note = campaign.remark || '-';
-    const objective = campaign.objective || campaign.Objective_code || '';
+    const objective = campaign.objective || '';
 
+    selectedCampaignCreatedBy = campaign.createdBy || '';
     const detailId = document.getElementById('detailId');
     if (detailId) detailId.value = id;
 
@@ -367,6 +438,7 @@ function updateDetailPanel(campaign) {
     }
 
     displayCampaignFile(campaign.file_id);
+    updateActionButtons(campaign);
 }
 
 // Fetch campaign list from API with page and pageSize
@@ -422,13 +494,13 @@ async function getCampainList(page, pageSize) {
             code:      item.product_code   || '',
             name:      item.product_name   || '',
             status:    item.product_status || 'ปกติ',
-            startDate: item.product_start  ? item.product_start.substring(0, 10) : '',
-            endDate:   item.product_end    ? item.product_end.substring(0, 10)   : '',
+            startDate: item.product_start? item.product_start.substring(0, 10) : '',
+            endDate:   item.product_end? item.product_end.substring(0, 10) : '',
             remark:    item.product_remark || '',
-            createdBy: item.createrd_by    || item.created_by || '',
-            created:   item.created        ? item.created.substring(0, 10)       : '',
-            objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || item.product_objective || '',
-            file_id:   item.file_id        || item.FileId || item.fileId || ""
+            createdBy: item.createrd_by || '',
+            created:   item.created? item.created.substring(0, 10) : '',
+            objective: item.Objective_code || '',
+            file_id:   item.file_id || ""
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -481,7 +553,12 @@ function initDataTables() {
                     } else {
                         const currentCampaign = rawItems.find(c => c.code === selectedCampaignCode);
                         if (currentCampaign) updateDetailPanel(currentCampaign);
+                        loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
                     }
+                } else {
+                    selectedCampaignCode = "";
+                    updateDetailPanel(null);
+                    loadProspectApproveData("", 1, prospectPageSize);
                 }
 
                 callback({
@@ -720,6 +797,9 @@ $(document).ready(async function () {
 
     // Action Footer Button Event Handlers with SweetAlert Confirmations
     $("#btnApprove, .btn-pa-approve").on("click", function () {
+        if ($(this).is(":disabled") || $(this).prop("disabled")) return;
+        const currentCampaign = campaigns.find(c => c.code === selectedCampaignCode);
+        if (currentCampaign && !isWaitingApprove(currentCampaign.status)) return;
         const code = $("#detailId").val() || selectedCampaignCode || "";
         const name = $("#detailName").val() || "";
         const label = code ? `${code} (${name})` : "รายการนี้";
@@ -760,6 +840,30 @@ $(document).ready(async function () {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งอนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
+                        const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                        const Content =
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ได้รับการอนุมัติเรียบร้อยแล้ว<br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+
+                        const endDate = new Date();
+                        endDate.setFullYear(endDate.getFullYear() + 10);
+
+                        const senderId = typeof userId !== 'undefined' ? userId : '';
+                        const receiver = selectedCampaignCreatedBy;
+                        console
+                        if (receiver) {
+                            await PostNoti({
+                                header: "Campaign",
+                                title: `Campaign ${code} (${name})`,
+                                message: Content,
+                                receiver: receiver,
+                                sender: senderId,
+                                create_by: senderId,
+                                end_date: endDate,
+                            });
+                        }
+
                         Swal.fire({
                             title: 'อนุมัติเรียบร้อย!',
                             text: `ดำเนินการอนุมัติ ${code || 'รายการ'} เสร็จสิ้น`,
@@ -767,19 +871,23 @@ $(document).ready(async function () {
                             confirmButtonColor: '#10b981',
                             confirmButtonText: 'ตกลง'
                         });
+                        reloadCampaignComponent();
                     }
 
                 } catch (err) {
                     console.error(err);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งอนุมัติข้อมูลได้", icon: "error" });
                 } finally {
-                    window.location.reload();
+                    stopLoading(true);
                 }
             }
         });
     });
 
     $("#btnReject, .btn-pa-reject").on("click", function () {
+        if ($(this).is(":disabled") || $(this).prop("disabled")) return;
+        const currentCampaign = campaigns.find(c => c.code === selectedCampaignCode);
+        if (currentCampaign && !isWaitingApprove(currentCampaign.status)) return;
         const code = $("#detailId").val() || selectedCampaignCode || "";
         const name = $("#detailName").val() || "";
         const label = code ? `${code} (${name})` : "รายการนี้";
@@ -832,7 +940,31 @@ $(document).ready(async function () {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งไม่อนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
-                        const remark = result.value;
+                        const remark = result.value || '';
+                        const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                        const Content =
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ไม่อนุมัติ<br>` +
+                            (remark ? `<b>เหตุผลการไม่อนุมัติ:</b> ${remark}<br><br>` : `<br>`) +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+
+                        const endDate = new Date();
+                        endDate.setFullYear(endDate.getFullYear() + 10);
+
+                        const senderId = typeof userId !== 'undefined' ? userId : '';
+                        const receiver = selectedCampaignCreatedBy;
+                        if (receiver) {
+                            await PostNoti({
+                                header: "Campaign",
+                                title: `Campaign ${code} (${name})`,
+                                message: Content,
+                                receiver: receiver,
+                                sender: senderId,
+                                create_by: senderId,
+                                end_date: endDate,
+                            });
+                        }
+
                         Swal.fire({
                             title: 'ไม่อนุมัติเรียบร้อย!',
                             text: `ไม่อนุมัติ ${code || 'รายการ'} เรียบร้อยแล้ว${remark ? ` (หมายเหตุ: ${remark})` : ''}`,
@@ -840,19 +972,23 @@ $(document).ready(async function () {
                             confirmButtonColor: '#ef4444',
                             confirmButtonText: 'ตกลง'
                         });
+                        reloadCampaignComponent();
                     }
 
                 } catch (err) {
                     console.error(err);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งไม่อนุมัติข้อมูลได้", icon: "error" });
                 } finally {
-                    window.location.reload();
+                    stopLoading(true);
                 }
             }
         });
     });
 
     $("#btnReturn, .btn-pa-return").on("click", function () {
+        if ($(this).is(":disabled") || $(this).prop("disabled")) return;
+        const currentCampaign = campaigns.find(c => c.code === selectedCampaignCode);
+        if (currentCampaign && !isWaitingApprove(currentCampaign.status)) return;
         const code = $("#detailId").val() || selectedCampaignCode || "";
         const name = $("#detailName").val() || "";
         const label = code ? `${code} (${name})` : "รายการนี้";
@@ -895,17 +1031,43 @@ $(document).ready(async function () {
                         },
                         body: JSON.stringify(request),
                     });
+
                     let data = null;
                     try {
                         data = await response.json();
                     } catch (e) {
                         console.error("Error parsing response json:", e);
                     }
+
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งแก้ไขได้ (${response.status} ${response.statusText})`;
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
-                        const remark = result.value;
+                        const remark = result.value || '';
+                        const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                        const Content =
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ได้ถูกส่งกลับให้แก้ไข<br>` +
+                            `<b>หมายเหตุการแก้ไข:</b> ${remark}<br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+
+                        const endDate = new Date();
+                        endDate.setFullYear(endDate.getFullYear() + 10);
+
+                        const senderId = typeof userId !== 'undefined' ? userId : '';
+                        const receiver = selectedCampaignCreatedBy;
+                        if (receiver) {
+                            await PostNoti({
+                                header: "Campaign",
+                                title: `Campaign ${code} (${name})`,
+                                message: Content,
+                                receiver: receiver,
+                                sender: senderId,
+                                create_by: senderId,
+                                end_date: endDate,
+                            });
+                        }
+
                         Swal.fire({
                             title: 'ส่งแก้ไขเรียบร้อย!',
                             text: `ส่งแก้ไข ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
@@ -913,13 +1075,14 @@ $(document).ready(async function () {
                             confirmButtonColor: '#f59e0b',
                             confirmButtonText: 'ตกลง'
                         });
+                        reloadCampaignComponent();
                     }
 
                 } catch (err) {
                     console.error(err);
-                    Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งไม่อนุมัติข้อมูลได้", icon: "error" });
+                    Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งแก้ไขข้อมูลได้", icon: "error" });
                 } finally {
-                    window.location.reload();
+                    stopLoading(true);
                 }
             }
         });

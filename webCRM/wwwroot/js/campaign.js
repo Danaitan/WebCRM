@@ -43,6 +43,16 @@ async function GetMasterObjective() {
     return data || [];
 }
 
+function getObjectiveBadge(obj) {
+    const map = {
+        'CS': { text: 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' },
+        'MC': { text: 'MC', class: 'bg-warning-subtle text-warning border-warning-subtle', iconBg: 'yellow' },
+        'RM': { text: 'RM', class: 'bg-info-subtle text-info border-info-subtle', iconBg: 'blue' },
+        'FL': { text: 'FL', class: 'bg-orange-subtle text-orange border-orange-subtle', iconBg: 'orange' }
+    };
+    return map[obj] || { text: obj || 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' };
+}
+
 async function renderMasterObjectives() {
     try {
         const objectives = await GetMasterObjective();
@@ -581,6 +591,7 @@ $(document).ready(async function () {
         if (displayBranches.length === 0) {
             $("#branchSelectPlaceholder").show();
         } else {
+            $branchSelectDisplay.removeClass("is-invalid");
             $("#branchSelectPlaceholder").hide();
             
             // Render tags
@@ -805,13 +816,17 @@ $(document).ready(async function () {
                     render: function (data, type, row) {
                         if (!row || !row.code) return '';
                         const isActive = row.code === selectedCampaignCode;
+                        const objBadge = getObjectiveBadge(row.objective);
                         return `
-                            <div class="campaign-card ${isActive ? 'active' : ''}" data-code="${row.code}">
-                                <div class="card-code">${row.code}</div>
-                                <div class="card-name">${row.name}</div>
-                                <div class="card-status-row">
-                                    <span>สถานะ:</span>
-                                    <span class="badge-status-normal">${row.status}</span>
+                            <div class="campaign-card ${isActive ? 'active' : ''} d-flex align-items-center gap-2" data-code="${row.code}">
+                                <div class="pa-card-icon ${objBadge.iconBg} flex-shrink-0 fw-bold me-2">${objBadge.text}</div>
+                                <div class="flex-grow-1 overflow-hidden min-w-0">
+                                    <div class="card-code">${row.code}</div>
+                                    <div class="card-name text-truncate" title="${row.name}">${row.name}</div>
+                                    <div class="card-status-row">
+                                        <span>สถานะ:</span>
+                                        <span class="badge-status-normal">${row.status}</span>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -858,7 +873,8 @@ $(document).ready(async function () {
             const campaignStatus = (campaign.status || "").toLowerCase().trim();
             const canEdit = statusCanEdit.includes(campaignStatus);
             const isDisabled = !canEdit;
-
+            
+            // $('#submitFormBtn').prop('disabled', isDisabled);
             $('#btnImportFile').prop('disabled', isDisabled);
             $('#campaignName').prop('disabled', isDisabled);
             $('#startDate').prop('disabled', isDisabled);
@@ -1184,6 +1200,7 @@ $(document).ready(async function () {
         if (displayBranches.length === 0) {
             $("#modalBranchSelectPlaceholder").show();
         } else {
+            $modalBranchSelectDisplay.removeClass("is-invalid");
             $("#modalBranchSelectPlaceholder").hide();
             displayBranches.forEach(code => {
                 const branchObj = branchesData.find(b => b.code === code);
@@ -1290,6 +1307,7 @@ async function getCheckProductNo() {
         $("#modalCampaignObjective").val("");
         $("#modalRemarks").val("");
         $("#modalRemarksCharCounter").text("0 / 500");
+        $("#modalCampaignName, #modalStartDate, #modalEndDate, #modalCampaignObjective, #modalBranchSelectDisplay").removeClass("is-invalid");
         
         // Reset Branch selection in modal
         modalSelectedBranches = [];
@@ -1321,18 +1339,41 @@ async function getCheckProductNo() {
         const note = $("#modalRemarks").val().trim();
         const Objective_code = $("#modalCampaignObjective").val();
         
-        if (!name || !start || !end) {
-            Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณากรอกชื่อแคมเปญ วันที่เริ่มต้น และวันที่สิ้นสุด", icon: "warning" });
+        $("#modalCampaignName, #modalStartDate, #modalEndDate, #modalCampaignObjective, #modalBranchSelectDisplay").removeClass("is-invalid");
+
+        const missingFields = [];
+        if (!name) {
+            missingFields.push("ชื่อ Campaign");
+            $("#modalCampaignName").addClass("is-invalid");
+        }
+        if (!start) {
+            missingFields.push("เริ่ม (วันที่เริ่มต้น)");
+            $("#modalStartDate").addClass("is-invalid");
+        }
+        if (!end) {
+            missingFields.push("จบ (วันที่สิ้นสุด)");
+            $("#modalEndDate").addClass("is-invalid");
+        }
+        if (!Objective_code) {
+            missingFields.push("วัตถุประสงค์");
+            $("#modalCampaignObjective").addClass("is-invalid");
+        }
+        if (!modalSelectedBranches || modalSelectedBranches.length === 0) {
+            missingFields.push("ใช้กับสาขา");
+            $("#modalBranchSelectDisplay").addClass("is-invalid");
+        }
+
+        if (missingFields.length > 0) {
+            Swal.fire({ 
+                title: "กรอกข้อมูลไม่ครบถ้วน", 
+                text: `กรุณากรอกหรือเลือกข้อมูลช่องที่มีเครื่องหมาย (*) ให้ครบถ้วน:\n${missingFields.join(", ")}`, 
+                icon: "warning" 
+            });
             return;
         }
 
         if (end < start) {
             Swal.fire({ title: "วันที่ไม่ถูกต้อง", text: "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น", icon: "warning" });
-            return;
-        }
-        
-        if (modalSelectedBranches.length === 0) {
-            Swal.fire({ title: "กรอกข้อมูลไม่ครบถ้วน", text: "กรุณาเลือกสาขาอย่างน้อย 1 สาขา", icon: "warning" });
             return;
         }
 
@@ -1528,6 +1569,39 @@ async function getCheckProductNo() {
         const note = ($remarks && $remarks.length && $remarks.val()) ? $remarks.val().trim() : "";
         const Objective_code = $("#campaignObjective").val() || "";
 
+        $("#campaignName, #startDate, #endDate, #campaignObjective, #branchSelectDisplay").removeClass("is-invalid");
+
+        const missingFields = [];
+        if (!name) {
+            missingFields.push("ชื่อ Campaign");
+            $("#campaignName").addClass("is-invalid");
+        }
+        if (!start) {
+            missingFields.push("เริ่ม (วันที่เริ่มต้น)");
+            $("#startDate").addClass("is-invalid");
+        }
+        if (!end) {
+            missingFields.push("จบ (วันที่สิ้นสุด)");
+            $("#endDate").addClass("is-invalid");
+        }
+        if (!Objective_code) {
+            missingFields.push("วัตถุประสงค์");
+            $("#campaignObjective").addClass("is-invalid");
+        }
+        if (!selectedBranches || selectedBranches.length === 0) {
+            missingFields.push("ใช้กับสาขา");
+            $("#branchSelectDisplay").addClass("is-invalid");
+        }
+
+        if (missingFields.length > 0) {
+            Swal.fire({ 
+                title: "กรอกข้อมูลไม่ครบถ้วน", 
+                text: `กรุณากรอกหรือเลือกข้อมูลช่องที่มีเครื่องหมาย (*) ให้ครบถ้วน:\n${missingFields.join(", ")}`, 
+                icon: "warning" 
+            });
+            return;
+        }
+
         if (start && end && end < start) {
             Swal.fire({ title: "วันที่ไม่ถูกต้อง", text: "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น", icon: "warning" });
             return;
@@ -1611,6 +1685,7 @@ async function getCheckProductNo() {
                                 product_company: company,
                                 offcde: selectedBranches.filter(b => b !== "99").join(","),
                                 Objective_code: Objective_code,
+                                product_status: "waiting prospect",
                                 file_id: fileIdToSave
                             }
                         };
@@ -1751,6 +1826,11 @@ async function getCheckProductNo() {
                 sanitize: false,
                 trigger: 'click'
             });
+        });
+
+        // Auto remove is-invalid class on user input/change
+        $(document).on("input change", "#campaignName, #startDate, #endDate, #campaignObjective, #modalCampaignName, #modalStartDate, #modalEndDate, #modalCampaignObjective", function () {
+            $(this).removeClass("is-invalid");
         });
 
         // Close popovers when clicking outside

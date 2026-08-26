@@ -444,8 +444,13 @@ namespace webCRM.Controllers
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
-                request.Sender = HttpContext.Session.GetString("personalId") ?? "";;
-                request.CreateBy = HttpContext.Session.GetString("personalId") ?? "";;
+                request.Sender = HttpContext.Session.GetString("personalId") ?? "";
+                request.CreateBy = HttpContext.Session.GetString("personalId") ?? "";
+
+                if (string.IsNullOrWhiteSpace(request.Receiver) && string.IsNullOrWhiteSpace(request.ReceiverEmail))
+                {
+                    return Ok(new { status = "error", message = "Receiver or ReceiverEmail is required." });
+                }
 
                 var content = new StringContent(
                     JsonSerializer.Serialize(request),

@@ -660,23 +660,43 @@ async function exportCallExcel() {
 
         const queryString = params.toString();
         const url = `/DashboardProspectCall/GetCallDashboardExcel${queryString ? '?' + queryString : ''}`;
+        const historyUrl = `/DashboardProspectCall/GetHistoryCallDashboardExcel${queryString ? '?' + queryString : ''}`;
 
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Network response was not ok");
-        const res = await response.json();
+        const [response, historyResponse] = await Promise.all([
+            fetch(url),
+            fetch(historyUrl)
+        ]);
+
+        const extractRows = (data) => {
+            if (!data) return [];
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) {}
+            }
+            if (Array.isArray(data)) return data;
+            if (data.data) {
+                if (Array.isArray(data.data)) return data.data;
+                if (data.data.table && Array.isArray(data.data.table)) return data.data.table;
+                if (data.data.data && Array.isArray(data.data.data)) return data.data.data;
+                if (data.data.result && Array.isArray(data.data.result)) return data.data.result;
+            }
+            if (data.table && Array.isArray(data.table)) return data.table;
+            if (data.result && Array.isArray(data.result)) return data.result;
+            return [];
+        };
 
         let exportRows = [];
-        if (Array.isArray(res)) {
-            exportRows = res;
-        } else if (res && Array.isArray(res.data)) {
-            exportRows = res.data;
-        } else if (res && res.data && Array.isArray(res.data.table)) {
-            exportRows = res.data.table;
-        } else if (res && Array.isArray(res.table)) {
-            exportRows = res.table;
+        if (response.ok) {
+            const res = await response.json();
+            exportRows = extractRows(res);
         }
 
-        if (!exportRows || exportRows.length === 0) {
+        let historyExportRows = [];
+        if (historyResponse.ok) {
+            const historyRes = await historyResponse.json();
+            historyExportRows = extractRows(historyRes);
+        }
+
+        if ((!exportRows || exportRows.length === 0) && (!historyExportRows || historyExportRows.length === 0)) {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'info',
@@ -691,7 +711,17 @@ async function exportCallExcel() {
         }
 
         const headers = [
-            { title: 'รหัส Campaign', keys: ['product_code'], width: 15, align: 'center' },
+            { title: 'รหัส Campaign', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
+            { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
+            { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
+            { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
+            { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
+            { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
+            { title: 'Status Lead', keys: ['Status Lead'], width: 15, align: 'center' }
+        ];
+
+        const historyHeaders = [
+            { title: 'รหัส Campaign', keys: ['รหัส แคมเปญ', 'product_code', 'รหัส Campaign'], width: 18, align: 'center' },
             { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
             { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
             { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
@@ -703,6 +733,7 @@ async function exportCallExcel() {
         const todayStr = new Date().toISOString().slice(0, 10);
 
         const getVal = (row, keyList, isDate = false) => {
+            if (!row || typeof row !== 'object') return '';
             let raw = undefined;
             for (const k of keyList) {
                 if (row[k] !== undefined && row[k] !== null) {
@@ -710,13 +741,24 @@ async function exportCallExcel() {
                     break;
                 }
             }
+            if (raw === undefined || raw === null) {
+                const rowKeys = Object.keys(row);
+                for (const k of keyList) {
+                    const target = k.trim().toLowerCase();
+                    const foundKey = rowKeys.find(rk => rk.trim().toLowerCase() === target);
+                    if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+                        raw = row[foundKey];
+                        break;
+                    }
+                }
+            }
             if (raw === undefined || raw === null) return '';
             if (isDate) {
                 if (!raw) return '';
                 const d = new Date(raw);
                 if (!isNaN(d.getTime())) {
-                    const m = d.getMonth() + 1;
-                    const day = d.getDate();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
                     const y = d.getFullYear();
                     return `${m}/${day}/${y}`;
                 }
@@ -725,107 +767,221 @@ async function exportCallExcel() {
             return String(raw);
         };
 
-        const fileName = `Prospect_Call_Report_${todayStr}.xls`;
-        const escapeXml = (str) => {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;"/>');
-        };
+        const fileName = `Prospect_Call_Report_${todayStr}.xlsx`;
 
-        let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <!--[if gte mso 9]>
-        <xml>
-        <x:ExcelWorkbook>
-        <x:ExcelWorksheets>
-        <x:ExcelWorksheet>
-            <x:Name>Call Report</x:Name>
-            <x:WorksheetOptions>
-                <x:DisplayGridlines/>
-            </x:WorksheetOptions>
-        </x:ExcelWorksheet>
-        </x:ExcelWorksheets>
-        </x:ExcelWorkbook>
-        </xml>
-        <![endif]-->
-        <style>
-            table {
-                border-collapse: collapse;
-                width: 100%;
-                font-family: 'Segoe UI', Tahoma, 'Prompt', sans-serif;
-                font-size: 10pt;
-            }
-            th {
-                background-color: #1d6f42 !important;
-                color: #ffffff !important;
-                font-weight: bold;
-                text-align: center;
-                vertical-align: middle;
-                height: 38px;
-                border: 1px solid #144d2e;
-                padding: 8px 12px;
-                white-space: nowrap;
-            }
-            td {
-                vertical-align: middle;
-                border: 1px solid #d0d7de;
-                padding: 8px 12px;
-                mso-number-format: "\\@";
-            }
-            .text-center { text-align: center; }
-            .text-left { text-align: left; }
-            .text-right { text-align: right; }
-        </style>
-        </head>
-        <body>
-        <table>
-        <thead>
-            <tr>
-        `;
+        if (typeof XLSX !== 'undefined') {
+            const createWorksheet = (rows, headerList) => {
+                const sheetData = [headerList.map(h => h.title)];
+                const rowHeights = [{ hpt: 28 }];
 
-        headers.forEach(h => {
-            html += `        <th style="background-color: #1d6f42; color: #ffffff;">${escapeXml(h.title)}</th>\n`;
-        });
+                rows.forEach(row => {
+                    const rowData = headerList.map(h => getVal(row, h.keys, h.isDate));
+                    sheetData.push(rowData);
+                    rowHeights.push({ hpt: 22 });
+                });
 
-        html += `    </tr>
-        </thead>
-        <tbody>
-        `;
+                const ws = XLSX.utils.aoa_to_sheet(sheetData);
+                ws['!cols'] = headerList.map(h => ({ wch: h.width || 20 }));
+                ws['!rows'] = rowHeights;
 
-        exportRows.forEach((row, index) => {
-            const rowBg = (index % 2 === 1) ? 'background-color: #f4f9f5;' : 'background-color: #ffffff;';
-            html += `    <tr style="${rowBg}">\n`;
-            headers.forEach(h => {
-                const val = getVal(row, h.keys, h.isDate);
-                const alignClass = h.align === 'center' ? 'text-center' : (h.align === 'right' ? 'text-right' : 'text-left');
-                
-                let customStyle = '';
-                if (val === 'ไปตามLead' || val === 'Fee Text') {
-                    customStyle = ' background-color: #fef08a !important; font-weight: bold;';
+                const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+                for (let R = range.s.r; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[cellRef]) continue;
+
+                        const isHeader = (R === 0);
+                        const isOddRow = (R % 2 === 1);
+                        const align = headerList[C]?.align || 'left';
+                        const val = String(ws[cellRef].v || '');
+
+                        let customBg = isOddRow ? "F4F9F5" : "FFFFFF";
+                        let fontBold = false;
+                        if (!isHeader && (val === 'ไปตามLead' || val === 'Fee Text')) {
+                            customBg = "FEF08A";
+                            fontBold = true;
+                        }
+
+                        if (isHeader) {
+                            ws[cellRef].s = {
+                                fill: { fgColor: { rgb: "1D6F42" } },
+                                font: { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+                                alignment: { horizontal: "center", vertical: "center", wrapText: true },
+                                border: {
+                                    top: { style: "thin", color: { rgb: "144D2E" } },
+                                    bottom: { style: "thin", color: { rgb: "144D2E" } },
+                                    left: { style: "thin", color: { rgb: "144D2E" } },
+                                    right: { style: "thin", color: { rgb: "144D2E" } }
+                                }
+                            };
+                        } else {
+                            ws[cellRef].s = {
+                                fill: { fgColor: { rgb: customBg } },
+                                font: { name: "Segoe UI", sz: 9.5, bold: fontBold, color: { rgb: "000000" } },
+                                alignment: { horizontal: align, vertical: "center", wrapText: true },
+                                border: {
+                                    top: { style: "thin", color: { rgb: "D0D7DE" } },
+                                    bottom: { style: "thin", color: { rgb: "D0D7DE" } },
+                                    left: { style: "thin", color: { rgb: "D0D7DE" } },
+                                    right: { style: "thin", color: { rgb: "D0D7DE" } }
+                                }
+                            };
+                        }
+                    }
                 }
+                return ws;
+            };
 
-                html += `        <td class="${alignClass}" style="${customStyle}">${escapeXml(val)}</td>\n`;
+            const wb = XLSX.utils.book_new();
+            const ws1 = createWorksheet(exportRows, headers);
+            const ws2 = createWorksheet(historyExportRows, historyHeaders);
+
+            XLSX.utils.book_append_sheet(wb, ws1, "Call Report");
+            XLSX.utils.book_append_sheet(wb, ws2, "History Call");
+
+            XLSX.writeFile(wb, fileName);
+        } else {
+            const fallbackFileName = `Prospect_Call_Report_${todayStr}.xls`;
+            const escapeXml = (str) => {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;"/>');
+            };
+
+            let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+            <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+            <!--[if gte mso 9]>
+            <xml>
+            <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+            <x:ExcelWorksheet>
+                <x:Name>Call Report</x:Name>
+                <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+            <x:ExcelWorksheet>
+                <x:Name>History Call</x:Name>
+                <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+            <style>
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    font-family: 'Segoe UI', Tahoma, 'Prompt', sans-serif;
+                    font-size: 10pt;
+                }
+                th {
+                    background-color: #1d6f42 !important;
+                    color: #ffffff !important;
+                    font-weight: bold;
+                    text-align: center;
+                    vertical-align: middle;
+                    height: 38px;
+                    border: 1px solid #144d2e;
+                    padding: 8px 12px;
+                    white-space: nowrap;
+                }
+                td {
+                    vertical-align: middle;
+                    border: 1px solid #d0d7de;
+                    padding: 8px 12px;
+                    mso-number-format: "\\@";
+                }
+                .text-center { text-align: center; }
+                .text-left { text-align: left; }
+                .text-right { text-align: right; }
+            </style>
+            </head>
+            <body>
+            <table>
+            <thead>
+                <tr>
+            `;
+
+            headers.forEach(h => {
+                html += `        <th style="background-color: #1d6f42; color: #ffffff;">${escapeXml(h.title)}</th>\n`;
             });
-            html += `    </tr>\n`;
-        });
 
-        html += `</tbody>
-        </table>
-        </body>
-        </html>`;
+            html += `    </tr>
+            </thead>
+            <tbody>
+            `;
 
-        const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            exportRows.forEach((row, index) => {
+                const rowBg = (index % 2 === 1) ? 'background-color: #f4f9f5;' : 'background-color: #ffffff;';
+                html += `    <tr style="${rowBg}">\n`;
+                headers.forEach(h => {
+                    const val = getVal(row, h.keys, h.isDate);
+                    const alignClass = h.align === 'center' ? 'text-center' : (h.align === 'right' ? 'text-right' : 'text-left');
+                    
+                    let customStyle = '';
+                    if (val === 'ไปตามLead' || val === 'Fee Text') {
+                        customStyle = ' background-color: #fef08a !important; font-weight: bold;';
+                    }
+
+                    html += `        <td class="${alignClass}" style="${customStyle}">${escapeXml(val)}</td>\n`;
+                });
+                html += `    </tr>\n`;
+            });
+
+            html += `</tbody>
+            </table>
+            <table>
+            <thead>
+                <tr>
+            `;
+
+            historyHeaders.forEach(h => {
+                html += `        <th style="background-color: #1d6f42; color: #ffffff;">${escapeXml(h.title)}</th>\n`;
+            });
+
+            html += `    </tr>
+            </thead>
+            <tbody>
+            `;
+
+            historyExportRows.forEach((row, index) => {
+                const rowBg = (index % 2 === 1) ? 'background-color: #f4f9f5;' : 'background-color: #ffffff;';
+                html += `    <tr style="${rowBg}">\n`;
+                historyHeaders.forEach(h => {
+                    const val = getVal(row, h.keys, h.isDate);
+                    const alignClass = h.align === 'center' ? 'text-center' : (h.align === 'right' ? 'text-right' : 'text-left');
+                    
+                    let customStyle = '';
+                    if (val === 'ไปตามLead' || val === 'Fee Text') {
+                        customStyle = ' background-color: #fef08a !important; font-weight: bold;';
+                    }
+
+                    html += `        <td class="${alignClass}" style="${customStyle}">${escapeXml(val)}</td>\n`;
+                });
+                html += `    </tr>\n`;
+            });
+
+            html += `</tbody>
+            </table>
+            </body>
+            </html>`;
+
+            const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fallbackFileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
     } catch (err) {
         console.error("Error exporting call excel:", err);

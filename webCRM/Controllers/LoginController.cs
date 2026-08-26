@@ -16,9 +16,9 @@ namespace webCRM.Controllers
             NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString,
             Converters = { new NumberToStringConverter() }
         };
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index([FromQuery] string? user)
         {
-            await GetProfileByPersonalCode();
+            await GetProfileByPersonalCode(user);
             return View("~/Views/Home/Index.cshtml");
         }
 
@@ -28,7 +28,7 @@ namespace webCRM.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        public async Task<IActionResult> GetProfileByPersonalCode()
+        public async Task<IActionResult> GetProfileByPersonalCode([FromQuery] string? user = null)
         {
 
             try
@@ -48,7 +48,12 @@ namespace webCRM.Controllers
                 }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                var personalCode = "100664";
+                
+                string personalCode = "";
+                if (!string.IsNullOrWhiteSpace(user))
+                {
+                    personalCode = DecodeBase64(user);
+                }
 
                 string url = $"{domain}/crm/api/v1/p2/getProfileByPersonalCode/{personalCode}";
 
@@ -139,6 +144,25 @@ namespace webCRM.Controllers
             }
 
         }
-        
+
+        private static string DecodeBase64(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            try
+            {
+                string s = input.Trim().Replace('-', '+').Replace('_', '/');
+                switch (s.Length % 4)
+                {
+                    case 2: s += "=="; break;
+                    case 3: s += "="; break;
+                }
+                byte[] bytes = Convert.FromBase64String(s);
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch
+            {
+                return input;
+            }
+        }
     }
 }

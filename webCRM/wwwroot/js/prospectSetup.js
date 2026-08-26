@@ -121,36 +121,41 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     }
 });
 
-function productFilterHTML(filtercode) {
+function productFilterHTML(filtercode, dropdownData = {}) {
 
-    function OptionHTML(labelName, optionData = []) {
-        // แก้ไข: ลบเครื่องหมาย " ที่เกินมาตรง class
+    function OptionHTML(labelName, optionData = [], fieldName = '') {
+        const list = Array.isArray(optionData) ? optionData : [];
         const HTML = `
             <div class="col-xxl-4 col-xl-6 col-md-6">
                 <label class="form-label-custom">${labelName}</label>
-                <select class="form-select form-select-custom">
-                ${optionData.map(item => `<option value="${item.name}">${item.name}</option>`).join('')}
+                <select class="form-select form-select-custom prospect-filter-input" data-field="${fieldName}">
+                <option value="">-- ทั้งหมด --</option>
+                ${list.map(item => {
+                    const text = typeof item === 'object' && item !== null ? (item.name || item.text || item.label || '') : item;
+                    const val = typeof item === 'object' && item !== null ? (item.value || item.name || text) : item;
+                    return `<option value="${val}">${text}</option>`;
+                }).join('')}
                 </select>
             </div>
         `;
         return HTML;
     }
 
-    function RangeNumberHTML(labelName) {
+    function RangeNumberHTML(labelName, fieldName = '') {
         const HTML = `
             <div class="col-xxl-4 col-xl-6 col-md-6">
                 <label class="form-label-custom">${labelName}</label>
-                <input type="number" class="form-control form-select-custom">
+                <input type="number" class="form-control form-select-custom prospect-filter-input" data-field="${fieldName}">
             </div>
         `;
         return HTML;
     }
 
-    function CalendarRangeHTML(labelName) {
+    function FreeTextHTML(labelName, fieldName = '') {
         const HTML = `
             <div class="col-xxl-4 col-xl-6 col-md-6">
                 <label class="form-label-custom">${labelName}</label>
-                <input type="date" class="form-control form-select-custom">
+                <input type="text" class="form-control form-select-custom prospect-filter-input" data-field="${fieldName}">
             </div>
         `;
         return HTML;
@@ -158,62 +163,89 @@ function productFilterHTML(filtercode) {
 
     const company = (window.CURRENT_COMPANY || "MICRO").toUpperCase();
     
-    const personType = [{name: "บุคคลธรรมดา"}, {name: "นิติบุคคล"}];
-    const gender = [{name: "ชาย"}, {name: "หญิง"}];
-    const career = [{name: "พนักงานบริษัท"}, {name: "รับเหมา"}, {name: "เกษตรกร"}, {name: "ค้าขาย"}, {name: "อื่นๆ"}];
-    const businessType = [{name: "ชาย"}, {name: "หญิง"}];
-    const carType = [{name: "รถหนึ่ง"}, {name: "รถสอง"}];
-    const periodCarYear = [{name: "ปี 2026"}, {name: "ปี 2025"}];
-    const address = [{name: "กรุงเทพมหานคร"}, {name: "ปริมณฑล"}];
-    const addressDistict = [{name: "1"}, {name: "2"}];
-    const branch = [{name: "MICRO"}, {name: "MIB"}, {name: "MFIN"}];
-    const statusContact = [{name:"ติดต่อแล้ว"}, {name:"กำลังติดต่อ"}];
-    const carStyle = [{name: "รถกระบะ"}, {name: "รถตู้"}, {name: "รถอื่นๆ"}];
-    const brand = [{name: "Toyota"}, {name: "Honda"}, {name: "Isuzu"}];
-    const insurance = [{name: "ทำ"}, {name: "ไม่ทำ"}];
-    const expiredInsurance = [{name: "1 ปี"}, {name: "2 ปี"}, {name: "3 ปี"}];
+    let opts = dropdownData;
+    if (typeof opts === 'string') {
+        try { opts = JSON.parse(opts); } catch(e) {}
+    }
+    if (opts && typeof opts === 'object') {
+        if (opts.data && typeof opts.data === 'object' && !Array.isArray(opts.data)) {
+            opts = opts.data;
+        } else if (opts.result && typeof opts.result === 'object' && !Array.isArray(opts.result)) {
+            opts = opts.result;
+        }
+    }
+
+    function getOptions(keys, fallback = []) {
+        if (!opts || typeof opts !== 'object') return fallback;
+        for (const k of keys) {
+            const foundKey = Object.keys(opts).find(key => key.toLowerCase() === k.toLowerCase());
+            if (foundKey && Array.isArray(opts[foundKey]) && opts[foundKey].length > 0) {
+                return opts[foundKey].map(item => typeof item === 'object' && item !== null ? item : { name: item });
+            }
+        }
+        return fallback;
+    }
+
+    const gender = getOptions(["gender"]);
+    const caryear = getOptions(["caryear"]);
+    const custype = getOptions(["custype"]);
+    const occupation = getOptions(["occupation"]);
+    const carStype = getOptions(["carStype"]);
+    const provinceUsecar = getOptions(["provinceUsecar"]);
+    const branchName = getOptions(["branchName"]);
+    const current_region = getOptions(["current_region"]);
+    const vehicle_use_region = getOptions(["vehicle_use_region"]);
+    const consts = getOptions(["consts"]);
+    const districtUsecar = getOptions(["districtUsecar"]);
+    const businessType = getOptions(["businessType"]);
+    const registered_region = getOptions(["registered_region"]);
+    const category = getOptions(["category"]);
+    const brand = getOptions(["brand"]);
+    const ownins = getOptions(["ownins"]);
+    const policyDateExpire = ["ก่อน 1 ปี", "ตั้งแต่ 1 ปีขึ้นไป"];
+    const expireIns = ["หมดอายุ", "ยังไม่หมดอายุ"];
 
 if (company == "MICRO") {
 
     switch (filtercode) {
         case "F001":
-            return OptionHTML("ประเภทบุคคล", personType);
+            return OptionHTML("ประเภทบุคคล", custype, "custype");
         case "F002":
-            return OptionHTML("เพศ", gender);
+            return OptionHTML("เพศ", gender, "gender");
         case "F003":
-            return RangeNumberHTML("อายุ");
+            return RangeNumberHTML("อายุ", "age");
         case "F004":
-            return OptionHTML("อาชีพผู้เช่าซื้อ", career);
+            return OptionHTML("อาชีพผู้เช่าซื้อ", occupation, "occupation");
         case "F005":
-            return OptionHTML("ประเภทธุรกิจ", businessType);
+            return OptionHTML("ประเภทธุรกิจ", businessType, "businessType");
         case "F006":
-            return OptionHTML("ประเภทรถ", carType);
+            return OptionHTML("ประเภทรถ", carStype, "carStype");
         case "F009":
-            return OptionHTML("ช่วงปีรถ", periodCarYear);
+            return OptionHTML("ช่วงปีรถ", caryear, "caryear");
         case "F010":
-            return RangeNumberHTML("จำนวนงวด");
+            return RangeNumberHTML("จำนวนงวด", "term");
         case "F011":
-            return RangeNumberHTML("จำนวนงวดชำระ");
+            return RangeNumberHTML("จำนวนงวดชำระ", "termpaid");
         case "F012":
-            return RangeNumberHTML("จำนวนงวดค้างจ่าย");
+            return RangeNumberHTML("จำนวนงวดค้างจ่าย", "total_ovd");
         case "F013":
-            return RangeNumberHTML("ประสบการณ์ทำงาน");
+            return RangeNumberHTML("ประสบการณ์ทำงาน", "totwrky");
         case "F014":
-            return OptionHTML("ภูมิภาคที่อยู่ตามทะเบียนบ้าน", address);
+            return OptionHTML("ภูมิภาคที่อยู่ตามทะเบียนบ้าน", registered_region, "registered_region");
         case "F015":
-            return OptionHTML("ภูมิภาคที่อยู่ปัจจุบัน", address);
+            return OptionHTML("ภูมิภาคที่อยู่ปัจจุบัน", current_region, "current_region");
         case "F016":
-            return OptionHTML("ภูมิภาคที่อยู่สถานที่ใช้รถ", address);
+            return OptionHTML("ภูมิภาคที่อยู่สถานที่ใช้รถ", vehicle_use_region, "vehicle_use_region");
         case "F017":
-            return OptionHTML("จังหวัดที่อยู่สถานที่ใช้รถ", address);
+            return OptionHTML("จังหวัดที่อยู่สถานที่ใช้รถ", provinceUsecar, "provinceUsecar");
         case "F018":
-            return OptionHTML("อำเภอที่อยู่สถานที่ใช้รถ", addressDistict);
+            return OptionHTML("อำเภอที่อยู่สถานที่ใช้รถ", districtUsecar, "districtUsecar");
         case "F019":
-            return RangeNumberHTML("จำนวนงวดที่ค้างชำระ");
+            return RangeNumberHTML("จำนวนงวดที่ค้างชำระ", "ovd");
         case "F020":
-            return OptionHTML("สาขาเปิดสัญญา", branch);
+            return OptionHTML("สาขาเปิดสัญญา", branchName, "branchName");
         case "F021":
-            return OptionHTML("สถานะสัญญา", statusContact);
+            return OptionHTML("สถานะสัญญา", consts, "consts");
         default:
             return '';
     }
@@ -222,76 +254,75 @@ if (company == "MICRO") {
 
         switch (filtercode) {
         case "F001":
-            return OptionHTML("ประเภทบุคคล", personType);
+            return OptionHTML("ประเภทบุคคล", custype, "custype");
         case "F002":
-            return OptionHTML("เพศ", gender);
+            return OptionHTML("เพศ", gender, "gender");
         case "F003":
-            return RangeNumberHTML("อายุ");
+            return RangeNumberHTML("อายุ", "age");
         case "F004":
-            return OptionHTML("อาชีพ", career);
+            return OptionHTML("อาชีพ", occupation, "occupation");
         case "F005":
-            return OptionHTML("ประเภทธุรกิจ", businessType);
+            return OptionHTML("ประเภทธุรกิจ", businessType, "businessType");
         case "F006":
-            return OptionHTML("ประเภทรถ", carType);
+            return OptionHTML("ประเภทรถ", carStype, "carStype");
         case "F007":
-            return OptionHTML("ลักษณะรถ", carStyle);
+            return OptionHTML("ลักษณะรถ", category, "category");
         case "F008":
-            return OptionHTML("ยี่ห้อ", brand);
+            return OptionHTML("ยี่ห้อ", brand, "brand");
         case "F009":
-            return OptionHTML("ช่วงปีรถ", periodCarYear);
+            return OptionHTML("ช่วงปีรถ", caryear, "caryear");
         case "F010":
-            return RangeNumberHTML("จำนวนงวด");
+            return RangeNumberHTML("จำนวนงวด", "term");
         case "F011":
-            return RangeNumberHTML("จำนวนงวดชำระ");
+            return RangeNumberHTML("จำนวนงวดชำระ", "termpaid");
         case "F012":
-            return RangeNumberHTML("จำนวนงวดค้างจ่าย");
+            return RangeNumberHTML("จำนวนงวดค้างจ่าย", "total_ovd");
         case "F013":
-            return RangeNumberHTML("ประสบการณ์ทำงาน");
+            return RangeNumberHTML("ประสบการณ์ทำงาน", "totwrky");
         case "F014":
-            return OptionHTML("ที่อยู่ตามทะเบียนบ้าน", address);
+            return OptionHTML("ที่อยู่ตามทะเบียนบ้าน", registered_region, "registered_region");
         case "F015":
-            return OptionHTML("ที่อยู่ปัจจุบัน", address);
+            return OptionHTML("ที่อยู่ปัจจุบัน", current_region, "current_region");
         case "F016":
-            return OptionHTML("ที่อยู่จัดส่งเอกสาร", address);
+            return FreeTextHTML("ที่อยู่จัดส่งเอกสาร", "docDelivery_regoin");
         case "F017":
-            return RangeNumberHTML("จำนวนงวดที่ค้างชำระ");
+            return RangeNumberHTML("จำนวนงวดที่ค้างชำระ", "ovd");
         case "F018":
-            return OptionHTML("สาขาเปิดสัญญา", branch);
+            return OptionHTML("สาขาเปิดสัญญา", branchName, "branchName");
         case "F019":
-            return OptionHTML("สถานะสัญญา", statusContact);
+            return OptionHTML("สถานะสัญญา", consts, "consts");
         default:
             return '';
     }
 
 } else if (company == "MIB"){
-
-            switch (filtercode) {
+        switch (filtercode) {
         case "F001":
-            return OptionHTML("ประเภทบุคคล", personType);
+            return OptionHTML("ประเภทบุคคล", custype, "custype");
         case "F002":
-            return OptionHTML("เพศ", gender);
+            return OptionHTML("เพศ", gender, "gender");
         case "F003":
-            return RangeNumberHTML("อายุ");
+            return RangeNumberHTML("อายุ", "age");
         case "F004":
-            return OptionHTML("อาชีพ", career);
+            return OptionHTML("อาชีพ", occupation, "occupation");
         case "F005":
-            return OptionHTML("ที่อยู่ปัจจุบัน", address);
+            return OptionHTML("ที่อยู่ปัจจุบัน", current_region, "current_region");
         case "F006":
-            return OptionHTML("ยี่ห้อ", brand);
+            return OptionHTML("ยี่ห้อ", brand, "brand");
         case "F007":
-            return OptionHTML("ประเภทรถ", carType);
+            return OptionHTML("ประเภทรถ", carStype, "carStype");
         case "F008":
-            return RangeNumberHTML("ปีรถ");
+            return OptionHTML("ช่วงปีรถ", caryear, "caryear");
         case "F009":
-            return OptionHTML("การทำประกัน", insurance);
+            return OptionHTML("การทำประกัน", ownins, "ownins");
         case "F010":
-            return OptionHTML("ประขาดต่ออายุ", expiredInsurance);
+            return OptionHTML("ประกันขาดต่ออายุ", policyDateExpire, "policyDateExpire");
         case "F011":
-            return OptionHTML("บริษัทลูกค้าในเครือ", branch);
+            return OptionHTML("บริษัทลูกค้าในเครือ", branchName, "branchName");
         case "F012": 
-            return CalendarRangeHTML("ประกันหมดอายุ");
+            return OptionHTML("ประกันหมดอายุ", expireIns, "expireIns");
         case "F013":
-            return OptionHTML("ที่อยู่ปัจจุบัน", address);
+            return OptionHTML("ที่อยู่ปัจจุบัน", current_region, "current_region");
         default:
             return '';
     }
@@ -395,11 +426,15 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
 
                             if (dynamicFilterContainer) {
                                 dynamicFilterContainer.innerHTML = '';
-
+                                
+                                const option = await fetch (`/ProspectSetup/getFilterDropdown`)
+                                const optionData = await option.json();
+                                console.log(optionData)
+                                
                                 if (filters.length > 0) {
                                     filters.forEach((filter) => {
                                         const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
-                                        const filterHTML = productFilterHTML(fCode);
+                                        const filterHTML = productFilterHTML(fCode, optionData);
 
                                         if (filterHTML) {
                                             dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
@@ -474,11 +509,28 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
     paginationEl.appendChild(nextLi);
 }
 
+function getFilterParams() {
+    const params = new URLSearchParams();
+    const filterInputs = document.querySelectorAll('.prospect-filter-input');
+    filterInputs.forEach(input => {
+        const fieldName = input.getAttribute('data-field');
+        const val = $(input).val();
+        if (fieldName && val !== null && val !== undefined && val.toString().trim() !== '') {
+            params.append(fieldName, val.toString().trim());
+        }
+    });
+    return params;
+}
+
 async function getProspect(page = 1, pageSize = 10) {
     try {
         currentProspectPage = page;
         currentProspectPageSize = pageSize;
-        const response = await fetch(`/ProspectSetup/GetProspect?page=${page}&pageSize=${pageSize}`);
+        const filterParams = getFilterParams();
+        filterParams.set('page', page);
+        filterParams.set('pageSize', pageSize);
+
+        const response = await fetch(`/ProspectSetup/GetProspect?${filterParams.toString()}`);
         const jsonResult = await response.json();
         return jsonResult;
     }
@@ -514,8 +566,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
                 rawData.forEach(item => {
                     const name = item.nameCus || '-';
                     const phone = item.mobile || '-';
-                    const branch = item.branch_Name || '-';
-                    const status = item.assign_status || '-';
+                    const branch = item.branchName || '-';
 
                     const idno = item.idno || '';
                     const id = item.id || '';
@@ -987,6 +1038,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             const dynamicFilterContainer = document.getElementById('dynamicFilter');
             if (dynamicFilterContainer) {
                 dynamicFilterContainer.querySelectorAll('select').forEach(sel => sel.value = '');
+                dynamicFilterContainer.querySelectorAll('input').forEach(inp => inp.value = '');
             }
             ['filterCustType', 'filterGender', 'filterJob', 'filterStatus', 'filterBranch'].forEach(id => {
                 const el = document.getElementById(id);

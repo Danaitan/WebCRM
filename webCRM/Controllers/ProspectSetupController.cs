@@ -88,7 +88,11 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProspect(int page = 1, int pageSize = 10)
+        public async Task<IActionResult> GetProspect(
+            GetProspectRequest request,
+            int page = 1,
+            int pageSize = 10
+            )
         {
 
             try
@@ -100,7 +104,29 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProspect_phase3?page={page}&pageSize={pageSize}&isNotAssign=true");
+
+                    var queryParams = new List<string>
+                    {
+                        $"page={page}",
+                        $"pageSize={pageSize}",
+                        "isNotAssign=true"
+                    };
+
+                    if (request != null)
+                    {
+                        var properties = typeof(GetProspectRequest).GetProperties();
+                        foreach (var prop in properties)
+                        {
+                            var val = prop.GetValue(request)?.ToString();
+                            if (!string.IsNullOrWhiteSpace(val))
+                            {
+                                queryParams.Add($"{prop.Name}={Uri.EscapeDataString(val)}");
+                            }
+                        }
+                    }
+
+                    var queryString = string.Join("&", queryParams);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProspect_phase3?{queryString}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
                     return Content(data, "application/json");
@@ -227,6 +253,34 @@ namespace webCRM.Controllers
                             Encoding.UTF8,
                             "application/json"
                             ));
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> getFilterDropdown()
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync( $"{domain}/crm/api/v1/p3/getFilterDropdown" );
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {

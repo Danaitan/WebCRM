@@ -1982,9 +1982,11 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
 }
 
 $("#btnGotoETL").off("click").on("click", function () {
-    if (!selectedCampaignGuid) return;
-    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignGuid + 
-    "&user=" + HttpContext.Session.GetString("personalId");
+    if (!selectedCampaignCode) return;
+    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignCode + 
+    "&user=" + HttpContext.Session.GetString("personalId") +
+    "&type=1"
+    ;
     window.location.href = url;
 });
 

@@ -874,7 +874,7 @@ $(document).ready(async function () {
             const canEdit = statusCanEdit.includes(campaignStatus);
             const isDisabled = !canEdit;
             
-            // $('#submitFormBtn').prop('disabled', isDisabled);
+            $('#submitFormBtn').prop('disabled', isDisabled);
             $('#btnImportFile').prop('disabled', isDisabled);
             $('#campaignName').prop('disabled', isDisabled);
             $('#startDate').prop('disabled', isDisabled);
@@ -1670,11 +1670,27 @@ async function getCheckProductNo() {
                             }
                         }
 
+                        let currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
+                        if (!currentCampaignId && selectedCampaignCode) {
+                            try {
+                                const res = await getCampainList(1, 100, selectedCampaignCode);
+                                const rawItems = Array.isArray(res) ? res : (res.data || []);
+                                const found = rawItems.find(c => c.code === selectedCampaignCode || (selectedCampaignGuid && c.guid === selectedCampaignGuid));
+                                if (found && found.id) {
+                                    currentCampaignId = found.id;
+                                    selectedCampaignId = found.id;
+                                    if (existingIdx > -1) campaigns[existingIdx].id = found.id;
+                                }
+                            } catch (e) {
+                                console.error("Error resolving campaign ID:", e);
+                            }
+                        }
+
                         const filterRes = await postFilter(selectedCampaignGuid);
                         const company = window.CURRENT_COMPANY || "MICRO";
                         const updatePayload = {
                             productInfo: {
-                                id: currentCampaignId ? String(currentCampaignId) : "",
+                                id: (currentCampaignId !== undefined && currentCampaignId !== null && currentCampaignId !== "") ? String(currentCampaignId) : "",
                                 product_code: code,
                                 product_name: name,
                                 product_start: start,
@@ -1691,15 +1707,22 @@ async function getCheckProductNo() {
                         };
                         if (currentCampaignStatus == "reject")
                         {
-                            updatePayload.productInfo.product_status = "waiting prospect"
+                            updatePayload.productInfo.product_status = "waiting prospect";
                         }
-                        await fetch(`/Campain/UpdateCampaign`, {
+                        const updateRes = await fetch(`/Campain/UpdateCampaign`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(updatePayload)
                         });
+
+                        const updateResult = await updateRes.json();
+                        if (!updateRes.ok || updateResult.status === "error") {
+                            const errorMsg = updateResult.message || updateResult.detail || "ไม่สามารถอัปเดตข้อมูลแคมเปญได้";
+                            Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
+                            return;
+                        }
 
                         if (filterRes && (filterRes.status === "success" || filterRes.status === "warning")) {
                             campaignData.file_id = fileIdToSave;

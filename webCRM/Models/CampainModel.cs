@@ -39,6 +39,9 @@ namespace webCRM.Models
         [JsonPropertyName("createrd_by")]
         public string? CreatedBy { get; set; }
 
+        [JsonPropertyName("updated_by")]
+        public string? UpdatedBy { get; set; }
+
         [JsonPropertyName("product_company")]
         public string? ProductCompany { get; set; }
 
@@ -52,7 +55,8 @@ namespace webCRM.Models
         public string? product_status { get; set; }
 
         [JsonPropertyName("file_id")]
-        public int? file_id { get; set; }
+        [JsonConverter(typeof(FlexibleStringConverter))]
+        public string? file_id { get; set; }
     }
 
     public class FilterInfo

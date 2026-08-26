@@ -217,6 +217,8 @@ namespace webCRM.Models
 
         [JsonPropertyName("resigned_th")]
         public string? ResignedTh { get; set; }
+        [JsonPropertyName("role_id")]
+        public string? role_id { get; set; }
     }
 
     public class LoginResponse

@@ -2086,10 +2086,8 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
 
 $("#btnGotoETL").off("click").on("click", function () {
     if (!selectedCampaignCode) return;
-    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?id=" + selectedCampaignCode + 
-    "&user=" + HttpContext.Session.GetString("personalId") +
-    "&type=1"
-    ;
+
+    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?type=1&id=" + selectedCampaignCode + "&user=" + encodeURIComponent(window.CURRENT_USER_ID);
     window.location.href = url;
 });
 

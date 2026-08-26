@@ -49,7 +49,7 @@ namespace webCRM.Controllers
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
                 
-                string personalCode = "";
+                string personalCode = "100664";
                 if (!string.IsNullOrWhiteSpace(user))
                 {
                     personalCode = DecodeBase64(user);
@@ -120,6 +120,9 @@ namespace webCRM.Controllers
                 HttpContext.Session.SetString("email", result.EMail ?? "");
                 HttpContext.Session.SetString("company", company);
                 HttpContext.Session.SetString("fullNameTh", $"{result.PersonnelNameTH} {result.PersonnelLastTH}");
+                HttpContext.Session.SetString("roleId", $"{result.role_id}");
+                string branchNo = int.TryParse(result.BranchNo, out int bNo) ? bNo.ToString("00") : (result.BranchNo ?? "");
+                HttpContext.Session.SetString("branchName", $"{branchNo}-{result.Branch}");
 
                 var loginLog = new 
                 {
@@ -164,5 +167,41 @@ namespace webCRM.Controllers
                 return input;
             }
         }
+
+        public async Task<IActionResult> GetPage([FromQuery] string personalCode, [FromQuery] string menuPosition)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+                string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
+                if (string.IsNullOrEmpty(domain))
+                {
+                    return Unauthorized(new { message = "Login failed: API Domain is not configured. (ApiSettings:APILogin is null)" });
+                }
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                string url = $"{domain}/crm/api/v1/p3/getPage?personalCode={personalCode}&menuPosition={menuPosition}";
+
+                var response = await client.GetAsync(url);
+
+                response.EnsureSuccessStatusCode();
+
+                string json = await response.Content.ReadAsStringAsync();
+
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { message = $"Login failed: {ex.Message}" });
+            }
+        }
+    
     }
 }

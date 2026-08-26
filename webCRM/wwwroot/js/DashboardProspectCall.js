@@ -457,6 +457,9 @@ async function resetFilters() {
     select2Ids.forEach(id => {
         const $el = $(id);
         if ($el.length) {
+            if (window.HAS_RCRM014 && (id === '#filterBranch' || id === '#filterCaller')) {
+                return;
+            }
             $el.val('');
             if (typeof $.fn !== 'undefined' && $.fn.select2) {
                 $el.trigger('change');
@@ -493,6 +496,46 @@ async function setFilterCallType(){
 
 }
 
+function findMatchingBranchValue($selectEl, userBranchName) {
+    if (!userBranchName) return '';
+    const trimmedUserBranch = userBranchName.trim();
+    const parts = trimmedUserBranch.split('-');
+    const branchNoStr = parts[0].trim();
+    const branchNoInt = parseInt(branchNoStr, 10);
+    const branchTextStr = parts.length > 1 ? parts.slice(1).join('-').trim() : '';
+
+    let matchedVal = '';
+
+    $selectEl.find('option').each(function () {
+        const val = ($(this).val() || '').trim();
+        const text = ($(this).text() || '').trim();
+
+        if (!val) return;
+
+        if (val === branchNoStr) {
+            matchedVal = val;
+            return false;
+        }
+
+        if (!isNaN(branchNoInt) && parseInt(val, 10) === branchNoInt) {
+            matchedVal = val;
+            return false;
+        }
+
+        if (branchTextStr && (text.includes(branchTextStr) || branchTextStr.includes(text))) {
+            matchedVal = val;
+            return false;
+        }
+
+        if (text.includes(trimmedUserBranch) || trimmedUserBranch.includes(text)) {
+            matchedVal = val;
+            return false;
+        }
+    });
+
+    return matchedVal;
+}
+
 async function setFilterBranch(branchData) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
@@ -505,24 +548,30 @@ async function setFilterBranch(branchData) {
 
     const currentValue = selectEl.value || '';
 
-    if (selectEl.options.length > 1) {
-        if (currentValue) selectEl.value = currentValue;
-        return;
+    if (selectEl.options.length <= 1) {
+        let optionsHtml = '<option value="">ทั้งหมด</option>';
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                if (item) {
+                    const code = String(item.offcde || '').trim();
+                    const name = item.branch_name;
+                    optionsHtml += `<option value="${code}">${name}</option>`;
+                }
+            });
+        }
+        selectEl.innerHTML = optionsHtml;
     }
 
-    let optionsHtml = '<option value="">ทั้งหมด</option>';
-    if (Array.isArray(data)) {
-        data.forEach(item => {
-            if (item) {
-     
-                const code = String(item.offcde || '').trim();
-                const name = item.branch_name;
-                optionsHtml += `<option value="${code}">${name}</option>`;
-            }
-        });
-    }
-    selectEl.innerHTML = optionsHtml;
-    if (currentValue) {
+    if (window.HAS_RCRM014 && window.USER_BRANCH_NAME) {
+        const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
+        if (matchedBranchVal) {
+            selectEl.value = matchedBranchVal;
+        }
+        $(selectEl).prop('disabled', true);
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(selectEl).trigger('change');
+        }
+    } else if (currentValue) {
         selectEl.value = currentValue;
     }
 }
@@ -609,7 +658,28 @@ async function setFilterEmployee(){
 
         const currentVal = $(filterEmployee).val() || '';
         filterEmployee.innerHTML = optionsHtml;
-        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+
+        if (window.HAS_RCRM014 && window.USER_PERSONAL_ID) {
+            const targetVal = String(window.USER_PERSONAL_ID).trim();
+            if ($(filterEmployee).find(`option[value="${CSS.escape(targetVal)}"]`).length === 0) {
+                $(filterEmployee).append(new Option(targetVal, targetVal, true, true));
+            } else {
+                $(filterEmployee).val(targetVal);
+            }
+            $(filterEmployee).prop('disabled', true);
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $(filterEmployee).select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    language: {
+                        noResults: function () {
+                            return "ไม่พบข้อมูล";
+                        }
+                    }
+                });
+                $(filterEmployee).trigger('change');
+            }
+        } else if (typeof $.fn !== 'undefined' && $.fn.select2) {
             $(filterEmployee).select2({
                 theme: 'bootstrap-5',
                 width: '100%',

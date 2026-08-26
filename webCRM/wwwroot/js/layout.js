@@ -1113,7 +1113,212 @@ function connectWebSocket() {
     }
 }
 
+const sidebarIconMap = {
+    '/Home/Index': 'bi-house',
+    '/Home': 'bi-house',
+    '/': 'bi-house',
+    '/CustomerDetail': 'bi-person',
+    '/Suggestions': 'bi-chat-dots',
+    '/Campain': 'bi-megaphone',
+    '/ProspectSetup': 'bi-people-fill',
+    '/ProductApprove': 'bi-shield-check',
+    '/ProspectAssign': 'bi-people',
+    '/ProspectCall': 'bi-telephone'
+};
+
+function getSidebarActiveClass(path) {
+    const currentPath = window.location.pathname || '/';
+    const normPath = (path || '').toLowerCase();
+    const normCurrent = currentPath.toLowerCase();
+
+    if (normPath === '/' || normPath === '/home/index') {
+        if (normCurrent === '/' || normCurrent === '/home/index') {
+            return 'active-menu text-primary';
+        }
+        return 'text-secondary';
+    }
+    if (normPath && normPath !== '#' && normCurrent.startsWith(normPath)) {
+        return 'active-menu text-primary';
+    }
+    return 'text-secondary';
+}
+
+function renderSidebarMenu(items) {
+    const nav = $('#sidebarNav');
+    if (!nav.length) return;
+
+    let html = '';
+    items.forEach(item => {
+        const title = item.Title || item.title || '';
+        const path = item.Path || item.path || '#';
+        const cleanPath = path.split('?')[0];
+        const iconClass = sidebarIconMap[path] || sidebarIconMap[cleanPath] || 'bi-grid';
+        const activeClass = getSidebarActiveClass(path);
+
+        html += `
+            <a href="${path}" class="nav-link ${activeClass} d-flex align-items-center gap-3 px-3 py-2 rounded">
+                <i class="bi ${iconClass} fs-5"></i> <span class="fw-medium sidebar-text">${title}</span>
+            </a>
+        `;
+    });
+
+    if (html.trim()) {
+        nav.html(html);
+    }
+}
+
+function loadSidebarMenu() {
+    const nav = $('#sidebarNav');
+    if (!nav.length) return;
+
+    const personalCode = (typeof userId !== 'undefined' && userId) ? userId : '100664';
+    const cacheKey = 'sidebar_pages_' + personalCode;
+
+    const cachedData = sessionStorage.getItem(cacheKey);
+    if (cachedData) {
+        try {
+            const parsed = JSON.parse(cachedData);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                renderSidebarMenu(parsed);
+            }
+        } catch (e) {}
+    }
+
+    $.ajax({
+        url: '/Login/GetPage?personalCode=' + encodeURIComponent(personalCode) + '&menuPosition=side_bar',
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+            let data = response;
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) {}
+            }
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) {}
+            }
+            if (Array.isArray(data)) {
+                const filtered = data.filter(item => 
+                    (item.IsActive ?? item.isActive ?? true) && 
+                    (item.IsSidebar ?? item.isSidebar ?? true)
+                );
+                sessionStorage.setItem(cacheKey, JSON.stringify(filtered));
+                renderSidebarMenu(filtered);
+            }
+        },
+        error: function (err) {
+            console.error("Error fetching pages for sidebar menu:", err);
+        }
+    });
+}
+
+function loadDashboardViewMenu() {
+    const selects = $('.dashboard-view-select');
+    if (!selects.length) return;
+
+    const personalCode = (typeof userId !== 'undefined' && userId) ? userId : '100664';
+    const cacheKey = 'dashboard_view_pages_' + personalCode;
+
+    const cachedData = sessionStorage.getItem(cacheKey);
+    if (cachedData) {
+        try {
+            const parsed = JSON.parse(cachedData);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                renderDashboardViewMenu(parsed);
+            }
+        } catch (e) {}
+    }
+
+    $.ajax({
+        url: '/Login/GetPage?personalCode=' + encodeURIComponent(personalCode) + '&menuPosition=dashboard_view',
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+            let data = response;
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) {}
+            }
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) {}
+            }
+            if (Array.isArray(data)) {
+                const filtered = data.filter(item => 
+                    (item.IsActive ?? item.isActive ?? true)
+                );
+                sessionStorage.setItem(cacheKey, JSON.stringify(filtered));
+                renderDashboardViewMenu(filtered);
+            }
+        },
+        error: function (err) {
+            console.error("Error fetching pages for dashboard view menu:", err);
+        }
+    });
+}
+
+function renderDashboardViewMenu(items) {
+    const selects = $('.dashboard-view-select');
+    if (!selects.length) return;
+
+    const currentPath = window.location.pathname.toLowerCase().replace(/\/$/, "");
+
+    selects.each(function () {
+        const select = $(this);
+        const firstOpt = select.find('option').first();
+        const firstValue = firstOpt.attr('value') || '';
+        const firstText = firstOpt.text() || 'ข้อมูลลูกค้า';
+
+        select.empty();
+
+        const $firstOption = $('<option></option>').attr('value', firstValue).text(firstText);
+        select.append($firstOption);
+
+        items.forEach(function (item) {
+            const title = item.Title || item.title || '';
+            const path = item.Path || item.path || '';
+            if (title && path) {
+                const $opt = $('<option></option>').attr('value', path).text(title);
+                select.append($opt);
+            }
+        });
+
+        let matched = false;
+        select.find('option').each(function () {
+            const optVal = $(this).attr('value') || '';
+            if (isPathMatchDashboardView(currentPath, optVal)) {
+                select.val(optVal);
+                matched = true;
+                return false;
+            }
+        });
+
+        if (!matched) {
+            select.val(firstValue);
+        }
+    });
+}
+
+function isPathMatchDashboardView(currentPath, optPath) {
+    if (!optPath) return false;
+    currentPath = (currentPath || '').toLowerCase().replace(/\/$/, "");
+    optPath = (optPath || '').toLowerCase().replace(/\/$/, "");
+
+    if (currentPath === optPath) return true;
+
+    const isHomeCurrent = (currentPath === "" || currentPath === "/home" || currentPath === "/home/index");
+    const isHomeOpt = (optPath === "" || optPath === "/home" || optPath === "/home/index");
+    if (isHomeCurrent && isHomeOpt) return true;
+
+    if (currentPath === optPath + "/index") return true;
+    if (optPath === currentPath + "/index") return true;
+
+    if (optPath !== '' && optPath !== '/' && optPath !== '/home' && optPath !== '/home/index' && currentPath.startsWith(optPath + '/')) {
+        return true;
+    }
+    return false;
+}
+
 $(document).ready(function () {
+    loadSidebarMenu();
+    loadDashboardViewMenu();
     fetchNotifications();
 
     $('#bellNotification').on('click', function () {
@@ -1159,3 +1364,4 @@ document.addEventListener('visibilitychange', function () {
         fetchNotifications();
     }
 });
+

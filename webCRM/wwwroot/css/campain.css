@@ -112,7 +112,12 @@ select.form-select option[value=""] {
     transform: rotate(45deg);
 }
 
-/* Campaign Card */
+.campaign-table-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
 .campaign-list-container {
     max-height: calc(100vh - 280px);
     overflow-y: auto;
@@ -133,6 +138,10 @@ select.form-select option[value=""] {
     background-color: transparent !important;  
     border-color: transparent !important;
     border-radius: 4px;
+}
+
+.campaign-list-container:hover::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1 !important;
 }
 
 .campaign-card {
@@ -864,8 +873,13 @@ table.dataTable thead th, table.dataTable thead td {
     justify-content: center;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
     padding-top: 0.5rem;
+    padding-bottom: 0.25rem;
+    position: sticky;
+    bottom: 0;
+    background-color: #f1f5f9;
+    z-index: 10;
 }
 .page-item .page-link {
     width: 32px;

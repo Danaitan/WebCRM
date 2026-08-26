@@ -19,10 +19,8 @@
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">มุมมอง Dashboard</label>
-                        <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                        <select class="form-select form-select-sm dashboard-view-select" onchange="if(this.value) window.location.href=this.value;">
                             <option value="@Url.Action("Index", "Home")" selected>ข้อมูลลูกค้า</option>
-                            <option value="@Url.Action("Index", "DashboardProspectCall")">การติดต่อลูกค้า</option>
-                            <option value="@Url.Action("Index", "DashboardSuggestion")">ข้อเสนอแนะ/ร้องเรียน</option>
                         </select>
                     </div>
 

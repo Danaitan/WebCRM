@@ -2,6 +2,12 @@
     ViewData["Title"] = "Dashboard - การติดต่อลูกค้า";
     ViewData["HeaderTitle"] = "Dashboard";
     ViewData["HideSidebar"] = false;
+
+    var roleId = Context.Session.GetString("roleId") ?? "";
+    var hasRcrm011 = roleId.Split(',').Select(r => r.Trim()).Contains("RCRM011");
+    var hasRcrm014 = roleId.Split(',').Select(r => r.Trim()).Contains("RCRM014");
+    var userBranchName = Context.Session.GetString("branchName") ?? "";
+    var userPersonalId = Context.Session.GetString("personalId") ?? "";
 }
 
 @section Styles {
@@ -17,10 +23,8 @@
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">มุมมอง Dashboard</label>
-                    <select class="form-select form-select-sm" onchange="if(this.value) window.location.href=this.value;">
+                    <select class="form-select form-select-sm dashboard-view-select" onchange="if(this.value) window.location.href=this.value;">
                         <option value="@Url.Action("Index", "Home")">ข้อมูลลูกค้า</option>
-                        <option value="@Url.Action("Index", "DashboardProspectCall")" selected>การติดต่อลูกค้า</option>
-                        <option value="@Url.Action("Index", "DashboardSuggestion")">ข้อเสนอแนะ/ร้องเรียน</option>
                     </select>
                 </div>
 
@@ -42,14 +46,14 @@
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">สาขา</label>
-                    <select id="filterBranch" class="form-select form-select-sm select2-filter">
+                    <select id="filterBranch" class="form-select form-select-sm select2-filter" @(hasRcrm014 ? "disabled" : "")>
                         <option value="">ทั้งหมด</option>
                     </select>
                 </div>
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">ผู้โทร</label>
-                    <select id="filterCaller" class="form-select form-select-sm select2-filter">
+                    <select id="filterCaller" class="form-select form-select-sm select2-filter" @(hasRcrm014 ? "disabled" : "")>
                         <option value="">ทั้งหมด</option>
                     </select>
                 </div>
@@ -192,26 +196,29 @@
 
     <div class="row g-4 mb-4">
 
-        <div class="col-12 col-xl-4 d-flex flex-column" id="topCallers">
-            <div class="pc-card p-3 flex-grow-1 d-flex flex-column justify-content-between">
-                <div>
-                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                        <div class="fw-bold text-dark small d-flex align-items-center gap-1.5" id="callerTitle">
-                            <i class="bi bi-trophy-fill text-warning" id="callerTitleIcon"></i>
-                            <span id="callerTitleText">&nbsp; 5 อันดับสูงสุด</span>
+        @if (!hasRcrm011)
+        {
+            <div class="col-12 col-xl-4 d-flex flex-column" id="topCallers">
+                <div class="pc-card p-3 flex-grow-1 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                            <div class="fw-bold text-dark small d-flex align-items-center gap-1.5" id="callerTitle">
+                                <i class="bi bi-trophy-fill text-warning" id="callerTitleIcon"></i>
+                                <span id="callerTitleText">&nbsp; 5 อันดับสูงสุด</span>
+                            </div>
+                            <button type="button" id="btnToggleCaller" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1.5 extra-small text-dark fw-semibold shadow-sm" onclick="toggleCallerSort()">
+                                <i class="bi bi-arrow-down-up text-primary" id="callerArrowIcon"></i>
+                                <span id="callerBtnText">สลับดู 5 อันดับต่ำสุด</span>
+                            </button>
                         </div>
-                        <button type="button" id="btnToggleCaller" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1.5 extra-small text-dark fw-semibold shadow-sm" onclick="toggleCallerSort()">
-                            <i class="bi bi-arrow-down-up text-primary" id="callerArrowIcon"></i>
-                            <span id="callerBtnText">สลับดู 5 อันดับต่ำสุด</span>
-                        </button>
-                    </div>
-                    <div id="topCallersList" class="top-callers-container">
+                        <div id="topCallersList" class="top-callers-container">
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        }
 
-        <div class="col-12 col-xl-8" id="campaignTableCol">
+        <div class="@(hasRcrm011 ? "col-12" : "col-12 col-xl-8")" id="campaignTableCol">
             <div class="d-flex align-items-center justify-content-between mb-2">
                 <div class="d-flex align-items-center gap-2">
                     <span class="text-muted extra-small">แสดง</span>
@@ -263,6 +270,9 @@
 @section Scripts {
     <script>
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
+        window.HAS_RCRM014 = @(hasRcrm014 ? "true" : "false");
+        window.USER_BRANCH_NAME = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(userBranchName));
+        window.USER_PERSONAL_ID = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(userPersonalId));
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

@@ -1,0 +1,322 @@
+@{
+    ViewData["Title"] = "ตั้งค่าสิทธิ์ผู้ใช้งาน";
+    ViewData["HeaderTitle"] = "ตั้งค่าสิทธิ์ผู้ใช้งาน";
+    ViewData["HeaderSubtitle"] = "จัดการสิทธิ์การเข้าถึงข้อมูล บทบาทหน้าที่ และการกำหนดสิทธิ์หน้าจอในระบบ";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="~/css/manageUse.css" asp-append-version="true" />
+}
+
+<div class="container-fluid px-4 py-3">
+    <!-- Stat Cards Overview -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card card-stat shadow-sm bg-white p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fw-medium small">ผู้ใช้งานทั้งหมดในระบบ</span>
+                        <h3 class="fw-bold text-dark mb-0 mt-1" id="statTotalUsers">0</h3>
+                    </div>
+                    <div class="icon-box bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card card-stat shadow-sm bg-white p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fw-medium small">บทบาท/สิทธิ์การใช้งาน (Roles)</span>
+                        <h3 class="fw-bold text-dark mb-0 mt-1" id="statTotalRoles">0</h3>
+                    </div>
+                    <div class="icon-box bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-shield-lock-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card card-stat shadow-sm bg-white p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fw-medium small">เมนูและหน้าจอในระบบ</span>
+                        <h3 class="fw-bold text-dark mb-0 mt-1" id="statTotalPages">0</h3>
+                    </div>
+                    <div class="icon-box bg-warning bg-opacity-10 text-warning">
+                        <i class="bi bi-layout-sidebar-inset"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-3">
+            <ul class="nav nav-pills nav-pills-custom gap-2" id="permissionTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-users-link" data-bs-toggle="pill" data-bs-target="#tab-users" type="button" role="tab">
+                        <i class="bi bi-person-gear me-2"></i>กำหนดสิทธิ์ผู้ใช้งาน (User Roles)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-role-pages-link" data-bs-toggle="pill" data-bs-target="#tab-role-pages" type="button" role="tab">
+                        <i class="bi bi-shield-check me-2"></i>สิทธิ์เข้าถึงหน้าจอตามบทบาท (Role Permissions)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-roles-link" data-bs-toggle="pill" data-bs-target="#tab-roles" type="button" role="tab">
+                        <i class="bi bi-sliders me-2"></i>จัดการบทบาทสิทธิ์ (Manage Roles)
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="permissionTabContent">
+        <!-- TAB 1: User Roles Management -->
+        <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white py-3 border-0 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-people text-primary me-2"></i>รายการผู้ใช้งานและการสิทธิ์ในระบบ
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="loadUsersData()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรชข้อมูล
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Filter Toolbar -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-5">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-search text-muted"></i>
+                                </span>
+                                <input type="text" id="userSearchInput" class="form-control bg-light border-start-0" placeholder="ค้นหาตามรหัสพนักงาน หรือ ชื่อ-นามสกุล..." />
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <select id="userRoleFilter" class="form-select bg-light">
+                                <option value="">-- กรองตามบทบาทสิทธิ์ทั้งหมด --</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4 text-sm-end">
+                            <span class="text-muted small">แสดงผลทั้งหมด <span id="userCountBadge" class="fw-bold text-primary">0</span> รายการ</span>
+                        </div>
+                    </div>
+
+                    <!-- User Table -->
+                    <div class="table-responsive">
+                        <table id="usersTable" class="table table-hover align-middle mb-0" style="width: 100%;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>รหัสพนักงาน</th>
+                                    <th>ชื่อ - นามสกุล</th>
+                                    <th>แผนก / สาขา</th>
+                                    <th>สิทธิ์ปัจจุบัน</th>
+                                    <th style="width: 130px;" class="text-center">การจัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                        กำลังโหลดข้อมูลผู้ใช้งาน...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Role Permissions Matrix -->
+        <div class="tab-pane fade" id="tab-role-pages" role="tabpanel">
+            <div class="row g-4">
+                <!-- Role Selector Sidebar -->
+                <div class="col-12 col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+                            <h6 class="fw-bold mb-0 text-dark">
+                                <i class="bi bi-shield-lock text-primary me-2"></i>เลือกบทบาทที่ต้องการตั้งค่า
+                            </h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div id="roleSelectionList" class="d-flex flex-column gap-2 overflow-auto" style="max-height: 520px;">
+                                <div class="text-center text-muted py-3">กำลังโหลดรายการบทบาท...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page Permissions Grid -->
+                <div class="col-12 col-lg-8">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="bi bi-grid-1x2 text-primary me-2"></i>กำหนดสิทธิ์เข้าถึงหน้าจอสำหรับ: <span id="selectedRoleTitle" class="text-primary fw-bold">กรุณาเลือกบทบาท</span>
+                                </h6>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btnSelectAllPages">
+                                    <i class="bi bi-check-all me-1"></i>เลือกทั้งหมด
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnDeselectAllPages">
+                                    <i class="bi bi-x-circle me-1"></i>ล้างทั้งหมด
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-4">
+                            <div id="pagesListContainer" class="row g-3" style="max-height: 460px; overflow-y: auto;">
+                                <div class="col-12 text-center text-muted py-5">
+                                    <i class="bi bi-hand-index-thumb fs-2 d-block mb-2 text-secondary"></i>
+                                    กรุณาคลิกเลือกบทบาทจากรายการด้านซ้าย เพื่อกำหนดสิทธิ์เข้าถึงหน้าจอ
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light py-3 px-4 border-top d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">บันทึกสิทธิ์ของบทบาทที่เลือกในปัจจุบัน</span>
+                            <button type="button" class="btn btn-primary px-4 rounded-pill shadow-sm" id="btnSaveRolePages" disabled>
+                                <i class="bi bi-save me-1"></i>บันทึกสิทธิ์การเข้าถึง
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Manage Roles -->
+        <div class="tab-pane fade" id="tab-roles" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white py-3 border-0 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">
+                            <i class="bi bi-sliders text-primary me-2"></i>รายการบทบาททั้งหมดในระบบ (CRM Roles)
+                        </h5>
+                        <p class="text-muted small mb-0 mt-1">สามารถสร้างบทบาทใหม่เพื่อนำไปกำหนดสิทธิ์ผู้ใช้งานและหน้าจอได้</p>
+                    </div>
+                    <button class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                        <i class="bi bi-plus-lg me-1"></i>เพิ่มบทบาทใหม่
+                    </button>
+                </div>
+                <div class="card-body p-4">
+                    <div class="table-responsive">
+                        <table id="rolesTable" class="table table-hover align-middle mb-0" style="width: 100%;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>รหัสบทบาท (Role ID)</th>
+                                    <th>ชื่อบทบาท (Role Name)</th>
+                                    <th>ผู้สร้าง</th>
+                                    <th>สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rolesTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">กำลังโหลดข้อมูลบทบาท...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 1: Edit User Role -->
+<div class="modal fade" id="editUserRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header bg-primary text-white border-0 py-3">
+                <h5 class="modal-title fw-bold" id="editUserRoleModalLabel">
+                    <i class="bi bi-person-badge me-2"></i>กำหนดบทบาทสิทธิ์ผู้ใช้งาน
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="editUserRoleForm">
+                    <div class="bg-light p-3 rounded-3 mb-3 border">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <span class="text-muted small d-block">รหัสพนักงาน:</span>
+                                <span class="fw-bold text-dark" id="modalPersonnelCode">-</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">ชื่อ-นามสกุล:</span>
+                                <span class="fw-bold text-dark" id="modalPersonnelName">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Roles Section -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark d-flex align-items-center justify-content-between">
+                            <span><i class="bi bi-shield-check text-primary me-1"></i>บทบาทสิทธิ์ปัจจุบันของผู้ใช้งาน</span>
+                            <span class="badge bg-primary rounded-pill" id="userRoleCountBadge">0 บทบาท</span>
+                        </label>
+                        <div id="userCurrentRolesList" class="d-flex flex-column gap-2 p-2 bg-light rounded-3 border" style="max-height: 200px; overflow-y: auto;">
+                            <div class="text-center text-muted py-3 small">กำลังโหลดรายการสิทธิ์...</div>
+                        </div>
+                    </div>
+
+                    <!-- Add New Role Section -->
+                    <div class="mb-2">
+                        <label for="modalRoleSelect" class="form-label fw-bold text-dark"><i class="bi bi-plus-circle text-success me-1"></i>มอบหมายบทบาทสิทธิ์เพิ่ม</label>
+                        <div class="input-group">
+                            <select class="form-select" id="modalRoleSelect">
+                                <option value="">-- เลือกบทบาทสิทธิ์เพื่อเพิ่ม --</option>
+                            </select>
+                            <button type="button" class="btn btn-primary px-3" id="btnSaveUserRole">
+                                <i class="bi bi-plus-lg me-1"></i>เพิ่มสิทธิ์
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-3">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Add New Role -->
+<div class="modal fade" id="addRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header bg-success text-white border-0 py-3">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-shield-plus me-2"></i>เพิ่มบทบาทใหม่ในระบบ
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="addRoleForm">
+                    <div class="mb-3">
+                        <label for="newRoleNameInput" class="form-label fw-bold text-dark">ชื่อบทบาท (Role Name) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg" id="newRoleNameInput" placeholder="เช่น Admin, Sale Manager, Tele-Sales" required />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light border-top py-2 px-3">
+                <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-success rounded-pill px-4" id="btnCreateRole">
+                    <i class="bi bi-plus-circle me-1"></i>สร้างบทบาท
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/manageUse.js" asp-append-version="true"></script>
+}

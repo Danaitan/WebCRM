@@ -124,7 +124,19 @@ async function GetFilterByGuid(productGuid) {
 }
 
 function updateFilterSelectionUI() {
-    const isDisabled = !selectedCampaignCode;
+    const campaign = selectedCampaignCode ? campaigns.find(c => c.code === selectedCampaignCode) : null;
+    const rawStatus = campaign ? (campaign.status || campaign.product_status || "").toLowerCase().trim() : "";
+    const normalizedStatus = rawStatus.replace(/_/g, ' ');
+    const statusCanEdit = [
+        "waiting prospect",
+        "reject",
+        "rejected",
+        "draft",
+        ""
+    ];
+    const canEdit = !selectedCampaignCode || statusCanEdit.includes(rawStatus) || statusCanEdit.includes(normalizedStatus);
+    const isDisabled = !selectedCampaignCode || !canEdit;
+
     $(".filter-chk, #chkSelectAllFilters").prop("disabled", isDisabled);
 
     $(".filter-chk").each(function () {
@@ -866,12 +878,18 @@ $(document).ready(async function () {
             //#region setReadonly
             const statusCanEdit = [
                 "waiting prospect",
-                "reject"
+                "waiting_prospect",
+                "waiting prospect (prospect setup)",
+                "reject",
+                "rejected",
+                "draft",
+                ""
             ];
 
             // ตรวจสอบว่าอยู่ในสถานะที่สามารถแก้ไขได้หรือไม่
-            const campaignStatus = (campaign.status || "").toLowerCase().trim();
-            const canEdit = statusCanEdit.includes(campaignStatus);
+            const rawStatus = (campaign.status || campaign.product_status || "").toLowerCase().trim();
+            const normalizedStatus = rawStatus.replace(/_/g, ' ');
+            const canEdit = statusCanEdit.some(s => s === rawStatus || s === normalizedStatus);
             const isDisabled = !canEdit;
             
             $('#submitFormBtn').prop('disabled', isDisabled);
@@ -880,10 +898,12 @@ $(document).ready(async function () {
             $('#startDate').prop('disabled', isDisabled);
             $('#endDate').prop('disabled', isDisabled);
             $('#campaignObjective').prop('disabled', isDisabled);
-            $('#remarks').prop('disabled', isDisabled);
+            $('#remarks').prop('disabled', isDisabled).prop('readonly', isDisabled);
+            $('#chkImportExcel').prop('disabled', isDisabled);
             $('#branchSelectContainer').toggleClass('disabled', isDisabled);
             $('#branchSelectDisplay').toggleClass('disabled', isDisabled);
             $('.branch-chk').prop('disabled', isDisabled);
+            $('.filter-chk, #chkSelectAllFilters').prop('disabled', isDisabled);
             if (isDisabled) {
                 $('#branchSelectDisplay, #branchSelectContainer').css('pointer-events', 'none');
                 $('#btnRemoveFile').addClass('d-none');

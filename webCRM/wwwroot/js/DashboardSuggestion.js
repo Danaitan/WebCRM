@@ -176,7 +176,56 @@ async function setFilterStatus (data){
     }
 }
 
+function validateDateRange() {
+    const startDate = $('#filterStartDate').val();
+    const endDate = $('#filterEndDate').val();
+
+    if (startDate && endDate && startDate > endDate) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'แจ้งเตือน',
+                text: 'วันเริ่มต้องไม่มากกว่าวันสิ้นสุด',
+                confirmButtonText: 'ตกลง'
+            });
+        } else {
+            alert('วันเริ่มต้องไม่มากกว่าวันสิ้นสุด');
+        }
+        return false;
+    }
+    return true;
+}
+
+function bindDateRangeEvents() {
+    $('#filterStartDate').on('change input', function () {
+        const startDate = $(this).val();
+        if (startDate) {
+            $('#filterEndDate').attr('min', startDate);
+            const endDate = $('#filterEndDate').val();
+            if (endDate && endDate < startDate) {
+                $('#filterEndDate').val('');
+            }
+        } else {
+            $('#filterEndDate').removeAttr('min');
+        }
+    });
+
+    $('#filterEndDate').on('change input', function () {
+        const endDate = $(this).val();
+        if (endDate) {
+            $('#filterStartDate').attr('max', endDate);
+            const startDate = $('#filterStartDate').val();
+            if (startDate && startDate > endDate) {
+                $('#filterStartDate').val('');
+            }
+        } else {
+            $('#filterStartDate').removeAttr('max');
+        }
+    });
+}
+
 async function setDashboard() {
+    if (!validateDateRange()) return;
 
     const startDate = $('#filterStartDate').val() || '';
     const endDate = $('#filterEndDate').val() || '';
@@ -390,6 +439,29 @@ function initStatusDoughnutChart(statusData) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '-';
+    if (typeof dateStr === 'string') {
+        const str = dateStr.trim();
+        if (!str || str === '-' || str === 'null' || str === 'undefined' || str.startsWith('0001-01-01')) return '-';
+
+        const isoMatch = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+        if (isoMatch) {
+            const year = isoMatch[1];
+            const month = isoMatch[2];
+            const day = isoMatch[3];
+            const hours = isoMatch[4];
+            const minutes = isoMatch[5];
+
+            if (hours !== undefined && minutes !== undefined) {
+                return `${day}/${month}/${year} ${hours}:${minutes}`;
+            }
+            return `${day}/${month}/${year}`;
+        }
+
+        if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) {
+            return str;
+        }
+    }
+
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
 
@@ -559,8 +631,8 @@ function applySuggestionFilters() {
 }
 
 async function resetSuggestionFilters() {
-    $('#filterStartDate').val('');
-    $('#filterEndDate').val('');
+    $('#filterStartDate').val('').removeAttr('max');
+    $('#filterEndDate').val('').removeAttr('min');
 
     const select2Ids = ['#filterBranch', '#filterProvider', '#filterTopic', '#filterStatus'];
     select2Ids.forEach(id => {
@@ -583,6 +655,7 @@ async function resetSuggestionFilters() {
 let isExportingSuggestionExcel = false;
 
 async function exportSuggestionExcel() {
+    if (!validateDateRange()) return;
     if (isExportingSuggestionExcel) return;
     isExportingSuggestionExcel = true;
 
@@ -1017,6 +1090,8 @@ $(document).ready(async function () {
             }, 10);
         });
     }
+
+    bindDateRangeEvents();
 
     if (typeof startLoading === 'function') {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');

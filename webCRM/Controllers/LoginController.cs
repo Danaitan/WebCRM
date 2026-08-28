@@ -19,7 +19,7 @@ namespace webCRM.Controllers
         public async Task<IActionResult> Index([FromQuery] string? user)
         {
             await GetProfileByPersonalCode(user);
-            return View("~/Views/Home/Index.cshtml");
+            return RedirectToAction("Index", "Home");
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

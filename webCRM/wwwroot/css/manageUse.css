@@ -1,0 +1,60 @@
+.card-stat {
+    border: none;
+    border-radius: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+}
+.icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+}
+.nav-pills-custom .nav-link {
+    color: #64748b;
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 10px 18px;
+    transition: all 0.2s ease;
+}
+.nav-pills-custom .nav-link.active {
+    background-color: #0d6efd;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+}
+.nav-pills-custom .nav-link:hover:not(.active) {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+.role-badge {
+    font-size: 0.82rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+.role-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 4px solid transparent;
+}
+.role-item:hover, .role-item.active {
+    background-color: #f0f7ff !important;
+    border-left-color: #0d6efd;
+}
+.page-perm-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: border-color 0.2s ease;
+}
+.page-perm-card:hover {
+    border-color: #cbd5e1;
+}
+.table-responsive {
+    border-radius: 8px;
+}

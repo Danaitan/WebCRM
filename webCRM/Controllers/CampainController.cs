@@ -523,8 +523,7 @@ namespace webCRM.Controllers
                 }
 
                 string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
-                string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
-                string folderPath = Path.Combine(rootPath, "campaignFile", campaignCode);
+                string folderPath = Path.Combine(contentRootPath, "campaignFile", campaignCode);
 
                 if (!Directory.Exists(folderPath))
                 {
@@ -581,7 +580,7 @@ namespace webCRM.Controllers
                 string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
 
                 string cleanedRelativePath = filePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
-                string fullPath = Path.GetFullPath(Path.Combine(rootPath, cleanedRelativePath));
+                string fullPath = Path.GetFullPath(Path.Combine(contentRootPath, cleanedRelativePath));
 
                 string fullRootPath = Path.GetFullPath(rootPath);
                 string fullContentRootPath = Path.GetFullPath(contentRootPath);
@@ -594,8 +593,9 @@ namespace webCRM.Controllers
 
                 if (!System.IO.File.Exists(fullPath))
                 {
-                    string altPath = Path.GetFullPath(Path.Combine(contentRootPath, cleanedRelativePath));
-                    if (System.IO.File.Exists(altPath) && altPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase))
+                    string altPath = Path.GetFullPath(Path.Combine(rootPath, cleanedRelativePath));
+                    if (System.IO.File.Exists(altPath) &&
+                        (altPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) || altPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase)))
                     {
                         fullPath = altPath;
                     }

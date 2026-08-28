@@ -1317,6 +1317,17 @@ function isPathMatchDashboardView(currentPath, optPath) {
 }
 
 $(document).ready(function () {
+    if (window.location.search.includes('user=')) {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('user');
+            const cleanUrl = url.pathname + (url.search ? url.search : '') + url.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+        } catch (e) {
+            console.error("Error cleaning user param from URL:", e);
+        }
+    }
+
     loadSidebarMenu();
     loadDashboardViewMenu();
     fetchNotifications();

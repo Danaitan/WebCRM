@@ -863,7 +863,8 @@ function updateSendForApprovalButtonState() {
     const sendBtn = document.getElementById('sendForApprovalBtn');
     const saveBtn = document.getElementById('saveDraftBtn');
 
-    const isWaitingProspect = selectedCampaign && String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase() === "waiting prospect";
+    const rawStatus = selectedCampaign ? String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase() : '';
+    const isWaitingProspect = rawStatus === "waiting prospect" || rawStatus.replace(/_/g, ' ') === "waiting prospect";
 
     if (saveBtn) {
         const shouldDisableSave = !isWaitingProspect;

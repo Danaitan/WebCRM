@@ -14,7 +14,7 @@ async function getPDPAbg(checkPDPA, company) {
     if (company == 'MIB') return '';
 
     const list = Array.isArray(checkPDPA) ? checkPDPA : (Array.isArray(checkPDPA?.data) ? checkPDPA.data : []);
-    if (!list || list.length === 0) return '';
+    if (!list || list.length === 0) return 'red';
 
     const isAllApproved = list.every(
         item => item.LastestStatus === 'approved'

@@ -16,8 +16,13 @@ namespace webCRM.Controllers
         string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
         string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index([FromQuery] string? user = null)
         {
+            if (!string.IsNullOrWhiteSpace(user))
+            {
+                return RedirectToAction("Index", "Login", new { user });
+            }
+
             var profileWelcome = HttpContext.Session.GetString("profile_welcome");
             if (!string.IsNullOrEmpty(profileWelcome))
             {

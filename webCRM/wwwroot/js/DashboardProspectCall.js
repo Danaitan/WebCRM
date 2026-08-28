@@ -18,7 +18,88 @@ const objectiveColors = {
     'RM': '#6b7280'
 };
 
+function validateDateRange() {
+    const startDate = $('#filterStartDate').val();
+    const endDate = $('#filterEndDate').val();
+
+    if (startDate && endDate && startDate > endDate) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'แจ้งเตือน',
+                text: 'วันเริ่มต้องไม่มากกว่าวันสิ้นสุด',
+                confirmButtonText: 'ตกลง'
+            });
+        } else {
+            alert('วันเริ่มต้องไม่มากกว่าวันสิ้นสุด');
+        }
+        return false;
+    }
+    return true;
+}
+
+function bindDateRangeEvents() {
+    $('#filterStartDate').on('change input', function () {
+        const startDate = $(this).val();
+        if (startDate) {
+            $('#filterEndDate').attr('min', startDate);
+            const endDate = $('#filterEndDate').val();
+            if (endDate && endDate < startDate) {
+                $('#filterEndDate').val('');
+            }
+        } else {
+            $('#filterEndDate').removeAttr('min');
+        }
+    });
+
+    $('#filterEndDate').on('change input', function () {
+        const endDate = $(this).val();
+        if (endDate) {
+            $('#filterStartDate').attr('max', endDate);
+            const startDate = $('#filterStartDate').val();
+            if (startDate && startDate > endDate) {
+                $('#filterStartDate').val('');
+            }
+        } else {
+            $('#filterStartDate').removeAttr('max');
+        }
+    });
+}
+
+function isRowExpired(row) {
+    if (!row) return false;
+    const status = (row.activeStatus || row.status || '').trim().toLowerCase();
+    return status === 'expire' || status === 'หมดอายุ';
+}
+
+function parseDateTimestamp(val) {
+    if (!val) return 0;
+    if (typeof val === 'string') {
+        val = val.trim();
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(val)) {
+            const parts = val.split(' ');
+            const dateParts = parts[0].split('/');
+            const day = parseInt(dateParts[0], 10);
+            const month = parseInt(dateParts[1], 10) - 1;
+            const year = parseInt(dateParts[2], 10);
+            let hours = 0, minutes = 0, seconds = 0;
+            if (parts[1]) {
+                const timeParts = parts[1].split(':');
+                hours = parseInt(timeParts[0], 10) || 0;
+                minutes = parseInt(timeParts[1], 10) || 0;
+                seconds = parseInt(timeParts[2], 10) || 0;
+            }
+            return new Date(year, month, day, hours, minutes, seconds).getTime();
+        }
+        val = val.replace(' ', 'T');
+    }
+    const t = new Date(val).getTime();
+    return isNaN(t) ? 0 : t;
+}
+
 async function setDashboard() {
+    if (!validateDateRange()) return;
+
     const startDate = $('#filterStartDate').val() || '';
     const endDate = $('#filterEndDate').val() || '';
     const callType = $('#filterCallType').val() || '';
@@ -55,7 +136,14 @@ async function setDashboard() {
 
     renderTopCallers(graph.callNumber || []);
 
-    currentTableData = table;
+    currentTableData = [...table].sort((a, b) => {
+        const expiredA = isRowExpired(a) ? 1 : 0;
+        const expiredB = isRowExpired(b) ? 1 : 0;
+        if (expiredA !== expiredB) {
+            return expiredA - expiredB;
+        }
+        return parseDateTimestamp(b.created) - parseDateTimestamp(a.created);
+    });
     currentPage = 1;
     renderCampaignTable();
 }
@@ -434,6 +522,7 @@ function changePageSize(size) {
 }
 
 async function applyFilters() {
+    if (!validateDateRange()) return;
     if (typeof startLoading === 'function') {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     }
@@ -449,8 +538,8 @@ async function applyFilters() {
 }
 
 async function resetFilters() {
-    $('#filterStartDate').val('');
-    $('#filterEndDate').val('');
+    $('#filterStartDate').val('').removeAttr('max');
+    $('#filterEndDate').val('').removeAttr('min');
     $('#filterCampaign').val('');
 
     const select2Ids = ['#filterCallType', '#filterBranch', '#filterCaller', '#filterCallResult'];
@@ -703,6 +792,7 @@ async function setFilterEmployee(){
 let isCallExcelExporting = false;
 
 async function exportCallExcel() {
+    if (!validateDateRange()) return;
     if (isCallExcelExporting) return;
     isCallExcelExporting = true;
 
@@ -1096,6 +1186,8 @@ $(document).ready(async function () {
                 }, 10);
             });
         }
+
+        bindDateRangeEvents();
 
         const topCallers = document.getElementById('topCallers');
         const campaignTableCol = document.getElementById('campaignTableCol');

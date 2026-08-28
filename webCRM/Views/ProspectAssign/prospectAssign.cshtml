@@ -7,7 +7,7 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/prospectAssign.css" asp-append-version="true" />
 }
-<div class="container-fluid p-4 h-100 d-flex flex-column" style"gap: 20px;">
+<div class="container-fluid p-4 h-100 d-flex flex-column" style="gap: 20px;">
     
     <!-- Top Section -->
     <div class="row g-4">
@@ -110,9 +110,13 @@
         
         <!-- Right Side: Assign Panel -->
         <div class="col-xl-4 col-lg-5">
-            <div class="card-custom p-4 h-100">
+            <div class="card-custom p-4 h-100 d-flex flex-column">
                 
-
+                <div class="mb-3">
+                    <button type="button" id="autoAssignBtn" class="btn-outline-custom w-100 d-flex align-items-center justify-content-center gap-2 py-2" style="font-size: 0.9rem; font-weight: 600; border-color: var(--primary-blue); color: var(--primary-blue);">
+                        <i class="bi bi-robot fs-5"></i> Auto Assign
+                    </button>
+                </div>
                 
                 <div class="mb-4 position-relative" id="responsibleSelectContainer">
                     <label class="form-label-custom">เลือกผู้รับผิดชอบ</label>
@@ -203,7 +207,7 @@
                         <tbody id="prospectAssignTableBody">
                             <tr>
                                 <td colspan="9" class="text-center py-4 text-muted">
-                                    <i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...
+                                    ไม่เจอข้อมูล Prospect...
                                 </td>
                             </tr>
                         </tbody>

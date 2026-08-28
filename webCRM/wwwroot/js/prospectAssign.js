@@ -272,6 +272,46 @@ async function loadAndRenderStaffList(branchId) {
     if (newDropdownMenu) newDropdownMenu.innerHTML = newHtml;
 }
 
+function selectAllResponsibleStaff() {
+    const dropdownMenu = document.getElementById('responsibleDropdownMenu');
+    const selectBox = document.getElementById('responsibleSelectBox');
+    if (!dropdownMenu || !selectBox) return { addedCount: 0, totalOptions: 0 };
+
+    const options = dropdownMenu.querySelectorAll('.responsible-option');
+    let addedCount = 0;
+    let totalOptions = options.length;
+
+    options.forEach(opt => {
+        const checkbox = opt.querySelector('input[type="checkbox"]');
+        const val = opt.getAttribute('data-value');
+        const textSpan = opt.querySelector('span');
+        const text = textSpan ? textSpan.textContent : val;
+
+        if (val) {
+            if (checkbox) checkbox.checked = true;
+            if (!selectBox.querySelector(`.branch-tag[data-value="${val}"]`)) {
+                const tag = document.createElement('span');
+                tag.className = 'branch-tag';
+                tag.setAttribute('data-value', val);
+                tag.innerHTML = `${escapeHtml(text)} <i class="bi bi-x" style="cursor: pointer;"></i>`;
+
+                tag.querySelector('.bi-x').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    tag.remove();
+                    if (checkbox) checkbox.checked = false;
+                    updateAssignButtonDisabledState();
+                });
+
+                selectBox.insertBefore(tag, selectBox.querySelector('.d-flex'));
+                addedCount++;
+            }
+        }
+    });
+
+    updateAssignButtonDisabledState();
+    return { addedCount, totalOptions };
+}
+
 
 
 async function UpdateProspectCustomer(overrideParams = {}){
@@ -1341,6 +1381,65 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
                     });
                 } else {
                     alert('ทำการ ReAssign เรียบร้อยแล้ว');
+                    loadProspectAssignData(selectedCampaignCode);
+                }
+            }
+        });
+    }
+})();
+
+// AUTO ASSIGN BUTTON CLICK
+(function () {
+    const autoAssignBtn = document.getElementById('autoAssignBtn');
+    if (autoAssignBtn) {
+        autoAssignBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+
+            const filterBranchSelect = document.getElementById('filterBranchSelect');
+            if (!filterBranchSelect || !filterBranchSelect.value) {
+                if (typeof showAlert === 'function') {
+                    showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกสาขาก่อนทำ Auto Assign');
+                } else {
+                    alert('กรุณาเลือกสาขาก่อนทำ Auto Assign');
+                }
+                return;
+            }
+
+            const { totalOptions } = selectAllResponsibleStaff();
+            if (totalOptions === 0) {
+                if (typeof showAlert === 'function') {
+                    showAlert('warning', 'แจ้งเตือน', 'ไม่พบข้อมูลพนักงานในสาขาที่เลือก');
+                } else {
+                    alert('ไม่พบข้อมูลพนักงานในสาขาที่เลือก');
+                }
+                return;
+            }
+
+            const checkedBoxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                if (typeof showAlert === 'function') {
+                    showAlert('warning', 'แจ้งเตือน', 'เลือกพนักงานทั้งหมดในสาขาเรียบร้อยแล้ว กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
+                } else {
+                    alert('เลือกพนักงานทั้งหมดในสาขาเรียบร้อยแล้ว กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
+                }
+                return;
+            }
+
+            if (typeof startLoading === 'function') {
+                startLoading('กำลังบันทึกข้อมูล...', 'ระบบกำลังทำการ Auto Assign Prospect กรุณารอสักครู่...');
+            }
+            const result = await UpdateProspectCustomer({ assign_case: 'Auto Bot' });
+            if (typeof stopLoading === 'function') {
+                stopLoading();
+            }
+
+            if (result) {
+                if (typeof showAlert === 'function') {
+                    showAlert('success', 'Auto Assign เรียบร้อยแล้ว', 'ทำการ Auto Assign เรียบร้อยแล้ว', function() {
+                        loadProspectAssignData(selectedCampaignCode);
+                    });
+                } else {
+                    alert('ทำการ Auto Assign เรียบร้อยแล้ว');
                     loadProspectAssignData(selectedCampaignCode);
                 }
             }

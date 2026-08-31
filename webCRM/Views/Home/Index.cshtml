@@ -18,13 +18,6 @@
                 <div class="row g-3 align-items-end">
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <label class="form-label text-muted small">มุมมอง Dashboard</label>
-                        <select class="form-select form-select-sm dashboard-view-select" onchange="if(this.value) window.location.href=this.value;">
-                            <option value="@Url.Action("Index", "Home")" selected>ข้อมูลลูกค้า</option>
-                        </select>
-                    </div>
-
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">สาขา</label>
                         <select class="form-select form-select-sm select2-filter" id="dashboardBranch">
                         </select>
@@ -53,7 +46,7 @@
 
                 </div>
 
-                <div class="d-flex gap-2 mt-3 justify-content-end">
+                <div class="d-flex gap-2 mt-3 justify-content-start">
                     <button class="btn btn-primary btn-sm px-3" id="dashboardSearch"><i class="bi bi-search me-2"></i>ค้นหา</button>
                     <button class="btn btn-outline-secondary btn-sm px-3" id="dashboardClear"><i class="bi bi-arrow-counterclockwise me-2"></i>ล้างตัวกรอง</button>
                 </div>

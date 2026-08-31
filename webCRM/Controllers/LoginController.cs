@@ -168,7 +168,7 @@ namespace webCRM.Controllers
             }
         }
 
-        public async Task<IActionResult> GetPage([FromQuery] string personalCode, [FromQuery] string menuPosition)
+        public async Task<IActionResult> GetPage([FromQuery] string personalCode)
         {
             try
             {
@@ -187,7 +187,7 @@ namespace webCRM.Controllers
                 }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                string url = $"{domain}/crm/api/v1/p3/getPage?personalCode={personalCode}&menuPosition={menuPosition}";
+                string url = $"{domain}/crm/api/v1/p3/getPage?personalCode={personalCode}";
 
                 var response = await client.GetAsync(url);
 

@@ -458,6 +458,30 @@ function renderCampaignTable() {
         const calledCust = Number(row.calledCustomer || 0);
         const successRate = totalCust > 0 ? ((calledCust / totalCust) * 100).toFixed(2) + '%' : '0.00%';
 
+        const formatDisplayDateRange = (str) => {
+            if (!str || str === '-') return '-';
+            const s = String(str).trim();
+            if (s.includes(' - ')) {
+                return s.split(' - ').map(part => {
+                    const p = part.trim();
+                    if (p.includes('T')) {
+                        const dPart = p.split('T')[0].split('-');
+                        if (dPart.length === 3 && dPart[0].length === 4) return `${dPart[2]}/${dPart[1]}/${dPart[0]}`;
+                    }
+                    const parts = p.split('-');
+                    if (parts.length === 3 && parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    return p;
+                }).join(' - ');
+            }
+            if (s.includes('T')) {
+                const dPart = s.split('T')[0].split('-');
+                if (dPart.length === 3 && dPart[0].length === 4) return `${dPart[2]}/${dPart[1]}/${dPart[0]}`;
+            }
+            const parts = s.split('-');
+            if (parts.length === 3 && parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return s;
+        };
+
         const status = (row.activeStatus || '').trim();
         const isExpire = status.toLowerCase() === 'expire';
         const statusBadgeClass = isExpire ? 'badge-status-expire' : 'badge-status-active';
@@ -468,7 +492,7 @@ function renderCampaignTable() {
                 <td class="text-secondary">${createdFormatted}</td>
                 <td class="fw-medium text-dark">${row.product_name || '-'}</td>
                 <td class="text-center">${objBadge}</td>
-                <td class="text-muted extra-small">${row['startDate-endDate'] || '-'}</td>
+                <td class="text-muted extra-small">${formatDisplayDateRange(row['startDate-endDate'])}</td>
                 <td class="text-end fw-semibold">${totalCust.toLocaleString()}</td>
                 <td class="text-end text-primary fw-bold">${calledCust.toLocaleString()}</td>
                 <td class="text-end fw-bold text-success">${successRate}</td>
@@ -871,24 +895,48 @@ async function exportCallExcel() {
         }
 
         const headers = [
-            { title: 'รหัส Campaign', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
+            { title: 'product_code', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
+            { title: 'idno', keys: ['idno'], width: 20, align: 'center' },
+            { title: 'nameCus', keys: ['nameCus'], width: 25, align: 'left' },
+            { title: 'contno', keys: ['contno'], width: 18, align: 'center' },
+            { title: 'contractoffcde', keys: ['contractoffcde'], width: 18, align: 'center' },
+            { title: 'company', keys: ['company'], width: 15, align: 'center' },
+            { title: 'phone', keys: ['phone'], width: 18, align: 'center' },
+            { title: 'เบอร์โทรศัพท์ 2', keys: ['เบอร์โทรศัพท์ 2'], width: 18, align: 'center' },
+            { title: 'ที่อยู่ปัจจุบัน', keys: ['ที่อยู่ปัจจุบัน'], width: 35, align: 'left' },
+            { title: 'จังหวัดที่อยู่ปัจจุบัน', keys: ['จังหวัดที่อยู่ปัจจุบัน'], width: 20, align: 'center' },
+            { title: 'ชื่อสาขาเดิม', keys: ['ชื่อสาขาเดิม'], width: 20, align: 'center' },
+            { title: 'category', keys: ['category'], width: 18, align: 'center' },
+            { title: 'brand', keys: ['brand'], width: 15, align: 'center' },
+            { title: 'carStype', keys: ['carStype'], width: 18, align: 'center' },
+            { title: 'ประเภทสัญญา', keys: ['ประเภทสัญญา'], width: 20, align: 'center' },
+            { title: 'วันที่เปิดสัญญา', keys: ['วันที่เปิดสัญญา'], width: 18, align: 'center', isDate: true },
+            { title: 'วันที่ปิดสัญญา', keys: ['วันที่ปิดสัญญา'], width: 18, align: 'center', isDate: true },
+            { title: 'สถานะปัจจุบัน', keys: ['สถานะปัจจุบัน'], width: 18, align: 'center' },
+            { title: 'ค่างวด', keys: ['ค่างวด'], width: 15, align: 'right' },
+            { title: 'term', keys: ['term'], width: 12, align: 'center' },
+            { title: 'termpaid', keys: ['termpaid'], width: 12, align: 'center' },
+            { title: 'total_ovd', keys: ['total_ovd'], width: 15, align: 'center' },
+            { title: 'Customer Group', keys: ['Customer Group', 'customer_group'], width: 18, align: 'center' },
+            { title: 'จัดกลุ่มลูกค้า', keys: ['จัดกลุ่มลูกค้า'], width: 18, align: 'center' },
+            { title: 'Customer Grade', keys: ['Customer Grade', 'customer_grade'], width: 18, align: 'center' },
+            { title: 'Customer Grade MIB', keys: ['Customer Grade MIB', 'customer_grade_mib'], width: 20, align: 'center' },
+            { title: 'AR-Net', keys: ['AR-Net', 'ar_net'], width: 18, align: 'center' },
+            { title: 'Aging CF', keys: ['Aging CF', 'aging_cf'], width: 18, align: 'center' },
+            { title: 'ประเภทประกัน', keys: ['ประเภทประกัน'], width: 20, align: 'center' },
+            { title: 'เลขที่กรมธรรม์', keys: ['เลขที่กรมธรรม์'], width: 20, align: 'center' },
+            { title: 'วันที่สิ้นสุดกรมธรรม์', keys: ['วันที่สิ้นสุดกรมธรรม์'], width: 20, align: 'center', isDate: true },
+            { title: 'ปีต่ออายุ', keys: ['ปีต่ออายุ'], width: 15, align: 'center' },
             { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
             { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
             { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
             { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
             { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
-            { title: 'Status Lead', keys: ['Status Lead'], width: 15, align: 'center' }
+            { title: 'Status Lead', keys: ['Status Lead', 'status_lead'], width: 15, align: 'center' },
+            { title: 'ผู้ดูแล Lead', keys: ['ผู้ดูแล Lead'], width: 20, align: 'center' }
         ];
 
-        const historyHeaders = [
-            { title: 'รหัส Campaign', keys: ['รหัส แคมเปญ', 'product_code', 'รหัส Campaign'], width: 18, align: 'center' },
-            { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
-            { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
-            { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
-            { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
-            { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
-            { title: 'Status Lead', keys: ['Status Lead'], width: 15, align: 'center' }
-        ];
+        const historyHeaders = [...headers];
 
         const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -920,7 +968,7 @@ async function exportCallExcel() {
                     const m = String(d.getMonth() + 1).padStart(2, '0');
                     const day = String(d.getDate()).padStart(2, '0');
                     const y = d.getFullYear();
-                    return `${m}/${day}/${y}`;
+                    return `${day}/${m}/${y}`;
                 }
                 return String(raw);
             }

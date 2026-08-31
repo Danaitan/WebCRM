@@ -1041,12 +1041,23 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
         const from = (batchPage - 1) * batchPerPage + 1;
         const to = Math.min(batchPage * batchPerPage, total);
 
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            let str = String(dateStr).trim();
+            if (str.includes('T')) str = str.split('T')[0];
+            else if (str.includes(' ')) str = str.split(' ')[0];
+            const parts = str.split('-');
+            if (parts.length === 3 && parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return str;
+        }
+
         let html = '';
         filteredCampaigns.forEach((item, idx) => {
             const isSelected = idx === selectedIndex;
             const statusClass = getStatusClass(item.status);
             const displayCode = item.code || item.name || 'N/A';
-            const displayDate = item.created || item.startDate || '';
+            const rawDate = item.created || item.startDate || '';
+            const displayDate = formatDate(rawDate);
             const displayName = item.name || item.remark || '';
 
             html += `

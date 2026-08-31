@@ -997,7 +997,7 @@ const formatDate = (date) => {
     if (!date) return '-';
     const d = new Date(date);
     if (isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString('en-GB').replace(/\//g, '-');
+    return d.toLocaleDateString('en-GB');
 };
 
 const formatValues = (value) => {
@@ -1159,7 +1159,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 const formatDt = (date) => {
                     const d = parseAnyDate(date);
                     if (!d) return '-';
-                    return d.toLocaleDateString('en-GB').replace(/\//g, '-');
+                    return d.toLocaleDateString('en-GB');
                 };
                 const formatNum = (val) => (val != null && val !== '') ? Number(val).toLocaleString('en-US') : '-';
 

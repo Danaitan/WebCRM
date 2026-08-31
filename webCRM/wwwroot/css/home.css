@@ -148,7 +148,7 @@ body.crm-body {
 /* Customer Stats Dashboard Grid & Cards */
 .customer-stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
     width: 100%;
     max-width: 100%;
@@ -162,13 +162,13 @@ body.crm-body {
 
 @media (max-width: 1200px) {
     .customer-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 576px) {
     .customer-stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -182,6 +182,8 @@ body.crm-body {
     flex-direction: column;
     justify-content: space-between;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .customer-stat-card:hover {
@@ -194,6 +196,7 @@ body.crm-body {
     display: flex;
     align-items: center;
     gap: 14px;
+    min-width: 0;
 }
 
 .stat-icon-wrapper {
@@ -213,6 +216,7 @@ body.crm-body {
     flex-direction: column;
     justify-content: center;
     overflow: hidden;
+    min-width: 0;
 }
 
 .stat-title {
@@ -229,6 +233,7 @@ body.crm-body {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    min-width: 0;
 }
 
 .stat-value {
@@ -236,12 +241,16 @@ body.crm-body {
     font-weight: 800;
     line-height: 1.2;
     letter-spacing: -0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stat-unit {
     font-size: 0.78rem;
     font-weight: 500;
     color: #64748b;
+    flex-shrink: 0;
 }
 
 .stat-card-footer {
@@ -250,6 +259,8 @@ body.crm-body {
     color: #1f3b60;
     font-weight: 500;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     min-height: 18px;
     line-height: 1.4;
 }
@@ -293,7 +304,7 @@ body.crm-body {
 
 .customer-graph {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.25rem;
     width: 100%;
     max-width: 100%;
@@ -301,18 +312,18 @@ body.crm-body {
     margin: 0;
 }
 
-.customer-graph-1 .pc-card,
-.customer-graph-2 .pc-card {
+.customer-graph .pc-card {
     background: #ffffff;
     border-radius: 14px;
     border: 1px solid #e2e8f0;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
     overflow: hidden;
+    min-width: 0;
+    max-width: 100%;
 }
 
-.customer-graph-1 .pc-card:hover,
-.customer-graph-2 .pc-card:hover {
+.customer-graph .pc-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
     border-color: #cbd5e1;
@@ -321,18 +332,28 @@ body.crm-body {
 .chart-container {
     position: relative;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     height: 360px;
+    overflow: hidden;
 }
 
-.customer-graph-1 canvas,
-.customer-graph-2 canvas {
+.customer-graph canvas,
+.chart-container canvas {
     width: 100% !important;
     height: 100% !important;
+    max-width: 100%;
 }
 
-@media (max-width: 992px) {
-    .customer-graph-2 {
-        grid-template-columns: 1fr;
+@media (max-width: 1200px) {
+    .customer-graph {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .customer-graph {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .chart-container {

@@ -9,7 +9,7 @@ let currentPage = 1;
 let pageSize = 10;
 
 const statusColors = {
-    'Pending': '#3b82f6',
+    'Pending': '#f59e0b',
     'Forward': '#0284c7',
     'Reply': '#8b5cf6',
     'Close': '#10b981'
@@ -383,7 +383,12 @@ function initStatusDoughnutChart(statusData) {
     const elTotal = document.getElementById('doughnutTotalCount');
     if (elTotal) elTotal.innerText = total.toLocaleString();
 
-    const colors = labels.map(name => statusColors[name] || '#94a3b8');
+    const getStatusColor = (name) => {
+        const key = Object.keys(statusColors).find(k => k.toLowerCase() === (name || '').trim().toLowerCase());
+        return key ? statusColors[key] : (statusColors[name] || '#94a3b8');
+    };
+
+    const colors = labels.map(name => getStatusColor(name));
 
     statusDoughnutChartInstance = new Chart(ctx, {
         type: 'doughnut',
@@ -422,7 +427,7 @@ function initStatusDoughnutChart(statusData) {
             const name = item.name || '';
             const count = item.count || 0;
             const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-            const color = statusColors[name] || '#94a3b8';
+            const color = getStatusColor(name);
 
             legendHtml += `
                 <div class="d-flex align-items-center mb-1.5 extra-small">

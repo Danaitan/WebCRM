@@ -602,7 +602,8 @@ async function setFilterBranch(data) {
         data.forEach(item => {
             if (item) {
                 const code = String(item.offcde || '').trim();
-                const name = item.branch_name;
+                const name = String(item.branch_name || '').trim();
+                if (code === '99' || name === '99-ทุกสาขา' || name === 'ทุกสาขา' || name.startsWith('99-')) return;
                 optionsHtml += `<option value="${name}">${name}</option>`;
             }
         });
@@ -687,15 +688,23 @@ $(document).ready(async function () {
             stopLoading();
         }
     });
-});
 
-$("#dashboardSearch").off("click").on("click", async function () {
-    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
-    try {
-        await getDashboardCustomerInfo();
-    } catch (error) {
-        console.error("Error searching dashboard customer info:", error);
-    } finally {
-        stopLoading();
+    // Auto-resize charts when container dimensions change (e.g. sidebar toggle)
+    if (typeof ResizeObserver !== 'undefined') {
+        const graphContainer = document.querySelector('.customer-graph');
+        if (graphContainer) {
+            const resizeObserver = new ResizeObserver(() => {
+                if (productChartInstance) productChartInstance.resize();
+                if (occupationChartInstance) occupationChartInstance.resize();
+                if (ageChartInstance) ageChartInstance.resize();
+            });
+            resizeObserver.observe(graphContainer);
+        }
     }
+
+    window.addEventListener('resize', () => {
+        if (productChartInstance) productChartInstance.resize();
+        if (occupationChartInstance) occupationChartInstance.resize();
+        if (ageChartInstance) ageChartInstance.resize();
+    });
 });

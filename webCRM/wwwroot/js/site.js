@@ -103,7 +103,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     hideIcon.classList.add('bi-chevron-double-left');
                 }
             }
+            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
+            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 320);
         }
+    }
+
+    if (sidebar) {
+        sidebar.addEventListener('transitionend', function () {
+            window.dispatchEvent(new Event('resize'));
+        });
     }
 
     if (hideBtn) {

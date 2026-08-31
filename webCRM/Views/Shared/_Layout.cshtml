@@ -87,9 +87,39 @@
                 
                 <!-- Menu Items -->
                 <nav class="sidebar-nav flex-grow-1 px-2 py-3 d-flex flex-column gap-1 overflow-auto" id="sidebarNav">
-                    <a href="/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-3 px-3 py-2 rounded">
-                        <i class="bi bi-house fs-5"></i> <span class="fw-medium sidebar-text">Dashboard</span>
-                    </a>
+                    @{
+                        bool isDashboardActive = currentPath == "/" || currentPath.StartsWith("/Home", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/Dashboard", StringComparison.OrdinalIgnoreCase);
+                    }
+                    <div class="sidebar-item-group mb-1">
+                        <button class="nav-link @(isDashboardActive ? "text-primary fw-semibold" : "text-secondary") d-flex align-items-center justify-content-between w-100 px-3 py-2 rounded border-0 bg-transparent text-start sidebar-parent-toggle" 
+                                type="button" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#sidebarSubmenu_1" 
+                                aria-expanded="@(isDashboardActive ? "true" : "false")" 
+                                aria-controls="sidebarSubmenu_1">
+                            <div class="d-flex align-items-center gap-3">
+                                <i class="bi bi-house fs-5"></i>
+                                <span class="fw-medium sidebar-text">Dashboard</span>
+                            </div>
+                            <i class="bi bi-chevron-down sidebar-chevron fs-6"></i>
+                        </button>
+                        <div class="collapse @(isDashboardActive ? "show" : "")" id="sidebarSubmenu_1">
+                            <div class="sidebar-submenu d-flex flex-column gap-1 my-1">
+                                <a href="/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                                    <i class="bi bi-person fs-6"></i>
+                                    <span class="sidebar-text">ข้อมูลลูกค้า</span>
+                                </a>
+                                <a href="/DashboardProspectCall" class="nav-link @GetActiveClass("/DashboardProspectCall") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                                    <i class="bi bi-telephone-inbound fs-6"></i>
+                                    <span class="sidebar-text">การติดต่อลูกค้า</span>
+                                </a>
+                                <a href="/DashboardSuggestion" class="nav-link @GetActiveClass("/DashboardSuggestion") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                                    <i class="bi bi-chat-left-dots fs-6"></i>
+                                    <span class="sidebar-text">ข้อเสนอแนะ/ร้องเรียน</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                     
                     <a href="/CustomerDetail" class="nav-link @GetActiveClass("/CustomerDetail") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-person fs-5"></i> <span class="fw-medium sidebar-text">ข้อมูลลูกค้า</span>

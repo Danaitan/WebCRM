@@ -276,7 +276,7 @@
                                         <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;" placeholder="กรอกข้อความตอบกลับที่นี่..."></textarea>
                                         <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
                                             <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
-                                            <span>@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                            <span>@DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")</span>
                                         </div>
                                         <div class="d-flex justify-content-end gap-2">
                                             <button type="button" class="btn btn-primary px-4 fw-bold" id="saveReplyBtn" style="border-radius: 4px;">บันทึก</button>

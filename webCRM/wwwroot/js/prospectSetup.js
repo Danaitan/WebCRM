@@ -367,6 +367,16 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
             }
             card.dataset.code = item.code;
             card.dataset.guid = item.guid || '';
+            const formatDisplayDate = (dateStr) => {
+                if (!dateStr) return '-';
+                let str = String(dateStr).trim();
+                if (str.includes('T')) str = str.split('T')[0];
+                else if (str.includes(' ')) str = str.split(' ')[0];
+                const parts = str.split('-');
+                if (parts.length === 3 && parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                return str;
+            };
+
             card.innerHTML = `
                 <div class="d-flex justify-content-between">
                     <div class="batch-id color-${color}">${item.code || `BATCH-${String(i+1).padStart(3,'0')}`}</div>
@@ -375,7 +385,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 <div class="d-flex justify-content-between align-items-end">
                     <div class="batch-meta">
                         <div>สร้างโดย: ${item.createdBy || '-'}</div>
-                        <div>${item.created || '-'}</div>
+                        <div>${formatDisplayDate(item.created)}</div>
                     </div>
                     <div class="text-end">
                         <span class="badge rounded-pill ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'} mb-1">${item.status}</span>

@@ -307,7 +307,7 @@ function renderCampaignList(items) {
                         <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
                             <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${escapeHtml(item.code)}</span>
                         </div>
-                        <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${escapeHtml(item.startDate)} • สิ้นสุด: ${escapeHtml(item.endDate)}">เริ่ม: ${escapeHtml(item.startDate)} &bull; สิ้นสุด: ${escapeHtml(item.endDate)}</div>
+                        <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${escapeHtml(formatDateTh(item.startDate))} • สิ้นสุด: ${escapeHtml(formatDateTh(item.endDate))}">เริ่ม: ${escapeHtml(formatDateTh(item.startDate))} &bull; สิ้นสุด: ${escapeHtml(formatDateTh(item.endDate))}</div>
                     </div>
                 </div>
             </div>
@@ -330,8 +330,8 @@ function selectCampaignCard(code) {
 
     $('#detailId').val(campaign.code);
     $('#detailName').val(campaign.name);
-    $('#detailStart').val(campaign.startDate);
-    $('#detailEnd').val(campaign.endDate);
+    $('#detailStart').val(formatDateTh(campaign.startDate));
+    $('#detailEnd').val(formatDateTh(campaign.endDate));
     $('#detailObjective').val(campaign.Objective_code || '');
 
     populateProductDropdownOptions(masterDropdownData, selectedCampaignObjective);
@@ -836,8 +836,11 @@ function populateProductDropdownOptions(dropdownList, objective) {
 // Format date string YYYY-MM-DD -> DD/MM/YYYY
 function formatDateTh(dateStr) {
     if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    let str = String(dateStr).trim();
+    if (str.includes('T')) str = str.split('T')[0];
+    else if (str.includes(' ')) str = str.split(' ')[0];
+    const parts = str.split('-');
+    if (parts.length === 3 && parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
     return dateStr;
 }
 

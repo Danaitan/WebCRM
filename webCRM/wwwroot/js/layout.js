@@ -1120,46 +1120,137 @@ const sidebarIconMap = {
     '/CustomerDetail': 'bi-person',
     '/Suggestions': 'bi-chat-dots',
     '/Campain': 'bi-megaphone',
+    '/Campaign': 'bi-megaphone',
     '/ProspectSetup': 'bi-people-fill',
     '/ProductApprove': 'bi-shield-check',
     '/ProspectAssign': 'bi-people',
-    '/ProspectCall': 'bi-telephone'
+    '/ProspectCall': 'bi-telephone',
+    '/DashboardProspectCall': 'bi-telephone-inbound',
+    '/DashboardSuggestion': 'bi-chat-left-dots',
+    '/ManageUser': 'bi-gear'
 };
 
-function getSidebarActiveClass(path) {
-    const currentPath = window.location.pathname || '/';
-    const normPath = (path || '').toLowerCase();
-    const normCurrent = currentPath.toLowerCase();
+function getSidebarIcon(path, isChild = false) {
+    if (!path) return isChild ? 'bi-circle' : 'bi-grid';
+    const cleanPath = path.split('?')[0];
+    if (isChild && (cleanPath === '/Home/Index' || cleanPath === '/' || cleanPath === '/Home')) {
+        return 'bi-person';
+    }
+    return sidebarIconMap[path] || sidebarIconMap[cleanPath] || (isChild ? 'bi-circle' : 'bi-grid');
+}
 
-    if (normPath === '/' || normPath === '/home/index') {
-        if (normCurrent === '/' || normCurrent === '/home/index') {
-            return 'active-menu text-primary';
-        }
-        return 'text-secondary';
+function isSidebarPathActive(path) {
+    if (!path || path === '#') return false;
+    const currentPath = (window.location.pathname || '/').toLowerCase().replace(/\/$/, "");
+    const targetPath = (path.split('?')[0] || '').toLowerCase().replace(/\/$/, "");
+
+    if (targetPath === '' || targetPath === '/' || targetPath === '/home' || targetPath === '/home/index') {
+        return (currentPath === '' || currentPath === '/' || currentPath === '/home' || currentPath === '/home/index');
     }
-    if (normPath && normPath !== '#' && normCurrent.startsWith(normPath)) {
-        return 'active-menu text-primary';
-    }
-    return 'text-secondary';
+    return currentPath === targetPath || currentPath.startsWith(targetPath + '/');
 }
 
 function renderSidebarMenu(items) {
     const nav = $('#sidebarNav');
     if (!nav.length) return;
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    // Filter active items
+    const activeItems = items.filter(item => (item.IsActive ?? item.isActive ?? true) !== false);
+
+    // Group children by ParentId
+    const childrenMap = {};
+    activeItems.forEach(item => {
+        const parentId = item.ParentId ?? item.parentId ?? item.parent_id;
+        if (parentId !== null && parentId !== undefined && parentId !== "" && parentId !== 0) {
+            const pIdStr = String(parentId);
+            if (!childrenMap[pIdStr]) {
+                childrenMap[pIdStr] = [];
+            }
+            childrenMap[pIdStr].push(item);
+        }
+    });
+
+    // Identify top-level items (ParentId is null / undefined / empty / 0)
+    const topLevelItems = activeItems.filter(item => {
+        const parentId = item.ParentId ?? item.parentId ?? item.parent_id;
+        const menuPos = (item.MenuPosition ?? item.menuPosition ?? '').toLowerCase();
+        const isTop = (parentId === null || parentId === undefined || parentId === "" || parentId === 0);
+        return isTop && (!menuPos || menuPos === 'side_bar');
+    });
 
     let html = '';
-    items.forEach(item => {
-        const title = item.Title || item.title || '';
-        const path = item.Path || item.path || '#';
-        const cleanPath = path.split('?')[0];
-        const iconClass = sidebarIconMap[path] || sidebarIconMap[cleanPath] || 'bi-grid';
-        const activeClass = getSidebarActiveClass(path);
 
-        html += `
-            <a href="${path}" class="nav-link ${activeClass} d-flex align-items-center gap-3 px-3 py-2 rounded">
-                <i class="bi ${iconClass} fs-5"></i> <span class="fw-medium sidebar-text">${title}</span>
-            </a>
-        `;
+    topLevelItems.forEach(item => {
+        const itemId = item.Id ?? item.id;
+        const idStr = String(itemId);
+        const title = item.Title ?? item.title ?? '';
+        const path = item.Path ?? item.path ?? '#';
+        const iconClass = getSidebarIcon(path, false);
+        const children = childrenMap[idStr] || [];
+
+        if (children.length > 0) {
+            // Ensure "ข้อมูลลูกค้า" is sorted to be the first child item
+            children.sort((a, b) => {
+                const aTitle = (a.Title ?? a.title ?? '').trim();
+                const bTitle = (b.Title ?? b.title ?? '').trim();
+                if (aTitle === 'ข้อมูลลูกค้า') return -1;
+                if (bTitle === 'ข้อมูลลูกค้า') return 1;
+                return 0;
+            });
+            // Check if child is active or parent matches current URL
+            const isChildActive = children.some(child => isSidebarPathActive(child.Path ?? child.path));
+            const isParentActive = isSidebarPathActive(path);
+            const isExpanded = isChildActive || isParentActive;
+            const collapseId = `sidebarSubmenu_${itemId}`;
+            const parentActiveClass = (isChildActive || isParentActive) ? 'text-primary fw-semibold' : 'text-secondary';
+
+            let childrenHtml = '';
+            children.forEach(child => {
+                const cTitle = child.Title ?? child.title ?? '';
+                const cPath = child.Path ?? child.path ?? '#';
+                const cIconClass = getSidebarIcon(cPath, true);
+                const isCActive = isSidebarPathActive(cPath);
+                const cActiveClass = isCActive ? 'active-menu text-primary' : 'text-secondary';
+
+                childrenHtml += `
+                    <a href="${cPath}" class="nav-link ${cActiveClass} d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                        <i class="bi ${cIconClass} fs-6"></i>
+                        <span class="sidebar-text">${cTitle}</span>
+                    </a>
+                `;
+            });
+
+            html += `
+                <div class="sidebar-item-group mb-1">
+                    <button class="nav-link ${parentActiveClass} d-flex align-items-center justify-content-between w-100 px-3 py-2 rounded border-0 bg-transparent text-start sidebar-parent-toggle" 
+                            type="button"
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#${collapseId}" 
+                            aria-expanded="${isExpanded ? 'true' : 'false'}"
+                            aria-controls="${collapseId}">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi ${iconClass} fs-5"></i>
+                            <span class="fw-medium sidebar-text">${title}</span>
+                        </div>
+                        <i class="bi bi-chevron-down sidebar-chevron fs-6"></i>
+                    </button>
+                    <div class="collapse ${isExpanded ? 'show' : ''}" id="${collapseId}">
+                        <div class="sidebar-submenu d-flex flex-column gap-1 my-1">
+                            ${childrenHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            const activeClass = isSidebarPathActive(path) ? 'active-menu text-primary' : 'text-secondary';
+            html += `
+                <a href="${path}" class="nav-link ${activeClass} d-flex align-items-center gap-3 px-3 py-2 rounded mb-1">
+                    <i class="bi ${iconClass} fs-5"></i>
+                    <span class="fw-medium sidebar-text">${title}</span>
+                </a>
+            `;
+        }
     });
 
     if (html.trim()) {
@@ -1185,7 +1276,7 @@ function loadSidebarMenu() {
     }
 
     $.ajax({
-        url: '/Login/GetPage?personalCode=' + encodeURIComponent(personalCode) + '&menuPosition=side_bar',
+        url: '/Login/GetPage?personalCode=' + encodeURIComponent(personalCode),
         type: 'GET',
         dataType: 'json',
         success: function (response) {
@@ -1197,59 +1288,12 @@ function loadSidebarMenu() {
                 try { data = JSON.parse(data); } catch (e) {}
             }
             if (Array.isArray(data)) {
-                const filtered = data.filter(item => 
-                    (item.IsActive ?? item.isActive ?? true) && 
-                    (item.IsSidebar ?? item.isSidebar ?? true)
-                );
-                sessionStorage.setItem(cacheKey, JSON.stringify(filtered));
-                renderSidebarMenu(filtered);
+                sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                renderSidebarMenu(data);
             }
         },
         error: function (err) {
             console.error("Error fetching pages for sidebar menu:", err);
-        }
-    });
-}
-
-function loadDashboardViewMenu() {
-    const selects = $('.dashboard-view-select');
-    if (!selects.length) return;
-
-    const personalCode = (typeof userId !== 'undefined' && userId) ? userId : '100664';
-    const cacheKey = 'dashboard_view_pages_' + personalCode;
-
-    const cachedData = sessionStorage.getItem(cacheKey);
-    if (cachedData) {
-        try {
-            const parsed = JSON.parse(cachedData);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                renderDashboardViewMenu(parsed);
-            }
-        } catch (e) {}
-    }
-
-    $.ajax({
-        url: '/Login/GetPage?personalCode=' + encodeURIComponent(personalCode) + '&menuPosition=dashboard_view',
-        type: 'GET',
-        dataType: 'json',
-        success: function (response) {
-            let data = response;
-            if (typeof data === 'string') {
-                try { data = JSON.parse(data); } catch (e) {}
-            }
-            if (typeof data === 'string') {
-                try { data = JSON.parse(data); } catch (e) {}
-            }
-            if (Array.isArray(data)) {
-                const filtered = data.filter(item => 
-                    (item.IsActive ?? item.isActive ?? true)
-                );
-                sessionStorage.setItem(cacheKey, JSON.stringify(filtered));
-                renderDashboardViewMenu(filtered);
-            }
-        },
-        error: function (err) {
-            console.error("Error fetching pages for dashboard view menu:", err);
         }
     });
 }
@@ -1329,7 +1373,6 @@ $(document).ready(function () {
     }
 
     loadSidebarMenu();
-    loadDashboardViewMenu();
     fetchNotifications();
 
     $('#bellNotification').on('click', function () {

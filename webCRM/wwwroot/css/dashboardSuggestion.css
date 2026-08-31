@@ -8,9 +8,9 @@
     --sg-card-radius: 12px;
 
     /* Status Colors */
-    --color-pending: #3b82f6;
-    --color-pending-bg: #eff6ff;
-    --color-pending-border: #bfdbfe;
+    --color-pending: #f59e0b;
+    --color-pending-bg: #fffbeb;
+    --color-pending-border: #fde68a;
 
     --color-forward: #0284c7;
     --color-forward-bg: #f0f9ff;
@@ -220,7 +220,7 @@ body {
 /* Status Badges in Table */
 .badge-status-pending {
     background-color: var(--color-pending-bg);
-    color: #1d4ed8;
+    color: #b45309;
     border: 1px solid var(--color-pending-border);
 }
 

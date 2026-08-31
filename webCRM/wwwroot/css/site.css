@@ -144,6 +144,60 @@ body {
   border-radius: 0 4px 4px 0;
 }
 
+/* Sidebar Parent Toggle & Submenu */
+.sidebar-parent-toggle {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-parent-toggle:hover {
+  background-color: #f4f7fc !important;
+  color: var(--bs-primary, #0d6efd) !important;
+}
+
+.sidebar-chevron {
+  transition: transform 0.25s ease-in-out;
+}
+
+.sidebar-parent-toggle[aria-expanded="true"] .sidebar-chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-submenu {
+  border-left: 2px solid #e2e8f0;
+  margin-left: 1.25rem;
+  padding-left: 0.5rem;
+}
+
+.sidebar-submenu .nav-link {
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.35rem 0.75rem !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.sidebar-submenu .nav-link:hover {
+  color: var(--bs-primary, #0d6efd) !important;
+  background-color: #f1f5f9 !important;
+}
+
+.sidebar-submenu .nav-link.active-menu {
+  color: var(--bs-primary, #0d6efd) !important;
+  background-color: #eff6ff !important;
+  font-weight: 600;
+}
+
+.sidebar-submenu .nav-link.active-menu::before {
+  left: -0.5rem;
+  width: 3px;
+}
+
+#crmSidebar.collapsed .sidebar-submenu,
+#crmSidebar.collapsed .sidebar-chevron {
+  display: none !important;
+}
+
+
 /* Sticky Table Headers for DataTables and HTML Tables */
 .table thead th,
 .table thead td,

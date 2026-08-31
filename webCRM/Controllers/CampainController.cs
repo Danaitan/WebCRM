@@ -25,7 +25,6 @@ namespace webCRM.Controllers
             string startDate = "",
             string endDate = "",
             string branch = "",
-            string createdBy = "",
             string search = ""
             )
         {
@@ -42,12 +41,7 @@ namespace webCRM.Controllers
                     string reqPage = string.IsNullOrEmpty(page) ? "1" : page;
                     string reqPageSize = string.IsNullOrEmpty(pageSize) ? "20" : pageSize;
 
-                    if (string.IsNullOrEmpty(createdBy))
-                    {
-                        createdBy = userId;
-                    }
-
-                    string url = $"{domain}/crm/api/v1/p2/getProductsPhase3/{createdBy}/{reqPage}/{reqPageSize}";
+                    string url = $"{domain}/crm/api/v1/p2/getProductsPhase3/{reqPage}/{reqPageSize}";
                     var queryParams = new List<string>();
                     if (!string.IsNullOrEmpty(status)) queryParams.Add($"status={Uri.EscapeDataString(status)}");
                     if (!string.IsNullOrEmpty(startDate)) queryParams.Add($"startDate={Uri.EscapeDataString(startDate)}");

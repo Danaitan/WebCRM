@@ -7,9 +7,24 @@ let campaignTable;
 let masterData = null;
 
 let prospectPage = 1;
-let prospectPageSize = 10;
+let prospectPageSize = 5;
 let prospectTotalCount = 0;
 let rawProspectItems = [];
+
+async function getCampaignDataForETL(productCode) {
+    try {
+        const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`);
+        if (!response.ok) {
+            console.error("getCampaignDataForETL HTTP error:", response.status, response.statusText);
+            return null;
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in getCampaignDataForETL:", error);
+        return null;
+    }
+}
 
 async function PostNoti(PostNotiData){
     try {
@@ -152,10 +167,9 @@ function extractProspectCustomers(data) {
 
     let items = [];
     let totalCount = 0;
-    let rootUpdatedBy = (raw && typeof raw === 'object' && raw.updated_by) ? String(raw.updated_by).trim() : '';
 
     if (raw && typeof raw === 'object') {
-        totalCount = raw.Customer?.total ?? 0;
+        totalCount = raw.Customer?.total ?? raw.total ?? raw.count ?? (Array.isArray(raw.data) ? raw.data.length : (Array.isArray(raw.result) ? raw.result.length : 0));
     }
 
     const checkAndPush = (item) => {
@@ -210,17 +224,18 @@ function extractProspectCustomers(data) {
         }
 
         if (typeof item === 'object') {
+            console.log("item", item);
             const idno = item.idno || '';
             const id = item.id || '';
-            const name = item.nameCus || item.customer_name || '-';
+            const name = item.nameCus || '-';
             const contract = item.contno || '-';
-            const branch = item.branch_Name || '-';
-            const offcde = item.offcde || item.contractoffcde || item.branch_offcde || item.Offcde || '';
-            const carLocation = item.provinceUsecar || '-';
-            const createdDate = item.created || '-';
+            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const offcde = item.offcde || '-';
+            const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
+            const createdDate = item.created || item.ImportDate || '-';
             const createdBy = item.created_by || '-';
 
-            if (id || idno || name !== '-') {
+            if (id || idno || (name && name !== '-')) {
                 items.push({
                     id: String(id || '').trim(),
                     idno: String(idno || '').trim(),
@@ -244,6 +259,8 @@ function extractProspectCustomers(data) {
             raw.data.forEach(i => checkAndPush(i));
         } else if (raw.data && typeof raw.data === 'object') {
             checkAndPush(raw.data);
+        } else if (Array.isArray(raw.result)) {
+            raw.result.forEach(i => checkAndPush(i));
         } else {
             checkAndPush(raw);
         }
@@ -272,7 +289,7 @@ function formatDateTime(dateStr) {
     return formatDate(str);
 }
 
-async function loadProspectApproveData(productCode, page = 1, pageSize = 10) {
+async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
     if (!productCode) {
         rawProspectItems = [];
         prospectTotalCount = 0;
@@ -288,7 +305,16 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 10) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>`;
     }
 
-    const res = await getProductBatchByProductCode(productCode);
+    const currentCampaign = campaigns.find(c => c.code === productCode);
+    const isImport = currentCampaign ? (currentCampaign.IsImport === true || currentCampaign.IsImport === 'true' || currentCampaign.IsImport === 1 || currentCampaign.IsImport === '1') : false;
+
+    let res = null;
+    if (isImport) {
+        const etlRes = await getCampaignDataForETL(productCode);
+        res = etlRes ? (etlRes.IsBatch || etlRes.isBatch || etlRes.is_batch || etlRes) : null;
+    } else {
+        res = await getProductBatchByProductCode(productCode);
+    }
 
     const { items, totalCount } = extractProspectCustomers(res);
 
@@ -500,7 +526,8 @@ async function getCampainList(page, pageSize) {
             createdBy: item.createrd_by || '',
             created:   item.created? item.created.substring(0, 10) : '',
             objective: item.Objective_code || '',
-            file_id:   item.file_id || ""
+            file_id:   item.file_id || "",
+            IsImport:  item.IsImport || false
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -649,12 +676,22 @@ function filterProspectTable() {
         return matchText && matchBranch && matchBy;
     });
 
-    if (filteredItems.length === 0) {
+    var total = filteredItems.length;
+    var totalPages = Math.ceil(total / prospectPageSize) || 1;
+    if (prospectPage > totalPages) {
+        prospectPage = 1;
+    }
+
+    var start = (prospectPage - 1) * prospectPageSize;
+    var end = start + prospectPageSize;
+    var pagedItems = filteredItems.slice(start, end);
+
+    if (pagedItems.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบรายการ Prospect</td></tr>`;
     } else {
         var html = '';
-        filteredItems.forEach(function (item, index) {
-            var seq = (prospectPage - 1) * prospectPageSize + index + 1;
+        pagedItems.forEach(function (item, index) {
+            var seq = start + index + 1;
             var dtStr = formatDateTime(item.createdDate);
             html += `
                 <tr data-branch="${item.branch}" data-name="${item.name}" data-contract="${item.contract}" data-by="${item.createdBy}">
@@ -671,14 +708,13 @@ function filterProspectTable() {
         tbody.innerHTML = html;
     }
 
-    var total = prospectTotalCount || filteredItems.length;
     var badge = document.getElementById('prospectApproveTotalBadge');
     if (badge) {
         badge.textContent = 'ทั้งหมด ' + total + ' รายการ';
     }
 
-    var startIdx = total > 0 ? (prospectPage - 1) * prospectPageSize + 1 : 0;
-    var endIdx = total > 0 ? Math.min(prospectPage * prospectPageSize, filteredItems.length) : 0;
+    var startIdx = total > 0 ? start + 1 : 0;
+    var endIdx = total > 0 ? Math.min(start + pagedItems.length, total) : 0;
     var prospectPaginationText = document.getElementById('prospectPaginationText');
     if (prospectPaginationText) {
         prospectPaginationText.textContent = total > 0
@@ -751,32 +787,32 @@ $(document).ready(async function () {
 
     $("#prospectPaginationControls").on("click", ".pa-page-btn", function (e) {
         e.preventDefault();
-        if ($(this).attr("disabled")) return;
+        if ($(this).attr("disabled") || $(this).prop("disabled")) return;
 
-        const totalPages = Math.ceil(prospectTotalCount / prospectPageSize) || 1;
+        const totalPages = Math.ceil(rawProspectItems.length / prospectPageSize) || 1;
         if (this.id === "prospectPrevBtn") {
             if (prospectPage > 1) {
                 prospectPage--;
-                loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
+                filterProspectTable();
             }
         } else if (this.id === "prospectNextBtn") {
             if (prospectPage < totalPages) {
                 prospectPage++;
-                loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
+                filterProspectTable();
             }
         } else {
             const targetPage = parseInt($(this).data("page"), 10);
             if (targetPage && targetPage !== prospectPage) {
                 prospectPage = targetPage;
-                loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
+                filterProspectTable();
             }
         }
     });
 
     $("#prospectPageSizeSelect").on("change", function () {
-        prospectPageSize = parseInt($(this).val(), 10) || 10;
+        prospectPageSize = parseInt($(this).val(), 10) || 5;
         prospectPage = 1;
-        loadProspectApproveData(selectedCampaignCode, prospectPage, prospectPageSize);
+        filterProspectTable();
     });
 
     $("#btnSearch, #btnSearchbtn").off("click").on("click", function (e) {

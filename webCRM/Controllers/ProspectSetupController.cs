@@ -33,7 +33,7 @@ namespace webCRM.Controllers
                     string userId = HttpContext.Session.GetString("personalId") ?? "";
                     string reqPage = string.IsNullOrEmpty(page) ? "1" : page;
                     string reqPageSize = string.IsNullOrEmpty(pageSize) ? "20" : pageSize;
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductsPhase3/{userId}/{reqPage}/{reqPageSize}");
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductsPhase3/{reqPage}/{reqPageSize}");
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
                     if (response.IsSuccessStatusCode)
@@ -280,7 +280,73 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync( $"{domain}/crm/api/v1/p3/getFilterDropdown" );
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getFilterDropdown");
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> getCampaignDataForETL(string? productCode)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getCampaignDataForETL?product_code={productCode}");
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> upsertProspectFromETL([FromBody] UpsertProspectFromETLRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var personalId = HttpContext.Session.GetString("personalId") ?? "";
+                    if (request != null)
+                    {
+                        request.user = personalId;
+                    }
+
+                    var response = await client.PostAsync
+                    ($"{domain}/crm/api/v1/p3/upsertProspectFromETL",
+                    new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json")
+                    );
+
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {

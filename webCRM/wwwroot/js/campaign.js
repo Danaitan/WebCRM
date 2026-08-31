@@ -1,4 +1,22 @@
 
+let masterFiltersData = [];
+let selectedFilterCodes = [];
+let selectedCampaignCode = "";
+let selectedCampaignGuid = "";
+let selectedCampaignId = 0;
+let selectedCampaignFileId = "";
+let fileIdToDelete = "";
+const pageSize = 5;
+let page = 1;
+let rawMasterFilters = [];
+let campaignTable;
+
+async function getCampaignDataForETL(productCode) {
+    const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${productCode}`);
+    const data = await response.json();
+    return data;
+}
+
 function generateUUID() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
@@ -13,18 +31,6 @@ function generateUUID() {
         return v.toString(16);
     });
 }
-
-let masterFiltersData = [];
-let selectedFilterCodes = [];
-let selectedCampaignCode = "";
-let selectedCampaignGuid = "";
-let selectedCampaignId = 0;
-let selectedCampaignFileId = "";
-let fileIdToDelete = "";
-const pageSize = 5;
-let page = 1;
-let rawMasterFilters = [];
-let campaignTable;
 
 async function SearchCampaign() {
     page = 1;
@@ -2106,9 +2112,8 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
 
 $("#btnGotoETL").off("click").on("click", function () {
     if (!selectedCampaignCode) return;
-
     var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?type=1&id=" + selectedCampaignCode + "&user=" + encodeURIComponent(window.CURRENT_USER_ID);
-    window.location.href = url;
+    window.open(url);
 });
 
 $("#btnSearch").off("click").on("click", function () {

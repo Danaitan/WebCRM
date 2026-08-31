@@ -12,6 +12,7 @@ let selectedCampaign = null;
 let currentProductBatches = [];
 let currentBatchCustomers = [];
 let removedBatchCustomerIds = new Set();
+let isCurrentCampaignImport = false;
 
 const $campaignSearchInput = $("#campaignSearchInput");
 
@@ -65,7 +66,7 @@ async function getCampainList(page = 1, pageSize = 20, searchText) {
             guid:      item.product_guid  || "",
             offcde:    item.offcde || "",
             product_company: item.product_company || "", 
-            file_id:   item.file_id || item.FileId || item.fileId || "",
+            file_id:   item.file_id || ""
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -388,25 +389,23 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 selectedCampaign = item;
                 removedBatchCustomerIds.clear();
                 updateSendForApprovalButtonState();
-
                 displayCampaignFile(item.file_id);
 
                 startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
                 try {
-                    await refreshSelectedCampaignCustomers();
-
                     const requestId = ++currentFilterRequestId;
                     const dynamicFilterContainer = document.getElementById('dynamicFilter');
                     if (dynamicFilterContainer) {
                         dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2"><div class="spinner-border spinner-border-sm text-primary me-2"></div>กำลังโหลดตัวกรอง...</div>';
                     }
 
-                    const targetGuid = item.guid || item.product_guid || item.fguid || item.code || '';
+                    const targetGuid = item.guid || '';
 
                     if (targetGuid) {
                         try {
                             const filterData = await getProductFilterByGuid(targetGuid);
+
                             if (requestId !== currentFilterRequestId) {
                                 return;
                             }
@@ -425,39 +424,51 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                 else if (Array.isArray(rawFilters.filters)) filters = rawFilters.filters;
                             }
 
+                            const isImport = Array.isArray(filters) && filters.some(filter => {
+                                const name = (typeof filter === 'object' && filter ? (filter.fname || filter.fName || filter.FName || filter.f_name || '') : String(filter)).toLowerCase();
+                                return name === 'import';
+                            });
+                            isCurrentCampaignImport = isImport;
+
                             if (dynamicFilterContainer) {
                                 dynamicFilterContainer.innerHTML = '';
                                 
-                                const option = await fetch (`/ProspectSetup/getFilterDropdown`)
-                                const optionData = await option.json();
-                                console.log(optionData)
-                                
-                                if (filters.length > 0) {
-                                    filters.forEach((filter) => {
-                                        const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
-                                        const filterHTML = productFilterHTML(fCode, optionData);
-
-                                        if (filterHTML) {
-                                            dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
-                                        }
-                                    });
+                                if (isImport) {
+                                    dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-primary py-2" style="font-size:0.85rem;"><i class="bi bi-file-earmark-excel me-1"></i>แคมเปญประเภทนำเข้าข้อมูล (Import Excel)</div>';
                                 } else {
-                                    dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+                                    const option = await fetch (`/ProspectSetup/getFilterDropdown`)
+                                    const optionData = await option.json();
+                                    
+                                    if (filters.length > 0) {
+                                        filters.forEach((filter) => {
+                                            const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
+                                            const filterHTML = productFilterHTML(fCode, optionData);
+
+                                            if (filterHTML) {
+                                                dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
+                                            }
+                                        });
+                                    } else {
+                                        dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+                                    }
                                 }
                             }
                         } catch (err) {
                             console.error("Error calling getProductFilterByGuid:", err);
+                            isCurrentCampaignImport = false;
                             if (dynamicFilterContainer && requestId === currentFilterRequestId) {
                                 dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-danger py-2" style="font-size:0.85rem;">เกิดข้อผิดพลาดในการโหลดตัวกรอง</div>';
                             }
                         }
                     } else {
+                        isCurrentCampaignImport = false;
                         if (dynamicFilterContainer) {
                             dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
                         }
                     }
 
                     if (requestId === currentFilterRequestId) {
+                        await refreshSelectedCampaignCustomers();
                         await loadProspectList(1, currentProspectPageSize);
                     }
                 } catch (err) {
@@ -524,10 +535,45 @@ function getFilterParams() {
     return params;
 }
 
+async function getCampaignDataForETL(productCode) {
+    try {
+        const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`);
+        const jsonResult = await response.json();
+        return jsonResult;
+    } catch (error) {
+        console.error("Error in getCampaignDataForETL:", error);
+        return { status: false, data: [] };
+    }
+}
+
 async function getProspect(page = 1, pageSize = 10) {
     try {
         currentProspectPage = page;
         currentProspectPageSize = pageSize;
+
+        if (isCurrentCampaignImport && selectedCampaign && selectedCampaign.code) {
+            const response = await getCampaignDataForETL(selectedCampaign.code);
+            let rawData = [];
+            const etlResult = response.IsBatch
+            if (etlResult) {
+                if (Array.isArray(etlResult.data)) rawData = etlResult.data;
+                else if (Array.isArray(etlResult.result)) rawData = etlResult.result;
+                else if (Array.isArray(etlResult)) rawData = etlResult;
+            }
+
+            const total = rawData.length;
+            const start = (page - 1) * pageSize;
+            const pagedData = rawData.slice(start, start + pageSize);
+
+            return {
+                page: page,
+                pageSize: pageSize,
+                total: total,
+                count: total,
+                data: pagedData
+            };
+        }
+
         const filterParams = getFilterParams();
         filterParams.set('page', page);
         filterParams.set('pageSize', pageSize);
@@ -552,7 +598,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
         const res = await getProspect(page, pageSize);
         const rawData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
-        const count = res.total ?? 0;
+        const count = res.total ?? res.count ?? 0;
         const currentPage = res && typeof res.page === 'number' ? res.page : page;
         const currentPageSize = res && typeof res.pageSize === 'number' ? res.pageSize : pageSize;
 
@@ -567,12 +613,12 @@ async function loadProspectList(page = 1, pageSize = 10) {
             } else {
                 rawData.forEach(item => {
                     const name = item.nameCus || '-';
-                    const phone = item.mobile || '-';
-                    const branch = item.branchName || '-';
+                    const phone = item.mobile || item.phone || '-';
+                    const branch = item.branchName || item.ชื่อสาขาเดิม || '-';
 
-                    const idno = item.idno || '';
-                    const id = item.id || '';
-                    const prospectBatch = item.prospect_batch || '';
+                    const idno = item.idno || '-';
+                    const id = item.id || item.Id || '-';
+                    const prospectBatch = item.prospect_batch || item.product_batch || '';
 
                     let matchedBatch = null;
                     if (Array.isArray(currentProductBatches) && currentProductBatches.length > 0) {
@@ -1015,15 +1061,15 @@ function bindTableCheckboxEvents() {
 document.addEventListener('DOMContentLoaded', async function () {
     const btnClearSelection = document.getElementById('btnClearSelection');
 
-    // --- 1. Load Campaign (Batch) List ---
+    //Load Campaign (Batch) List ---
     await loadBatchList(currentBatchPage, currentBatchPageSize);
 
-    // --- 2. Load Prospect List ---
+    //Load Prospect List ---
     await loadProspectList(currentProspectPage, currentProspectPageSize);
 
     updateSendForApprovalButtonState();
 
-    // --- 3. Rows per page selector event listener ---
+    //Rows per page selector event listener ---
     const rowsPerPageSelect = document.getElementById('rowsPerPage');
     if (rowsPerPageSelect) {
         rowsPerPageSelect.value = currentProspectPageSize.toString();
@@ -1033,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
-    // --- 4. Go to page input event listener ---
+    //Go to page input event listener ---
     const goToPageInput = document.getElementById('goToPageInput');
     if (goToPageInput) {
         goToPageInput.addEventListener('change', function() {
@@ -1049,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
-    // --- 5. Filter event listeners ---
+    //Filter event listeners ---
     const btnApplyFilters = document.getElementById('btnApplyFilters');
     if (btnApplyFilters) {
         btnApplyFilters.addEventListener('click', function() {
@@ -1082,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
-    // --- 5.1 Selected Table Pagination event listeners ---
+    //Selected Table Pagination event listeners ---
     const selectedRowsPerPageSelect = document.getElementById('selectedRowsPerPage');
     if (selectedRowsPerPageSelect) {
         selectedRowsPerPageSelect.value = currentSelectedPageSize.toString();
@@ -1103,7 +1149,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
-    // --- 6. Export to Excel Logic ---
     const btnExportExcel = document.getElementById('btnExportExcel');
     if (btnExportExcel) {
         btnExportExcel.addEventListener('click', function () {
@@ -1167,22 +1212,42 @@ document.addEventListener('DOMContentLoaded', async function () {
                         currentSelected.map(c => c.id).filter(Boolean)
                     ));
 
-                    var request = {
-                        id: selectedIds,
-                        product_code: selectedCampaign.code || "",
-                        product_offcde: selectedCampaign.offcde || "",
-                        product_company: selectedCampaign.product_company || "",
-                        product_batch_remark: selectedCampaign.code+":new batch" || "",
-                        status: "draft",
-                    };
-                    const response = await fetch(`/ProspectSetup/PostNewProspectBatch`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(request),
-                    });
-                    const data = await response.json();
+                    let response;
+                    let data;
+
+                    if (isCurrentCampaignImport) {
+                        const upsertRequest = {
+                            Id: selectedIds,
+                            productCode: selectedCampaign.code || "",
+                            user: ""
+                        };
+                        response = await fetch(`/ProspectSetup/upsertProspectFromETL`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(upsertRequest),
+                        });
+                        data = await response.json();
+                    } else {
+                        var request = {
+                            id: selectedIds,
+                            product_code: selectedCampaign.code || "",
+                            product_offcde: selectedCampaign.offcde || "",
+                            product_company: selectedCampaign.product_company || "",
+                            product_batch_remark: selectedCampaign.code+":new batch" || "",
+                            status: "draft",
+                        };
+                        response = await fetch(`/ProspectSetup/PostNewProspectBatch`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(request),
+                        });
+                        data = await response.json();
+                    }
+
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : "ไม่สามารถบันทึกข้อมูลได้";
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
@@ -1302,6 +1367,7 @@ async function getProductBatchByProductCode(productCode){
             return [];
         }
         const data = await response.json();
+        
         return data || [];
     }catch(err){
         console.error("Error in getProductBatchByProductCode:", err);
@@ -1312,47 +1378,56 @@ async function getProductBatchByProductCode(productCode){
 async function refreshSelectedCampaignCustomers() {
     if (selectedCampaign && selectedCampaign.code) {
         currentSelectedPage = 1;
-        const batchRes = await getProductBatchByProductCode(selectedCampaign.code);
-        currentBatchCustomers = extractCustomers(batchRes);
-        updateSelectedList();
 
-        let rawBatches = batchRes;
-        if (typeof rawBatches === 'string') {
-            try { rawBatches = JSON.parse(rawBatches); } catch(e) {}
-        }
-        if (Array.isArray(rawBatches)) {
-            currentProductBatches = rawBatches;
-        } else if (rawBatches && typeof rawBatches === 'object') {
-            let items = [];
-            if (Array.isArray(rawBatches.data)) items = rawBatches.data;
-            else if (rawBatches.Customer && Array.isArray(rawBatches.Customer.data)) items = rawBatches.Customer.data;
-            else if (rawBatches.customer && Array.isArray(rawBatches.customer.data)) items = rawBatches.customer.data;
-            else if (rawBatches.ObjectCustomer && Array.isArray(rawBatches.ObjectCustomer.data)) items = rawBatches.ObjectCustomer.data;
-            else if (rawBatches.objectCustomer && Array.isArray(rawBatches.objectCustomer.data)) items = rawBatches.objectCustomer.data;
-            else if (Array.isArray(rawBatches.Customer)) items = rawBatches.Customer;
-            else if (Array.isArray(rawBatches.customer)) items = rawBatches.customer;
-            else if (Array.isArray(rawBatches.customers)) items = rawBatches.customers;
-            else if (Array.isArray(rawBatches.result)) items = rawBatches.result;
-            else if (Array.isArray(rawBatches.batches)) items = rawBatches.batches;
-            else if (Array.isArray(rawBatches.productBatch)) items = rawBatches.productBatch;
-            else if (Array.isArray(rawBatches.prospectBatch)) items = rawBatches.prospectBatch;
-            else items = [rawBatches];
-
-            const parentStatus = rawBatches.status || rawBatches.assign_status || rawBatches.product_batch_status;
-            const parentBatch = rawBatches.prospect_batch || rawBatches.prospectBatch || rawBatches.product_batch;
-
-            currentProductBatches = items.map(b => {
-                if (typeof b === 'object' && b !== null) {
-                    return {
-                        ...b,
-                        status: b.status || parentStatus,
-                        prospect_batch: b.prospect_batch || parentBatch
-                    };
-                }
-                return b;
-            });
-        } else {
+        if (isCurrentCampaignImport) {
+            const response = await getCampaignDataForETL(selectedCampaign.code);
+            const etlResult = response ? (response.IsNotBatch || response.isNotBatch || response.is_not_batch) : null;
+            currentBatchCustomers = extractCustomers(etlResult);
             currentProductBatches = [];
+            updateSelectedList();
+        } else {
+            const batchRes = await getProductBatchByProductCode(selectedCampaign.code);
+            currentBatchCustomers = extractCustomers(batchRes);
+            updateSelectedList();
+
+            let rawBatches = batchRes;
+            if (typeof rawBatches === 'string') {
+                try { rawBatches = JSON.parse(rawBatches); } catch(e) {}
+            }
+            if (Array.isArray(rawBatches)) {
+                currentProductBatches = rawBatches;
+            } else if (rawBatches && typeof rawBatches === 'object') {
+                let items = [];
+                if (Array.isArray(rawBatches.data)) items = rawBatches.data;
+                else if (rawBatches.Customer && Array.isArray(rawBatches.Customer.data)) items = rawBatches.Customer.data;
+                else if (rawBatches.customer && Array.isArray(rawBatches.customer.data)) items = rawBatches.customer.data;
+                else if (rawBatches.ObjectCustomer && Array.isArray(rawBatches.ObjectCustomer.data)) items = rawBatches.ObjectCustomer.data;
+                else if (rawBatches.objectCustomer && Array.isArray(rawBatches.objectCustomer.data)) items = rawBatches.objectCustomer.data;
+                else if (Array.isArray(rawBatches.Customer)) items = rawBatches.Customer;
+                else if (Array.isArray(rawBatches.customer)) items = rawBatches.customer;
+                else if (Array.isArray(rawBatches.customers)) items = rawBatches.customers;
+                else if (Array.isArray(rawBatches.result)) items = rawBatches.result;
+                else if (Array.isArray(rawBatches.batches)) items = rawBatches.batches;
+                else if (Array.isArray(rawBatches.productBatch)) items = rawBatches.productBatch;
+                else if (Array.isArray(rawBatches.prospectBatch)) items = rawBatches.prospectBatch;
+                else items = [rawBatches];
+
+                const parentStatus = rawBatches.status || rawBatches.assign_status || rawBatches.product_batch_status;
+                const parentBatch = rawBatches.prospect_batch || rawBatches.prospectBatch || rawBatches.product_batch;
+
+                currentProductBatches = items.map(b => {
+                    if (typeof b === 'object' && b !== null) {
+                        return {
+                            ...b,
+                            status: b.status || parentStatus,
+                            prospect_batch: b.prospect_batch || parentBatch
+                        };
+                    }
+                    return b;
+                });
+            } else {
+                currentProductBatches = [];
+            }
         }
     } else {
         currentBatchCustomers = [];
@@ -1421,17 +1496,18 @@ function extractCustomers(data) {
         }
 
         if (typeof item === 'object') {
+            console.log("item",item)
             const idno = item.idno || '';
-            const id = item.id || '';
-            const name = item.customer_name || '-';
-            const phone = item.customer_mobile || '-';
-            const branch = item.branch_Name || '-';
-            const statusVal = item.assign_status || '';
+            const id = item.id || item.Id || '';
+            const name = item.nameCus || '-';
+            const phone = item.mobile || item.phone || '-';
+            const branch = item.branchName || item.ชื่อสาขาเดิม || '-';
+            const statusVal = item.assign_status || item.status || '';
             const statusStr = String(statusVal).trim().toLowerCase();
             const isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
             const isDisabled = item.isDisabled !== undefined ? item.isDisabled : !isDraft;
 
-            if (id || idno || name !== '-') {
+            if (id || idno || (name !== '-' && name !== '')) {
                 list.push({
                     id: String(id || '').trim(),
                     idno: String(idno || '').trim(),
@@ -1450,6 +1526,12 @@ function extractCustomers(data) {
     } else if (typeof raw === 'object') {
         if (Array.isArray(raw.data)) {
             raw.data.forEach(i => checkAndPush(i));
+        } else if (Array.isArray(raw.result)) {
+            raw.result.forEach(i => checkAndPush(i));
+        } else if (Array.isArray(raw.IsNotBatch)) {
+            raw.IsNotBatch.forEach(i => checkAndPush(i));
+        } else if (raw.IsNotBatch && Array.isArray(raw.IsNotBatch.data)) {
+            raw.IsNotBatch.data.forEach(i => checkAndPush(i));
         } else if (raw.data && typeof raw.data === 'object') {
             checkAndPush(raw.data);
         } else {

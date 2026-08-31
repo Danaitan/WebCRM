@@ -30,6 +30,18 @@ namespace webCRM.Models
 
     }
 
+    public class UpsertProspectFromETLRequest
+    {
+        [JsonPropertyName("Id")]
+        public object? Id { get; set; }
+
+        [JsonPropertyName("productCode")]
+        public string? productCode { get; set; }
+
+        [JsonPropertyName("user")]
+        public string? user { get; set; }
+    }
+
     public class UpdateProductBatchStatusRequest
     {
         public string? product_code { get; set; }

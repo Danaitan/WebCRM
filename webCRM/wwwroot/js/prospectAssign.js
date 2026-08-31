@@ -6,6 +6,7 @@ let activeStatusFilter = 'all';
 let allBranch = [];
 let prospectPage = 1;
 let prospectPageSize = 10;
+let campaigns = [];
 
 async function PostNoti(PostNotiData){
     try {
@@ -91,7 +92,6 @@ async function sendPostNotiForAssign(requestData, actionType) {
         console.error("Error sending PostNoti for Assign:", err);
     }
 }
-
 
 async function getAllBranch() {
     if (allBranch && allBranch.length > 0) {
@@ -312,8 +312,6 @@ function selectAllResponsibleStaff() {
     return { addedCount, totalOptions };
 }
 
-
-
 async function UpdateProspectCustomer(overrideParams = {}){
     try{
         const assignBtn = document.getElementById('assignBtn');
@@ -417,6 +415,21 @@ async function UpdateProspectCustomer(overrideParams = {}){
     }
 }
 
+async function getCampaignDataForETL(productCode) {
+    try {
+        const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`);
+        if (!response.ok) {
+            console.error("getCampaignDataForETL HTTP error:", response.status, response.statusText);
+            return null;
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in getCampaignDataForETL:", error);
+        return null;
+    }
+}
+
 // Fetch prospect batch for selected campaign from API
 async function getProductBatchByProductCode(productCode){
     try{
@@ -444,7 +457,7 @@ function extractProspectCustomers(data) {
     let items = [];
     let totalCount = 0;
     if (raw && typeof raw === 'object') {
-        totalCount = raw.Customer?.total ?? raw.total ?? 0;
+        totalCount = raw.Customer?.total ?? raw.total ?? raw.count ?? (Array.isArray(raw.data) ? raw.data.length : (Array.isArray(raw.result) ? raw.result.length : 0));
     }
 
     const checkAndPush = (item) => {
@@ -503,16 +516,16 @@ function extractProspectCustomers(data) {
             const id = item.id || '';
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
-            const branch = item.branch_Name || '-';
-            const carLocation = item.provinceUsecar || '-';
-            const createdDate = item.created || '-';
+            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
+            const createdDate = item.created || item.ImportDate || '-';
             const createdBy = item.created_by || '-';
             const custType = item.custype || '-';
             const occupation = item.occupation || '-';
             const assignee = item.staffName || '-';
             const status = item.assign_status || '-';
 
-            if (id || idno || name !== '-') {
+            if (id || idno || (name && name !== '-')) {
                 items.push({
                     id: String(id || '').trim(),
                     idno: String(idno || '').trim(),
@@ -539,6 +552,8 @@ function extractProspectCustomers(data) {
             raw.data.forEach(i => checkAndPush(i));
         } else if (raw.data && typeof raw.data === 'object') {
             checkAndPush(raw.data);
+        } else if (Array.isArray(raw.result)) {
+            raw.result.forEach(i => checkAndPush(i));
         } else {
             checkAndPush(raw);
         }
@@ -597,7 +612,8 @@ async function getCampainList(page, pageSize) {
             createdBy: item.createrd_by    || item.created_by || '',
             created:   item.created        ? item.created.substring(0, 10)       : '',
             offcde:    item.offcde         || '',
-            file_id:   item.file_id        || item.FileId || item.fileId || ""
+            file_id:   item.file_id        || item.FileId || item.fileId || "",
+            IsImport:  item.IsImport || false
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -630,7 +646,17 @@ async function loadProspectAssignData(productCode) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>`;
     }
 
-    const res = await getProductBatchByProductCode(productCode);
+    const currentCampaign = campaigns.find(c => c.code === productCode);
+    const isImport = currentCampaign ? (currentCampaign.IsImport === true || currentCampaign.IsImport === 'true' || currentCampaign.IsImport === 1 || currentCampaign.IsImport === '1') : false;
+
+    let res = null;
+    if (isImport) {
+        const etlRes = await getCampaignDataForETL(productCode);
+        res = etlRes ? (etlRes.IsBatch || etlRes.isBatch || etlRes.is_batch || etlRes) : null;
+    } else {
+        res = await getProductBatchByProductCode(productCode);
+    }
+
     const { items, totalCount } = extractProspectCustomers(res);
 
     rawProspectItems = items;
@@ -898,7 +924,7 @@ function buildPageRange(current, total) {
 })();
 
 (function () {
-    let campaigns = [];
+    campaigns = [];
     let filteredCampaigns = [];
     let batchPage = 1;
     const batchPerPage = 10;

@@ -125,6 +125,9 @@ namespace webCRM.Models
         [JsonPropertyName("file_id")]
         [JsonConverter(typeof(FlexibleStringConverter))]
         public string? file_id { get; set; }
+
+        [JsonPropertyName("IsImport")]
+        public bool IsImport { get; set; }
     }
 
     public class Branch

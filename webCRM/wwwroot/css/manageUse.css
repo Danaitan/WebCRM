@@ -50,11 +50,44 @@
 .page-perm-card {
     border: 1px solid #e2e8f0;
     border-radius: 10px;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .page-perm-card:hover {
     border-color: #cbd5e1;
 }
-.table-responsive {
-    border-radius: 8px;
+.page-parent-card {
+    border-left: 4px solid #0d6efd;
+    background-color: #ffffff;
 }
+.page-child-card {
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+.page-child-card:hover {
+    border-color: #0d6efd;
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.08);
+}
+.page-parent-header {
+    cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+    border-radius: 6px;
+    padding: 2px 4px;
+}
+.page-parent-header:hover {
+    background-color: #f8fafc;
+}
+.page-parent-header .toggle-icon {
+    display: inline-block;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.page-parent-header[aria-expanded="true"] .toggle-icon {
+    transform: rotate(180deg);
+}
+.page-parent-header[aria-expanded="true"] .btn-outline-primary {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+

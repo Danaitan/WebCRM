@@ -133,7 +133,8 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                 today.setHours(0, 0, 0, 0);
                 const createdDateOnly = new Date(createdDt.getFullYear(), createdDt.getMonth(), createdDt.getDate());
                 const diffTime = today.getTime() - createdDateOnly.getTime();
-                const days = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                let days = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                if (days < 0) days = 0;
                 daysOrder = days;
                 timeDiffText = `${days} วัน`;
             }
@@ -379,13 +380,8 @@ $(document).ready(function () {
         showDetails(this);
     });
 
-    // เลือกรายการแรกโดยอัตโนมัติหากมีข้อมูล หรือโหลดข้อมูลหากยังไม่มีข้อมูล
-    const firstRow = $('#suggestionsTable tbody tr').first();
-    if (firstRow.length && firstRow.find('td').length > 1) {
-        showDetails(firstRow[0]);
-    } else {
-        searchSuggestion();
-    }
+    // โหลดข้อมูลเริ่มต้น
+    searchSuggestion();
 });
 
 async function loadDepartmentOptions() {
@@ -632,20 +628,45 @@ function parseDateToLocalObject(dateStr) {
     if (!validStr) return null;
 
     if (typeof validStr === 'object' && validStr instanceof Date) {
-        return isNaN(validStr.getTime()) ? null : validStr;
+        if (isNaN(validStr.getTime())) return null;
+        let dt = new Date(validStr.getTime());
+        if (dt.getFullYear() > 2400) {
+            dt.setFullYear(dt.getFullYear() - 543);
+        }
+        return isNaN(dt.getTime()) ? null : dt;
     }
 
     const str = String(validStr).trim();
 
-    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    const isoMatch = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
     if (isoMatch) {
-        const year = parseInt(isoMatch[1], 10);
+        let year = parseInt(isoMatch[1], 10);
         const month = parseInt(isoMatch[2], 10) - 1;
         const day = parseInt(isoMatch[3], 10);
         const hours = isoMatch[4] ? parseInt(isoMatch[4], 10) : 0;
         const minutes = isoMatch[5] ? parseInt(isoMatch[5], 10) : 0;
         const seconds = isoMatch[6] ? parseInt(isoMatch[6], 10) : 0;
 
+        if (year > 2400) {
+            year -= 543;
+        }
+        if (year <= 1900) return null;
+        const dt = new Date(year, month, day, hours, minutes, seconds);
+        return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (dmyMatch) {
+        const day = parseInt(dmyMatch[1], 10);
+        const month = parseInt(dmyMatch[2], 10) - 1;
+        let year = parseInt(dmyMatch[3], 10);
+        const hours = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
+        const minutes = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
+        const seconds = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
+
+        if (year > 2400) {
+            year -= 543;
+        }
         if (year <= 1900) return null;
         const dt = new Date(year, month, day, hours, minutes, seconds);
         return isNaN(dt.getTime()) ? null : dt;
@@ -665,6 +686,9 @@ function parseDateToLocalObject(dateStr) {
                 month = parseInt(dateParts[1], 10) - 1;
                 year = parseInt(dateParts[2], 10);
             }
+            if (year > 2400) {
+                year -= 543;
+            }
             let hours = 0, minutes = 0, seconds = 0;
             if (parts[1]) {
                 const timeParts = parts[1].split(':');
@@ -681,6 +705,9 @@ function parseDateToLocalObject(dateStr) {
     const ts = Date.parse(str);
     if (!isNaN(ts)) {
         const dt = new Date(ts);
+        if (dt.getFullYear() > 2400) {
+            dt.setFullYear(dt.getFullYear() - 543);
+        }
         if (dt.getFullYear() <= 1900) return null;
         return dt;
     }
@@ -696,10 +723,6 @@ function parseDateForSort(dateStr) {
 function formatDateDisplay(dateStr) {
     const validStr = getValidDateStr(dateStr);
     if (!validStr) return '-';
-
-    if (typeof validStr === 'string' && /^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}/.test(validStr.trim())) {
-        return validStr.trim();
-    }
 
     const dt = parseDateToLocalObject(validStr);
     if (dt) {

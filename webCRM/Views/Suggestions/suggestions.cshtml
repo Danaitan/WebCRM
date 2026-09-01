@@ -1,4 +1,3 @@
-@model List<webCRM.Models.ResponseSuggestion>
 @{
     ViewData["Title"] = "ข้อเสนอแนะ / ร้องเรียน";
     ViewData["HeaderTitle"] = "ข้อเสนอแนะ / ร้องเรียน";
@@ -118,64 +117,6 @@
                                     <th class="fw-semibold text-muted py-3 text-center rounded-end" style="white-space: nowrap;">จำนวนวัน</th>
                                 </tr>
                             </thead>
-                            <tbody id="suggestionResultBody">
-                                @if (Model != null && Model.Any())
-                                {
-                                    foreach (var item in Model)
-                                    {
-                                         DateTime? displayCreatedDate = (item.CreatedDate.HasValue && item.CreatedDate.Value.Year > 1900) ? item.CreatedDate : null;
-                                         if (!displayCreatedDate.HasValue && item.DateSugges.HasValue && item.DateSugges.Value.Year > 1900)
-                                         {
-                                             displayCreatedDate = item.TimeSugges.HasValue && item.TimeSugges.Value.Year > 1900
-                                                 ? item.DateSugges.Value.Date.Add(item.TimeSugges.Value.TimeOfDay) 
-                                                 : item.DateSugges.Value;
-                                         }
-                                         if (!displayCreatedDate.HasValue && item.UpDate.HasValue && item.UpDate.Value.Year > 1900)
-                                         {
-                                             displayCreatedDate = item.UpDate;
-                                         }
-                                         var createdDateStr = displayCreatedDate?.ToString("dd/MM/yyyy HH:mm") ?? "-";
-                                         var createdDateOrder = displayCreatedDate?.ToString("yyyyMMddHHmmss") ?? "0";
-
-                                         var upDateStr = item.UpDate is { Year: > 1900 } upDateVal ? upDateVal.ToString("dd/MM/yyyy HH:mm") : "-";
-                                         var upDateOrder = item.UpDate is { Year: > 1900 } upDateValOrder ? upDateValOrder.ToString("yyyyMMddHHmmss") : "0";
-
-                                         var timeDiffText = "-";
-                                         var daysOrder = 999999;
-                                         if (displayCreatedDate.HasValue && displayCreatedDate.Value.Year > 1900)
-                                         {
-                                             var days = (DateTime.Now.Date - displayCreatedDate.Value.Date).Days;
-                                             daysOrder = days;
-                                             timeDiffText = $"{days} วัน";
-                                         }
-                                        <tr style="cursor: pointer;" onclick="showDetails(this)"
-                                            data-phone="@(item.PhoneProvider ?? "-")"
-                                            data-contact="@(item.DateSugges?.ToString("dd/MM/yyyy") ?? "-") @(item.TimeSugges?.ToString("HH:mm") ?? "")"
-                                            data-email="@(item.EmailProvider ?? "-")"
-                                            data-line="@(item.LineProvider ?? "-")"
-                                            data-idno="@(item.Idno ?? "-")"
-                                            data-status="@(item.StatusTask?.ToLower() ?? "-")"
-                                            data-address="@(item.AddressProvider ?? "-")"
-                                            data-date="@createdDateStr"
-                                            data-recordedby="@(item.PersonalName ?? "-")"
-                                            data-reply="@(item.Reply ?? "-")"
-                                            data-nameprovider="@(item.NameProvider ?? "-")"
-                                            data-suggestion="@(item.Suggestion ?? "-")"
-                                            data-guid="@(item.Guid ?? "-")"
-                                            data-updby="@(item.UpdBy ?? "-")"
-                                            data-sendto="@(item.SendTo ?? "-")"
-                                            data-details='@(item.Detail != null ? System.Text.Json.JsonSerializer.Serialize(item.Detail) : "[]")'
-                                            >
-                                            <td class="text-center py-2" data-order="@createdDateOrder"><div class="fw-medium text-dark">@createdDateStr</div></td>
-                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.SuggestionTitle ?? "-")</div></td>
-                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.NameProvider ?? "-")</div></td>
-                                            <td class="text-center py-2"><div class="fw-medium text-dark">@(item.StatusTask?.ToLower() ?? "-")</div></td>
-                                            <td class="text-center py-2" data-order="@upDateOrder"><div class="fw-medium text-dark">@upDateStr</div></td>
-                                            <td class="text-center py-2" data-order="@daysOrder"><div class="fw-medium text-dark">@timeDiffText</div></td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
                         </table>
                     </div>
                     
@@ -276,7 +217,7 @@
                                         <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;" placeholder="กรอกข้อความตอบกลับที่นี่..."></textarea>
                                         <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
                                             <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
-                                            <span>@DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                            <span>@DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss", new System.Globalization.CultureInfo("th-TH"))</span>
                                         </div>
                                         <div class="d-flex justify-content-end gap-2">
                                             <button type="button" class="btn btn-primary px-4 fw-bold" id="saveReplyBtn" style="border-radius: 4px;">บันทึก</button>
@@ -383,14 +324,14 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-medium small">Send To <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-medium small">E-mail Send To <span class="text-danger">*</span></label>
                                         <select class="form-select text-muted" id="post-send-to">
                                             <option value="" selected>เลือกผู้รับผิดชอบ</option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label fw-medium small">CC</label>
+                                        <label class="form-label fw-medium small">E-mail CC</label>
                                         <div class="dropdown custom-multi-select">
                                             <div class="form-select d-flex align-items-center justify-content-between" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="cc-display" style="cursor: pointer; min-height: 38px;">
                                                 <div id="cc-tags-container" class="d-flex flex-wrap gap-1 w-100 align-items-center me-2">

@@ -509,30 +509,6 @@ namespace webCRM.Models
         public string? RecTel { get; set; }
     }
 
-    public class ReceiveResponse
-    {
-        [JsonPropertyName("contno")]
-        public string? Contno { get; set; }
-
-        [JsonPropertyName("IdentityCardId")]
-        public string? IdentityCardId { get; set; }
-
-        [JsonPropertyName("rcpdte")]
-        public string? Rcpdte { get; set; }
-
-        [JsonPropertyName("amount")]
-        public string? Amount { get; set; }
-
-        [JsonPropertyName("rawPaymer")]
-        public string? RawPaymer { get; set; }
-
-        [JsonPropertyName("recType")]
-        public string? RecType { get; set; }
-
-        [JsonPropertyName("recTel")]
-        public string? RecTel { get; set; }
-    }
-
     public class ResponseClaim
     {
         [JsonPropertyName("Policy_No")]

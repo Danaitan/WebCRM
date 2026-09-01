@@ -32,11 +32,27 @@ $(document).ready(function () {
 
     // Select / Deselect all pages
     $('#btnSelectAllPages').on('click', function () {
-        $('.page-checkbox').prop('checked', true);
+        $('.page-checkbox:not(:disabled)').prop('checked', true);
     });
 
     $('#btnDeselectAllPages').on('click', function () {
-        $('.page-checkbox').prop('checked', false);
+        $('.page-checkbox:not(:disabled)').prop('checked', false);
+    });
+
+    // Parent checkbox change event (toggle children)
+    $(document).on('change', '.page-parent-checkbox', function () {
+        const parentId = $(this).data('page-id');
+        const isChecked = $(this).is(':checked');
+        $(`.page-child-checkbox[data-parent-id="${parentId}"]:not(:disabled)`).prop('checked', isChecked);
+    });
+
+    // Child checkbox change event (ensure parent is checked if child is checked)
+    $(document).on('change', '.page-child-checkbox', function () {
+        const parentId = $(this).data('parent-id');
+        const isChecked = $(this).is(':checked');
+        if (isChecked) {
+            $(`.page-parent-checkbox[data-page-id="${parentId}"]:not(:disabled)`).prop('checked', true);
+        }
     });
 
     // Create new role event
@@ -111,34 +127,48 @@ async function loadUsersData() {
     }
 }
 
-function getUserRoleCount(user) {
-    if (!user) return 0;
-    if (Array.isArray(user.role)) {
-        return user.role.filter(r => r && (r.role_id || r.role_name)).length;
-    } else if (user.role && typeof user.role === 'object') {
-        return (user.role.role_id || user.role.role_name) ? 1 : 0;
-    } else if (user.role || user.role_id) {
-        return 1;
+function isRoleActive(roleItem, defaultRoleId = null) {
+    if (!roleItem) return false;
+
+    // Check status directly on role object (e.g. role_status or status)
+    if (typeof roleItem === 'object' && roleItem !== null) {
+        const status = (roleItem.role_status || roleItem.status || '').toString().toLowerCase().trim();
+        // If status exists and is not enable/active, reject
+        if (status && status !== 'enable' && status !== 'active') {
+            return false;
+        }
     }
-    return 0;
+
+    // Check master role status in allRolesData if available
+    const id = (typeof roleItem === 'object' && roleItem !== null)
+        ? (roleItem.role_id || defaultRoleId)
+        : (roleItem || defaultRoleId);
+
+    if (id && allRolesData && allRolesData.length > 0) {
+        const masterRole = allRolesData.find(r => (r.role_id || '').toString() === id.toString());
+        if (masterRole) {
+            const masterStatus = (masterRole.status || masterRole.role_status || '').toString().toLowerCase().trim();
+            if (masterStatus !== 'enable' && masterStatus !== 'active') {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+function getUserRoleCount(user) {
+    return extractUserRoles(user).length;
 }
 
 function getUserRoleInfo(user) {
+    const roles = extractUserRoles(user);
     let roleId = '';
     let roleName = '';
-    if (Array.isArray(user.role) && user.role.length > 0) {
-        roleId = user.role[0].role_id || '';
-        const names = user.role.map(r => {
-            const id = r.role_id || '';
-            return r.role_name || getRoleNameById(id) || id;
-        }).filter(Boolean);
+    if (roles.length > 0) {
+        roleId = roles[0].role_id || '';
+        const names = roles.map(r => r.role_name).filter(Boolean);
         roleName = names.join(', ');
-    } else if (user.role && typeof user.role === 'object') {
-        roleId = user.role.role_id || '';
-        roleName = getRoleNameById(roleId) || roleId;
-    } else {
-        roleId = user.role_id || '';
-        roleName = getRoleNameById(roleId);
     }
 
     return {
@@ -261,10 +291,25 @@ async function loadRolesData() {
             dataType: 'json'
         });
 
-        allRolesData = parseApiResponse(response);
-        $('#statTotalRoles').text(allRolesData.length);
-        renderRolesFilterDropdown(allRolesData);
-        renderRolesSelectionList(allRolesData);
+        allRolesData = parseApiResponse(response) || [];
+        allRolesData.sort((a, b) => {
+            const statusA = (a.status || a.role_status || '').toString().toLowerCase().trim();
+            const statusB = (b.status || b.role_status || '').toString().toLowerCase().trim();
+            const isEnableA = (statusA === 'enable' || statusA === 'active') ? 0 : 1;
+            const isEnableB = (statusB === 'enable' || statusB === 'active') ? 0 : 1;
+            if (isEnableA !== isEnableB) {
+                return isEnableA - isEnableB;
+            }
+            return (a.role_id || '').toString().localeCompare((b.role_id || '').toString(), undefined, { numeric: true });
+        });
+
+        const filterRoles = allRolesData.filter(role => {
+            const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
+            return status === 'enable' || status === 'active';
+        });
+        $('#statTotalRoles').text(filterRoles.length);
+        renderRolesFilterDropdown(filterRoles);
+        renderRolesSelectionList(filterRoles);
         renderRolesTable(allRolesData);
     } catch (error) {
         console.error("Failed to load roles data:", error);
@@ -297,10 +342,9 @@ function renderRolesSelectionList(roles) {
         list.html('<div class="text-center text-muted py-3">ไม่พบบทบาทในระบบ</div>');
         return;
     }
-
     roles.forEach((role, index) => {
-        const id = role.role_id || role.roleId || role.id || '';
-        const name = role.role_name || role.roleName || role.name || id;
+        const id = role.role_id || '';
+        const name = role.role_name || '';
 
         const item = `
             <div class="role-item p-3 bg-light rounded-3 d-flex align-items-center justify-content-between" 
@@ -333,9 +377,9 @@ function renderRolesTable(roles) {
         const id = role.role_id || '-';
         const name = role.role_name || '-';
         const createdBy = role.create_by || '-';
-        const status = role.status || '-';
+        const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
 
-        const isEnable = status === 'enable';
+        const isEnable = status === 'enable' || status === 'active';
         const statusText = isEnable ? 'ใช้งาน' : 'ไม่ใช้งาน';
         const statusColor = isEnable ? 'success' : 'danger';
 
@@ -362,6 +406,7 @@ function renderRolesTable(roles) {
     });
 
     rolesDataTable = $('#rolesTable').DataTable({
+        order: [],
         language: {
             search: "ค้นหาบทบาท:",
             lengthMenu: "แสดง _MENU_ รายการต่อหน้า",
@@ -503,6 +548,27 @@ function getRoleNameById(roleId) {
     return found ? (found.role_name) : '';
 }
 
+function getPageIcon(page) {
+    if (!page) return 'bi-window-sidebar';
+    if (page.icon) return page.icon;
+    const title = (page.Title || '').toLowerCase();
+    const path = (page.Path || '').toLowerCase();
+    const id = String(page.Id || '');
+
+    if (id === '1' || title.includes('dashboard')) return 'bi-speedometer2';
+    if (path.includes('dashboardprospectcall') || (title.includes('ติดต่อ') && title.includes('ลูกค้า'))) return 'bi-telephone-inbound';
+    if (path.includes('dashboardsuggestion') || path.includes('suggestion') || title.includes('ข้อเสนอแนะ') || title.includes('ร้องเรียน')) return 'bi-chat-left-dots';
+    if (path.includes('customerdetail') || (title.includes('ข้อมูล') && title.includes('ลูกค้า'))) return 'bi-person-vcard';
+    if (path.includes('campain') || title.includes('campaign create')) return 'bi-megaphone';
+    if (path.includes('prospectsetup') || title.includes('prospect setup')) return 'bi-people-fill';
+    if (path.includes('productapprove') || title.includes('approve')) return 'bi-shield-check';
+    if (path.includes('prospectassign') || title.includes('prospect assign')) return 'bi-person-check';
+    if (path.includes('prospectcall') || title.includes('ขายและติดตาม') || title.includes('ขาย')) return 'bi-telephone';
+    if (path.includes('manageuser') || title.includes('ตั้งค่าผู้ใช้')) return 'bi-person-gear';
+
+    return 'bi-window-sidebar';
+}
+
 // LOAD PAGES DATA
 async function loadPagesData() {
     try {
@@ -513,7 +579,15 @@ async function loadPagesData() {
         });
 
         allPagesData = parseApiResponse(response);
-        $('#statTotalPages').text(allPagesData.length);
+        
+        let totalCount = 0;
+        allPagesData.forEach(p => {
+            totalCount++;
+            if (p.dropdown && Array.isArray(p.dropdown)) {
+                totalCount += p.dropdown.length;
+            }
+        });
+        $('#statTotalPages').text(totalCount);
     } catch (error) {
         console.error("Failed to load pages sidebar data:", error);
     }
@@ -541,7 +615,7 @@ function renderPagePermissionsGrid(roleId) {
     }
 
     // Find selected role object in allRolesData to extract assigned page IDs
-    const currentRole = (allRolesData || []).find(r => (r.role_id || r.roleId || r.id) == roleId);
+    const currentRole = (allRolesData || []).find(r => r.role_id == roleId);
     let assignedPageIds = [];
     if (currentRole) {
         const rawPages = currentRole.PageId || [];
@@ -561,39 +635,148 @@ function renderPagePermissionsGrid(roleId) {
         const pageId = page.Id || '';
         const pageName = page.Title || '';
         const pageUrl = page.Path || '';
-        const icon = page.icon || 'bi-window-sidebar';
+        const icon = getPageIcon(page);
+        const hasDropdown = page.dropdown && Array.isArray(page.dropdown) && page.dropdown.length > 0;
 
         // ตรวจสอบว่าเป็น Public Page หรือไม่ (1, 2, 8)
         const isPublicPage = PagePublic.some(id => String(id) === String(pageId));
 
-        // Check if this page is assigned to role
+        // Check if parent page is assigned to role
         const isChecked = isPublicPage ||
             assignedPageIds.some(id => String(id) === String(pageId)) ||
             (page.assignedRoles && Array.isArray(page.assignedRoles) && page.assignedRoles.some(r => String(r) === String(roleId)));
 
-        const card = `
-            <div class="col-12 col-md-6">
-                <div class="page-perm-card p-3 bg-white d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="bg-light p-2 rounded text-primary">
-                            <i class="bi ${escapeHtml(icon)} fs-5"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold text-dark mb-0">${escapeHtml(pageName)}</div>
-                            <span class="text-muted small">${escapeHtml(pageUrl || 'Page ID: ' + pageId)}</span>
+        if (hasDropdown) {
+            // Render Parent with Dropdown / Submenus
+            let subItemsHtml = '';
+            page.dropdown.forEach(child => {
+                const childId = child.Id || '';
+                const childName = child.Title || '';
+                const childUrl = child.Path || '';
+                const childIcon = getPageIcon(child);
+                const isChildPublic = PagePublic.some(id => String(id) === String(childId));
+                const isChildChecked = isChildPublic ||
+                    assignedPageIds.some(id => String(id) === String(childId)) ||
+                    (child.assignedRoles && Array.isArray(child.assignedRoles) && child.assignedRoles.some(r => String(r) === String(roleId)));
+
+                subItemsHtml += `
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="page-child-card p-2 px-3 d-flex align-items-center justify-content-between h-100">
+                            <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                                <div class="bg-white p-1 px-2 rounded text-primary border shadow-sm d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px;">
+                                    <i class="bi ${escapeHtml(childIcon)} fs-6"></i>
+                                </div>
+                                <div style="min-width: 0;">
+                                    <div class="fw-semibold text-dark small mb-0 text-truncate d-flex align-items-center gap-1">
+                                        <span class="text-truncate">${escapeHtml(childName)}</span>
+                                    </div>
+                                    <span class="text-muted text-truncate d-block" style="font-size: 0.75rem;">${escapeHtml(childUrl || 'ID: ' + childId)}</span>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch fs-5 mb-0 ms-2 flex-shrink-0">
+                                <input class="form-check-input page-checkbox page-child-checkbox" type="checkbox" 
+                                       id="page_chk_${escapeHtml(childId)}"
+                                       data-page-id="${escapeHtml(childId)}" 
+                                       data-parent-id="${escapeHtml(pageId)}"
+                                       data-page-name="${escapeHtml(childName)}" 
+                                       data-initial-checked="${isChildChecked ? 'true' : 'false'}"
+                                       ${isChildChecked ? 'checked' : ''} 
+                                       ${isChildPublic ? 'disabled' : ''} />
+                            </div>
                         </div>
                     </div>
-                    <div class="form-check form-switch fs-5">
-                        <input class="form-check-input page-checkbox" type="checkbox" 
-                               data-page-id="${escapeHtml(pageId)}" 
-                               data-page-name="${escapeHtml(pageName)}" 
-                               ${isChecked ? 'checked' : ''} 
-                               ${isPublicPage ? 'disabled' : ''} />
+                `;
+            });
+
+            const collapseId = `collapse_page_${escapeHtml(pageId)}`;
+            const parentCard = `
+                <div class="col-12">
+                    <div class="page-perm-card page-parent-card p-3 shadow-sm rounded-3">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <!-- Clickable Header Area for Expand / Collapse -->
+                            <div class="d-flex align-items-center gap-3 flex-grow-1 user-select-none page-parent-header" 
+                                 style="cursor: pointer; min-width: 0;" 
+                                 data-bs-toggle="collapse" 
+                                 data-bs-target="#${collapseId}" 
+                                 aria-expanded="false" 
+                                 aria-controls="${collapseId}">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-3 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+                                    <i class="bi ${escapeHtml(icon)} fs-5"></i>
+                                </div>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="fw-bold text-dark fs-6 text-truncate">${escapeHtml(pageName)}</span>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small px-2">
+                                            <i class="bi bi-diagram-3 me-1"></i>${page.dropdown.length} เมนูย่อย
+                                        </span>
+                                    </div>
+                                    <span class="text-muted small text-truncate d-block">${escapeHtml(pageUrl || 'Page ID: ' + pageId)}</span>
+                                </div>
+                                <div class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 d-flex align-items-center gap-1 flex-shrink-0 me-1">
+                                    <span style="font-size: 0.8rem;">เมนูย่อย</span>
+                                    <i class="bi bi-chevron-down toggle-icon transition-icon" style="font-size: 0.75rem;"></i>
+                                </div>
+                            </div>
+                            <!-- Switch Button Area with clear separation -->
+                            <div class="d-flex align-items-center flex-shrink-0 ps-3 border-start" style="min-width: 55px; justify-content: center;">
+                                <div class="form-check form-switch fs-5 mb-0">
+                                    <input class="form-check-input page-checkbox page-parent-checkbox" type="checkbox" role="switch"
+                                           id="page_chk_${escapeHtml(pageId)}"
+                                           data-page-id="${escapeHtml(pageId)}" 
+                                           data-page-name="${escapeHtml(pageName)}" 
+                                           data-has-children="true"
+                                           data-initial-checked="${isChecked ? 'true' : 'false'}"
+                                           ${isChecked ? 'checked' : ''} 
+                                           ${isPublicPage ? 'disabled' : ''} 
+                                           style="cursor: pointer;" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse" id="${collapseId}">
+                            <div class="pt-3 border-top mt-2">
+                                <div class="text-muted small fw-semibold mb-2 d-flex align-items-center gap-1">
+                                    <i class="bi bi-arrow-return-right text-primary"></i>
+                                    <span>รายการเมนูย่อย (${page.dropdown.length} รายการ):</span>
+                                </div>
+                                <div class="row g-2">
+                                    ${subItemsHtml}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        container.append(card);
+            `;
+            container.append(parentCard);
+        } else {
+            // Standalone page without dropdown
+            const card = `
+                <div class="col-12 col-md-6">
+                    <div class="page-perm-card p-3 bg-white d-flex align-items-center justify-content-between h-100">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-light p-2 rounded-3 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                                <i class="bi ${escapeHtml(icon)} fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark mb-0 d-flex align-items-center gap-1">
+                                    <span>${escapeHtml(pageName)}</span>
+                                </div>
+                                <span class="text-muted small">${escapeHtml(pageUrl || 'Page ID: ' + pageId)}</span>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch fs-5 mb-0">
+                            <input class="form-check-input page-checkbox" type="checkbox" 
+                                   id="page_chk_${escapeHtml(pageId)}"
+                                   data-page-id="${escapeHtml(pageId)}" 
+                                   data-page-name="${escapeHtml(pageName)}" 
+                                   data-initial-checked="${isChecked ? 'true' : 'false'}"
+                                   ${isChecked ? 'checked' : ''} 
+                                   ${isPublicPage ? 'disabled' : ''} />
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.append(card);
+        }
     });
 }
 
@@ -602,22 +785,31 @@ function extractUserRoles(user) {
     if (!user) return [];
     let rolesList = [];
     if (Array.isArray(user.role)) {
-        rolesList = user.role.map(r => {
-            if (typeof r === 'object' && r !== null) {
-                const id = r.role_id || r.roleId || r.id || '';
-                const name = r.role_name || r.roleName || r.name || getRoleNameById(id) || id;
-                return { role_id: id, role_name: name };
-            }
-            const id = (r || '').toString();
-            return { role_id: id, role_name: getRoleNameById(id) || id };
-        }).filter(r => r.role_id);
+        rolesList = user.role
+            .filter(r => isRoleActive(r))
+            .map(r => {
+                if (typeof r === 'object' && r !== null) {
+                    const id = r.role_id || r.roleId || r.id || '';
+                    const name = r.role_name || r.roleName || r.name || getRoleNameById(id) || id;
+                    return { role_id: id, role_name: name };
+                }
+                const id = (r || '').toString();
+                return { role_id: id, role_name: getRoleNameById(id) || id };
+            })
+            .filter(r => r.role_id);
     } else if (user.role && typeof user.role === 'object') {
-        const id = user.role.role_id || user.role.roleId || user.role.id || '';
-        const name = user.role.role_name || user.role.roleName || user.role.name || getRoleNameById(id) || id;
-        if (id) rolesList.push({ role_id: id, role_name: name });
+        if (isRoleActive(user.role)) {
+            const id = user.role.role_id || user.role.roleId || user.role.id || '';
+            const name = user.role.role_name || user.role.roleName || user.role.name || getRoleNameById(id) || id;
+            if (id) rolesList.push({ role_id: id, role_name: name });
+        }
     } else if (user.role_id || user.role) {
-        const id = (user.role_id || user.role).toString();
-        if (id) rolesList.push({ role_id: id, role_name: getRoleNameById(id) || id });
+        const status = user.role_status || user.status;
+        const roleObj = status ? { role_id: user.role_id || user.role, status: status, role_status: status } : (user.role_id || user.role);
+        if (isRoleActive(roleObj, user.role_id || user.role)) {
+            const id = (user.role_id || user.role).toString();
+            if (id) rolesList.push({ role_id: id, role_name: getRoleNameById(id) || id });
+        }
     }
     return rolesList;
 }
@@ -630,9 +822,31 @@ function openEditUserRoleModal(code, name) {
     $('#modalRoleSelect').val('');
 
     renderUserRolesInModal(code);
+    renderModalRoleSelect(user);
 
     const modal = new bootstrap.Modal(document.getElementById('editUserRoleModal'));
     modal.show();
+}
+
+function renderModalRoleSelect(user) {
+    const modalSelect = $('#modalRoleSelect');
+    modalSelect.find('option:not(:first)').remove();
+
+    const enableRoles = (allRolesData || []).filter(role => {
+        const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
+        return status === 'enable' || status === 'active';
+    });
+
+    const userRoles = extractUserRoles(user);
+    const assignedIds = new Set(userRoles.map(r => (r.role_id || '').toString()));
+
+    enableRoles.forEach(role => {
+        const id = (role.role_id || '').toString();
+        const name = role.role_name || '';
+        if (id && !assignedIds.has(id)) {
+            modalSelect.append(`<option value="${escapeHtml(id)}">${escapeHtml(name)} (${escapeHtml(id)})</option>`);
+        }
+    });
 }
 
 function renderUserRolesInModal(code) {
@@ -721,6 +935,7 @@ async function removeUserRole(personnelCode, roleId, roleName) {
             }
 
             renderUserRolesInModal(personnelCode);
+            renderModalRoleSelect(user);
             await loadUsersData();
         } else {
             Swal.fire({
@@ -785,11 +1000,12 @@ async function saveUserRole() {
                     return rId == roleId;
                 });
                 if (!alreadyExists) {
-                    user.role.push({ role_id: roleId, role_name: addedRoleName });
+                    user.role.push({ role_id: roleId, role_name: addedRoleName, status: 'enable', role_status: 'enable' });
                 }
             }
 
             renderUserRolesInModal(personnelCode);
+            renderModalRoleSelect(user);
             await loadUsersData();
         } else {
             Swal.fire({
@@ -827,17 +1043,19 @@ async function saveRolePagesPermission() {
         return;
     }
 
-    toggleGlobalLoading(true, 'กำลังบันทึกสิทธิ์การเข้าถึง...', 'ระบบกำลังบันทึกสิทธิ์หน้าจอ กรุณารอสักครู่');
-    try {
-        let successCount = 0;
-        let errorCount = 0;
-        const roleName = selectedRoleName || getRoleNameById(selectedRoleId) || selectedRoleId.toString();
+    const roleName = selectedRoleName || getRoleNameById(selectedRoleId) || selectedRoleId.toString();
+    const items = [];
 
-        const items = [];
-        pageCheckboxes.each(function () {
-            const pageId = $(this).data('page-id');
-            const isActive = $(this).is(':checked'); // true = เปิด, false = ปิด
+    pageCheckboxes.each(function () {
+        // ข้ามหน้าจอที่เป็น disabled เช่น public pages
+        if ($(this).is(':disabled')) return;
 
+        const pageId = $(this).data('page-id');
+        const isActive = $(this).is(':checked'); // true = เปิด, false = ปิด
+        const initialChecked = String($(this).attr('data-initial-checked')) === 'true';
+
+        // ส่งเฉพาะรายการที่มีการเปลี่ยนแปลงค่าจากเดิม
+        if (isActive !== initialChecked) {
             if (pageId !== undefined && pageId !== null && pageId !== '') {
                 items.push({
                     RoleId: selectedRoleId.toString(),
@@ -846,7 +1064,24 @@ async function saveRolePagesPermission() {
                     IsActive: isActive
                 });
             }
+        }
+    });
+
+    if (items.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'ไม่มีการเปลี่ยนแปลง',
+            text: 'สิทธิ์การเข้าถึงของบทบาทนี้ไม่มีการเปลี่ยนแปลง',
+            timer: 1500,
+            showConfirmButton: false
         });
+        return;
+    }
+
+    toggleGlobalLoading(true, 'กำลังบันทึกสิทธิ์การเข้าถึง...', `ระบบกำลังบันทึกสิทธิ์หน้าจอ ${items.length} รายการ กรุณารอสักครู่`);
+    try {
+        let successCount = 0;
+        let errorCount = 0;
 
         // Send requests in batches to prevent socket/connection deadlock
         const BATCH_SIZE = 5;

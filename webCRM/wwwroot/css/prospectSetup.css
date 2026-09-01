@@ -370,6 +370,14 @@
         gap: 4px;
     }
     
+    .selected-table-wrapper {
+        max-height: 480px;
+        overflow-y: auto;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
     .selected-table th, .selected-table td {
         font-size: 0.8rem;
         padding: 10px 5px;
@@ -379,6 +387,10 @@
         color: var(--text-gray);
         font-weight: 500;
         background: #f8fafc;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: inset 0 -1px 0 var(--border-color);
     }
     
     /* Pagination styling */

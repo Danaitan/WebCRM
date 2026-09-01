@@ -19,6 +19,17 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+var defaultCulture = new System.Globalization.CultureInfo("th-TH");
+var localizationOptions = new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture(defaultCulture),
+    SupportedCultures = new[] { defaultCulture },
+    SupportedUICultures = new[] { defaultCulture }
+};
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = defaultCulture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = defaultCulture;
+app.UseRequestLocalization(localizationOptions);
+
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseRouting();

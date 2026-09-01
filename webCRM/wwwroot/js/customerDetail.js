@@ -521,6 +521,24 @@ async function displayCustomerDetails(customer) {
     document.querySelectorAll(".cus-name-consent").forEach(el => { el.innerText = customer.nameCus || ""; });
 }
 
+function clearContactTables() {
+    if (window.jQuery && $.fn && $.fn.DataTable) {
+        ['#dt-contact-Micro', '#dt-contact-MFIN', '#dt-contact-MIB'].forEach(tableId => {
+            if ($.fn.DataTable.isDataTable(tableId)) {
+                $(tableId).DataTable().clear().draw();
+            } else {
+                const tbody = document.querySelector(`${tableId} tbody`);
+                if (tbody) tbody.innerHTML = '';
+            }
+        });
+    } else {
+        ['#dt-contact-Micro', '#dt-contact-MFIN', '#dt-contact-MIB'].forEach(tableId => {
+            const tbody = document.querySelector(`${tableId} tbody`);
+            if (tbody) tbody.innerHTML = '';
+        });
+    }
+}
+
 async function performSearch() {
     const val = searchInput.value;
     if (val) {
@@ -535,14 +553,14 @@ async function performSearch() {
 
                 if (data && data.length > 0) {
                     document.getElementById("customerCount").innerText = data.length;
-                    
-                    // Use map().join('') for maximum rendering speed (O(1) DOM insertions)
                     const tbody = document.getElementById("searchResultBody");
                     
                     tbody.innerHTML = data.map((cust, index) => {
                         const name = cust.nameCus || '-';
                         const idno = cust.idno || '-';
                         const licno = cust.licno || '-';
+                        const contno = cust.contno || '-';
+                        const comCde = cust.companyCde || '-'
                         
                         return `
                             <tr class="${index === 0 ? 'active-row cursor-pointer border-bottom' : 'cursor-pointer border-bottom hover-row'}" data-index="${index}">
@@ -550,15 +568,32 @@ async function performSearch() {
                                     <div class="avatar-sm ${index === 0 ? 'bg-blue-light text-primary' : 'bg-light text-muted'} rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
                                         <i class="bi bi-person-fill"></i>
                                     </div>
-                                    <span class="${index === 0 ? 'fw-medium ' : ''}text-dark text-nowrap name-span">${name}</span>
+
+                                    <div class="d-flex flex-column">
+                                        <span class="${index === 0 ? 'fw-medium ' : ''}text-dark text-nowrap name-span">
+                                            ${name}
+                                        </span>
+                                        <small class="text-muted text-nowrap">
+                                            ${idno}
+                                        </small>
+                                    </div>
                                 </td>
-                                <td class="py-3 text-muted text-center text-nowrap">${idno}</td>
-                                <td class="py-3 text-muted text-center text-nowrap">${licno}</td>
+                                <td class="py-3 text-muted text-center text-nowrap">
+                                    ${
+                                        licno?.match(/^(\d+)\s+(.+)$/)
+                                            ? `
+                                                <div>${licno.match(/^(\d+)\s+(.+)$/)[1]}</div>
+                                                <small class="text-muted">${licno.match(/^(\d+)\s+(.+)$/)[2]}</small>
+                                            `
+                                            : licno
+                                    }
+                                </td>
+                                <td class="py-3 text-muted text-center text-nowrap">${comCde}</td>
+                                <td class="py-3 text-muted text-center text-nowrap">${contno}</td>
                             </tr>
                         `;
                     }).join('');
 
-                    // Use Event Delegation for maximum click handling performance (O(1) event listeners instead of O(N))
                     tbody.onclick = async function(e) {
                         const clickedRow = e.target.closest('tr');
                         if (!clickedRow || !clickedRow.dataset.index) return;
@@ -612,6 +647,7 @@ async function performSearch() {
                     currentContactData = null;
                     renderProductSummary(null);
                     renderCompanyTabs(null);
+                    clearContactTables();
                     clearContractDetails();
                     clearCustomerDetails();
                 }
@@ -652,15 +688,18 @@ if (clearBtn) {
         searchInput.value = '';
         clearContractDetails();
         clearCustomerDetails();
+        clearContactTables();
         document.getElementById("customerCount").innerText = "0";
         document.getElementById("searchResultBody").innerHTML = '';
-        document.getElementById("dt-contact-Micro").innerHTML = '';
-        document.getElementById("dt-contact-MFIN").innerHTML = '';
-        document.getElementById("dt-contact-MIB").innerHTML = '';
 
         currentContactData = null;
         renderProductSummary(null);
         renderCompanyTabs(null);
+
+        const personTabBtn = document.querySelector('.button-tab-contact[data-target="tab-table-person"]');
+        if (personTabBtn && !personTabBtn.classList.contains('active')) {
+            personTabBtn.click();
+        }
     });
 }
 
@@ -1378,24 +1417,24 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
     }
 }
 
-async function getReceiveList(idno, company){
+async function getReceiveList(contno, company){
     const requestId = ++currentReceiveListRequestId;
     try{
 
-        const response = await fetch(`/CustomerDetail/GetReceiveList?idno=${idno}&company=${company}`);
+        const response = await fetch(`/CustomerDetail/GetReceiveList?contno=${contno}&company=${company}`);
         const data = await response.json();
-        
-        if (requestId !== currentReceiveListRequestId) return;
 
-            const dtPaymentConfig = {
-                data: data || [],
-                destroy: true,
+        if (requestId !== currentReceiveListRequestId) return;
+        console.log("data", data)
+        const dtPaymentConfig = {
+            data: data || [],
+            destroy: true,
                 columns: [
                     { data: 'rcpdte', render: data => formatDate(data) || '-', className: 'text-center' },
                     { data: 'amount', render: data => formatValues(data) || '-', className: 'text-center' },
                     { data: 'recType', render: data => data || '-', className: 'text-center' },
                     { data: 'rawPaymer', render: data => data || '-', className: 'text-center' },
-                    { data: 'recTel', render: data => data || '-', className: 'text-center' }
+                    { data: 'Tel', render: data => data || '-', className: 'text-center' }
                 ],
                 language: {
                     emptyTable: "ไม่พบรายการรับชำระ",
@@ -1422,8 +1461,11 @@ async function getReceiveList(idno, company){
                 $('#tab-table-payment').DataTable(dtPaymentConfig);
             }
 
-    }catch(error){
+            return data;
 
+    }catch(error){
+        console.error("Error getReceiveList:", error);
+        return null;
     }
 }
 

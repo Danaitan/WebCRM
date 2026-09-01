@@ -842,18 +842,10 @@ function updateSelectedList() {
     const combinedList = getSelectedList();
     const selectedCount = combinedList.length;
 
-    const totalPages = Math.max(1, Math.ceil(selectedCount / (currentSelectedPageSize || 1)));
-    if (currentSelectedPage > totalPages) {
-        currentSelectedPage = totalPages;
-    }
-
-    const startIndex = (currentSelectedPage - 1) * currentSelectedPageSize;
-    const pageItems = combinedList.slice(startIndex, startIndex + currentSelectedPageSize);
-
-    if (pageItems.length === 0) {
+    if (combinedList.length === 0) {
         selectedTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3" style="font-size: 0.85rem;">ไม่มีรายการที่เลือก</td></tr>`;
     } else {
-        pageItems.forEach((item) => {
+        combinedList.forEach((item) => {
             const newRow = document.createElement('tr');
             newRow.innerHTML = `
                 <td>${item.name}</td>

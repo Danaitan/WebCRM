@@ -150,7 +150,8 @@ namespace webCRM.Controllers
 
         private async Task<ResponseContactInfo<TContractInfo>?> GetContactInfoInternal<TContractInfo>(
             string idno,
-            string company)
+            string company
+            )
             where TContractInfo : ContractInfo
         {
             var handler = new HttpClientHandler
@@ -173,9 +174,8 @@ namespace webCRM.Controllers
             return result;
         }
 
-        public async Task<List<ReceiveResponse>> GetReceiveList(string idno, string company)
+        public async Task<IActionResult> GetReceiveList(string contno, string company)
         {
-
             try
             {
                 var handler = new HttpClientHandler
@@ -185,25 +185,21 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/receiveInfo/{idno}/{company}");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/receiveInfo/{contno}/{company}");
+                    
                     if (response.IsSuccessStatusCode)
                     {
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<ReceiveResponse>>(data, _jsonSerializerOptions);
-                        var result = apiResponse;
-
-                        return result ?? new List<ReceiveResponse>();
+                        string data = await response.Content.ReadAsStringAsync();
+                        return Content(data, "application/json");
                     }
                 }
-
             }
             catch (System.Exception ex)
             {
                 ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
             }
 
-            return new List<ReceiveResponse>();
+            return Content("[]", "application/json");
         }
 
         public async Task<List<ResponseClaim>> GetClaimList(string tracking)

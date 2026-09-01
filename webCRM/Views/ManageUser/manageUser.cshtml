@@ -6,6 +6,8 @@
 
 @section Styles {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
     <link rel="stylesheet" href="~/css/manageUse.css" asp-append-version="true" />
 }
 
@@ -244,7 +246,7 @@
             </div>
             <div class="modal-body p-4">
                 <form id="editUserRoleForm">
-                    <div class="bg-light p-3 rounded-3 mb-3 border">
+                    <div class="bg-light p-3 rounded-3 mb-4 border">
                         <div class="row g-2">
                             <div class="col-6">
                                 <span class="text-muted small d-block">รหัสพนักงาน:</span>
@@ -257,33 +259,25 @@
                         </div>
                     </div>
 
-                    <!-- Current Roles Section -->
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark d-flex align-items-center justify-content-between">
-                            <span><i class="bi bi-shield-check text-primary me-1"></i>บทบาทสิทธิ์ปัจจุบันของผู้ใช้งาน</span>
-                            <span class="badge bg-primary rounded-pill" id="userRoleCountBadge">0 บทบาท</span>
-                        </label>
-                        <div id="userCurrentRolesList" class="d-flex flex-column gap-2 p-2 bg-light rounded-3 border" style="max-height: 200px; overflow-y: auto;">
-                            <div class="text-center text-muted py-3 small">กำลังโหลดรายการสิทธิ์...</div>
-                        </div>
-                    </div>
-
-                    <!-- Add New Role Section -->
+                    <!-- Role Dropdown Section -->
                     <div class="mb-2">
-                        <label for="modalRoleSelect" class="form-label fw-bold text-dark"><i class="bi bi-plus-circle text-success me-1"></i>มอบหมายบทบาทสิทธิ์เพิ่ม</label>
-                        <div class="input-group">
-                            <select class="form-select" id="modalRoleSelect">
-                                <option value="">-- เลือกบทบาทสิทธิ์เพื่อเพิ่ม --</option>
-                            </select>
-                            <button type="button" class="btn btn-primary px-3" id="btnSaveUserRole">
-                                <i class="bi bi-plus-lg me-1"></i>เพิ่มสิทธิ์
-                            </button>
+                        <label for="modalRoleSelect" class="form-label fw-bold text-dark">
+                            <i class="bi bi-shield-lock text-primary me-1"></i>เลือกบทบาทสิทธิ์ (Role)
+                        </label>
+                        <select class="form-select form-select-lg" id="modalRoleSelect">
+                            <option value="">-- ยังไม่กำหนดบทบาท / ไม่มีสิทธิ์ --</option>
+                        </select>
+                        <div class="form-text text-muted small mt-2">
+                            <i class="bi bi-info-circle me-1"></i>ผู้ใช้งาน 1 คนสามารถมีได้เพียง 1 บทบาทเท่านั้น
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer bg-light border-top py-2 px-3">
-                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
+                <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="btnSaveUserRole">
+                    <i class="bi bi-save me-1"></i>บันทึกข้อมูล
+                </button>
             </div>
         </div>
     </div>
@@ -318,5 +312,6 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="~/js/manageUse.js" asp-append-version="true"></script>
 }

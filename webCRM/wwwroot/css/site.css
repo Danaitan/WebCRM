@@ -102,18 +102,31 @@ body {
 }
 
 #crmSidebar.collapsed .sidebar-text,
-#crmSidebar.collapsed .bi-chevron-down {
+#crmSidebar.collapsed .bi-chevron-down,
+#crmSidebar.collapsed .sidebar-chevron,
+#crmSidebar.collapsed .sidebar-submenu {
   display: none !important;
 }
 
-#crmSidebar.collapsed .nav-link {
-  justify-content: center;
+#crmSidebar.collapsed .nav-link,
+#crmSidebar.collapsed .sidebar-parent-toggle {
+  justify-content: center !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+  text-align: center;
 }
 
-#crmSidebar.collapsed .nav-link .bi {
+#crmSidebar.collapsed .sidebar-parent-toggle > div,
+#crmSidebar.collapsed .nav-link > div {
+  justify-content: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+#crmSidebar.collapsed .nav-link .bi,
+#crmSidebar.collapsed .sidebar-parent-toggle .bi {
   margin-right: 0 !important;
+  margin-left: 0 !important;
 }
 
 #crmSidebar.collapsed .d-flex.align-items-center.gap-3 {
@@ -192,10 +205,7 @@ body {
   width: 3px;
 }
 
-#crmSidebar.collapsed .sidebar-submenu,
-#crmSidebar.collapsed .sidebar-chevron {
-  display: none !important;
-}
+
 
 
 /* Sticky Table Headers for DataTables and HTML Tables */

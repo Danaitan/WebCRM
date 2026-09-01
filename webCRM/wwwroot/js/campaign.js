@@ -183,7 +183,7 @@ async function postFilter(productGuid) {
     const company = window.CURRENT_COMPANY || "MICRO";
     const isImportFromExcel = $("#chkImportExcel").is(":checked");
 
-    let filterCodesToPost = [...(selectedFilterCodes || [])];
+    let filterCodesToPost = Array.from(new Set(selectedFilterCodes || []));
 
     if (isImportFromExcel) {
         const importFilterObj = await getImportFilter();
@@ -229,22 +229,29 @@ async function getMasterFilter() {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const data = await fetchRawMasterFilters();
-        const mappedData = (data || [])
-            .filter(item => {
-                const code = (item.fcode || "").toString().toUpperCase();
-                const name = (item.fname || "").toString().toLowerCase();
-                return code !== "F999" && name !== "import";
-            })
-            .map(item => ({
-                id: item.id ?? 0,
-                fcode: item.fcode || "",
-                fname: item.fname || "",
-                fremark: item.fremark || "",
-                ftype: item.ftype || "",
-                fcompany: item.fcompany || "",
-                fstatus: item.fstatus || "",
-                fremark2: item.fremark2 || ""
-            }));
+        const seenCodes = new Set();
+        const mappedData = [];
+
+        (data || []).forEach(item => {
+            const code = (item.fcode || item.FCode || item.f_code || "").toString().trim();
+            const name = (item.fname || item.FName || item.f_name || "").toString().toLowerCase().trim();
+            if (!code || code.toUpperCase() === "F999" || name === "import") {
+                return;
+            }
+            if (!seenCodes.has(code)) {
+                seenCodes.add(code);
+                mappedData.push({
+                    id: item.id ?? item.Id ?? 0,
+                    fcode: code,
+                    fname: item.fname || item.FName || "",
+                    fremark: item.fremark || item.FRemark || "",
+                    ftype: item.ftype || item.FType || "",
+                    fcompany: item.fcompany || item.FCompany || "",
+                    fstatus: item.fstatus || item.FStatus || "",
+                    fremark2: item.fremark2 || item.FRemark2 || ""
+                });
+            }
+        });
         
         return mappedData;
     } catch (error) {
@@ -286,6 +293,8 @@ async function renderMasterFilters() {
         $emptyState.addClass("d-none").attr("style", "display: none !important;");
         $container.removeClass("d-none").show();
 
+        selectedFilterCodes = Array.from(new Set(selectedFilterCodes || []));
+
         masterFiltersData.forEach(item => {
             const filterName = item.fname || item.fcode || "-";
             const description = item.fremark || item.fremark2 || item.ftype || "-";
@@ -314,6 +323,7 @@ async function renderMasterFilters() {
             } else {
                 selectedFilterCodes = selectedFilterCodes.filter(c => c !== code);
             }
+            selectedFilterCodes = Array.from(new Set(selectedFilterCodes));
             updateSelectAllFiltersState();
             updateSelectedFiltersDisplay();
         });
@@ -331,7 +341,7 @@ async function renderMasterFilters() {
             if (!selectedCampaignCode) return;
             const isChecked = $(this).is(":checked");
             if (isChecked) {
-                selectedFilterCodes = masterFiltersData.map(f => f.fcode);
+                selectedFilterCodes = Array.from(new Set(masterFiltersData.map(f => f.fcode)));
             } else {
                 selectedFilterCodes = [];
             }
@@ -349,7 +359,7 @@ async function renderMasterFilters() {
 
 function updateSelectAllFiltersState() {
     const total = masterFiltersData.length;
-    const checkedCount = selectedFilterCodes.length;
+    const checkedCount = Array.from(new Set(selectedFilterCodes || [])).length;
     const isDisabled = !selectedCampaignCode;
     $("#chkSelectAllFilters").prop("checked", total > 0 && checkedCount === total).prop("disabled", isDisabled);
 }
@@ -361,6 +371,8 @@ function updateSelectedFiltersDisplay() {
 
     $container.empty();
 
+    selectedFilterCodes = Array.from(new Set(selectedFilterCodes || []));
+
     if (!selectedFilterCodes || selectedFilterCodes.length === 0) {
         $rowsCount.text("Rows: 0");
         $emptyState.removeClass("d-none").attr("style", "display: flex !important;");
@@ -368,19 +380,32 @@ function updateSelectedFiltersDisplay() {
         return;
     }
 
-    $rowsCount.text(`Rows: ${selectedFilterCodes.length}`);
-    $emptyState.addClass("d-none").attr("style", "display: none !important;");
-    $container.removeClass("d-none").show();
+    const uniqueItems = [];
+    const seenDisplayKeys = new Set();
 
     selectedFilterCodes.forEach(code => {
         const filterObj = masterFiltersData.find(f => f.fcode === code);
         const filterName = filterObj ? (filterObj.fname || filterObj.fcode) : code;
         const description = filterObj ? (filterObj.fremark || filterObj.fremark2 || filterObj.fname || filterObj.ftype || code) : code;
-        const company = filterObj ? (filterObj.fcompany || "MICRO") : "MICRO";
+        const displayKey = (description || code).toString().trim();
 
+        if (!seenDisplayKeys.has(displayKey)) {
+            seenDisplayKeys.add(displayKey);
+            uniqueItems.push({
+                code: code,
+                description: description
+            });
+        }
+    });
+
+    $rowsCount.text(`Rows: ${uniqueItems.length}`);
+    $emptyState.addClass("d-none").attr("style", "display: none !important;");
+    $container.removeClass("d-none").show();
+
+    uniqueItems.forEach(item => {
         const rowHtml = `
             <div class="selected-filter-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;">
-                <div style="width: 100%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
+                <div style="width: 100%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${item.description}</div>
             </div>
         `;
         $container.append(rowHtml);
@@ -1009,9 +1034,10 @@ $(document).ready(async function () {
                     }
 
                     if (Array.isArray(filterData)) {
-                        selectedFilterCodes = filterData
+                        const rawCodes = filterData
                             .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
                             .filter(c => c !== "" && c !== importCode);
+                        selectedFilterCodes = Array.from(new Set(rawCodes));
                     } else {
                         selectedFilterCodes = [];
                     }
@@ -1094,9 +1120,10 @@ $(document).ready(async function () {
                 try {
                     const filterData = await GetFilterByGuid(selectedCampaignGuid);
                     if (Array.isArray(filterData)) {
-                        selectedFilterCodes = filterData
+                        const rawCodes = filterData
                             .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
                             .filter(c => c !== "");
+                        selectedFilterCodes = Array.from(new Set(rawCodes));
                     }
                 } catch (e) {
                     console.error("Error refreshing filters:", e);

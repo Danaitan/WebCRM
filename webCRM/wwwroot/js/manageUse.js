@@ -59,6 +59,14 @@ $(document).ready(function () {
     $('#btnCreateRole').on('click', function () {
         createNewRole();
     });
+
+    // Auto focus search field on select2 open
+    $(document).on('select2:open', () => {
+        const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    });
 });
 
 async function initPage() {
@@ -104,7 +112,9 @@ async function loadUsersData() {
             dataType: 'json',
             timeout: 30000
         });
+        // console.log("response",response)
         allUsersData = parseApiResponse(response);
+        console.log("allUsersData",allUsersData)
         $('#statTotalUsers').text(allUsersData.length);
         $('#userCountBadge').text(allUsersData.length);
 
@@ -318,10 +328,10 @@ async function loadRolesData() {
 
 function renderRolesFilterDropdown(roles) {
     const userFilter = $('#userRoleFilter');
-    const modalSelect = $('#modalRoleSelect');
-
+    if (userFilter.hasClass('select2-hidden-accessible')) {
+        userFilter.select2('destroy');
+    }
     userFilter.find('option:not(:first)').remove();
-    modalSelect.find('option:not(:first)').remove();
 
     roles.forEach(role => {
         const id = role.role_id || '';
@@ -329,9 +339,19 @@ function renderRolesFilterDropdown(roles) {
 
         if (id) {
             userFilter.append(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
-            modalSelect.append(`<option value="${escapeHtml(id)}">${escapeHtml(name)} (${escapeHtml(id)})</option>`);
         }
     });
+
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        userFilter.select2({
+            theme: 'bootstrap-5',
+            placeholder: '-- กรองตามบทบาทสิทธิ์ทั้งหมด --',
+            allowClear: true,
+            width: '100%'
+        }).on('change', function () {
+            filterUsersTable();
+        });
+    }
 }
 
 function renderRolesSelectionList(roles) {
@@ -819,204 +839,130 @@ function openEditUserRoleModal(code, name) {
     $('#modalPersonnelCode').text(code);
     $('#modalPersonnelName').text(name || (user ? user.thname : '-'));
     $('#editUserRoleModal').data('personnel_code', code);
-    $('#modalRoleSelect').val('');
 
-    renderUserRolesInModal(code);
-    renderModalRoleSelect(user);
+    const userRoles = extractUserRoles(user);
+    const currentRoleId = (userRoles.length > 0) ? (userRoles[0].role_id || '').toString() : '';
+    $('#editUserRoleModal').data('initial_role_id', currentRoleId);
+
+    renderModalRoleSelect(currentRoleId);
 
     const modal = new bootstrap.Modal(document.getElementById('editUserRoleModal'));
     modal.show();
 }
 
-function renderModalRoleSelect(user) {
+function renderModalRoleSelect(currentRoleId) {
     const modalSelect = $('#modalRoleSelect');
-    modalSelect.find('option:not(:first)').remove();
+    if (modalSelect.hasClass('select2-hidden-accessible')) {
+        modalSelect.select2('destroy');
+    }
+
+    modalSelect.empty();
+    modalSelect.append('<option value="">-- ยังไม่กำหนดบทบาท / ไม่มีสิทธิ์ --</option>');
 
     const enableRoles = (allRolesData || []).filter(role => {
         const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
         return status === 'enable' || status === 'active';
     });
 
-    const userRoles = extractUserRoles(user);
-    const assignedIds = new Set(userRoles.map(r => (r.role_id || '').toString()));
-
     enableRoles.forEach(role => {
         const id = (role.role_id || '').toString();
         const name = role.role_name || '';
-        if (id && !assignedIds.has(id)) {
-            modalSelect.append(`<option value="${escapeHtml(id)}">${escapeHtml(name)} (${escapeHtml(id)})</option>`);
+        if (id) {
+            const isSelected = (id === (currentRoleId || '').toString()) ? 'selected' : '';
+            modalSelect.append(`<option value="${escapeHtml(id)}" ${isSelected}>${escapeHtml(name)} (${escapeHtml(id)})</option>`);
         }
     });
-}
 
-function renderUserRolesInModal(code) {
-    const user = allUsersData.find(u => (u.personnel_code || '').toString() === code.toString());
-    const container = $('#userCurrentRolesList');
-    container.empty();
+    modalSelect.val(currentRoleId || '');
 
-    const roles = extractUserRoles(user);
-    $('#userRoleCountBadge').text(`${roles.length} บทบาท`);
-
-    if (roles.length === 0) {
-        container.html('<div class="text-center text-muted py-3 small"><i class="bi bi-info-circle me-1"></i>พนักงานท่านนี้ยังไม่มีบทบาทสิทธิ์ในระบบ</div>');
-        return;
-    }
-
-    roles.forEach(role => {
-        const item = `
-            <div class="d-flex align-items-center justify-content-between p-2 px-3 bg-white rounded border shadow-sm">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-shield-check text-primary fs-5"></i>
-                    <div>
-                        <span class="fw-bold text-dark d-block text-start">${escapeHtml(role.role_name)}</span>
-                        <small class="text-muted">ID: ${escapeHtml(role.role_id)}</small>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" title="ลบสิทธิ์บทบาทนี้" 
-                        onclick="removeUserRole('${escapeHtml(code)}', '${escapeHtml(role.role_id)}', '${escapeHtml(role.role_name)}')">
-                    <i class="bi bi-trash me-1"></i>ลบสิทธิ์
-                </button>
-            </div>
-        `;
-        container.append(item);
-    });
-}
-
-async function removeUserRole(personnelCode, roleId, roleName) {
-    if (!personnelCode || !roleId) return;
-
-    const confirmResult = await Swal.fire({
-        title: 'ยืนยันถอดสิทธิ์บทบาท?',
-        text: `คุณต้องการถอดสิทธิ์บทบาท "${roleName}" ออกจากพนักงานท่านนี้ใช่หรือไม่?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="bi bi-trash me-1"></i>ยืนยันถอดสิทธิ์',
-        cancelButtonText: 'ยกเลิก'
-    });
-
-    if (!confirmResult.isConfirmed) return;
-
-    toggleGlobalLoading(true);
-    try {
-        const response = await $.ajax({
-            url: '/ManageUser/PostCRMPersonalRole',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                personnel_code: personnelCode,
-                role_id: roleId,
-                status: 'unable'
-            })
-        });
-
-        if (response && (response.status === 'success' || response.status === true)) {
-            Swal.fire({
-                icon: 'success',
-                title: 'ถอดสิทธิ์สำเร็จ!',
-                text: `ถอดสิทธิ์บทบาท "${roleName}" เรียบร้อยแล้ว`,
-                timer: 1500,
-                showConfirmButton: false
-            });
-
-            // Update user's roles locally in memory
-            const user = allUsersData.find(u => (u.personnel_code || '').toString() === personnelCode.toString());
-            if (user) {
-                if (Array.isArray(user.role)) {
-                    user.role = user.role.filter(r => {
-                        const rId = (typeof r === 'object' && r !== null) ? (r.role_id || r.roleId || r.id) : r;
-                        return rId != roleId;
-                    });
-                } else {
-                    user.role = [];
-                    user.role_id = null;
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        modalSelect.select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#editUserRoleModal'),
+            placeholder: '-- เลือกบทบาทสิทธิ์ --',
+            allowClear: false,
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return 'ไม่พบบทบาทที่ค้นหา';
                 }
             }
-
-            renderUserRolesInModal(personnelCode);
-            renderModalRoleSelect(user);
-            await loadUsersData();
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'เกิดข้อผิดพลาด',
-                text: response.message || 'ไม่สามารถถอดสิทธิ์ได้'
-            });
-        }
-    } catch (error) {
-        console.error("Remove user role error:", error);
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
-    } finally {
-        toggleGlobalLoading(false);
+        });
     }
 }
 
 async function saveUserRole() {
     const personnelCode = $('#editUserRoleModal').data('personnel_code');
-    const roleId = $('#modalRoleSelect').val();
+    const initialRoleId = ($('#editUserRoleModal').data('initial_role_id') || '').toString();
+    const selectedRoleId = ($('#modalRoleSelect').val() || '').toString();
 
-    if (!roleId) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'กรุณาเลือกบทบาท',
-            text: 'กรุณาเลือกบทบาทสิทธิ์ที่ต้องการมอบให้แก่ผู้ใช้'
-        });
+    if (selectedRoleId === initialRoleId) {
+        const modalEl = document.getElementById('editUserRoleModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
         return;
     }
 
-    toggleGlobalLoading(true);
+    const user = allUsersData.find(u => (u.personnel_code || '').toString() === personnelCode.toString());
+    const existingRoles = extractUserRoles(user);
+
+    toggleGlobalLoading(true, 'กำลังบันทึกข้อมูล...', 'กำลังอัปเดตบทบาทสิทธิ์ผู้ใช้งาน กรุณารอสักครู่');
     try {
-        const response = await $.ajax({
-            url: '/ManageUser/PostCRMPersonalRole',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                personnel_code: personnelCode,
-                role_id: roleId,
-                status: 'enable'
-            })
+        // 1. ถอดสิทธิ์เดิมออกทั้งหมดหากมีสิทธิ์เดิมที่ไม่ตรงกับสิทธิ์ใหม่
+        for (const oldRole of existingRoles) {
+            const oldRoleId = (oldRole.role_id || '').toString();
+            if (oldRoleId && oldRoleId !== selectedRoleId) {
+                await $.ajax({
+                    url: '/ManageUser/PostCRMPersonalRole',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        personnel_code: personnelCode,
+                        role_id: oldRoleId,
+                        status: 'unable'
+                    })
+                });
+            }
+        }
+
+        // 2. มอบหมายสิทธิ์ใหม่หากมีการเลือกสิทธิ์
+        if (selectedRoleId) {
+            const response = await $.ajax({
+                url: '/ManageUser/PostCRMPersonalRole',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    personnel_code: personnelCode,
+                    role_id: selectedRoleId,
+                    status: 'enable'
+                })
+            });
+
+            if (!response || (response.status !== 'success' && response.status !== true)) {
+                throw new Error(response ? (response.message || 'ไม่สามารถกำหนดสิทธิ์ได้') : 'เกิดข้อผิดพลาด');
+            }
+        }
+
+        const modalEl = document.getElementById('editUserRoleModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ!',
+            text: 'อัปเดตบทบาทสิทธิ์ผู้ใช้งานเรียบร้อยแล้ว',
+            timer: 1500,
+            showConfirmButton: false
         });
 
-        if (response && (response.status === 'success' || response.status === true)) {
-            Swal.fire({
-                icon: 'success',
-                title: 'เพิ่มสิทธิ์สำเร็จ!',
-                text: 'เพิ่มบทบาทสิทธิ์ให้แก่ผู้ใช้งานเรียบร้อยแล้ว',
-                timer: 1500,
-                showConfirmButton: false
-            });
-            $('#modalRoleSelect').val('');
-
-            // Update user's roles locally in memory
-            const user = allUsersData.find(u => (u.personnel_code || '').toString() === personnelCode.toString());
-            const addedRoleName = getRoleNameById(roleId) || roleId;
-            if (user) {
-                if (!Array.isArray(user.role)) {
-                    user.role = user.role ? [user.role] : [];
-                }
-                const alreadyExists = user.role.some(r => {
-                    const rId = (typeof r === 'object' && r !== null) ? (r.role_id || r.roleId || r.id) : r;
-                    return rId == roleId;
-                });
-                if (!alreadyExists) {
-                    user.role.push({ role_id: roleId, role_name: addedRoleName, status: 'enable', role_status: 'enable' });
-                }
-            }
-
-            renderUserRolesInModal(personnelCode);
-            renderModalRoleSelect(user);
-            await loadUsersData();
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'เกิดข้อผิดพลาด',
-                text: response.message || 'ไม่สามารถเพิ่มสิทธิ์ได้'
-            });
-        }
+        await loadUsersData();
     } catch (error) {
         console.error("Save user role error:", error);
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
+        Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: error.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
+        });
     } finally {
         toggleGlobalLoading(false);
     }

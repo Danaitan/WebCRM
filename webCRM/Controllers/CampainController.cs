@@ -209,7 +209,10 @@ namespace webCRM.Controllers
                     {
                         string data = await response.Content.ReadAsStringAsync();
                         var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<MasterFilter>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        var result = apiResponse;
+                        var result = apiResponse?
+                            .GroupBy(x => x.FCode)
+                            .Select(g => g.First())
+                            .ToList();
 
                         return result ?? new List<MasterFilter>();
                     }
@@ -285,7 +288,10 @@ namespace webCRM.Controllers
                     {
                         string data = await response.Content.ReadAsStringAsync();
                         var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<GetFilterByGuid>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        var result = apiResponse;
+                        var result = apiResponse?
+                            .GroupBy(x => x.fcode)
+                            .Select(g => g.First())
+                            .ToList();
 
                         return result ?? new List<GetFilterByGuid>();
                     }

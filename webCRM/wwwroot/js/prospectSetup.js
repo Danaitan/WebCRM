@@ -1369,7 +1369,7 @@ async function getProductBatchByProductCode(productCode){
             return [];
         }
         const data = await response.json();
-        
+        console.log("response",response)
         return data || [];
     }catch(err){
         console.error("Error in getProductBatchByProductCode:", err);

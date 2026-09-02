@@ -505,7 +505,7 @@ $(document).ready(async function () {
             .filter(b => (b.offcde || "") !== "99")
             .map(b => ({
                 code: String(b.offcde || "").trim(),
-                name: b.branch_name || b.BranchName || "ไม่ทราบชื่อ"
+                name: b.branch_name || "ไม่ทราบชื่อ"
             }));
 
         const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';

@@ -212,56 +212,56 @@ function formatNotiDate(dateStr) {
     return String(dateStr).replace('T', ' ').replace('.000Z', '').slice(0, 16);
 }
 
-function getItemInfo(t, groupSender, groupEndDate, groupIsRead, groupObj) {
+function getItemInfo(t, groupIsRead, groupObj) {
+    const grp = (groupObj && typeof groupObj === 'object') ? groupObj : {};
     let titleText = '';
-    let itemEndDate = groupEndDate || '';
-    let itemSender = groupSender || '';
-    let itemId = (groupObj && (groupObj.Id !== undefined && groupObj.Id !== null ? groupObj.Id : (groupObj.id !== undefined && groupObj.id !== null ? groupObj.id : (groupObj.guid || groupObj.Guid || groupObj.ref_id || groupObj.reference_id)))) || null;
-    let itemIsRead = (groupIsRead === true || groupIsRead === 1 || groupIsRead === 'true');
+    let itemEndDate = grp.end_date || '';
+    let itemStartDate = grp.start_date || '';
+    let itemSender = grp.sender || '';
+    let itemId = grp.Id;
+    let itemIsRead = (groupIsRead === true || groupIsRead === 'true');
     let itemObj = null;
 
     if (t && typeof t === 'object' && t !== null) {
-        titleText = formatNotiValue(t.title || t.Title || t.name || t.Name || t.header || t.Header || t.message || t.Message || '');
-        if (t.end_date || t.endDate || t.EndDate) itemEndDate = t.end_date || t.endDate || t.EndDate;
-        if (t.sender || t.Sender) itemSender = t.sender || t.Sender;
+        titleText = formatNotiValue(t.title || '');
+        if (t.end_date) itemEndDate = t.end_date;
+        if (t.start_date) itemStartDate = t.start_date;
+        if (t.sender) itemSender = t.sender;
         if (t.Id !== undefined && t.Id !== null) itemId = t.Id;
         else if (t.id !== undefined && t.id !== null) itemId = t.id;
         else if (t.guid !== undefined && t.guid !== null) itemId = t.guid;
         else if (t.Guid !== undefined && t.Guid !== null) itemId = t.Guid;
         else if (t.ref_id !== undefined && t.ref_id !== null) itemId = t.ref_id;
         
-        if (t.is_read !== undefined) itemIsRead = (t.is_read === true || t.is_read === 1 || t.is_read === 'true');
-        else if (t.isRead !== undefined) itemIsRead = (t.isRead === true || t.isRead === 1 || t.isRead === 'true');
+        if (t.is_read !== undefined) itemIsRead = (t.is_read === true);
 
-        itemObj = Object.assign({}, groupObj || {}, t, {
+        itemObj = Object.assign({}, grp, t, {
             id: itemId,
             title: titleText || formatNotiValue(t),
-            header: (t.header || t.Header || (groupObj && (groupObj.header || groupObj.Header))) || 'การแจ้งเตือน',
-            message: (t.message || t.Message || t.detail || t.Detail || t.content || t.Content || (groupObj && (groupObj.message || groupObj.Message || groupObj.detail || groupObj.Detail))) || titleText,
+            header: t.header || 'การแจ้งเตือน',
+            message: t.message,
             sender: itemSender,
-            receiver: (t.receiver || t.Receiver || (groupObj && (groupObj.receiver || groupObj.Receiver))) || '',
-            create_by: (t.create_by || t.createBy || t.CreateBy || (groupObj && (groupObj.create_by || groupObj.createBy || groupObj.CreateBy))) || '',
-            start_date: (t.start_date || t.startDate || (groupObj && (groupObj.start_date || groupObj.startDate))) || '',
+            receiver: grp.receiver,
+            create_by: grp.create_by || '',
+            start_date: itemStartDate,
             end_date: itemEndDate,
-            create_date: (t.create_date || t.createDate || (groupObj && (groupObj.create_date || groupObj.createDate))) || '',
-            guid: (t.guid || t.Guid || (groupObj && (groupObj.guid || groupObj.Guid))) || itemId,
-            sender_email: (t.sender_email || t.senderEmail || (groupObj && (groupObj.sender_email || groupObj.senderEmail))) || ''
+            create_date: t.create_date || '',
+            guid: itemId,
         });
     } else {
         titleText = String(t || '');
         itemObj = {
             id: itemId,
             title: titleText,
-            header: (groupObj && (groupObj.header || groupObj.Header)) || 'การแจ้งเตือน',
-            message: (groupObj && (groupObj.message || groupObj.Message || groupObj.detail || groupObj.Detail || groupObj.content || groupObj.Content)) || titleText,
+            header: grp.header || 'การแจ้งเตือน',
+            message: grp.message,
             sender: itemSender,
-            receiver: (groupObj && (groupObj.receiver || groupObj.Receiver)) || '',
-            create_by: (groupObj && (groupObj.create_by || groupObj.createBy || groupObj.CreateBy)) || '',
-            start_date: (groupObj && (groupObj.start_date || groupObj.startDate)) || '',
+            receiver: grp.receiver || grp.Receiver || '',
+            create_by: grp.create_by || grp.createBy || grp.CreateBy || '',
+            start_date: itemStartDate,
             end_date: itemEndDate,
-            create_date: (groupObj && (groupObj.create_date || groupObj.createDate)) || '',
-            guid: (groupObj && (groupObj.guid || groupObj.Guid)) || itemId,
-            sender_email: (groupObj && (groupObj.sender_email || groupObj.senderEmail)) || ''
+            create_date: grp.create_date || grp.createDate || '',
+            guid: itemId,
         };
     }
 
@@ -269,6 +269,7 @@ function getItemInfo(t, groupSender, groupEndDate, groupIsRead, groupObj) {
         id: itemId,
         title: titleText,
         sender: itemSender ? String(itemSender) : '',
+        startDate: formatNotiDate(itemStartDate),
         endDate: formatNotiDate(itemEndDate),
         isRead: itemIsRead,
         rawObj: itemObj
@@ -600,7 +601,7 @@ function renderNotiPopupDetailContent(data, container) {
                 </h6>
                 <div class="row g-2">
                     <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่เริ่ม</div>
+                        <div class="text-muted small">วันที่ส่ง</div>
                         <div class="fw-medium text-dark small">${startDateFormatted || '-'}</div>
                     </div>
                     <div class="col-12 col-sm-4">
@@ -776,7 +777,7 @@ function renderNotiDetailContent(data) {
                 </h6>
                 <div class="row g-3">
                     <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่เริ่ม (Start Date)</div>
+                        <div class="text-muted small">วันที่ส่ง (Send Date)</div>
                         <div class="fw-medium text-dark small">${startDateFormatted || '-'}</div>
                     </div>
                     <div class="col-12 col-sm-4">
@@ -817,27 +818,73 @@ function renderNotifications(data) {
     let totalCount = 0;
     let groups = [];
 
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { }
+    }
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { }
+    }
+
     if (data && typeof data === 'object') {
         if (typeof data.totalCount === 'number') {
             totalCount = data.totalCount;
         }
 
         let rawList = data.response || data.data || data.result || data.notifications;
+        if (typeof rawList === 'string') {
+            try { rawList = JSON.parse(rawList); } catch (e) { }
+        }
         if (Array.isArray(rawList)) {
             groups = rawList;
         } else if (Array.isArray(data)) {
             groups = data;
+        } else if (data.Id !== undefined || data.id !== undefined || data.header || data.title) {
+            groups = [data];
         }
     } else if (Array.isArray(data)) {
         groups = data;
     }
 
+    // รวมกลุ่ม (Group by header) หากข้อมูลที่ได้มาเป็นรายการแยกรายชิ้น (flat items) เพื่อให้แสดงผลครบถ้วนและเป็นหมวดหมู่
+    let normalizedGroups = [];
+    const headerMap = new Map();
+
+    groups.forEach((item) => {
+        if (!item) return;
+        if (Array.isArray(item.title)) {
+            normalizedGroups.push(item);
+        } else {
+            const h = item.header || item.Header || item.topic || item.Topic || 'การแจ้งเตือน';
+            if (!headerMap.has(h)) {
+                const newGroup = {
+                    header: h,
+                    count: 0,
+                    title: [],
+                    is_read: true,
+                    start_date: item.start_date || item.startDate || item.create_date || item.createDate,
+                    end_date: item.end_date || item.endDate,
+                    sender: item.sender || item.Sender
+                };
+                headerMap.set(h, newGroup);
+                normalizedGroups.push(newGroup);
+            }
+            const grp = headerMap.get(h);
+            grp.count += 1;
+            grp.title.push(item);
+            if (item.is_read === false || item.is_read === 0 || item.isRead === false || item.isRead === 0 || item.is_read === 'false') {
+                grp.is_read = false;
+            }
+        }
+    });
+
+    groups = normalizedGroups;
+
     if (totalCount === 0 && groups.length > 0) {
         groups.forEach(g => {
-            if (g.count !== undefined && g.count !== null) {
-                totalCount += Number(g.count) || 0;
-            } else if (Array.isArray(g.title)) {
+            if (Array.isArray(g.title)) {
                 totalCount += g.title.length;
+            } else if (g.count !== undefined && g.count !== null) {
+                totalCount += Number(g.count) || 0;
             } else {
                 totalCount += 1;
             }
@@ -856,12 +903,12 @@ function renderNotifications(data) {
     allNotiModalBody.empty();
     if (groups.length > 0) {
         groups.forEach((group, index) => {
-            const headerText = group.header || '';
-            const groupCount = group.count || 0;
+            const headerText = group.header || 'การแจ้งเตือน';
             const collapseId = `notiCollapse_${index}`;
             const modalCollapseId = `modalNotiCollapse_${index}`;
-            const groupEndDate = group.end_date || '';
-            const groupSender = group.sender || '';
+            const groupEndDate = group.end_date || group.endDate || '';
+            const groupStartDate = group.start_date || group.startDate || group.create_date || group.createDate || '';
+            const groupSender = group.sender || group.Sender || '';
 
             const isDropdownExpanded = openDropdownIds.has(collapseId);
             const isModalExpanded = openModalIds.size > 0 ? openModalIds.has(modalCollapseId) : true;
@@ -875,9 +922,11 @@ function renderNotifications(data) {
                 titles = [headerText];
             }
 
+            const groupCount = (group.count !== undefined && group.count !== null && group.count > 0) ? group.count : titles.length;
+
             let dropdownTitlesHtml = '';
             titles.forEach((t, tIdx) => {
-                const info = getItemInfo(t, groupSender, groupEndDate, group.is_read || group.isRead, group);
+                const info = getItemInfo(t, group.is_read || group.isRead, group);
                 let itemNotiId = info.id;
                 if (!itemNotiId && itemNotiId !== 0) {
                     itemNotiId = `noti_${index}_${tIdx}`;
@@ -901,11 +950,11 @@ function renderNotifications(data) {
                         ${!info.isRead ? `<i class="bi bi-circle-fill text-primary flex-shrink-0" style="font-size: 0.35rem; margin-top: 0.45rem;"></i>` : ''}
                         <div class="flex-grow-1 min-w-0">
                             <div class="text-dark fw-medium" style="font-size: 0.85rem; line-height: 1.4;">${info.title}</div>
-                            ${(info.sender || info.endDate) ? `
+                            ${(info.sender || info.startDate) ? `
                                 <div class="d-flex flex-wrap align-items-center gap-2 mt-1 text-muted" style="font-size: 0.75rem;">
                                     ${info.sender ? `<span>ผู้ส่ง: ${info.sender}</span>` : ''}
-                                    ${(info.sender && info.endDate) ? `<span class="opacity-50">•</span>` : ''}
-                                    ${info.endDate ? `<span>วันหมดอายุ: ${info.endDate}</span>` : ''}
+                                    ${(info.sender && info.startDate) ? `<span class="opacity-50">•</span>` : ''}
+                                    ${info.startDate ? `<span>วันที่ส่ง: ${info.startDate}</span>` : ''}
                                 </div>
                             ` : ''}
                         </div>
@@ -940,7 +989,7 @@ function renderNotifications(data) {
 
             let modalTitlesHtml = '';
             titles.forEach((t, tIdx) => {
-                const info = getItemInfo(t, groupSender, groupEndDate, group.is_read || group.isRead, group);
+                const info = getItemInfo(t, group.is_read || group.isRead, group);
                 let itemNotiId = info.id;
                 if (!itemNotiId && itemNotiId !== 0) {
                     itemNotiId = `noti_${index}_${tIdx}`;
@@ -948,6 +997,10 @@ function renderNotifications(data) {
                 itemNotiId = String(itemNotiId);
                 if (info.rawObj) {
                     notiCacheMap.set(itemNotiId, info.rawObj);
+                    if (info.rawObj.id) notiCacheMap.set(String(info.rawObj.id), info.rawObj);
+                    if (info.rawObj.Id) notiCacheMap.set(String(info.rawObj.Id), info.rawObj);
+                    if (info.rawObj.guid) notiCacheMap.set(String(info.rawObj.guid), info.rawObj);
+                    if (info.rawObj.Guid) notiCacheMap.set(String(info.rawObj.Guid), info.rawObj);
                 }
 
                 modalTitlesHtml += `
@@ -964,10 +1017,10 @@ function renderNotifications(data) {
                         ` : ''}
                         <div class="flex-grow-1 min-w-0">
                             <div class="fw-semibold text-dark mb-1" style="font-size: 0.925rem;">${info.title}</div>
-                            ${(info.sender || info.endDate) ? `
+                            ${(info.sender || info.startDate) ? `
                                 <div class="d-flex flex-wrap align-items-center gap-3 text-secondary" style="font-size: 0.8rem;">
                                     ${info.sender ? `<span>ผู้ส่ง: <strong>${info.sender}</strong></span>` : ''}
-                                    ${info.endDate ? `<span>วันหมดอายุ: <strong>${info.endDate}</strong></span>` : ''}
+                                    ${info.startDate ? `<span>วันที่ส่ง: <strong>${info.startDate}</strong></span>` : ''}
                                 </div>
                             ` : ''}
                         </div>

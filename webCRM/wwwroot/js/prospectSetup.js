@@ -1253,18 +1253,21 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : "ไม่สามารถบันทึกข้อมูลได้";
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
-                        Swal.fire({ title: "บันทึกสำเร็จ", icon: "success" });
+                        stopLoading(true);
+                        Swal.fire({ title: "บันทึกสำเร็จ", icon: "success", timer: 1500, showConfirmButton: false });
                         removedBatchCustomerIds.clear();
                         await refreshSelectedCampaignCustomers();
                         await loadProspectList(currentProspectPage, currentProspectPageSize);
                     }
                 } catch (err) {
                     console.error(err);
+                    stopLoading(true);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถบันทึกข้อมูลได้", icon: "error" });
                 } finally {
-                    stopLoading();
+                    stopLoading(true);
                 }
             }
         });
@@ -1333,17 +1336,20 @@ document.addEventListener('DOMContentLoaded', async function () {
                     }
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งอนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
-                        Swal.fire({ title: "บันทึกสำเร็จ", icon: "success" });
+                        stopLoading(true);
+                        await Swal.fire({ title: "บันทึกสำเร็จ", icon: "success", confirmButtonText: "ตกลง" });
+                        window.location.reload();
                     }
 
                 } catch (err) {
                     console.error(err);
+                    stopLoading(true);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งอนุมัติข้อมูลได้", icon: "error" });
                 } finally {
-                    window.location.reload();
-                    // stopLoading();
+                    stopLoading(true);
                 }
             }
         });

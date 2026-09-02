@@ -1097,6 +1097,9 @@ async function exportCallExcel() {
         }
 
         if ((!exportRows || exportRows.length === 0) && (!historyExportRows || historyExportRows.length === 0)) {
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            }
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'info',
@@ -1409,6 +1412,9 @@ async function exportCallExcel() {
 
     } catch (err) {
         console.error("Error exporting call excel:", err);
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        }
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'error',
@@ -1419,7 +1425,7 @@ async function exportCallExcel() {
         }
     } finally {
         if (typeof stopLoading === 'function') {
-            stopLoading();
+            stopLoading(true);
         }
         isCallExcelExporting = false;
     }

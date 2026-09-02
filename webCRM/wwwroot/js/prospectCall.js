@@ -1420,6 +1420,10 @@ function saveRecordResult() {
                     if (bsModal) bsModal.hide();
                 }
 
+                if (typeof stopLoading === 'function') {
+                    stopLoading(true);
+                }
+
                 // Success alert
                 Swal.fire({
                     title: 'บันทึกสำเร็จ!',
@@ -1434,6 +1438,9 @@ function saveRecordResult() {
 
             } catch (err) {
                 console.error("Error posting history call:", err);
+                if (typeof stopLoading === 'function') {
+                    stopLoading(true);
+                }
                 Swal.fire({
                     title: 'บันทึกไม่สำเร็จ',
                     text: err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลผลการติดต่อ',
@@ -1442,7 +1449,7 @@ function saveRecordResult() {
                 });
             } finally {
                 if (typeof stopLoading === 'function') {
-                    stopLoading();
+                    stopLoading(true);
                 }
             }
         }

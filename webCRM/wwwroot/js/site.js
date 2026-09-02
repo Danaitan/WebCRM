@@ -32,6 +32,7 @@ function showLoading(title = 'กำลังบันทึกข้อมู�
         const descEl = document.getElementById('loadingDescription');
         if (titleEl) titleEl.innerText = title;
         if (descEl) descEl.innerText = description;
+        overlay.classList.remove('d-none');
         overlay.classList.add('show');
     }
 }
@@ -69,7 +70,24 @@ function hideLoading() {
     }
 })();
 
+// Global interceptor for SweetAlert2 to ensure loading overlay is closed whenever an alert or modal is displayed
+(function() {
+    if (typeof window !== 'undefined' && typeof Swal !== 'undefined' && Swal.fire) {
+        const originalSwalFire = Swal.fire;
+        Swal.fire = function (...args) {
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            }
+            return originalSwalFire.apply(this, args);
+        };
+        Object.assign(Swal.fire, originalSwalFire);
+    }
+})();
+
 function showAlert(type, title, text, confirmCallback = null) {
+    if (typeof stopLoading === 'function') {
+        stopLoading(true);
+    }
     Swal.fire({
         icon: type, // 'success', 'error', 'warning', 'info', 'question'
         title: title,

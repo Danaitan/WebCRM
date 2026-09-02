@@ -1,6 +1,7 @@
 <script>
     const AlertComponent = {
         success: function (title, text, timer = null) {
+            if (typeof stopLoading === 'function') stopLoading(true);
             let options = { title: title, text: text, icon: "success" };
             if (timer) {
                 options.timer = timer;
@@ -9,6 +10,7 @@
             return Swal.fire(options);
         },
         info: function (title, text, timer = null) {
+            if (typeof stopLoading === 'function') stopLoading(true);
             let options = { title: title, text: text, icon: "info" };
             if (timer) {
                 options.timer = timer;
@@ -17,12 +19,15 @@
             return Swal.fire(options);
         },
         warning: function (title, text) {
+            if (typeof stopLoading === 'function') stopLoading(true);
             return Swal.fire({ title: title, text: text, icon: "warning" });
         },
         error: function (title, text) {
+            if (typeof stopLoading === 'function') stopLoading(true);
             return Swal.fire({ title: title, text: text, icon: "error" });
         },
         confirmDelete: function (campaignCode) {
+            if (typeof stopLoading === 'function') stopLoading(true);
             return Swal.fire({
                 title: "ยืนยันการลบ?",
                 text: `ต้องการลบรหัสแคมเปญ ${campaignCode} หรือไม่?`,
@@ -35,6 +40,7 @@
             });
         },
         confirmSave: function (text) {
+            if (typeof stopLoading === 'function') stopLoading(true);
             return Swal.fire({
                 title: "ยืนยันการบันทึก",
                 text: text,
@@ -46,6 +52,5 @@
                 cancelButtonText: "ยกเลิก"
             });
         }
-
     };
 </script>

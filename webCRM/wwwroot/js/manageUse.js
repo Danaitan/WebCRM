@@ -553,6 +553,8 @@ async function toggleCRMRoleStatus(roleId, roleName, isChecked) {
             })
         });
 
+        toggleGlobalLoading(false);
+
         if (response && (response.status === 'success' || response.status === true)) {
             Swal.fire({
                 icon: 'success',
@@ -572,6 +574,7 @@ async function toggleCRMRoleStatus(roleId, roleName, isChecked) {
         }
     } catch (error) {
         console.error("Update CRM Role status error:", error);
+        toggleGlobalLoading(false);
         const serverMsg = error.responseJSON ? (error.responseJSON.message || error.responseJSON.detail) : null;
         Swal.fire({
             icon: 'error',
@@ -614,6 +617,8 @@ async function deleteRole(roleId, roleName) {
             })
         });
 
+        toggleGlobalLoading(false);
+
         if (response && (response.status === 'success' || response.status === true)) {
             Swal.fire({
                 icon: 'success',
@@ -633,6 +638,7 @@ async function deleteRole(roleId, roleName) {
         }
     } catch (error) {
         console.error("Delete role error:", error);
+        toggleGlobalLoading(false);
         Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
     } finally {
         toggleGlobalLoading(false);
@@ -1157,6 +1163,8 @@ async function saveUserRole() {
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
 
+        toggleGlobalLoading(false);
+
         Swal.fire({
             icon: 'success',
             title: 'บันทึกสำเร็จ!',
@@ -1168,6 +1176,7 @@ async function saveUserRole() {
         await loadUsersData();
     } catch (error) {
         console.error("Save user role error:", error);
+        toggleGlobalLoading(false);
         Swal.fire({
             icon: 'error',
             title: 'เกิดข้อผิดพลาด',
@@ -1285,6 +1294,8 @@ async function saveRolePagesPermission() {
             await Promise.all(batchRequests);
         }
 
+        toggleGlobalLoading(false);
+
         if (errorCount === 0) {
             Swal.fire({
                 icon: 'success',
@@ -1308,6 +1319,7 @@ async function saveRolePagesPermission() {
         }
     } catch (error) {
         console.error("Save role pages error:", error);
+        toggleGlobalLoading(false);
         Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์หน้าจอ' });
     } finally {
         toggleGlobalLoading(false);
@@ -1336,6 +1348,8 @@ async function createNewRole() {
             })
         });
 
+        toggleGlobalLoading(false);
+
         if (response && (response.status === 'success' || response.status === true)) {
             Swal.fire({
                 icon: 'success',
@@ -1356,6 +1370,7 @@ async function createNewRole() {
         }
     } catch (error) {
         console.error("Create role error:", error);
+        toggleGlobalLoading(false);
         Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการสร้างบทบาท' });
     } finally {
         toggleGlobalLoading(false);
@@ -1382,14 +1397,23 @@ function escapeHtml(str) {
 }
 
 function toggleGlobalLoading(visible, title = 'กำลังบันทึกข้อมูล', description = 'ระบบกำลังดำเนินการบันทึกข้อมูลของคุณ กรุณารอสักครู่...') {
-    const overlay = $('#globalLoadingOverlay');
-    if (overlay.length) {
-        if (visible) {
+    if (visible) {
+        if (typeof showLoading === 'function') {
+            showLoading(title, description);
+        } else {
+            const overlay = $('#globalLoadingOverlay');
             $('#loadingTitle').text(title);
             $('#loadingDescription').text(description);
             overlay.addClass('show').removeClass('d-none');
+        }
+    } else {
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
         } else {
-            overlay.removeClass('show').addClass('d-none');
+            const overlay = $('#globalLoadingOverlay');
+            overlay.removeClass('show');
         }
     }
 }

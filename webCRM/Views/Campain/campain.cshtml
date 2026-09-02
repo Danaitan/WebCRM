@@ -395,6 +395,7 @@
     <script>
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "MICRO")';
         window.CURRENT_USER_ID = '@(Context.Session.GetString("personalId") ?? "system")';
+        window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
     </script>
     <script src="~/js/campaign.js" asp-append-version="true"></script>
 }

@@ -19,7 +19,8 @@ async function PostNoti(PostNotiData){
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            skipLoading: true
         });
         return response;
     } catch (error) {
@@ -51,7 +52,8 @@ async function sendEmail(to, cc, subject, content) {
             cc: ccArray,
             subject: subject,
             content: content
-        })
+        }),
+        skipLoading: true
     });
 
     return response;
@@ -901,7 +903,7 @@ async function UpdateSuggestion() {
 
                     const senderId = typeof userId !== 'undefined' ? userId : '';
 
-                    PostNoti({
+                    await PostNoti({
                         header: "ข้อเสนอแนะ/ร้องเรียน",
                         title: "เรื่อง : " + topicTitle,
                         message: emailContent,
@@ -917,7 +919,11 @@ async function UpdateSuggestion() {
 
             }
 
-            hideLoading();
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            } else if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
             $("#reply-input").val("");
             showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function () {
                 searchSuggestion(guid);
@@ -926,7 +932,11 @@ async function UpdateSuggestion() {
 
     } catch (error) {
         console.error(error);
-        hideLoading();
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
         showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
@@ -1035,7 +1045,7 @@ async function AddSuggestion() {
 
                     const senderId = typeof userId !== 'undefined' ? userId : '';
 
-                    PostNoti({
+                    await PostNoti({
                         header: "ข้อเสนอแนะ/ร้องเรียน",
                         title: "เรื่อง : " + topicTitle,
                         message: emailContent,
@@ -1051,7 +1061,11 @@ async function AddSuggestion() {
 
             }
 
-            hideLoading();
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            } else if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
 
             // Clear fields
             $("#post-title").val("");
@@ -1088,7 +1102,11 @@ async function AddSuggestion() {
 
     } catch (error) {
         console.error(error);
-        hideLoading();
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
         showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
@@ -1199,7 +1217,11 @@ async function PutSuggestionStatusUpd (){
                 throw new Error("HTTP error " + response.status);
             }
             var msg = await response.json();
-            hideLoading();
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            } else if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
             if (msg && msg.status === "error") {
                 throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
             }
@@ -1209,7 +1231,11 @@ async function PutSuggestionStatusUpd (){
         }
     } catch (error) {
         console.error(error);
-        hideLoading();
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
         showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
@@ -1324,7 +1350,7 @@ async function ForwardSuggestion() {
 
                     const senderId = typeof userId !== 'undefined' ? userId : '';
 
-                    PostNoti({
+                    await PostNoti({
                         header: "ข้อเสนอแนะ/ร้องเรียน",
                         title: "เรื่อง : " + topicTitle,
                         message: emailContent,
@@ -1340,13 +1366,21 @@ async function ForwardSuggestion() {
 
             }
 
-            hideLoading();
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            } else if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
             showAlert('success', 'สำเร็จ', 'ส่งต่อเรียบร้อยแล้ว', function () {
                 searchSuggestion(guid);
             });
         } catch (error) {
             console.error(error);
-            hideLoading();
+            if (typeof stopLoading === 'function') {
+                stopLoading(true);
+            } else if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
             showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการส่งต่อ: ' + error.message);
         }
     }

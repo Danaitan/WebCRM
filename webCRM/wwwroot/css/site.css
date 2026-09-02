@@ -64,12 +64,16 @@ body {
   flex-direction: column;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .loading-overlay.show {
   opacity: 1;
   pointer-events: auto;
+}
+
+.swal2-container {
+  z-index: 1000000 !important;
 }
 
 .loading-card {

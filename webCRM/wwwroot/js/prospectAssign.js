@@ -30,7 +30,8 @@ async function PostNoti(PostNotiData){
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            skipLoading: true
         });
         return response;
     } catch (error) {

@@ -430,7 +430,7 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
                 const senderId = typeof userId !== 'undefined' ? userId : '';
 
                 if (typeof PostNoti === 'function') {
-                    PostNoti({
+                    await PostNoti({
                         header: "ข้อเสนอแนะ/ร้องเรียน",
                         title: "เรื่อง : ตอบกลับข้อเสนอแนะ/ร้องเรียน",
                         message: emailContent,
@@ -445,7 +445,9 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
             }
         }
 
-        if (typeof hideLoading === 'function') {
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
             hideLoading();
         }
 
@@ -469,7 +471,9 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
 
     } catch (error) {
         console.error(error);
-        if (typeof hideLoading === 'function') {
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
             hideLoading();
         }
         if (typeof Swal !== 'undefined') {

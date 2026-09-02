@@ -457,18 +457,59 @@ async function getCampainList(page, pageSize, searchText) {
 
 $(document).ready(async function () {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
+    // Helper function to filter branch by variable_func
+    function isBranchInVariableFunc(branchItem, variableFunc) {
+        if (!variableFunc || typeof variableFunc !== 'string' || !variableFunc.trim()) return true;
+        const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
+        if (allowed.length === 0) return true;
+
+        const code = String(branchItem.offcde || '').trim();
+        const name = String(branchItem.branch_name || '').trim();
+
+        return allowed.some(target => {
+            const targetClean = target.replace(/^0+/, '');
+            const targetPad = target.padStart(2, '0');
+
+            if (code) {
+                const codeClean = code.replace(/^0+/, '');
+                const codePad = code.padStart(2, '0');
+                if (code === target || codePad === targetPad || (codeClean && targetClean && codeClean === targetClean)) {
+                    return true;
+                }
+            }
+
+            if (name) {
+                if (name.startsWith(target + '-') || name.startsWith(target + ' -') || name.startsWith(target + ' ') ||
+                    name.startsWith(targetPad + '-') || name.startsWith(targetPad + ' -') || name.startsWith(targetPad + ' ') ||
+                    name === target || name === targetPad) {
+                    return true;
+                }
+                const match = name.match(/^0*(\d+)/);
+                if (match && targetClean && match[1] === targetClean) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+    }
+
     // Fetch Branches Data
     let branchesData = [];
+    let masterBranchesData = [];
     try {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         const branchRes = await fetch(`/Campain/getBranchListForCRM`);
         const branchList = await branchRes.json();
-        branchesData = (branchList || [])
+        masterBranchesData = (branchList || [])
             .filter(b => (b.offcde || "") !== "99")
             .map(b => ({
-                code: String(b.offcde || b.Offcde || "").trim(),
-                name: b.branch_name || "ไม่ทราบชื่อ"
+                code: String(b.offcde || "").trim(),
+                name: b.branch_name || b.BranchName || "ไม่ทราบชื่อ"
             }));
+
+        const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+        branchesData = masterBranchesData.filter(b => isBranchInVariableFunc(b, variableFunc));
 
         // Always add virtual "ทุกสาขา" (code 99) option at the top
         branchesData.unshift({
@@ -639,7 +680,7 @@ $(document).ready(async function () {
             
             // Render tags
             displayBranches.forEach(code => {
-                const branchObj = branchesData.find(b => b.code === code);
+                const branchObj = (masterBranchesData && masterBranchesData.find(b => b.code === code)) || branchesData.find(b => b.code === code);
                 if (branchObj) {
                     const labelText = `${branchObj.name}`;
                     // Special blue styling for specific selected tags
@@ -1256,7 +1297,7 @@ $(document).ready(async function () {
             $modalBranchSelectDisplay.removeClass("is-invalid");
             $("#modalBranchSelectPlaceholder").hide();
             displayBranches.forEach(code => {
-                const branchObj = branchesData.find(b => b.code === code);
+                const branchObj = (masterBranchesData && masterBranchesData.find(b => b.code === code)) || branchesData.find(b => b.code === code);
                 if (branchObj) {
                     const labelText = `${branchObj.name}`;
                     const tagHtml = `
@@ -1775,6 +1816,7 @@ async function getCheckProductNo() {
                         const updateResult = await updateRes.json();
                         if (!updateRes.ok || updateResult.status === "error") {
                             const errorMsg = updateResult.message || updateResult.detail || "ไม่สามารถอัปเดตข้อมูลแคมเปญได้";
+                            stopLoading(true);
                             Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                             return;
                         }
@@ -1783,16 +1825,19 @@ async function getCheckProductNo() {
                             campaignData.file_id = fileIdToSave;
                             campaigns[existingIdx] = campaignData;
 
+                            stopLoading(true);
                             Swal.fire({ title: "บันทึกข้อมูลสำเร็จ", text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                             await loadCampaignToForm(code);
                         } else {
+                            stopLoading(true);
                             Swal.fire({ title: "เกิดข้อผิดพลาด", text: filterRes?.message || "ไม่สามารถบันทึก Filter ได้", icon: "error" });
                         }
                     } catch (err) {
                         console.error(err);
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถบันทึกข้อมูลได้", icon: "error" });
                     } finally {
-                        stopLoading();
+                        stopLoading(true);
                     }
                 }
             });
@@ -1872,16 +1917,19 @@ async function getCheckProductNo() {
                             selectedCampaignGuid = newGuid;
                             selectedCampaignFileId = mainFileId;
 
+                            stopLoading(true);
                             Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
                             await loadCampaignToForm(code);
                         } else {
+                            stopLoading(true);
                             Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
                         }
                     } catch (error) {
                         console.error(error);
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", icon: "error" });
                     } finally {
-                        stopLoading();
+                        stopLoading(true);
                     }
                 }
             });
@@ -2102,6 +2150,7 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
                 }
             }
             if (showSwal) {
+                stopLoading(true);
                 Swal.fire({
                     title: "แนบเอกสารสำเร็จ",
                     text: `บันทึกไฟล์ ${returnedFileName} เรียบร้อยแล้ว`,
@@ -2113,6 +2162,7 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
             return data;
         } else {
             if (showSwal) {
+                stopLoading(true);
                 Swal.fire({
                     title: "เกิดข้อผิดพลาดในการแนบไฟล์",
                     text: data.message || "ไม่สามารถอัปโหลดไฟล์ได้",
@@ -2130,6 +2180,7 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
     } catch (err) {
         console.error("Upload error:", err);
         if (showSwal) {
+            stopLoading(true);
             Swal.fire({
                 title: "เกิดข้อผิดพลาด",
                 text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ในการอัปโหลดไฟล์",
@@ -2138,7 +2189,7 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
         }
         return { status: "error", message: err.message };
     } finally {
-        stopLoading();
+        stopLoading(true);
     }
 }
 

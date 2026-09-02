@@ -48,7 +48,8 @@ async function PostNoti(PostNotiData){
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            skipLoading: true
         });
         return response;
     } catch (error) {
@@ -875,6 +876,7 @@ $(document).ready(async function () {
                     }
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งอนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
                         const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
@@ -888,7 +890,6 @@ $(document).ready(async function () {
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
                         const receiver = selectedCampaignCreatedBy;
-                        console
                         if (receiver) {
                             await PostNoti({
                                 header: "Campaign",
@@ -901,6 +902,7 @@ $(document).ready(async function () {
                             });
                         }
 
+                        stopLoading(true);
                         Swal.fire({
                             title: 'อนุมัติเรียบร้อย!',
                             text: `ดำเนินการอนุมัติ ${code || 'รายการ'} เสร็จสิ้น`,
@@ -913,6 +915,7 @@ $(document).ready(async function () {
 
                 } catch (err) {
                     console.error(err);
+                    stopLoading(true);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งอนุมัติข้อมูลได้", icon: "error" });
                 } finally {
                     stopLoading(true);
@@ -975,6 +978,7 @@ $(document).ready(async function () {
                     }
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งไม่อนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
                         const remark = result.value || '';
@@ -1002,6 +1006,7 @@ $(document).ready(async function () {
                             });
                         }
 
+                        stopLoading(true);
                         Swal.fire({
                             title: 'ไม่อนุมัติเรียบร้อย!',
                             text: `ไม่อนุมัติ ${code || 'รายการ'} เรียบร้อยแล้ว${remark ? ` (หมายเหตุ: ${remark})` : ''}`,
@@ -1014,6 +1019,7 @@ $(document).ready(async function () {
 
                 } catch (err) {
                     console.error(err);
+                    stopLoading(true);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งไม่อนุมัติข้อมูลได้", icon: "error" });
                 } finally {
                     stopLoading(true);
@@ -1078,6 +1084,7 @@ $(document).ready(async function () {
 
                     if (!response.ok || (data && data.status === false)) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งแก้ไขได้ (${response.status} ${response.statusText})`;
+                        stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
                         const remark = result.value || '';
@@ -1105,6 +1112,7 @@ $(document).ready(async function () {
                             });
                         }
 
+                        stopLoading(true);
                         Swal.fire({
                             title: 'ส่งแก้ไขเรียบร้อย!',
                             text: `ส่งแก้ไข ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
@@ -1117,6 +1125,7 @@ $(document).ready(async function () {
 
                 } catch (err) {
                     console.error(err);
+                    stopLoading(true);
                     Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถส่งแก้ไขข้อมูลได้", icon: "error" });
                 } finally {
                     stopLoading(true);

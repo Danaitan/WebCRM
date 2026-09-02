@@ -18,6 +18,42 @@ const objectiveColors = {
     'RM': '#6b7280'
 };
 
+function hasPermissionFCRM006() {
+    if (typeof window.HAS_FCRM006 === 'boolean') {
+        return window.HAS_FCRM006;
+    }
+    const funcId = (typeof window.FUNC_ID === 'string') ? window.FUNC_ID : '';
+    if (!funcId) return false;
+    const list = funcId.split(',').map(s => s.trim()).filter(Boolean);
+    return list.includes('FCRM006');
+}
+
+function updateTopCallersVisibility() {
+    const topCallers = document.getElementById('topCallers');
+    const campaignTableCol = document.getElementById('campaignTableCol');
+    const hasFcrm006 = hasPermissionFCRM006();
+
+    if (!hasFcrm006) {
+        if (topCallers) {
+            topCallers.classList.add("d-none");
+            topCallers.style.setProperty('display', 'none', 'important');
+        }
+        if (campaignTableCol) {
+            campaignTableCol.classList.remove('col-xl-8');
+            campaignTableCol.classList.add('col-12', 'col-xl-12');
+        }
+    } else {
+        if (topCallers) {
+            topCallers.classList.remove("d-none");
+            topCallers.style.display = '';
+        }
+        if (campaignTableCol) {
+            campaignTableCol.classList.remove('col-12', 'col-xl-12');
+            campaignTableCol.classList.add('col-12', 'col-xl-8');
+        }
+    }
+}
+
 function validateDateRange() {
     const startDate = $('#filterStartDate').val();
     const endDate = $('#filterEndDate').val();
@@ -100,11 +136,17 @@ function parseDateTimestamp(val) {
 async function setDashboard() {
     if (!validateDateRange()) return;
 
+    const hasFcrm006 = hasPermissionFCRM006();
+    const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
+
     const startDate = $('#filterStartDate').val() || '';
     const endDate = $('#filterEndDate').val() || '';
     const callType = $('#filterCallType').val() || '';
     const branch = $('#filterBranch').val() || '';
-    const callBy = $('#filterCaller').val() || '';
+    let callBy = $('#filterCaller').val() || '';
+    if (isLockedCaller && window.USER_PERSONAL_ID) {
+        callBy = String(window.USER_PERSONAL_ID).trim();
+    }
     const campaignName = $('#filterCampaign').val() || '';
     const callResult = $('#filterCallResult').val() || '';
 
@@ -126,15 +168,41 @@ async function setDashboard() {
     if (!data) return;
     rawDashboardData = data;
 
-    const graph = data.graph || {};
-    const table = data.table || [];
+    let graph = {};
+    let table = [];
 
-    renderOverview(graph.overAll || []);
+    if (data.graph) {
+        graph = data.graph;
+    } else if (data.data && data.data.graph) {
+        graph = data.data.graph;
+    } else if (data.result && data.result.graph) {
+        graph = data.result.graph;
+    } else if (Array.isArray(data) && data[0] && data[0].graph) {
+        graph = data[0].graph;
+    }
 
-    initCallResultChart(graph.callResult || []);
-    initObjectiveChart(graph.objective || []);
+    if (Array.isArray(data.table)) {
+        table = data.table;
+    } else if (data.data && Array.isArray(data.data.table)) {
+        table = data.data.table;
+    } else if (data.data && Array.isArray(data.data)) {
+        table = data.data;
+    } else if (data.table && typeof data.table === 'object') {
+        table = Array.isArray(data.table.data) ? data.table.data : [];
+    } else if (Array.isArray(data)) {
+        table = data;
+    }
 
-    renderTopCallers(graph.callNumber || []);
+    renderOverview(graph.overAll || graph.overall || (graph.data && graph.data.overAll) || []);
+
+    initCallResultChart(graph.callResult || graph.call_result || (graph.data && graph.data.callResult) || []);
+    initObjectiveChart(graph.objective || (graph.data && graph.data.objective) || []);
+
+    updateTopCallersVisibility();
+    if (hasPermissionFCRM006()) {
+        const callerData = graph.callNumber || graph.call_number || graph.callNumbers || graph.call_numbers || graph.topCallers || graph.top_callers || graph.callBy || graph.call_by || graph.caller || graph.callers || graph.personal || graph.personnel || graph.employee || (data.callNumber) || (data.data && data.data.callNumber) || [];
+        renderTopCallers(callerData);
+    }
 
     currentTableData = [...table].sort((a, b) => {
         const expiredA = isRowExpired(a) ? 1 : 0;
@@ -353,8 +421,16 @@ function toggleCallerSort() {
 }
 
 function renderTopCallers(callNumberData) {
-    if (callNumberData) {
-        rawCallerData = callNumberData;
+    if (callNumberData !== undefined) {
+        if (Array.isArray(callNumberData)) {
+            rawCallerData = callNumberData;
+        } else if (callNumberData && Array.isArray(callNumberData.data)) {
+            rawCallerData = callNumberData.data;
+        } else if (callNumberData && Array.isArray(callNumberData.result)) {
+            rawCallerData = callNumberData.result;
+        } else {
+            rawCallerData = [];
+        }
     }
 
     const container = document.getElementById('topCallersList');
@@ -365,20 +441,49 @@ function renderTopCallers(callNumberData) {
         return;
     }
 
+    const getCount = (item) => {
+        if (!item) return 0;
+        const val = item.count ?? item.total ?? item.amount ?? item.value ?? item.num ?? item.call_count ?? item.qty;
+        const n = Number(val);
+        return isNaN(n) ? 0 : n;
+    };
+
+    const getName = (item) => {
+        if (!item) return 'ไม่ระบุชื่อ';
+        let rawName = item.name || item.caller || item.caller_name || item.call_by || item.personnel_name_TH || item.personnel_name || item.thname || item.fullName || item.employee_name || item.emp_name || item.personal_name || item.personalName || item.user_name || item.username || item.code || '';
+        rawName = String(rawName).trim();
+        if (!rawName) return 'ไม่ระบุชื่อ';
+
+        if (Array.isArray(rawEmployeeData) && rawEmployeeData.length > 0) {
+            const emp = rawEmployeeData.find(e => {
+                if (!e) return false;
+                const empCode = String(e.personnel_code || e.code || e.personnel_id || e.emp_code || '').trim();
+                return empCode && (empCode === rawName || rawName === empCode);
+            });
+            if (emp) {
+                const empThName = (emp.thname || `${emp.personnel_name_TH || emp.first_name || ''} ${emp.personnel_last_TH || emp.last_name || ''}`).trim();
+                if (empThName && !rawName.includes(empThName)) {
+                    return `${rawName} - ${empThName}`;
+                }
+            }
+        }
+        return rawName;
+    };
+
     let sorted = [...rawCallerData];
     if (currentCallerMode === 'top') {
-        sorted.sort((a, b) => (b.count || 0) - (a.count || 0));
+        sorted.sort((a, b) => getCount(b) - getCount(a));
     } else {
-        sorted.sort((a, b) => (a.count || 0) - (b.count || 0));
+        sorted.sort((a, b) => getCount(a) - getCount(b));
     }
 
     const targetList = sorted.slice(0, 5);
-    const maxCount = Math.max(...rawCallerData.map(item => item.count || 0), 1);
+    const maxCount = Math.max(...rawCallerData.map(item => getCount(item)), 1);
 
     let html = '';
     targetList.forEach((item, index) => {
-        const name = item.name || 'ไม่ระบุชื่อ';
-        const count = item.count || 0;
+        const name = getName(item);
+        const count = getCount(item);
         const pct = Math.round((count / maxCount) * 100);
         const rank = index + 1;
 
@@ -399,7 +504,7 @@ function renderTopCallers(callNumberData) {
                         <span class="caller-rank ${rankClass}">${rank}</span>
                         <span class="fw-medium small text-dark me-1">${name}</span>
                     </div>
-                    <span class="fw-bold small ${countColorClass}">${count} <span class="text-muted extra-small font-normal">ครั้ง</span></span>
+                    <span class="fw-bold small ${countColorClass}">${count.toLocaleString()} <span class="text-muted extra-small font-normal">ครั้ง</span></span>
                 </div>
                 <div class="caller-progress-bar">
                     <div class="caller-progress-fill ${barColorClass}" style="width: ${pct}%;"></div>
@@ -566,12 +671,28 @@ async function resetFilters() {
     $('#filterEndDate').val('').removeAttr('min');
     $('#filterCampaign').val('');
 
+    const hasFcrm006 = hasPermissionFCRM006();
+    const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
+
     const select2Ids = ['#filterCallType', '#filterBranch', '#filterCaller', '#filterCallResult'];
     select2Ids.forEach(id => {
         const $el = $(id);
         if ($el.length) {
-            if (window.HAS_RCRM014 && (id === '#filterBranch' || id === '#filterCaller')) {
+            if (id === '#filterCaller' && isLockedCaller) {
                 return;
+            }
+            if (id === '#filterBranch') {
+                if (window.HAS_RCRM014 && window.USER_BRANCH_NAME && hasFcrm006) {
+                    return;
+                }
+                const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+                if (variableFunc && $el[0].options && $el[0].options.length > 1) {
+                    $el.val($el[0].options[1].value);
+                    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                        $el.trigger('change');
+                    }
+                    return;
+                }
             }
             $el.val('');
             if (typeof $.fn !== 'undefined' && $.fn.select2) {
@@ -599,7 +720,6 @@ async function setFilterCallType(){
 
     const objectives = await GetMasterObjective();
     const filterCallType = document.getElementById('filterCallType');
-    filterCallType.innerHTML = '<option value="">ทั้งหมด</option>';
     objectives.forEach(obj => {                
         const code = obj.Code || "";
         const nameEn = obj.NameEn || "";
@@ -649,6 +769,42 @@ function findMatchingBranchValue($selectEl, userBranchName) {
     return matchedVal;
 }
 
+function isBranchInVariableFunc(branchItem, variableFunc) {
+    if (!variableFunc || typeof variableFunc !== 'string') return true;
+    const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
+    if (allowed.length === 0) return true;
+
+    const code = String(branchItem.offcde || branchItem.branch_no || branchItem.branch_code || branchItem.BranchNo || branchItem.code || '').trim();
+    const name = String(branchItem.branch_name || branchItem.branch || branchItem.name || branchItem.Branch || '').trim();
+
+    return allowed.some(target => {
+        const targetClean = target.replace(/^0+/, '');
+        const targetPad = target.padStart(2, '0');
+
+        if (code) {
+            const codeClean = code.replace(/^0+/, '');
+            const codePad = code.padStart(2, '0');
+            if (code === target || codePad === targetPad || (codeClean && targetClean && codeClean === targetClean)) {
+                return true;
+            }
+        }
+
+        if (name) {
+            if (name.startsWith(target + '-') || name.startsWith(target + ' -') || name.startsWith(target + ' ') ||
+                name.startsWith(targetPad + '-') || name.startsWith(targetPad + ' -') || name.startsWith(targetPad + ' ') ||
+                name === target || name === targetPad) {
+                return true;
+            }
+            const match = name.match(/^0*(\d+)/);
+            if (match && targetClean && match[1] === targetClean) {
+                return true;
+            }
+        }
+
+        return false;
+    });
+}
+
 async function setFilterBranch(branchData) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
@@ -660,12 +816,16 @@ async function setFilterBranch(branchData) {
     }
 
     const currentValue = selectEl.value || '';
+    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
 
     if (selectEl.options.length <= 1) {
-        let optionsHtml = '<option value="">ทั้งหมด</option>';
+        let optionsHtml = '';
         if (Array.isArray(data)) {
             data.forEach(item => {
                 if (item) {
+                    if (variableFunc && !isBranchInVariableFunc(item, variableFunc)) {
+                        return;
+                    }
                     const code = String(item.offcde || '').trim();
                     const name = item.branch_name;
                     optionsHtml += `<option value="${code}">${name}</option>`;
@@ -675,7 +835,30 @@ async function setFilterBranch(branchData) {
         selectEl.innerHTML = optionsHtml;
     }
 
-    if (window.HAS_RCRM014 && window.USER_BRANCH_NAME) {
+    const hasFcrm006 = hasPermissionFCRM006();
+    if (!hasFcrm006) {
+        $(selectEl).prop('disabled', false);
+        if (currentValue) {
+            selectEl.value = currentValue;
+        } else if (window.USER_BRANCH_NAME) {
+            const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
+            if (matchedBranchVal) {
+                selectEl.value = matchedBranchVal;
+            }
+        }
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(selectEl).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                language: {
+                    noResults: function () {
+                        return "ไม่พบข้อมูล";
+                    }
+                }
+            });
+            $(selectEl).trigger('change');
+        }
+    } else if (window.HAS_RCRM014 && window.USER_BRANCH_NAME) {
         const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
         if (matchedBranchVal) {
             selectEl.value = matchedBranchVal;
@@ -686,6 +869,14 @@ async function setFilterBranch(branchData) {
         }
     } else if (currentValue) {
         selectEl.value = currentValue;
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(selectEl).trigger('change');
+        }
+    } else if (variableFunc && selectEl.options.length > 1) {
+        selectEl.value = selectEl.options[1].value;
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(selectEl).trigger('change');
+        }
     }
 }
 
@@ -735,6 +926,44 @@ async function setFilterEmployee(){
         const filterEmployee = document.getElementById('filterCaller');
         if (!filterEmployee) return;
 
+        const hasFcrm006 = hasPermissionFCRM006();
+        const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
+        const userPersonalId = (window.USER_PERSONAL_ID || '').toString().trim();
+
+        if (isLockedCaller && userPersonalId) {
+            const matchedEmp = items.find(obj => {
+                if (!obj) return false;
+                const code = (obj.personnel_code || obj.code || obj.personnel_id || obj.emp_code || "").trim();
+                return code === userPersonalId;
+            });
+
+            let labelText = userPersonalId;
+            if (matchedEmp) {
+                const firstName = (matchedEmp.personnel_name_TH || matchedEmp.personnel_name || matchedEmp.first_name || "").trim();
+                const lastName = (matchedEmp.personnel_last_TH || matchedEmp.personnel_last || matchedEmp.last_name || "").trim();
+                const nameTh = (matchedEmp.thname || `${firstName} ${lastName}`).trim();
+                labelText = (nameTh && !nameTh.includes(userPersonalId)) ? `${userPersonalId} - ${nameTh}` : (nameTh || userPersonalId);
+            }
+
+            filterEmployee.innerHTML = `<option value="${userPersonalId}">${labelText}</option>`;
+            $(filterEmployee).val(userPersonalId);
+            $(filterEmployee).prop('disabled', true);
+
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $(filterEmployee).select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    language: {
+                        noResults: function () {
+                            return "ไม่พบข้อมูล";
+                        }
+                    }
+                });
+                $(filterEmployee).trigger('change');
+            }
+            return;
+        }
+
         const selectedBranchVal = ($('#filterBranch').val() || '').trim();
         const selectedOption = document.querySelector('#filterBranch option:checked');
         const selectedBranchText = (selectedOption ? selectedOption.textContent : '').trim();
@@ -771,28 +1000,9 @@ async function setFilterEmployee(){
 
         const currentVal = $(filterEmployee).val() || '';
         filterEmployee.innerHTML = optionsHtml;
+        $(filterEmployee).prop('disabled', false);
 
-        if (window.HAS_RCRM014 && window.USER_PERSONAL_ID) {
-            const targetVal = String(window.USER_PERSONAL_ID).trim();
-            if ($(filterEmployee).find(`option[value="${CSS.escape(targetVal)}"]`).length === 0) {
-                $(filterEmployee).append(new Option(targetVal, targetVal, true, true));
-            } else {
-                $(filterEmployee).val(targetVal);
-            }
-            $(filterEmployee).prop('disabled', true);
-            if (typeof $.fn !== 'undefined' && $.fn.select2) {
-                $(filterEmployee).select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    language: {
-                        noResults: function () {
-                            return "ไม่พบข้อมูล";
-                        }
-                    }
-                });
-                $(filterEmployee).trigger('change');
-            }
-        } else if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
             $(filterEmployee).select2({
                 theme: 'bootstrap-5',
                 width: '100%',
@@ -825,11 +1035,17 @@ async function exportCallExcel() {
     }
 
     try {
+        const hasFcrm006 = hasPermissionFCRM006();
+        const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
+
         const startDate = $('#filterStartDate').val() || '';
         const endDate = $('#filterEndDate').val() || '';
         const callType = $('#filterCallType').val() || '';
         const branch = $('#filterBranch').val() || '';
-        const callBy = $('#filterCaller').val() || '';
+        let callBy = $('#filterCaller').val() || '';
+        if (isLockedCaller && window.USER_PERSONAL_ID) {
+            callBy = String(window.USER_PERSONAL_ID).trim();
+        }
         const campaignName = $('#filterCampaign').val() || '';
         const callResult = $('#filterCallResult').val() || '';
 
@@ -1236,29 +1452,7 @@ $(document).ready(async function () {
         }
 
         bindDateRangeEvents();
-
-        const topCallers = document.getElementById('topCallers');
-        const campaignTableCol = document.getElementById('campaignTableCol');
-        const isEmployee = false;
-        if (isEmployee) {
-            if (topCallers) {
-                topCallers.classList.add("d-none");
-                topCallers.style.display = 'none';
-            }
-            if (campaignTableCol) {
-                campaignTableCol.classList.remove('col-xl-8');
-                campaignTableCol.classList.add('col-xl-12');
-            }
-        } else {
-            if (topCallers) {
-                topCallers.classList.remove("d-none");
-                topCallers.style.display = '';
-            }
-            if (campaignTableCol) {
-                campaignTableCol.classList.remove('col-xl-12');
-                campaignTableCol.classList.add('col-xl-8');
-            }
-        }
+        updateTopCallersVisibility();
 
         await setFilterCallType();
         await setFilterBranch();

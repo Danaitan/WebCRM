@@ -2,6 +2,10 @@
     ViewData["Title"] = "ข้อเสนอแนะ / ร้องเรียน";
     ViewData["HeaderTitle"] = "ข้อเสนอแนะ / ร้องเรียน";
     ViewData["HeaderSubtitle"] = "บันทึกและติดตามข้อเสนอแนะ ข้อร้องเรียน หรือความสนใจผลิตภัณฑ์จากลูกค้า";
+
+    var funcId = Context.Session.GetString("func_id") ?? "";
+    var funcList = funcId.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var hasClosePermission = funcList.Contains("FCRM003", StringComparer.OrdinalIgnoreCase);
 }
 
 @section Styles {
@@ -238,16 +242,19 @@
                                     </button>
                                 </div>
 
-                                <div id="closeBtnContainer">
-                                    <button 
-                                    type="button" 
-                                    class="btn btn-danger px-4 fw-bold" 
-                                    id="closeBtn"
-                                    style="border-radius: 4px;"
-                                    >
-                                    ปิดงาน
-                                    </button>
-                                </div>
+                                @if (hasClosePermission)
+                                {
+                                    <div id="closeBtnContainer">
+                                        <button 
+                                        type="button" 
+                                        class="btn btn-danger px-4 fw-bold" 
+                                        id="closeBtn"
+                                        style="border-radius: 4px;"
+                                        >
+                                        ปิดงาน
+                                        </button>
+                                    </div>
+                                }
                             </div>
                                 
                         </div>
@@ -268,7 +275,10 @@
         var currentUserEmail = '@(Context.Session.GetString("email") ?? "")';
         var userCompany = '@(Context.Session.GetString("company") ?? "")';
         var userFullNameTh = '@(Context.Session.GetString("fullNameTh") ?? "")';
+        var currentPersonalId = '@(Context.Session.GetString("personalId") ?? "")';
+        window.CURRENT_PERSONAL_ID = '@(Context.Session.GetString("personalId") ?? "")';
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
+        window.FUNC_ID = '@(funcId)';
     </script>
     <script src="~/js/suggestions.js" asp-append-version="true"></script>
 }

@@ -34,33 +34,118 @@ async function safeFetchJson(url, options) {
     }
 }
 
-async function setFilterBranch(data) {
+function isBranchInVariableFunc(branchItem, variableFunc) {
+    if (!variableFunc || typeof variableFunc !== 'string') return true;
+    const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
+    if (allowed.length === 0) return true;
+
+    const code = String(branchItem.name || '').trim();
+    const name = String(branchItem.branch || '').trim();
+
+    return allowed.some(target => {
+        const targetClean = target.replace(/^0+/, '');
+        const targetPad = target.padStart(2, '0');
+
+        if (code) {
+            const codeClean = code.replace(/^0+/, '');
+            const codePad = code.padStart(2, '0');
+            if (code === target || codePad === targetPad || (codeClean && targetClean && codeClean === targetClean)) {
+                return true;
+            }
+        }
+
+        if (name) {
+            if (name.startsWith(target + '-') || name.startsWith(target + ' -') || name.startsWith(target + ' ') ||
+                name.startsWith(targetPad + '-') || name.startsWith(targetPad + ' -') || name.startsWith(targetPad + ' ') ||
+                name.includes('(' + target + ')') || name.includes('(' + targetPad + ')') ||
+                name === target || name === targetPad) {
+                return true;
+            }
+            const match = name.match(/^0*(\d+)/);
+            if (match && targetClean && match[1] === targetClean) {
+                return true;
+            }
+        }
+
+        return true;
+    });
+}
+
+async function setFilterBranch(branchData) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
 
-    const currentValue = $(selectEl).val() || selectEl.value || '';
-
-    if (selectEl.options.length > 1) {
-        if (currentValue) {
-            $(selectEl).val(currentValue);
-            if (typeof $.fn !== 'undefined' && $.fn.select2) {
-                $(selectEl).trigger('change');
+    let items = [];
+    if (Array.isArray(branchData) && branchData.length > 0) {
+        items = branchData;
+    } else if (branchData && Array.isArray(branchData.data) && branchData.data.length > 0) {
+        items = branchData.data;
+    } else if (branchData && (Array.isArray(branchData.group) || Array.isArray(branchData.personalAbb))) {
+        const group = Array.isArray(branchData.group) ? branchData.group : [];
+        const personalAbb = Array.isArray(branchData.personalAbb) ? branchData.personalAbb : [];
+        items = [...group, ...personalAbb];
+    } else {
+        try {
+            const res = await safeFetchJson('/DashboardSuggestion/GetPersonalAndGroup');
+            if (res) {
+                const group = Array.isArray(res.group) ? res.group : [];
+                const personalAbb = Array.isArray(res.personalAbb) ? res.personalAbb : [];
+                items = [...group, ...personalAbb];
             }
+            if (items.length === 0) {
+                const bRes = await safeFetchJson('/Home/getBranchListForCRM');
+                if (Array.isArray(bRes)) {
+                    items = bRes;
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching branch list fallback:", e);
         }
-        return;
+    }
+
+    const currentValue = $(selectEl).val() || selectEl.value || '';
+    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+
+    let validItems = items;
+    if (variableFunc && items.length > 0) {
+        const filtered = items.filter(item => isBranchInVariableFunc(item, variableFunc));
+        if (filtered.length > 0) {
+            validItems = filtered;
+        }
     }
 
     let optionsHtml = '<option value="">ทั้งหมด</option>';
-    if (Array.isArray(data)) {
-        data.forEach(item => {
-            if (item) {
-                const code = item.e_mail;
-                const name = item.name + ": " + item.branch;
-                optionsHtml += `<option value="${code}">${name}</option>`;
-            }
-        });
-    }
+    const seenValues = new Set();
+
+    validItems.forEach(item => {
+        if (!item) return;
+
+        const code = String(item.e_mail || item.email || item.Email || item.offcde || item.branch_code || item.branch_no || item.code || item.name || item.branch || '').trim();
+        const name = String(item.name || item.Name || item.branch_name || item.branchName || item.groupName || '').trim();
+        const branch = String(item.branch || item.Branch || item.sendToGroupFull || item.sendToPersonAbb || '').trim();
+
+        if (!code && !name && !branch) return;
+
+        const val = code || name || branch;
+        if (seenValues.has(val)) return;
+        seenValues.add(val);
+
+        let displayName = '';
+        if (name && branch && name !== branch) {
+            displayName = `${name} (${branch})`;
+        } else if (name) {
+            displayName = name;
+        } else if (branch) {
+            displayName = branch;
+        } else {
+            displayName = val;
+        }
+
+        optionsHtml += `<option value="${val}">${displayName}</option>`;
+    });
+
     selectEl.innerHTML = optionsHtml;
+
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         $(selectEl).select2({
             theme: 'bootstrap-5',
@@ -72,8 +157,11 @@ async function setFilterBranch(data) {
             }
         });
     }
-    if (currentValue) {
+
+    if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
         $(selectEl).val(currentValue).trigger('change');
+    } else if (variableFunc && selectEl.options.length > 1 && validItems.length !== items.length) {
+        $(selectEl).val(selectEl.options[1].value).trigger('change');
     }
 }
 
@@ -87,14 +175,34 @@ async function setFilterprovider (data){
             : (Array.isArray(data) ? data : []);
         const currentValue = $(filterProvider).val() || filterProvider.value || '';
         let optionsHtml = '<option value="">ทั้งหมด</option>';
+        const seenValues = new Set();
+
         items.forEach(obj => {
-            const code = obj.e_mail;
-            const name = obj.name;
-            const branch = obj.branch;
-            if (name) {
-                optionsHtml += `<option value="${code}">${name} (${branch})</option>`;
+            if (!obj) return;
+            const code = String(obj.e_mail || obj.email || obj.Email || obj.code || obj.name || '').trim();
+            const name = String(obj.name || obj.Name || '').trim();
+            const branch = String(obj.branch || obj.Branch || '').trim();
+
+            if (!code && !name && !branch) return;
+
+            const val = code || name || branch;
+            if (seenValues.has(val)) return;
+            seenValues.add(val);
+
+            let displayName = '';
+            if (name && branch && name !== branch) {
+                displayName = `${name} (${branch})`;
+            } else if (name) {
+                displayName = name;
+            } else if (branch) {
+                displayName = branch;
+            } else {
+                displayName = val;
             }
+
+            optionsHtml += `<option value="${val}">${displayName}</option>`;
         });
+
         filterProvider.innerHTML = optionsHtml;
         if (typeof $.fn !== 'undefined' && $.fn.select2) {
             $(filterProvider).select2({
@@ -107,7 +215,7 @@ async function setFilterprovider (data){
                 }
             });
         }
-        if (currentValue) {
+        if (currentValue && $(filterProvider).find(`option[value="${currentValue}"]`).length > 0) {
             $(filterProvider).val(currentValue).trigger('change');
         }
     } catch (e) {
@@ -643,6 +751,16 @@ async function resetSuggestionFilters() {
     select2Ids.forEach(id => {
         const $el = $(id);
         if ($el.length) {
+            if (id === '#filterBranch') {
+                const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+                if (variableFunc && $el[0].options && $el[0].options.length > 1) {
+                    $el.val($el[0].options[1].value);
+                    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                        $el.trigger('change');
+                    }
+                    return;
+                }
+            }
             $el.val('');
             if (typeof $.fn !== 'undefined' && $.fn.select2) {
                 $el.trigger('change');
@@ -1105,9 +1223,10 @@ $(document).ready(async function () {
 
         const jsonResult = await safeFetchJson('/DashboardSuggestion/GetPersonalAndGroup');
         if (jsonResult) {
-            const group = Array.isArray(jsonResult.group) ? jsonResult.group : [];
-            const personalAbb = Array.isArray(jsonResult.personalAbb) ? jsonResult.personalAbb : [];
-            const personal = Array.isArray(jsonResult.personal) ? jsonResult.personal : [];
+            const raw = (jsonResult.data && typeof jsonResult.data === 'object' && !Array.isArray(jsonResult.data)) ? jsonResult.data : jsonResult;
+            const group = Array.isArray(raw.group) ? raw.group : (Array.isArray(jsonResult.group) ? jsonResult.group : []);
+            const personalAbb = Array.isArray(raw.personalAbb) ? raw.personalAbb : (Array.isArray(jsonResult.personalAbb) ? jsonResult.personalAbb : []);
+            const personal = Array.isArray(raw.personal) ? raw.personal : (Array.isArray(jsonResult.personal) ? jsonResult.personal : []);
 
             const branch = [
                 ...group,
@@ -1119,6 +1238,9 @@ $(document).ready(async function () {
             ];
             await setFilterBranch(branch);
             await setFilterprovider(provider);
+        } else {
+            await setFilterBranch();
+            await setFilterprovider();
         }
         await setDashboard();
 

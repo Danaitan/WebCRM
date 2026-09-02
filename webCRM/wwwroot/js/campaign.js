@@ -430,7 +430,7 @@ async function getCampainList(page, pageSize, searchText) {
             guid: item.product_guid || "",
             code: item.product_code || "",
             name: item.product_name || "",
-            status: item.product_status || "ปกติ",
+            status: item.product_status || "waiting prospect",
             startDate: item.product_start ? item.product_start.substring(0, 10) : "",
             endDate: item.product_end ? item.product_end.substring(0, 10) : "",
             objective: item.Objective_code || item.objective_code || item.ObjectiveCode || item.objectiveCode || item.objective || "",
@@ -1519,7 +1519,7 @@ async function getCheckProductNo() {
                             guid: newGuid,
                             code: code,
                             name: name,
-                            status: "ปกติ",
+                            status: "waiting prospect",
                             startDate: start,
                             endDate: end,
                             objective: Objective_code,
@@ -1662,12 +1662,14 @@ async function getCheckProductNo() {
 
         const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
         const currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
-        const currentCampaignStatus = existingIdx > -1 ? campaigns[existingIdx].status : "";
+        const currentCampaignStatus = existingIdx > -1 ? (campaigns[existingIdx].status || "waiting prospect") : "waiting prospect";
+        const currentCampaignGuid = selectedCampaignGuid || (existingIdx > -1 ? campaigns[existingIdx].guid : "");
         const campaignData = {
             id: currentCampaignId,
+            guid: currentCampaignGuid,
             code: code,
             name: name,
-            status: "ปกติ",
+            status: currentCampaignStatus,
             startDate: start,
             endDate: end,
             objective: Objective_code,
@@ -1864,6 +1866,7 @@ async function getCheckProductNo() {
                         if (data.status === "success") {
                             campaignData.guid = newGuid;
                             campaignData.file_id = mainFileId;
+                            campaignData.status = "waiting prospect";
                             campaigns.unshift(campaignData);
                             selectedCampaignCode = code;
                             selectedCampaignGuid = newGuid;
@@ -1946,15 +1949,17 @@ async function getCheckProductNo() {
 
         $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
             const filePath = $(this).attr("data-filepath");
+            const fileName = $(this).text().trim();
             if (filePath) {
-                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
             }
         });
 
         $(document).off("click", "#modalSelectedFileNameText").on("click", "#modalSelectedFileNameText", function () {
             const filePath = $(this).attr("data-filepath");
+            const fileName = $(this).text().trim();
             if (filePath) {
-                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
             }
         });
 

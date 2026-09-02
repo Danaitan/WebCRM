@@ -117,8 +117,9 @@ async function displayCampaignFile(fileId) {
 
 $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
     const filePath = $(this).attr("data-filepath");
+    const fileName = $(this).text().trim();
     if (filePath) {
-        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
     }
 });
 

@@ -86,8 +86,8 @@ namespace webCRM.Controllers
                         string branchNo = profile["branch_no"]?.ToString() ?? "";
                         string branch = profile["branch"]?.ToString() ?? "";
                         string func_id = profile["func_id"]?.ToString() ?? "";
+                        string variable_func = profile["variable_func"]?.ToString() ?? "";
 
-                        // ตรวจสอบถ้าไม่มี role_id หรือ role_id เป็นค่าว่าง ให้แจ้งเตือนและย้อนกลับ
                         if (string.IsNullOrWhiteSpace(roleId))
                         {
                             HttpContext.Session.Clear();
@@ -106,6 +106,8 @@ namespace webCRM.Controllers
                         HttpContext.Session.SetString("company", company);
                         HttpContext.Session.SetString("fullNameTh", $"{pNameTh} {pLastTh}");
                         HttpContext.Session.SetString("roleId", roleId);
+                        HttpContext.Session.SetString("func_id", func_id);
+                        HttpContext.Session.SetString("variable_func", variable_func);
 
                         string formattedBranchNo = int.TryParse(branchNo, out int bNo) ? bNo.ToString("00") : branchNo;
                         HttpContext.Session.SetString("branchName", $"{formattedBranchNo}-{branch}");

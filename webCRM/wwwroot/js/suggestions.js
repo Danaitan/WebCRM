@@ -152,21 +152,21 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                 }
             }
 
-            const email = item.emailProvider || item.EmailProvider || '-';
-            const line = item.lineProvider || item.LineProvider || '-';
-            const idno = item.idno || item.Idno || '-';
-            const statusTask = item.statusTask || item.StatusTask || '-';
+            const email = item.emailProvider || '-';
+            const line = item.lineProvider || '-';
+            const idno = item.idno || '-';
+            const statusTask = item.statusTask || '-';
             const statusLower = statusTask.toLowerCase();
-            const address = item.addressProvider || item.AddressProvider || '-';
-            const recordedBy = item.personalName || item.PersonalName || '-';
-            const reply = item.reply || item.Reply || '-';
-            const nameProvider = item.nameProvider || item.NameProvider || '-';
-            const suggestion = item.suggestion || item.Suggestion || '-';
-            const title = item.suggestion_title || item.suggestionTitle || item.SuggestionTitle || '-';
-            const guid = item.guid || item.Guid || '-';
-            const updBy = item.updBy || item.UpdBy || '-';
-            const sendTo = item.sendTo || item.SendTo || '-';
-            const detailsJson = (item.detail || item.Detail) ? JSON.stringify(item.detail || item.Detail) : '[]';
+            const address = item.addressProvider || '-';
+            const recordedBy = item.personalName || '-';
+            const reply = item.reply || '-';
+            const nameProvider = item.nameProvider || '-';
+            const suggestion = item.suggestion || '-';
+            const title = item.suggestion_title || '-';
+            const guid = item.guid || '-';
+            const updBy = item.updBy || '-';
+            const sendTo = item.sendTo || '-';
+            const detailsJson = (item.detail) ? JSON.stringify(item.detail) : '[]';
 
             const $tr = $(`
                 <tr style="cursor: pointer;">
@@ -228,6 +228,13 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     }
 }
 
+function isCreator(updBy) {
+    const personalId = (typeof currentPersonalId !== 'undefined' ? currentPersonalId : (window.CURRENT_PERSONAL_ID || '')).toString().trim();
+    if (!personalId) return false;
+    if (!updBy || updBy === '-' || updBy === 'null' || updBy === 'undefined') return false;
+    return String(updBy).trim().toLowerCase() === personalId.toLowerCase();
+}
+
 function canShowReplyBox(status) {
     if (!status) return true;
     const lowerStatus = String(status).toLowerCase().trim();
@@ -255,7 +262,9 @@ function canEnableCloseBtn(status) {
     return true;
 }
 
-function updateActionButtonsState(status) {
+function updateActionButtonsState(status, updBy = '') {
+    const userIsCreator = isCreator(updBy);
+
     // กล่องบันทึกข้อมูล
     if (canShowReplyBox(status)) {
         $('#replyBoxSection').show();
@@ -263,18 +272,25 @@ function updateActionButtonsState(status) {
         $('#replyBoxSection').hide();
     }
 
-    // ปุ่มส่งต่อ
-    if (canShowForwardBtn(status)) {
-        $('#forwardBtnContainer').show();
-    } else {
+    // ถ้าไม่ใช่คนสร้าง จะซ่อนปุ่มส่งต่อและปิดงาน
+    if (!userIsCreator) {
         $('#forwardBtnContainer').hide();
-    }
-
-    // ปุ่มปิดงาน
-    if (canEnableCloseBtn(status)) {
-        $('#closeBtn').prop('disabled', false);
+        $('#closeBtnContainer').hide();
     } else {
-        $('#closeBtn').prop('disabled', true);
+        // ปุ่มส่งต่อ
+        if (canShowForwardBtn(status)) {
+            $('#forwardBtnContainer').show();
+        } else {
+            $('#forwardBtnContainer').hide();
+        }
+
+        // ปุ่มปิดงาน
+        $('#closeBtnContainer').show();
+        if (canEnableCloseBtn(status)) {
+            $('#closeBtn').prop('disabled', false);
+        } else {
+            $('#closeBtn').prop('disabled', true);
+        }
     }
 }
 
@@ -522,7 +538,6 @@ async function loadSuggestionHeaderOptions() {
             if (filterTopicSelect) {
                 filterTopicSelect.innerHTML = '<option value="">หัวข้อ (ทั้งหมด)</option>';
             }
-            console.log("data", data);
             data.forEach(item => {
                 const title = item.suggesDesc || '';
                 if (!title) return;
@@ -735,8 +750,6 @@ function formatDateDisplay(dateStr) {
 function showDetails(row) {
     const $row = $(row);
     if (!$row.length) return;
-
-    // เพิ่ม class ไฮไลท์แถวที่เลือก
     $('#suggestionsTable tbody tr').removeClass('table-active');
     $row.addClass('table-active');
 
@@ -763,11 +776,12 @@ function showDetails(row) {
     $('#reply-input').val(replyVal !== '-' ? replyVal : '');
 
     $('#detail-guid').text(getVal('guid'));
-    $('#detail-updBy').text(getVal('updby'));
+    const updBy = getVal('updby');
+    $('#detail-updBy').text(updBy);
     $('#detail-sendTo').text(getVal('sendto'));
 
     // อัปเดตการแสดงผลและสถานะปุ่มตามสิทธิ์/สถานะเคส
-    updateActionButtonsState(rawStatus);
+    updateActionButtonsState(rawStatus, updBy);
 
     // Render Reply History Table
     let detailsData = $row.data('details');
@@ -799,15 +813,15 @@ function showDetails(row) {
     if (detailsData.length > 0) {
         // เรียงลำดับจากล่าสุดขึ้นก่อน
         detailsData.sort((a, b) => {
-            const timeA = parseDateForSort(a.upDate || a.UpDate);
-            const timeB = parseDateForSort(b.upDate || b.UpDate);
+            const timeA = parseDateForSort(a.upDate);
+            const timeB = parseDateForSort(b.upDate);
             return timeB - timeA;
         });
 
         detailsData.forEach(item => {
-            const replyMsg = item.reply || item.Reply || '-';
-            const updByPerson = item.updByName || item.UpdByName || item.updBy || item.UpdBy || '-';
-            const rawDate = item.upDate || item.UpDate || '-';
+            const replyMsg = item.reply || '-';
+            const updByPerson = item.updByName || '-';
+            const rawDate = item.upDate || '-';
             const formattedDate = formatDateDisplay(rawDate);
 
             const $tr = $('<tr>');
@@ -1164,6 +1178,12 @@ async function PutSuggestionStatusUpd (){
     }
 
     var $activeRow = $('#suggestionsTable tbody tr.table-active');
+    var updBy = $activeRow.length ? ($activeRow.attr('data-updby') || '') : '';
+    if (!isCreator(updBy)) {
+        showAlert('warning', 'แจ้งเตือน', 'คุณไม่มีสิทธิ์ปิดงาน เนื่องจากไม่ใช่ผู้สร้างรายการนี้');
+        return;
+    }
+
     var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
     if (!canEnableCloseBtn(currentStatus)) {
         showAlert('warning', 'แจ้งเตือน', 'เคสนี้อยู่ในสถานะปิดงานแล้ว');
@@ -1202,6 +1222,12 @@ async function ForwardSuggestion() {
     }
 
     var $activeRow = $('#suggestionsTable tbody tr.table-active');
+    var updBy = $activeRow.length ? ($activeRow.attr('data-updby') || '') : '';
+    if (!isCreator(updBy)) {
+        showAlert('warning', 'แจ้งเตือน', 'คุณไม่มีสิทธิ์ส่งต่อ เนื่องจากไม่ใช่ผู้สร้างรายการนี้');
+        return;
+    }
+
     var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
     if (!canShowForwardBtn(currentStatus)) {
         showAlert('warning', 'แจ้งเตือน', 'เคสนี้อยู่ในสถานะปิดงานแล้ว ไม่สามารถส่งต่อได้');

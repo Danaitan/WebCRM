@@ -223,6 +223,7 @@
 @section Scripts {
     <script>
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
+        window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

@@ -16,7 +16,7 @@ namespace webCRM.Models
         public string? status { get; set; }
         [JsonPropertyName("IsActive")]
         public bool IsActive { get; set; }
-        
+
     }
 
     public class PostPageRoleRequest
@@ -77,6 +77,42 @@ namespace webCRM.Models
         public string? role_id { get; set; }
         [JsonPropertyName("status")]
         public string? status { get; set; }
+        [JsonPropertyName("user")]
+        public string? user { get; set; }
+    }
+
+    public class UpsertRoleFuncRequest
+    {
+        [JsonPropertyName("role_id")]
+        public string? role_id { get; set; }
+        [JsonPropertyName("func_id")]
+        public string? func_id { get; set; }
+        [JsonPropertyName("status")]
+        public string? status { get; set; }
+        [JsonPropertyName("user")]
+        public string? user { get; set; }
+    }
+
+    public class UpdateFuncStatusRequest
+    {
+        [JsonPropertyName("role_id")]
+        public string? role_id { get; set; }
+        [JsonPropertyName("func_id")]
+        public string? func_id { get; set; }
+        [JsonPropertyName("status")]
+        public string? status { get; set; }
+        [JsonPropertyName("user")]
+        public string? user { get; set; }
+    }
+
+    public class UpdateVariableFuncRequest
+    {
+        [JsonPropertyName("variable_func")]
+        public string? variable_func { get; set; }
+        [JsonPropertyName("personnel_code")]
+        public string? personnel_code { get; set; }
+        [JsonPropertyName("role_id")]
+        public string? role_id { get; set; }
         [JsonPropertyName("user")]
         public string? user { get; set; }
     }

@@ -2,6 +2,8 @@
 let allUsersData = [];
 let allRolesData = [];
 let allPagesData = [];
+let allFuncsData = [];
+let allBranchesData = [];
 let selectedRoleId = null;
 let selectedRoleName = '';
 let usersDataTable = null;
@@ -39,6 +41,23 @@ $(document).ready(function () {
         $('.page-checkbox:not(:disabled)').prop('checked', false);
     });
 
+    // Function modal events
+    $('#btnSaveRoleFuncs').on('click', function () {
+        saveRoleFuncPermissions();
+    });
+
+    $('#btnSelectAllFuncs').on('click', function () {
+        $('.func-checkbox:visible:not(:disabled)').prop('checked', true);
+    });
+
+    $('#btnDeselectAllFuncs').on('click', function () {
+        $('.func-checkbox:visible:not(:disabled)').prop('checked', false);
+    });
+
+    $('#funcSearchInput').on('keyup input', function () {
+        filterFuncList();
+    });
+
     // Parent checkbox change event (toggle children)
     $(document).on('change', '.page-parent-checkbox', function () {
         const parentId = $(this).data('page-id');
@@ -60,6 +79,33 @@ $(document).ready(function () {
         createNewRole();
     });
 
+    // Branch search and selection events in user modal
+    $('#branchSearchInput').on('keyup input', function () {
+        filterBranchCheckboxes();
+    });
+
+    // Branch box click event in user modal (toggle selection and background color)
+    $(document).on('click', '.branch-checkbox-item', function () {
+        const checkbox = $(this).find('.branch-checkbox');
+        const nextState = !checkbox.prop('checked');
+        toggleBranchItemState($(this), nextState);
+        updateBranchSelectedCount();
+    });
+
+    $('#btnSelectAllBranches').on('click', function () {
+        $('.branch-checkbox-item:visible').each(function () {
+            toggleBranchItemState($(this), true);
+        });
+        updateBranchSelectedCount();
+    });
+
+    $('#btnDeselectAllBranches').on('click', function () {
+        $('.branch-checkbox-item:visible').each(function () {
+            toggleBranchItemState($(this), false);
+        });
+        updateBranchSelectedCount();
+    });
+
     // Auto focus search field on select2 open
     $(document).on('select2:open', () => {
         const searchInput = document.querySelector('.select2-container--open .select2-search__field');
@@ -70,17 +116,33 @@ $(document).ready(function () {
 });
 
 async function initPage() {
-    toggleGlobalLoading(true, 'กำลังโหลดข้อมูล...', 'ระบบกำลังโหลดข้อมูลผู้ใช้งาน บทบาท และสิทธิ์หน้าจอ กรุณารอสักครู่');
+    toggleGlobalLoading(true, 'กำลังโหลดข้อมูล...', 'ระบบกำลังโหลดข้อมูลผู้ใช้งาน บทบาท สิทธิ์หน้าจอ และสาขา กรุณารอสักครู่');
     try {
         await Promise.all([
             loadRolesData(),
-            loadPagesData()
+            loadPagesData(),
+            loadFuncsData(),
+            loadBranchesData()
         ]);
         await loadUsersData();
     } catch (err) {
         console.error("Error initializing page:", err);
     } finally {
         toggleGlobalLoading(false);
+    }
+}
+
+async function loadBranchesData() {
+    try {
+        const response = await $.ajax({
+            url: '/ManageUser/getBranchListForCRM',
+            type: 'GET',
+            dataType: 'json'
+        });
+        allBranchesData = parseApiResponse(response) || response || [];
+    } catch (error) {
+        console.error("Failed to load branches data:", error);
+        allBranchesData = [];
     }
 }
 
@@ -112,12 +174,9 @@ async function loadUsersData() {
             dataType: 'json',
             timeout: 30000
         });
-        // console.log("response",response)
         allUsersData = parseApiResponse(response);
-        console.log("allUsersData",allUsersData)
         $('#statTotalUsers').text(allUsersData.length);
         $('#userCountBadge').text(allUsersData.length);
-
         renderUsersTable(allUsersData);
     } catch (error) {
         console.error("Failed to load users data:", error);
@@ -140,16 +199,13 @@ async function loadUsersData() {
 function isRoleActive(roleItem, defaultRoleId = null) {
     if (!roleItem) return false;
 
-    // Check status directly on role object (e.g. role_status or status)
     if (typeof roleItem === 'object' && roleItem !== null) {
         const status = (roleItem.role_status || roleItem.status || '').toString().toLowerCase().trim();
-        // If status exists and is not enable/active, reject
-        if (status && status !== 'enable' && status !== 'active') {
+        if (status && status !== 'enable') {
             return false;
         }
     }
 
-    // Check master role status in allRolesData if available
     const id = (typeof roleItem === 'object' && roleItem !== null)
         ? (roleItem.role_id || defaultRoleId)
         : (roleItem || defaultRoleId);
@@ -158,7 +214,7 @@ function isRoleActive(roleItem, defaultRoleId = null) {
         const masterRole = allRolesData.find(r => (r.role_id || '').toString() === id.toString());
         if (masterRole) {
             const masterStatus = (masterRole.status || masterRole.role_status || '').toString().toLowerCase().trim();
-            if (masterStatus !== 'enable' && masterStatus !== 'active') {
+            if (masterStatus !== 'enable') {
                 return false;
             }
         }
@@ -208,7 +264,6 @@ function renderUsersTable(data) {
     }
 
     try {
-        // Sort data: 1. Role count descending (most roles first) 2. personnel_code descending (highest code first)
         userList.sort((a, b) => {
             if (!a) return 1;
             if (!b) return -1;
@@ -233,6 +288,22 @@ function renderUsersTable(data) {
             const { roleId, roleName } = getUserRoleInfo(user);
             const badgeClass = (roleId && roleName !== 'ยังไม่กำหนด') ? 'bg-primary' : 'bg-secondary';
 
+            const varFunc = getUserVariableFunc(user);
+            let branchDisplayHtml = '';
+            if (varFunc) {
+                const branchCodes = varFunc.split(',').map(s => s.trim()).filter(Boolean);
+                if (branchCodes.length > 0) {
+                    const branchNames = branchCodes.map(c => {
+                        const found = (allBranchesData || []).find(b => (b.offcde || b.Offcde || '').toString().trim() === c);
+                        return found ? (found.branch_name || found.BranchName || c) : c;
+                    });
+                    const summary = branchNames.slice(0, 2).join(', ') + (branchNames.length > 2 ? ` (+${branchNames.length - 2})` : '');
+                    branchDisplayHtml = `<div class="mt-1 small text-muted text-truncate" style="max-width: 220px;" title="สาขาที่รับผิดชอบ: ${escapeHtml(branchNames.join(', '))}">
+                        <i class="bi bi-geo-alt-fill text-danger me-1"></i><span class="text-dark fw-medium">${escapeHtml(summary)}</span>
+                    </div>`;
+                }
+            }
+
             const row = `
                 <tr>
                     <td class="fw-bold text-dark">${escapeHtml(code)}</td>
@@ -244,7 +315,10 @@ function renderUsersTable(data) {
                         <span class="text-dark small d-block">${escapeHtml(branch)}</span>
                         ${department ? `<span class="text-muted small d-block">${escapeHtml(department)}</span>` : ''}
                     </td>
-                    <td><span class="badge role-badge ${badgeClass}">${escapeHtml(roleName)}</span></td>
+                    <td>
+                        <span class="badge role-badge ${badgeClass}">${escapeHtml(roleName)}</span>
+                        ${branchDisplayHtml}
+                    </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" 
                                 onclick="openEditUserRoleModal('${escapeHtml(code)}', '${escapeHtml(name)}')">
@@ -292,7 +366,6 @@ function filterUsersTable() {
     usersDataTable.draw();
 }
 
-// LOAD ROLES DATA
 async function loadRolesData() {
     try {
         const response = await $.ajax({
@@ -300,13 +373,12 @@ async function loadRolesData() {
             type: 'GET',
             dataType: 'json'
         });
-
         allRolesData = parseApiResponse(response) || [];
         allRolesData.sort((a, b) => {
             const statusA = (a.status || a.role_status || '').toString().toLowerCase().trim();
             const statusB = (b.status || b.role_status || '').toString().toLowerCase().trim();
-            const isEnableA = (statusA === 'enable' || statusA === 'active') ? 0 : 1;
-            const isEnableB = (statusB === 'enable' || statusB === 'active') ? 0 : 1;
+            const isEnableA = statusA === 'enable' ? 0 : 1;
+            const isEnableB = statusB === 'enable' ? 0 : 1;
             if (isEnableA !== isEnableB) {
                 return isEnableA - isEnableB;
             }
@@ -315,7 +387,7 @@ async function loadRolesData() {
 
         const filterRoles = allRolesData.filter(role => {
             const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
-            return status === 'enable' || status === 'active';
+            return status === 'enable';
         });
         $('#statTotalRoles').text(filterRoles.length);
         renderRolesFilterDropdown(filterRoles);
@@ -367,13 +439,19 @@ function renderRolesSelectionList(roles) {
         const name = role.role_name || '';
 
         const item = `
-            <div class="role-item p-3 bg-light rounded-3 d-flex align-items-center justify-content-between" 
+            <div class="role-item p-3 bg-light rounded-3 d-flex align-items-center justify-content-between gap-2" 
                  id="role-item-${id}" onclick="selectRoleForPermissions('${escapeHtml(id)}', '${escapeHtml(name)}')">
-                <div>
-                    <div class="fw-bold text-dark">${escapeHtml(name)}</div>
+                <div style="min-width: 0;">
+                    <div class="fw-bold text-dark text-truncate">${escapeHtml(name)}</div>
                     <span class="text-muted small">ID: ${escapeHtml(id)}</span>
                 </div>
-                <i class="bi bi-chevron-right text-secondary fs-6"></i>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 shadow-sm" 
+                            title="จัดการสิทธิ์ฟังก์ชัน"
+                            onclick="event.stopPropagation(); openManageRoleFuncModal('${escapeHtml(id)}', '${escapeHtml(name)}')">
+                        <i class="bi bi-sliders me-1"></i>จัดการสิทธิ์
+                    </button>
+                </div>
             </div>
         `;
         list.append(item);
@@ -399,7 +477,7 @@ function renderRolesTable(roles) {
         const createdBy = role.create_by || '-';
         const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
 
-        const isEnable = status === 'enable' || status === 'active';
+        const isEnable = status === 'enable';
         const statusText = isEnable ? 'ใช้งาน' : 'ไม่ใช้งาน';
         const statusColor = isEnable ? 'success' : 'danger';
 
@@ -621,6 +699,7 @@ function selectRoleForPermissions(roleId, roleName) {
 
     $('#selectedRoleTitle').text(`${roleName} (${roleId})`);
     $('#btnSaveRolePages').prop('disabled', false);
+    $('#btnHeaderManageFuncs').prop('disabled', false);
 
     renderPagePermissionsGrid(roleId);
 }
@@ -811,27 +890,50 @@ function extractUserRoles(user) {
                 if (typeof r === 'object' && r !== null) {
                     const id = r.role_id || r.roleId || r.id || '';
                     const name = r.role_name || r.roleName || r.name || getRoleNameById(id) || id;
-                    return { role_id: id, role_name: name };
+                    return { role_id: id, role_name: name, variable_func: r.variable_func || user.variable_func || '' };
                 }
                 const id = (r || '').toString();
-                return { role_id: id, role_name: getRoleNameById(id) || id };
+                return { role_id: id, role_name: getRoleNameById(id) || id, variable_func: user.variable_func || '' };
             })
             .filter(r => r.role_id);
     } else if (user.role && typeof user.role === 'object') {
         if (isRoleActive(user.role)) {
             const id = user.role.role_id || user.role.roleId || user.role.id || '';
             const name = user.role.role_name || user.role.roleName || user.role.name || getRoleNameById(id) || id;
-            if (id) rolesList.push({ role_id: id, role_name: name });
+            if (id) rolesList.push({ role_id: id, role_name: name, variable_func: user.role.variable_func || user.variable_func || '' });
         }
     } else if (user.role_id || user.role) {
         const status = user.role_status || user.status;
         const roleObj = status ? { role_id: user.role_id || user.role, status: status, role_status: status } : (user.role_id || user.role);
         if (isRoleActive(roleObj, user.role_id || user.role)) {
             const id = (user.role_id || user.role).toString();
-            if (id) rolesList.push({ role_id: id, role_name: getRoleNameById(id) || id });
+            if (id) rolesList.push({ role_id: id, role_name: getRoleNameById(id) || id, variable_func: user.variable_func || '' });
         }
     }
     return rolesList;
+}
+
+function getUserVariableFunc(user) {
+    if (!user) return '';
+    if (user.variable_func !== undefined && user.variable_func !== null) {
+        return user.variable_func.toString().trim();
+    }
+    if (user.variableFunc !== undefined && user.variableFunc !== null) {
+        return user.variableFunc.toString().trim();
+    }
+    if (Array.isArray(user.role) && user.role.length > 0) {
+        for (const r of user.role) {
+            if (typeof r === 'object' && r !== null) {
+                if (r.variable_func !== undefined && r.variable_func !== null && r.variable_func !== '') return r.variable_func.toString().trim();
+                if (r.variableFunc !== undefined && r.variableFunc !== null && r.variableFunc !== '') return r.variableFunc.toString().trim();
+            }
+        }
+    }
+    if (user.role && typeof user.role === 'object') {
+        if (user.role.variable_func !== undefined && user.role.variable_func !== null) return user.role.variable_func.toString().trim();
+        if (user.role.variableFunc !== undefined && user.role.variableFunc !== null) return user.role.variableFunc.toString().trim();
+    }
+    return '';
 }
 
 function openEditUserRoleModal(code, name) {
@@ -844,7 +946,16 @@ function openEditUserRoleModal(code, name) {
     const currentRoleId = (userRoles.length > 0) ? (userRoles[0].role_id || '').toString() : '';
     $('#editUserRoleModal').data('initial_role_id', currentRoleId);
 
+    const initialVariableFunc = getUserVariableFunc(user);
+    $('#editUserRoleModal').data('initial_variable_func', initialVariableFunc);
+
     renderModalRoleSelect(currentRoleId);
+
+    let selectedBranches = [];
+    if (initialVariableFunc) {
+        selectedBranches = initialVariableFunc.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    renderModalBranchCheckboxes(selectedBranches);
 
     const modal = new bootstrap.Modal(document.getElementById('editUserRoleModal'));
     modal.show();
@@ -861,7 +972,7 @@ function renderModalRoleSelect(currentRoleId) {
 
     const enableRoles = (allRolesData || []).filter(role => {
         const status = (role.status || role.role_status || '').toString().toLowerCase().trim();
-        return status === 'enable' || status === 'active';
+        return status === 'enable';
     });
 
     enableRoles.forEach(role => {
@@ -891,12 +1002,90 @@ function renderModalRoleSelect(currentRoleId) {
     }
 }
 
+function renderModalBranchCheckboxes(selectedBranches = []) {
+    const container = $('#modalBranchCheckboxContainer');
+    $('#branchSearchInput').val('');
+    container.empty();
+
+    if (!allBranchesData || allBranchesData.length === 0) {
+        container.html('<div class="text-center text-muted py-5 small"><i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>ไม่พบข้อมูลสาขา</div>');
+        updateBranchSelectedCount();
+        return;
+    }
+
+    let html = '<div class="row g-2">';
+    allBranchesData.forEach(branch => {
+        const offcde = (branch.offcde || '').toString().trim();
+        const branchName = branch.branch_name || '';
+        if (offcde) {
+            const isChecked = selectedBranches.includes(offcde);
+            const label = branchName ? `${offcde} - ${branchName}` : offcde;
+            const selectedClass = isChecked ? 'selected' : '';
+            html += `
+                <div class="col-12 col-md-6 branch-item-col" data-search-text="${escapeHtml(label.toLowerCase())}">
+                    <div class="branch-checkbox-item py-2 px-3 rounded-3 shadow-sm d-flex align-items-center justify-content-between h-100 ${selectedClass}" 
+                         title="${escapeHtml(label)}">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden pe-2">
+                            <i class="bi bi-building ${isChecked ? 'text-white' : 'text-primary'} branch-icon flex-shrink-0"></i>
+                            <span class="small text-truncate branch-label fw-medium">${escapeHtml(label)}</span>
+                        </div>
+                        <i class="bi bi-check-circle-fill branch-check-icon flex-shrink-0 ${isChecked ? '' : 'd-none'}"></i>
+                        <input class="branch-checkbox d-none" type="checkbox" value="${escapeHtml(offcde)}" ${isChecked ? 'checked' : ''}>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    html += '</div>';
+
+    container.html(html);
+    updateBranchSelectedCount();
+}
+
+function toggleBranchItemState($item, isChecked) {
+    const checkbox = $item.find('.branch-checkbox');
+    checkbox.prop('checked', isChecked);
+    if (isChecked) {
+        $item.addClass('selected');
+        $item.find('.branch-icon').removeClass('text-primary').addClass('text-white');
+        $item.find('.branch-check-icon').removeClass('d-none');
+    } else {
+        $item.removeClass('selected');
+        $item.find('.branch-icon').removeClass('text-white').addClass('text-primary');
+        $item.find('.branch-check-icon').addClass('d-none');
+    }
+}
+
+function filterBranchCheckboxes() {
+    const term = ($('#branchSearchInput').val() || '').toLowerCase().trim();
+    $('.branch-item-col').each(function () {
+        const text = $(this).data('search-text') || '';
+        if (!term || text.includes(term)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+}
+
+function updateBranchSelectedCount() {
+    const count = $('.branch-checkbox:checked').length;
+    $('#branchSelectedCount').text(`เลือก ${count} สาขา`);
+}
+
 async function saveUserRole() {
     const personnelCode = $('#editUserRoleModal').data('personnel_code');
     const initialRoleId = ($('#editUserRoleModal').data('initial_role_id') || '').toString();
     const selectedRoleId = ($('#modalRoleSelect').val() || '').toString();
 
-    if (selectedRoleId === initialRoleId) {
+    const initialVariableFunc = ($('#editUserRoleModal').data('initial_variable_func') || '').toString().trim();
+    const branchValues = $('.branch-checkbox:checked').map(function () { return $(this).val(); }).get();
+    const newVariableFunc = branchValues.join(',');
+
+    const isRoleChanged = (selectedRoleId !== initialRoleId);
+    const isVariableFuncChanged = (newVariableFunc !== initialVariableFunc);
+
+    if (!isRoleChanged && !isVariableFuncChanged) {
         const modalEl = document.getElementById('editUserRoleModal');
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
@@ -906,40 +1095,61 @@ async function saveUserRole() {
     const user = allUsersData.find(u => (u.personnel_code || '').toString() === personnelCode.toString());
     const existingRoles = extractUserRoles(user);
 
-    toggleGlobalLoading(true, 'กำลังบันทึกข้อมูล...', 'กำลังอัปเดตบทบาทสิทธิ์ผู้ใช้งาน กรุณารอสักครู่');
+    toggleGlobalLoading(true, 'กำลังบันทึกข้อมูล...', 'กำลังอัปเดตบทบาทสิทธิ์และสาขาที่รับผิดชอบ กรุณารอสักครู่');
     try {
         // 1. ถอดสิทธิ์เดิมออกทั้งหมดหากมีสิทธิ์เดิมที่ไม่ตรงกับสิทธิ์ใหม่
-        for (const oldRole of existingRoles) {
-            const oldRoleId = (oldRole.role_id || '').toString();
-            if (oldRoleId && oldRoleId !== selectedRoleId) {
-                await $.ajax({
+        if (isRoleChanged) {
+            for (const oldRole of existingRoles) {
+                const oldRoleId = (oldRole.role_id || '').toString();
+                if (oldRoleId && oldRoleId !== selectedRoleId) {
+                    await $.ajax({
+                        url: '/ManageUser/PostCRMPersonalRole',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            personnel_code: personnelCode,
+                            role_id: oldRoleId,
+                            status: 'unable'
+                        })
+                    });
+                }
+            }
+
+            // มอบหมายสิทธิ์ใหม่หากมีการเลือกสิทธิ์
+            if (selectedRoleId) {
+                const response = await $.ajax({
                     url: '/ManageUser/PostCRMPersonalRole',
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({
                         personnel_code: personnelCode,
-                        role_id: oldRoleId,
-                        status: 'unable'
+                        role_id: selectedRoleId,
+                        status: 'enable'
                     })
                 });
+
+                if (!response || (response.status !== 'success' && response.status !== true)) {
+                    throw new Error(response ? (response.message || 'ไม่สามารถกำหนดสิทธิ์ได้') : 'เกิดข้อผิดพลาดในการกำหนดสิทธิ์');
+                }
             }
         }
 
-        // 2. มอบหมายสิทธิ์ใหม่หากมีการเลือกสิทธิ์
-        if (selectedRoleId) {
-            const response = await $.ajax({
-                url: '/ManageUser/PostCRMPersonalRole',
-                type: 'POST',
+        // 2. อัปเดต variable_func (สาขาที่รับผิดชอบ)
+        const activeRoleId = selectedRoleId || initialRoleId;
+        if (isVariableFuncChanged || (selectedRoleId && isRoleChanged)) {
+            const varResponse = await $.ajax({
+                url: '/ManageUser/UpdateVariableFunc',
+                type: 'PUT',
                 contentType: 'application/json',
                 data: JSON.stringify({
                     personnel_code: personnelCode,
-                    role_id: selectedRoleId,
-                    status: 'enable'
+                    role_id: activeRoleId || '',
+                    variable_func: newVariableFunc
                 })
             });
 
-            if (!response || (response.status !== 'success' && response.status !== true)) {
-                throw new Error(response ? (response.message || 'ไม่สามารถกำหนดสิทธิ์ได้') : 'เกิดข้อผิดพลาด');
+            if (varResponse && varResponse.status === 'error') {
+                console.warn("Update variable_func returned error:", varResponse.message || varResponse.detail);
             }
         }
 
@@ -950,7 +1160,7 @@ async function saveUserRole() {
         Swal.fire({
             icon: 'success',
             title: 'บันทึกสำเร็จ!',
-            text: 'อัปเดตบทบาทสิทธิ์ผู้ใช้งานเรียบร้อยแล้ว',
+            text: 'อัปเดตบทบาทสิทธิ์และสาขาที่รับผิดชอบเรียบร้อยแล้ว',
             timer: 1500,
             showConfirmButton: false
         });
@@ -993,14 +1203,12 @@ async function saveRolePagesPermission() {
     const items = [];
 
     pageCheckboxes.each(function () {
-        // ข้ามหน้าจอที่เป็น disabled เช่น public pages
         if ($(this).is(':disabled')) return;
 
         const pageId = $(this).data('page-id');
-        const isActive = $(this).is(':checked'); // true = เปิด, false = ปิด
+        const isActive = $(this).is(':checked'); 
         const initialChecked = String($(this).attr('data-initial-checked')) === 'true';
 
-        // ส่งเฉพาะรายการที่มีการเปลี่ยนแปลงค่าจากเดิม
         if (isActive !== initialChecked) {
             if (pageId !== undefined && pageId !== null && pageId !== '') {
                 items.push({
@@ -1185,3 +1393,275 @@ function toggleGlobalLoading(visible, title = 'กำลังบันทึก
         }
     }
 }
+
+async function loadFuncsData() {
+    try {
+        const response = await $.ajax({
+            url: '/ManageUser/GetFunc',
+            type: 'GET',
+            dataType: 'json'
+        });
+        allFuncsData = parseApiResponse(response) || [];
+    } catch (error) {
+        console.error("Failed to load functions data:", error);
+        allFuncsData = [];
+    }
+}
+
+function getFuncIcon(funcId, funcName) {
+    const name = (funcName || '').toLowerCase();
+    const id = (funcId || '').toLowerCase();
+    if (name.includes('view') || name.includes('ดู')) return 'bi-eye-fill text-info';
+    if (name.includes('edit') || name.includes('แก้ไข')) return 'bi-pencil-square text-warning';
+    if (name.includes('close') || name.includes('ปิด')) return 'bi-x-circle-fill text-danger';
+    if (name.includes('campaign') || name.includes('แคมเปญ')) return 'bi-megaphone-fill text-primary';
+    if (name.includes('create') || name.includes('สร้าง') || name.includes('เพิ่ม')) return 'bi-plus-circle-fill text-success';
+    if (name.includes('delete') || name.includes('ลบ')) return 'bi-trash-fill text-danger';
+    if (name.includes('approve') || name.includes('อนุมัติ')) return 'bi-shield-check text-success';
+    if (name.includes('export') || name.includes('ดาวน์โหลด')) return 'bi-download text-primary';
+    return 'bi-gear-fill text-primary';
+}
+
+async function openManageRoleFuncModal(roleId, roleName) {
+    if (!roleId) return;
+    const name = roleName || getRoleNameById(roleId) || roleId;
+    $('#modalFuncRoleName').text(name);
+    $('#modalFuncRoleId').text(roleId);
+    $('#manageRoleFuncModal').data('role_id', roleId);
+    $('#manageRoleFuncModal').data('role_name', name);
+    $('#funcSearchInput').val('');
+
+    if (!allFuncsData || allFuncsData.length === 0) {
+        $('#modalFuncListContainer').html(`
+            <div class="col-12 text-center text-muted py-4">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                กำลังโหลดข้อมูลฟังก์ชัน...
+            </div>
+        `);
+        await loadFuncsData();
+    }
+
+    renderModalFuncList(roleId);
+
+    const modal = new bootstrap.Modal(document.getElementById('manageRoleFuncModal'));
+    modal.show();
+}
+
+function openSelectedRoleFuncModal() {
+    if (!selectedRoleId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'กรุณาเลือกบทบาท',
+            text: 'กรุณาเลือกบทบาทจากรายการด้านซ้ายก่อนจัดการฟังก์ชัน'
+        });
+        return;
+    }
+    openManageRoleFuncModal(selectedRoleId, selectedRoleName);
+}
+
+function filterFuncList() {
+    const roleId = ($('#manageRoleFuncModal').data('role_id') || '').toString();
+    const searchVal = $('#funcSearchInput').val();
+    renderModalFuncList(roleId, searchVal);
+}
+
+function renderModalFuncList(roleId, filterText = '') {
+    const container = $('#modalFuncListContainer');
+    container.empty();
+
+    if (!allFuncsData || allFuncsData.length === 0) {
+        container.html(`
+            <div class="col-12 text-center text-muted py-4">
+                <i class="bi bi-info-circle fs-3 d-block mb-2 text-secondary"></i>
+                ไม่พบรายการฟังก์ชันในระบบ
+            </div>
+        `);
+        $('#funcCountSummary').text('พบ 0 รายการ');
+        return;
+    }
+
+    const currentRole = (allRolesData || []).find(r => (r.role_id || '').toString() === (roleId || '').toString());
+    let activeFuncIds = new Set();
+    if (currentRole) {
+        const rawFuncs = currentRole.Func || currentRole.func || currentRole.RoleFunc || currentRole.role_func || currentRole.functions || currentRole.Functions || currentRole.func_id || [];
+        if (Array.isArray(rawFuncs)) {
+            rawFuncs.forEach(f => {
+                if (typeof f === 'object' && f !== null) {
+                    const fId = (f.func_id || f.funcId || f.id || f.RID || '').toString();
+                    const status = (f.status || f.func_status || '').toString().toLowerCase().trim();
+                    if (status === '' || status === 'enable') {
+                        if (fId) activeFuncIds.add(fId);
+                    }
+                } else if (f !== undefined && f !== null) {
+                    activeFuncIds.add(f.toString());
+                }
+            });
+        }
+    }
+
+    const search = (filterText || '').toLowerCase().trim();
+    const filteredFuncs = allFuncsData.filter(func => {
+        if (!search) return true;
+        const id = (func.func_id || func.RID || '').toString().toLowerCase();
+        const name = (func.func_name || '').toString().toLowerCase();
+        const desc = (func.description || '').toString().toLowerCase();
+        return id.includes(search) || name.includes(search) || desc.includes(search);
+    });
+
+    if (filteredFuncs.length === 0) {
+        container.html(`
+            <div class="col-12 text-center text-muted py-4">
+                <i class="bi bi-search fs-3 d-block mb-2 text-secondary"></i>
+                ไม่พบฟังก์ชันที่ตรงกับ "${escapeHtml(filterText)}"
+            </div>
+        `);
+        $('#funcCountSummary').text(`แสดง 0 จาก ${allFuncsData.length} รายการ`);
+        return;
+    }
+
+    $('#funcCountSummary').text(`แสดง ${filteredFuncs.length} จาก ${allFuncsData.length} รายการ`);
+
+    filteredFuncs.forEach(func => {
+        const funcId = (func.func_id || func.RID || '').toString();
+        const funcName = func.func_name || func.description || '-';
+        const funcDesc = func.description || '';
+        const isAssigned = activeFuncIds.has(funcId);
+        const iconClass = getFuncIcon(funcId, funcName);
+
+        const card = `
+            <div class="col-12 col-md-6 func-item-col" data-func-id="${escapeHtml(funcId)}" data-func-name="${escapeHtml(funcName)}">
+                <div class="func-perm-card p-3 d-flex align-items-center justify-content-between h-100 shadow-sm">
+                    <div class="d-flex align-items-center gap-3" style="min-width: 0;">
+                        <div class="func-icon-box bg-light border shadow-sm">
+                            <i class="bi ${escapeHtml(iconClass)}"></i>
+                        </div>
+                        <div style="min-width: 0;">
+                            <div class="fw-bold text-dark text-truncate d-flex align-items-center gap-2">
+                                <span>${escapeHtml(funcName)}</span>
+                                <span class="badge bg-secondary-subtle text-secondary border small px-2 py-0" style="font-size: 0.72rem;">${escapeHtml(funcId)}</span>
+                            </div>
+                            <span class="text-muted small text-truncate d-block" style="font-size: 0.8rem;">${escapeHtml(funcDesc || 'รหัสฟังก์ชัน: ' + funcId)}</span>
+                        </div>
+                    </div>
+                    <div class="form-check form-switch fs-5 mb-0 ms-2 flex-shrink-0">
+                        <input class="form-check-input func-checkbox" type="checkbox" role="switch"
+                               id="func_chk_${escapeHtml(funcId)}"
+                               data-func-id="${escapeHtml(funcId)}"
+                               data-func-name="${escapeHtml(funcName)}"
+                               data-initial-checked="${isAssigned ? 'true' : 'false'}"
+                               ${isAssigned ? 'checked' : ''}
+                               style="cursor: pointer; width: 2.25em; height: 1.25em;" />
+                    </div>
+                </div>
+            </div>
+        `;
+        container.append(card);
+    });
+}
+
+async function saveRoleFuncPermissions() {
+    const roleId = ($('#manageRoleFuncModal').data('role_id') || '').toString();
+    const roleName = $('#manageRoleFuncModal').data('role_name') || getRoleNameById(roleId) || roleId;
+
+    if (!roleId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'ไม่พบรหัสบทบาท',
+            text: 'กรุณาเลือกบทบาทที่ต้องการบันทึกสิทธิ์'
+        });
+        return;
+    }
+
+    const funcCheckboxes = $('.func-checkbox');
+    if (funcCheckboxes.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'ไม่พบฟังก์ชัน',
+            text: 'ไม่มีรายการฟังก์ชันให้กำหนดสิทธิ์'
+        });
+        return;
+    }
+
+    const items = [];
+    funcCheckboxes.each(function () {
+        if ($(this).is(':disabled')) return;
+        const funcId = $(this).data('func-id');
+        const isChecked = $(this).is(':checked');
+        const initialChecked = String($(this).attr('data-initial-checked')) === 'true';
+
+        if (isChecked !== initialChecked) {
+            if (funcId) {
+                items.push({
+                    role_id: roleId,
+                    func_id: funcId.toString(),
+                    status: isChecked ? 'enable' : 'unable'
+                });
+            }
+        }
+    });
+
+    if (items.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'ไม่มีการเปลี่ยนแปลง',
+            text: 'สิทธิ์ฟังก์ชันของบทบาทนี้ไม่มีการเปลี่ยนแปลง',
+            timer: 1500,
+            showConfirmButton: false
+        });
+        return;
+    }
+
+    toggleGlobalLoading(true, 'กำลังบันทึกสิทธิ์ฟังก์ชัน...', `ระบบกำลังบันทึกสิทธิ์ฟังก์ชัน ${items.length} รายการ กรุณารอสักครู่`);
+    try {
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const payload of items) {
+            try {
+                const response = await $.ajax({
+                    url: '/ManageUser/UpsertRoleFunc',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload)
+                });
+                if (response && (response.status === 'success' || response.status === true)) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                    console.warn(`Failed to update func ${payload.func_id}:`, response ? response.message : 'Unknown');
+                }
+            } catch (err) {
+                errorCount++;
+                console.error(`Error updating func ${payload.func_id}:`, err);
+            }
+        }
+
+        const modalEl = document.getElementById('manageRoleFuncModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+        if (errorCount === 0) {
+            Swal.fire({
+                icon: 'success',
+                title: 'บันทึกสิทธิ์ฟังก์ชันสำเร็จ!',
+                text: `บันทึกสิทธิ์ฟังก์ชันสำหรับบทบาท "${roleName}" เรียบร้อยแล้ว (${successCount} รายการ)`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'บันทึกสิทธิ์เสร็จสิ้นบางส่วน',
+                text: `สำเร็จ ${successCount} รายการ, เกิดข้อผิดพลาด ${errorCount} รายการ`
+            });
+        }
+
+        await loadRolesData();
+    } catch (error) {
+        console.error("Save role functions error:", error);
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์ฟังก์ชัน' });
+    } finally {
+        toggleGlobalLoading(false);
+    }
+}
+

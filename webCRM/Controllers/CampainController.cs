@@ -435,8 +435,12 @@ namespace webCRM.Controllers
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 request.created_by = HttpContext.Session.GetString("personalId") ?? "";
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
                 var content = new StringContent(
-                    JsonSerializer.Serialize(request),
+                    JsonSerializer.Serialize(request, jsonOptions),
                     Encoding.UTF8,
                     "application/json");
 
@@ -531,16 +535,20 @@ namespace webCRM.Controllers
                 }
 
                 string originalFileName = Path.GetFileName(file.FileName);
-                string nameWithoutExt = Path.GetFileNameWithoutExtension(originalFileName);
                 string extension = Path.GetExtension(originalFileName);
 
-                string fileName = originalFileName;
+                var now = DateTime.Now;
+                int thaiYear = now.Year > 2400 ? now.Year : now.Year + 543;
+                string timeStamp = $"{now.Day:D2}{now.Month:D2}{thaiYear}{now:HHmmss}";
+                string cleanCampaignCode = campaignCode.Replace("-", "").Trim();
+
+                string fileName = $"{cleanCampaignCode}{timeStamp}{extension}";
                 string filePath = Path.Combine(folderPath, fileName);
                 int index = 1;
 
                 while (System.IO.File.Exists(filePath))
                 {
-                    fileName = $"{nameWithoutExt}({index}){extension}";
+                    fileName = $"{cleanCampaignCode}{timeStamp}_{index}{extension}";
                     filePath = Path.Combine(folderPath, fileName);
                     index++;
                 }
@@ -554,7 +562,7 @@ namespace webCRM.Controllers
 
                 var postFileRequest = new PostFile
                 {
-                    name = fileName,
+                    name = originalFileName,
                     path = relativePath
                 };
 
@@ -567,7 +575,7 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public IActionResult DownloadFile(string filePath)
+        public IActionResult DownloadFile(string filePath, string? fileName = null)
         {
             try
             {
@@ -605,7 +613,7 @@ namespace webCRM.Controllers
                     }
                 }
 
-                string fileName = Path.GetFileName(fullPath);
+                string downloadFileName = !string.IsNullOrWhiteSpace(fileName) ? fileName : Path.GetFileName(fullPath);
                 string contentType = "application/octet-stream";
                 string ext = Path.GetExtension(fullPath).ToLowerInvariant();
                 switch (ext)
@@ -621,7 +629,7 @@ namespace webCRM.Controllers
                 }
 
                 byte[] fileBytes = System.IO.File.ReadAllBytes(fullPath);
-                return File(fileBytes, contentType, fileName);
+                return File(fileBytes, contentType, downloadFileName);
             }
             catch (System.Exception ex)
             {

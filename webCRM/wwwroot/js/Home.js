@@ -586,6 +586,42 @@ async function setFilterContractStatus(data) {
     }
 }
 
+function isBranchInVariableFunc(branchItem, variableFunc) {
+    if (!variableFunc || typeof variableFunc !== 'string') return true;
+    const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
+    if (allowed.length === 0) return true;
+
+    const code = String(branchItem.offcde || branchItem.branch_no || branchItem.branch_code || branchItem.BranchNo || branchItem.code || '').trim();
+    const name = String(branchItem.branch_name || branchItem.branch || branchItem.name || branchItem.Branch || '').trim();
+
+    return allowed.some(target => {
+        const targetClean = target.replace(/^0+/, '');
+        const targetPad = target.padStart(2, '0');
+
+        if (code) {
+            const codeClean = code.replace(/^0+/, '');
+            const codePad = code.padStart(2, '0');
+            if (code === target || codePad === targetPad || (codeClean && targetClean && codeClean === targetClean)) {
+                return true;
+            }
+        }
+
+        if (name) {
+            if (name.startsWith(target + '-') || name.startsWith(target + ' -') || name.startsWith(target + ' ') ||
+                name.startsWith(targetPad + '-') || name.startsWith(targetPad + ' -') || name.startsWith(targetPad + ' ') ||
+                name === target || name === targetPad) {
+                return true;
+            }
+            const match = name.match(/^0*(\d+)/);
+            if (match && targetClean && match[1] === targetClean) {
+                return true;
+            }
+        }
+
+        return false;
+    });
+}
+
 async function setFilterBranch(data) {
     const selectEl = document.getElementById('dashboardBranch');
     if (!selectEl) return;
@@ -597,13 +633,17 @@ async function setFilterBranch(data) {
         return;
     }
 
-    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+
+    let optionsHtml = '';
     if (Array.isArray(data)) {
         data.forEach(item => {
             if (item) {
                 const code = String(item.offcde || '').trim();
                 const name = String(item.branch_name || '').trim();
-                if (code === '99' || name === '99-ทุกสาขา' || name === 'ทุกสาขา' || name.startsWith('99-')) return;
+                if (variableFunc && !isBranchInVariableFunc(item, variableFunc)) {
+                    return;
+                }
                 optionsHtml += `<option value="${name}">${name}</option>`;
             }
         });
@@ -611,6 +651,8 @@ async function setFilterBranch(data) {
     selectEl.innerHTML = optionsHtml;
     if (currentValue) {
         selectEl.value = currentValue;
+    } else if (variableFunc && selectEl.options.length > 1) {
+        selectEl.value = selectEl.options[1].value;
     }
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         $(selectEl).select2({
@@ -622,8 +664,8 @@ async function setFilterBranch(data) {
                 }
             }
         });
-        if (currentValue) {
-            $(selectEl).val(currentValue).trigger('change');
+        if (selectEl.value) {
+            $(selectEl).val(selectEl.value).trigger('change');
         }
     }
 }
@@ -652,6 +694,9 @@ $(document).ready(async function () {
 
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
+        const branchResponse = await fetch('/Home/getBranchListForCRM');
+        const branchData = await branchResponse.json();
+        await setFilterBranch(branchData);
         await getDashboardCustomerInfo();
     } catch (error) {
         console.error("Error in document ready:", error);
@@ -671,10 +716,20 @@ $(document).ready(async function () {
     });
 
     $('#dashboardClear').on('click', async function () {
+        const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+        const branchEl = document.getElementById('dashboardBranch');
+        let defaultBranchVal = '';
+        if (variableFunc && branchEl && branchEl.options.length > 1) {
+            defaultBranchVal = branchEl.options[1].value;
+        }
+
         if (typeof $.fn !== 'undefined' && $.fn.select2) {
-            $('.select2-filter').val('').trigger('change');
+            $('.select2-filter').not('#dashboardBranch').val('').trigger('change');
+            if (branchEl) {
+                $(branchEl).val(defaultBranchVal).trigger('change');
+            }
         } else {
-            $('#dashboardBranch').val('');
+            if (branchEl) branchEl.value = defaultBranchVal;
             $('#dashboardCustomerType').val('');
             $('#dashboardGender').val('');
             $('#dashboardContactStatus').val('');

@@ -18,6 +18,8 @@ RUN echo "Lint stage placeholder" || true
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 COPY --from=build /app/publish .
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "webCRM.dll"]

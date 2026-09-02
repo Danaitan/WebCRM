@@ -418,6 +418,157 @@ namespace webCRM.Controllers
             }
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetFunc()
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getFunc");
+                    response.EnsureSuccessStatusCode();
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
+                    }
+                    return Content(data, "application/json");
+                }
+
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpsertRoleFunc([FromBody] UpsertRoleFuncRequest request)
+        {
+
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                request.user = HttpContext.Session.GetString("personalId") ?? "";
+
+                if (string.IsNullOrWhiteSpace(request.role_id))
+                {
+                    return Ok(new { status = "error", message = "Role id is required." });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.func_id))
+                {
+                    return Ok(new { status = "error", message = "Function id is required." });
+                }
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(request),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.PostAsync(
+                    $"{domain}/crm/api/v1/p3/UpsertRoleFunc",
+                    content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                }
+
+                return Ok(new { status = "success" });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateVariableFunc([FromBody] UpdateVariableFuncRequest request)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    request.user = HttpContext.Session.GetString("personalId") ?? "";
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateVariableFunc",
+                        new StringContent(
+                            JsonSerializer.Serialize(request),
+                            Encoding.UTF8,
+                            "application/json"));
+
+                    string json = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return Ok(new
+                        {
+                            status = "error",
+                            message = $"API responded with status code: {response.StatusCode}",
+                            detail = json
+                        });
+                    }
+                    return Ok(new { status = "success", data = json });
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return Ok(new { status = "error", message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<List<Branch>> getBranchListForCRM()
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using (var client = new HttpClient(handler))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getBranchListForCRM");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string data = await response.Content.ReadAsStringAsync();
+                        var apiResponse = JsonSerializer.Deserialize<List<Branch>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        return apiResponse ?? new List<Branch>();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"API Error: {response.StatusCode}");
+                        return new List<Branch>();
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return new List<Branch>();
+            }
+        }
+
     }
 }
 

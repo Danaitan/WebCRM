@@ -828,8 +828,18 @@ async function setFilterBranch(branchData) {
 
     let data = branchData;
     if (!data) {
-        const branchResponse = await fetch('/Home/getBranchListForCRM');
-        data = await branchResponse.json();
+        try {
+            const branchResponse = await fetch('/Campain/getBranchListForCRM');
+            if (branchResponse.ok) {
+                data = await branchResponse.json();
+            } else {
+                console.error("Failed to load branch list:", branchResponse.status);
+                data = [];
+            }
+        } catch (err) {
+            console.error("Error fetching branch list:", err);
+            data = [];
+        }
     }
 
     const currentValue = selectEl.value || '';

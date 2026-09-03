@@ -100,7 +100,7 @@ async function setFilterBranch(branchData) {
                 items = [...group, ...personalAbb];
             }
             if (items.length === 0) {
-                const bRes = await safeFetchJson('/Home/getBranchListForCRM');
+                const bRes = await safeFetchJson('/Campain/getBranchListForCRM');
                 if (Array.isArray(bRes)) {
                     items = bRes;
                 }

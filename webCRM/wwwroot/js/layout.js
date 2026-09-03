@@ -1,8 +1,23 @@
 let socket;
+let currentReadNotiCount = 0;
 
 async function deleteNoti(id) {
-
+    if (!id || id === 'null' || id === 'undefined') {
         if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'ไม่มีรายการที่ลบได้',
+                confirmButtonColor: '#0d6efd',
+                confirmButtonText: 'ตกลง',
+                customClass: {
+                    popup: 'rounded-4 shadow-lg'
+                }
+            });
+        }
+        return;
+    }
+
+    if (typeof Swal !== 'undefined') {
         const result = await Swal.fire({
             title: 'ยืนยันการลบ',
             text: 'คุณต้องการลบการแจ้งเตือนนี้ใช่หรือไม่?',
@@ -20,17 +35,28 @@ async function deleteNoti(id) {
     }
 
     try {
-    const response = await fetch(`/Layout/DeleteNotification`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            id: id,
-        })
-    });
-    if (!response.ok) return {};
-    const data = await response.json();
+        const response = await fetch(`/Layout/DeleteNotification`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: id,
+            })
+        });
+        if (!response.ok) return {};
+        const data = await response.json();
+
+        // Hide detail modal popup if open
+        const detailModalEl = document.getElementById('notificationDetailModal');
+        if (detailModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const bsModal = bootstrap.Modal.getInstance(detailModalEl);
+            if (bsModal) bsModal.hide();
+        }
+
+        // Reset right pane detail in allNotificationsModal to placeholder
+        renderNotiDetailPlaceholder();
+
         fetchNotifications();
         if (typeof Swal !== 'undefined') {
             Swal.fire({
@@ -45,12 +71,28 @@ async function deleteNoti(id) {
         }
         return data || {};
     } catch (err) {
-        console.error("Error deleting read notifications:", err);
+        console.error("Error deleting notification:", err);
     }
-
 }
 
 async function deleteReadNotifications() {
+    if (currentReadNotiCount <= 0) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'ไม่มีรายการที่ลบได้',
+                confirmButtonColor: '#0d6efd',
+                confirmButtonText: 'ตกลง',
+                customClass: {
+                    popup: 'rounded-4 shadow-lg'
+                }
+            });
+        } else {
+            alert('ไม่มีรายการที่ลบได้');
+        }
+        return;
+    }
+
     if (typeof Swal !== 'undefined') {
         const result = await Swal.fire({
             title: 'ยืนยันการลบ',
@@ -87,6 +129,9 @@ async function deleteReadNotifications() {
             const bsModal = bootstrap.Modal.getInstance(detailModalEl);
             if (bsModal) bsModal.hide();
         }
+
+        // Reset right pane detail in allNotificationsModal to placeholder
+        renderNotiDetailPlaceholder();
 
         fetchNotifications();
         if (typeof Swal !== 'undefined') {
@@ -200,15 +245,27 @@ function formatNotiDate(dateStr) {
     try {
         const d = new Date(dateStr);
         if (!isNaN(d.getTime())) {
-            const isUtc = typeof dateStr === 'string' && dateStr.toUpperCase().includes('Z');
-            const year = isUtc ? d.getUTCFullYear() : d.getFullYear();
-            const month = String((isUtc ? d.getUTCMonth() : d.getMonth()) + 1).padStart(2, '0');
-            const day = String(isUtc ? d.getUTCDate() : d.getDate()).padStart(2, '0');
-            const hours = String(isUtc ? d.getUTCHours() : d.getHours()).padStart(2, '0');
-            const mins = String(isUtc ? d.getUTCMinutes() : d.getMinutes()).padStart(2, '0');
-            return `${day}/${month}/${year} ${hours}:${mins}`;
+            const formatter = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Asia/Bangkok',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            const parts = formatter.formatToParts(d);
+            const getPart = (type) => (parts.find(p => p.type === type)?.value || '');
+            const day = getPart('day');
+            const month = getPart('month');
+            const year = getPart('year');
+            const hour = getPart('hour');
+            const minute = getPart('minute');
+            return `${day}/${month}/${year} ${hour}:${minute}`;
         }
-    } catch (e) { }
+    } catch (e) {
+        console.error("Error formatting noti date:", e);
+    }
     return String(dateStr).replace('T', ' ').replace('.000Z', '').slice(0, 16);
 }
 
@@ -219,7 +276,7 @@ function getItemInfo(t, groupIsRead, groupObj) {
     let itemStartDate = grp.start_date || '';
     let itemSender = grp.sender || '';
     let itemId = grp.Id;
-    let itemIsRead = (groupIsRead === true || groupIsRead === 'true');
+    let itemIsRead = (groupIsRead === true || groupIsRead === 'true' || groupIsRead === 1);
     let itemObj = null;
 
     if (t && typeof t === 'object' && t !== null) {
@@ -233,7 +290,11 @@ function getItemInfo(t, groupIsRead, groupObj) {
         else if (t.Guid !== undefined && t.Guid !== null) itemId = t.Guid;
         else if (t.ref_id !== undefined && t.ref_id !== null) itemId = t.ref_id;
         
-        if (t.is_read !== undefined) itemIsRead = (t.is_read === true);
+        if (t.is_read !== undefined) {
+            itemIsRead = !(t.is_read === false || t.is_read === 0 || t.is_read === 'false');
+        } else if (t.isRead !== undefined) {
+            itemIsRead = !(t.isRead === false || t.isRead === 0 || t.isRead === 'false');
+        }
 
         itemObj = Object.assign({}, grp, t, {
             id: itemId,
@@ -247,6 +308,7 @@ function getItemInfo(t, groupIsRead, groupObj) {
             end_date: itemEndDate,
             create_date: t.create_date || '',
             guid: itemId,
+            is_read: itemIsRead
         });
     } else {
         titleText = String(t || '');
@@ -262,6 +324,7 @@ function getItemInfo(t, groupIsRead, groupObj) {
             end_date: itemEndDate,
             create_date: grp.create_date || grp.createDate || '',
             guid: itemId,
+            is_read: itemIsRead
         };
     }
 
@@ -816,6 +879,7 @@ function renderNotifications(data) {
     });
 
     let totalCount = 0;
+    let readCount = 0;
     let groups = [];
 
     if (typeof data === 'string') {
@@ -927,6 +991,9 @@ function renderNotifications(data) {
             let dropdownTitlesHtml = '';
             titles.forEach((t, tIdx) => {
                 const info = getItemInfo(t, group.is_read || group.isRead, group);
+                if (info.isRead) {
+                    readCount++;
+                }
                 let itemNotiId = info.id;
                 if (!itemNotiId && itemNotiId !== 0) {
                     itemNotiId = `noti_${index}_${tIdx}`;
@@ -1061,6 +1128,7 @@ function renderNotifications(data) {
         notiListContainer.append(emptyHtml);
         allNotiModalBody.append(emptyHtml);
     }
+    currentReadNotiCount = readCount;
 }
 
 function showNotification(notification) {

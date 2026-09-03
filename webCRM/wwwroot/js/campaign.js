@@ -1,4 +1,5 @@
 
+let campaigns = [];
 let masterFiltersData = [];
 let selectedFilterCodes = [];
 let selectedCampaignCode = "";
@@ -10,6 +11,25 @@ const pageSize = 5;
 let page = 1;
 let rawMasterFilters = [];
 let campaignTable;
+
+const STATUS_CAN_EDIT = [
+    "waiting prospect",
+    "waiting_prospect",
+    "waiting prospect (prospect setup)",
+    "reject",
+    "rejected",
+    "draft",
+    ""
+];
+
+function isCurrentCampaignEditable(campaignObj) {
+    if (!selectedCampaignCode) return false;
+    const campaign = campaignObj || (Array.isArray(campaigns) ? campaigns.find(c => c.code === selectedCampaignCode) : null);
+    if (!campaign) return false;
+    const rawStatus = (campaign.status || campaign.product_status || "").toLowerCase().trim();
+    const normalizedStatus = rawStatus.replace(/_/g, ' ');
+    return STATUS_CAN_EDIT.some(s => s === rawStatus || s === normalizedStatus);
+}
 
 async function getCampaignDataForETL(productCode) {
     const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${productCode}`);
@@ -57,6 +77,18 @@ function getObjectiveBadge(obj) {
         'FL': { text: 'FL', class: 'bg-orange-subtle text-orange border-orange-subtle', iconBg: 'orange' }
     };
     return map[obj] || { text: obj || 'CS', class: 'bg-success-subtle text-success border-success-subtle', iconBg: 'green' };
+}
+
+function getCampaignStatusBadgeClass(status) {
+    if (!status) return 'badge-status-normal';
+    const s = String(status).trim().toLowerCase();
+    if (s === 'cancel' || s === 'cancelled' || s === 'ยกเลิก' || s === 'reject' || s === 'rejected' || s === 'ไม่อนุมัติ') {
+        return 'badge-status-cancel';
+    }
+    if (s === 'inactive' || s === 'close' || s === 'closed' || s === 'ปิด') {
+        return 'badge-status-inactive';
+    }
+    return 'badge-status-normal';
 }
 
 async function renderMasterObjectives() {
@@ -130,20 +162,19 @@ async function GetFilterByGuid(productGuid) {
 }
 
 function updateFilterSelectionUI() {
-    const campaign = selectedCampaignCode ? campaigns.find(c => c.code === selectedCampaignCode) : null;
-    const rawStatus = campaign ? (campaign.status || campaign.product_status || "").toLowerCase().trim() : "";
-    const normalizedStatus = rawStatus.replace(/_/g, ' ');
-    const statusCanEdit = [
-        "waiting prospect",
-        "reject",
-        "rejected",
-        "draft",
-        ""
-    ];
-    const canEdit = !selectedCampaignCode || statusCanEdit.includes(rawStatus) || statusCanEdit.includes(normalizedStatus);
-    const isDisabled = !selectedCampaignCode || !canEdit;
+    const canEdit = isCurrentCampaignEditable();
+    const isDisabled = !canEdit;
 
     $(".filter-chk, #chkSelectAllFilters").prop("disabled", isDisabled);
+    if (isDisabled) {
+        $("#chkSelectAllFilters").css("cursor", "not-allowed");
+        $("#filterNameListContainer .filter-name-row").css("cursor", "not-allowed");
+        $("#filterNameListContainer .filter-chk").css("cursor", "not-allowed");
+    } else {
+        $("#chkSelectAllFilters").css("cursor", "pointer");
+        $("#filterNameListContainer .filter-name-row").css("cursor", "pointer");
+        $("#filterNameListContainer .filter-chk").css("cursor", "pointer");
+    }
 
     $(".filter-chk").each(function () {
         const code = $(this).attr("data-fcode") || $(this).val();
@@ -295,15 +326,18 @@ async function renderMasterFilters() {
 
         selectedFilterCodes = Array.from(new Set(selectedFilterCodes || []));
 
+        const canEdit = isCurrentCampaignEditable();
+        const isDisabledAttr = !canEdit ? "disabled" : "";
+        const cursorStyle = !canEdit ? "cursor: not-allowed;" : "cursor: pointer;";
+
         masterFiltersData.forEach(item => {
             const filterName = item.fname || item.fcode || "-";
             const description = item.fremark || item.fremark2 || item.ftype || "-";
             const isChecked = selectedFilterCodes.includes(item.fcode) ? "checked" : "";
-            const isDisabled = !selectedCampaignCode ? "disabled" : "";
             const rowHtml = `
-                <div class="filter-name-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; cursor: pointer;" data-id="${item.id}" data-fcode="${item.fcode}">
+                <div class="filter-name-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; ${cursorStyle}" data-id="${item.id}" data-fcode="${item.fcode}">
                     <div style="width: 8%; text-align: center;">
-                        <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" ${isChecked} ${isDisabled} style="cursor: pointer;">
+                        <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" ${isChecked} ${isDisabledAttr} style="${cursorStyle}">
                     </div>
                     <div style="width: 50%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
                 </div>
@@ -313,7 +347,10 @@ async function renderMasterFilters() {
 
         // Attach checkbox change event
         $(".filter-chk").off("change").on("change", function (e) {
-            if (!selectedCampaignCode) return;
+            if (!isCurrentCampaignEditable()) {
+                e.preventDefault();
+                return;
+            }
             e.stopPropagation();
             const code = $(this).attr("data-fcode") || $(this).val();
             if ($(this).is(":checked")) {
@@ -330,7 +367,7 @@ async function renderMasterFilters() {
 
         // Click row toggles checkbox
         $(".filter-name-row").off("click").on("click", function (e) {
-            if (!selectedCampaignCode) return;
+            if (!isCurrentCampaignEditable()) return;
             if ($(e.target).is("input[type='checkbox']")) return;
             const $chk = $(this).find(".filter-chk");
             $chk.prop("checked", !$chk.is(":checked")).trigger("change");
@@ -338,7 +375,9 @@ async function renderMasterFilters() {
 
         // Select All Filters Checkbox handler
         $("#chkSelectAllFilters").off("change").on("change", function () {
-            if (!selectedCampaignCode) return;
+            if (!isCurrentCampaignEditable()) {
+                return;
+            }
             const isChecked = $(this).is(":checked");
             if (isChecked) {
                 selectedFilterCodes = Array.from(new Set(masterFiltersData.map(f => f.fcode)));
@@ -360,8 +399,14 @@ async function renderMasterFilters() {
 function updateSelectAllFiltersState() {
     const total = masterFiltersData.length;
     const checkedCount = Array.from(new Set(selectedFilterCodes || [])).length;
-    const isDisabled = !selectedCampaignCode;
+    const canEdit = isCurrentCampaignEditable();
+    const isDisabled = !canEdit;
     $("#chkSelectAllFilters").prop("checked", total > 0 && checkedCount === total).prop("disabled", isDisabled);
+    if (isDisabled) {
+        $("#chkSelectAllFilters").css("cursor", "not-allowed");
+    } else {
+        $("#chkSelectAllFilters").css("cursor", "pointer");
+    }
 }
 
 function updateSelectedFiltersDisplay() {
@@ -901,6 +946,7 @@ $(document).ready(async function () {
                         if (!row || !row.code) return '';
                         const isActive = row.code === selectedCampaignCode;
                         const objBadge = getObjectiveBadge(row.objective);
+                        const statusBadgeClass = getCampaignStatusBadgeClass(row.status);
                         return `
                             <div class="campaign-card ${isActive ? 'active' : ''} d-flex align-items-center gap-2" data-code="${row.code}">
                                 <div class="pa-card-icon ${objBadge.iconBg} flex-shrink-0 fw-bold me-2">${objBadge.text}</div>
@@ -909,7 +955,7 @@ $(document).ready(async function () {
                                     <div class="card-name text-truncate" title="${row.name}">${row.name}</div>
                                     <div class="card-status-row">
                                         <span>สถานะ:</span>
-                                        <span class="badge-status-normal">${row.status}</span>
+                                        <span class="${statusBadgeClass}">${row.status || ''}</span>
                                     </div>
                                 </div>
                             </div>
@@ -948,20 +994,7 @@ $(document).ready(async function () {
             setProductFormState(true);
             
             //#region setReadonly
-            const statusCanEdit = [
-                "waiting prospect",
-                "waiting_prospect",
-                "waiting prospect (prospect setup)",
-                "reject",
-                "rejected",
-                "draft",
-                ""
-            ];
-
-            // ตรวจสอบว่าอยู่ในสถานะที่สามารถแก้ไขได้หรือไม่
-            const rawStatus = (campaign.status || campaign.product_status || "").toLowerCase().trim();
-            const normalizedStatus = rawStatus.replace(/_/g, ' ');
-            const canEdit = statusCanEdit.some(s => s === rawStatus || s === normalizedStatus);
+            const canEdit = isCurrentCampaignEditable(campaign);
             const isDisabled = !canEdit;
             
             $('#submitFormBtn').prop('disabled', isDisabled);

@@ -81,7 +81,7 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCustommerDashboard(string branch, string cusType, string gender, string contactStatus)
+        public async Task<IActionResult> GetCustommerDashboard(string company, string branch, string cusType, string gender, string contactStatus)
         {
             try
             {
@@ -94,6 +94,8 @@ namespace webCRM.Controllers
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                     var queryParams = new Dictionary<string, string?>();
+                    if (!string.IsNullOrEmpty(company))
+                        queryParams["company"] = company;
                     if (!string.IsNullOrEmpty(branch))
                         queryParams["branch"] = branch;
                     if (!string.IsNullOrEmpty(cusType))
@@ -124,8 +126,9 @@ namespace webCRM.Controllers
             }
         }
 
+
         [HttpGet]
-        public async Task<List<Branch>> getBranchListForCRM()
+        public async Task<IActionResult> GetCustommerDashboardDropdown(string company)
         {
             try
             {
@@ -136,23 +139,29 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getBranchListForCRM");
 
-                    if (response.IsSuccessStatusCode)
+                    var queryParams = new Dictionary<string, string?>();
+                    if (!string.IsNullOrEmpty(company))
+                        queryParams["company"] = company;
+
+                    var url = QueryHelpers.AddQueryString(
+                        $"{domain}/crm/api/v1/p3/customerDashboardDropdown", queryParams);
+
+                    var response = await client.GetAsync(url);
+
+                    string data = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
                     {
-                        string data = await response.Content.ReadAsStringAsync();
-                        var apiResponse = JsonSerializer.Deserialize<List<Branch>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        return apiResponse ?? new List<Branch>();
+                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\"}}" : data, "application/json");
                     }
-                    else
-                    {
-                        return new List<Branch>();
-                    }
+                    return Content(data, "application/json");
                 }
             }
-            catch (System.Exception)
+            catch (System.Exception ex)
             {
-                return new List<Branch>();
+                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                string errJson = JsonSerializer.Serialize(new { status = false, message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message });
+                return Content(errJson, "application/json");
             }
         }
 

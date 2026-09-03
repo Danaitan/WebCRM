@@ -35,12 +35,13 @@ async function safeFetchJson(url, options) {
 }
 
 function isBranchInVariableFunc(branchItem, variableFunc) {
-    if (!variableFunc || typeof variableFunc !== 'string') return true;
+    if (!variableFunc || typeof variableFunc !== 'string' || !variableFunc.trim()) return false;
     const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
-    if (allowed.length === 0) return true;
+    if (allowed.length === 0) return false;
 
-    const code = String(branchItem.name || '').trim();
-    const name = String(branchItem.branch || '').trim();
+    const code = String(branchItem.e_mail || branchItem.email || branchItem.Email || branchItem.offcde || branchItem.branch_code || branchItem.branch_no || branchItem.code || branchItem.name || branchItem.branch || '').trim();
+    const name = String(branchItem.name || branchItem.Name || branchItem.branch_name || branchItem.branchName || branchItem.groupName || '').trim();
+    const branch = String(branchItem.branch || branchItem.Branch || branchItem.sendToGroupFull || branchItem.sendToPersonAbb || '').trim();
 
     return allowed.some(target => {
         const targetClean = target.replace(/^0+/, '');
@@ -54,20 +55,26 @@ function isBranchInVariableFunc(branchItem, variableFunc) {
             }
         }
 
-        if (name) {
-            if (name.startsWith(target + '-') || name.startsWith(target + ' -') || name.startsWith(target + ' ') ||
-                name.startsWith(targetPad + '-') || name.startsWith(targetPad + ' -') || name.startsWith(targetPad + ' ') ||
-                name.includes('(' + target + ')') || name.includes('(' + targetPad + ')') ||
-                name === target || name === targetPad) {
+        const checkName = (str) => {
+            if (!str) return false;
+            if (str.startsWith(target + '-') || str.startsWith(target + ' -') || str.startsWith(target + ' ') ||
+                str.startsWith(targetPad + '-') || str.startsWith(targetPad + ' -') || str.startsWith(targetPad + ' ') ||
+                str.includes('(' + target + ')') || str.includes('(' + targetPad + ')') ||
+                str === target || str === targetPad) {
                 return true;
             }
-            const match = name.match(/^0*(\d+)/);
+            const match = str.match(/^0*(\d+)/);
             if (match && targetClean && match[1] === targetClean) {
                 return true;
             }
+            return false;
+        };
+
+        if (checkName(name) || checkName(branch)) {
+            return true;
         }
 
-        return true;
+        return false;
     });
 }
 
@@ -106,43 +113,43 @@ async function setFilterBranch(branchData) {
     const currentValue = $(selectEl).val() || selectEl.value || '';
     const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
 
-    let validItems = items;
+    let validItems = [];
     if (variableFunc && items.length > 0) {
-        const filtered = items.filter(item => isBranchInVariableFunc(item, variableFunc));
-        if (filtered.length > 0) {
-            validItems = filtered;
-        }
+        validItems = items.filter(item => isBranchInVariableFunc(item, variableFunc));
     }
 
-    let optionsHtml = '<option value="">ทั้งหมด</option>';
-    const seenValues = new Set();
+    let optionsHtml = '';
+    if (validItems.length > 0) {
+        optionsHtml = '<option value="">ทั้งหมด</option>';
+        const seenValues = new Set();
 
-    validItems.forEach(item => {
-        if (!item) return;
+        validItems.forEach(item => {
+            if (!item) return;
 
-        const code = String(item.e_mail || item.email || item.Email || item.offcde || item.branch_code || item.branch_no || item.code || item.name || item.branch || '').trim();
-        const name = String(item.name || item.Name || item.branch_name || item.branchName || item.groupName || '').trim();
-        const branch = String(item.branch || item.Branch || item.sendToGroupFull || item.sendToPersonAbb || '').trim();
+            const code = String(item.e_mail || item.email || item.Email || item.offcde || item.branch_code || item.branch_no || item.code || item.name || item.branch || '').trim();
+            const name = String(item.name || item.Name || item.branch_name || item.branchName || item.groupName || '').trim();
+            const branch = String(item.branch || item.Branch || item.sendToGroupFull || item.sendToPersonAbb || '').trim();
 
-        if (!code && !name && !branch) return;
+            if (!code && !name && !branch) return;
 
-        const val = code || name || branch;
-        if (seenValues.has(val)) return;
-        seenValues.add(val);
+            const val = code || name || branch;
+            if (seenValues.has(val)) return;
+            seenValues.add(val);
 
-        let displayName = '';
-        if (name && branch && name !== branch) {
-            displayName = `${name} (${branch})`;
-        } else if (name) {
-            displayName = name;
-        } else if (branch) {
-            displayName = branch;
-        } else {
-            displayName = val;
-        }
+            let displayName = '';
+            if (name && branch && name !== branch) {
+                displayName = `${name} (${branch})`;
+            } else if (name) {
+                displayName = name;
+            } else if (branch) {
+                displayName = branch;
+            } else {
+                displayName = val;
+            }
 
-        optionsHtml += `<option value="${val}">${displayName}</option>`;
-    });
+            optionsHtml += `<option value="${val}">${displayName}</option>`;
+        });
+    }
 
     selectEl.innerHTML = optionsHtml;
 
@@ -162,6 +169,8 @@ async function setFilterBranch(branchData) {
         $(selectEl).val(currentValue).trigger('change');
     } else if (variableFunc && selectEl.options.length > 1 && validItems.length !== items.length) {
         $(selectEl).val(selectEl.options[1].value).trigger('change');
+    } else if (selectEl.options.length > 0) {
+        $(selectEl).val(selectEl.options[0].value).trigger('change');
     }
 }
 
@@ -332,8 +341,24 @@ function bindDateRangeEvents() {
     });
 }
 
+function renderEmptySuggestionDashboard() {
+    renderOverview([]);
+    initTopicBarChart([]);
+    initStatusDoughnutChart([]);
+    currentTableData = [];
+    currentPage = 1;
+    renderSuggestionTable();
+}
+
 async function setDashboard() {
     if (!validateDateRange()) return;
+
+    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+    const branchEl = document.getElementById('filterBranch');
+    if (!variableFunc || !branchEl || branchEl.options.length === 0) {
+        renderEmptySuggestionDashboard();
+        return;
+    }
 
     const startDate = $('#filterStartDate').val() || '';
     const endDate = $('#filterEndDate').val() || '';
@@ -755,6 +780,12 @@ async function resetSuggestionFilters() {
                 const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
                 if (variableFunc && $el[0].options && $el[0].options.length > 1) {
                     $el.val($el[0].options[1].value);
+                    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                        $el.trigger('change');
+                    }
+                    return;
+                } else if ($el[0].options && $el[0].options.length > 0) {
+                    $el.val($el[0].options[0].value);
                     if (typeof $.fn !== 'undefined' && $.fn.select2) {
                         $el.trigger('change');
                     }

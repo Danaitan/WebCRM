@@ -445,7 +445,10 @@ function updateDetailPanel(campaign) {
     if (detailId) detailId.value = id;
 
     const detailName = document.getElementById('detailName');
-    if (detailName) detailName.value = name;
+    if (detailName) {
+        detailName.value = name;
+        detailName.title = name;
+    }
 
     const detailStart = document.getElementById('detailStart');
     if (detailStart) detailStart.value = formatDate(start);
@@ -519,17 +522,19 @@ async function getCampainList(page, pageSize) {
         const jsonResult = await response.json();
         const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
         const mapped = items.map(item => ({
-            code:      item.product_code   || '',
-            name:      item.product_name   || '',
-            status:    item.product_status || 'ปกติ',
-            startDate: item.product_start? item.product_start.substring(0, 10) : '',
-            endDate:   item.product_end? item.product_end.substring(0, 10) : '',
-            remark:    item.product_remark || '',
-            createdBy: item.createrd_by || '',
-            created:   item.created? item.created.substring(0, 10) : '',
-            objective: item.Objective_code || '',
-            file_id:   item.file_id || "",
-            IsImport:  item.IsImport || false
+            code:          item.product_code   || item.ProductCode || '',
+            name:          item.product_name   || item.ProductName || '',
+            status:        item.product_status || item.ProductStatus || 'ปกติ',
+            startDate:     item.product_start  ? String(item.product_start).substring(0, 10) : '',
+            endDate:       item.product_end    ? String(item.product_end).substring(0, 10) : '',
+            remark:        item.product_remark || item.ProductRemark || '',
+            createdBy:     item.createrd_by    || item.created_by || item.CreatedBy || '',
+            createdByName: item.createrd_by_name || item.CreaterdByName || item.createrd_by || item.created_by || item.CreatedBy || '',
+            company:       item.product_company || item.ProductCompany || '',
+            created:       item.created        ? String(item.created).substring(0, 10) : '',
+            objective:     item.Objective_code || item.ObjectiveCode || '',
+            file_id:       item.file_id || "",
+            IsImport:      item.IsImport || false
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -549,9 +554,10 @@ function initDataTables() {
     campaignTable = $("#campaignsTable").DataTable({
         serverSide: true,
         processing: false,
+        autoWidth: false,
         pageLength: pageSize,
         ordering: true,
-        dom: '<"campaign-list-container"t><"d-flex justify-content-center mt-3"p>',
+        dom: '<"campaign-list-container"t><"campaign-pagination-wrapper"p>',
         language: {
             infoEmpty: "ไม่พบรายการ",
             emptyTable: `<div class="text-center py-4 text-muted" style="font-size: 0.85rem;">
@@ -621,21 +627,30 @@ function initDataTables() {
                     const startFmt = formatDate(item.startDate);
                     const endFmt = formatDate(item.endDate);
                     const objBadge = getObjectiveBadge(item.objective);
+                    const safeName = (item.name || '').replace(/"/g, '&quot;');
+                    const safeCode = (item.code || '').replace(/"/g, '&quot;');
+                    const safeStatus = item.status || '';
+                    const safeCompany = (item.company || '').replace(/"/g, '&quot;');
+                    const safeCreatedByName = (item.createdByName || '').replace(/"/g, '&quot;');
 
                     return `
-                    <div class="pa-card ${activeClass} p-3 rounded-3 mb-2 border shadow-sm-hover cursor-pointer overflow-hidden" data-code="${item.code}">
-                        <div class="d-flex align-items-center gap-2.5 w-100 overflow-hidden">
-                            <div class="pa-card-icon ${objBadge.iconBg} flex-shrink-0 fw-bold">${objBadge.text}</div>
-                            <div class="pa-card-content flex-grow-1 overflow-hidden min-w-0 ms-2">
-                                <div class="d-flex justify-content-between align-items-center mb-1 gap-1 overflow-hidden">
-                                    <div class="pa-card-name fw-bold text-dark fs-6 text-truncate me-1" title="${item.name}">${item.name}</div>
-                                    <span class="badge pa-status-badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${item.status}</span>
-                                </div>
-                                <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
-                                    <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${item.code}</span>
-                                </div>
-                                <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${startFmt} &bull; สิ้นสุด: ${endFmt}">เริ่ม: ${startFmt} &bull; สิ้นสุด: ${endFmt}</div>
+                    <div class="pa-card ${activeClass}" data-code="${safeCode}">
+                        <div class="pa-card-icon ${objBadge.iconBg} flex-shrink-0 fw-bold">${objBadge.text}</div>
+                        <div class="pa-card-content">
+                            <div class="d-flex justify-content-between align-items-center mb-1 gap-2 min-w-0 w-100">
+                                <div class="pa-card-name" title="${safeName}">${item.name || ''}</div>
+                                <span class="badge pa-status-badge ${statusBadgeClass} border px-2 py-0.5 rounded-pill extra-small flex-shrink-0">${safeStatus}</span>
                             </div>
+                            <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
+                                <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${safeCode}</span>
+                                ${safeCompany ? `<span class="badge bg-light text-secondary border px-2 py-0.5 extra-small" title="บริษัท">${safeCompany}</span>` : ''}
+                            </div>
+                            ${safeCreatedByName ? `
+                            <div class="d-flex align-items-center mb-1 min-w-0 w-100">
+                                <span class="badge bg-light text-muted border px-2 py-0.5 extra-small text-truncate" style="max-width: 100%;" title="ผู้สร้าง: ${safeCreatedByName}"><i class="bi bi-person me-1"></i>${safeCreatedByName}</span>
+                            </div>
+                            ` : ''}
+                            <div class="pa-card-date" title="เริ่ม: ${startFmt} • สิ้นสุด: ${endFmt}">เริ่ม: ${startFmt} • สิ้นสุด: ${endFmt}</div>
                         </div>
                     </div>
                     `;
@@ -960,7 +975,7 @@ $(document).ready(async function () {
                 try {
                     var request = {
                         product_code: code || "",
-                        status: "cancle",
+                        status: "Cancel",
                         product_remark: result.value,
                     };
                     const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {

@@ -18,28 +18,34 @@
                 <div class="row g-3 align-items-end">
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                        <label class="form-label text-muted small">บริษัท</label>
+                        <select class="form-select form-select-sm select2-filter" id="dashboardCompany">
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">สาขา</label>
-                        <select class="form-select form-select-sm select2-filter" id="dashboardBranch">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardBranch" disabled>
                         </select>
                     </div>
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">ประเภทลูกค้า</label>
-                        <select class="form-select form-select-sm select2-filter" id="dashboardCustomerType">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardCustomerType" disabled>
 
                         </select>
                     </div>
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">เพศ</label>
-                        <select class="form-select form-select-sm select2-filter" id="dashboardGender">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardGender" disabled>
 
                         </select>
                     </div>
 
                     <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                         <label class="form-label text-muted small">สถานะสัญญา</label>
-                        <select class="form-select form-select-sm select2-filter" id="dashboardContactStatus">
+                        <select class="form-select form-select-sm select2-filter" id="dashboardContactStatus" disabled>
 
                         </select>
                     </div>
@@ -62,10 +68,10 @@
                             <i class="bi bi-people-fill"></i>
                         </div>
                         <div class="stat-info">
-                            <div class="stat-title">ลูกค้าทั้งหมด</div>
+                            <div class="stat-title">สัญญาทั้งหมด</div>
                             <div class="stat-value-group">
                                 <span class="stat-value" id="statTotalCount">0</span>
-                                <span class="stat-unit">ราย</span>
+                                <span class="stat-unit">สัญญา</span>
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "รายการแคมเปญรออนุมัติ";
+    ViewData["Title"] = "รายการแคมเปญ";
     ViewData["HeaderTitle"] = "รายละเอียด Campaign Approve";
 }
 
@@ -12,7 +12,7 @@
     <!-- Left Sidebar -->
     <div class="pa-sidebar-left">
         <div class="pa-sidebar-header">
-            <h5>รายการแคมเปญรออนุมัติ</h5>
+            <h5>รายการแคมเปญ</h5>
             <div class="badge-count" id="campaignCount">0</div>
         </div>
 
@@ -65,26 +65,27 @@
                             <input type="text" id="detailName" class="pa-form-control" value="" readonly>
                         </div>
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                            <label>วัตถุประสงค์</label>
+                            <input type="text" id="detailObjective" class="pa-form-control" value="" readonly>
+                        </div>
+                        <div class="col-12 col-lg-6 col-xl-6 pa-form-group">
                             <label>วันที่เริ่มต้น</label>
                             <div class="pa-form-control-icon">
                                 <input type="text" id="detailStart" class="pa-form-control" value="" readonly>
                                 <i class="bi bi-calendar"></i>
                             </div>
                         </div>
-                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+                        <div class="col-12 col-lg-6 col-xl-6 pa-form-group">
                             <label>วันที่สิ้นสุด</label>
                             <div class="pa-form-control-icon">
                                 <input type="text" id="detailEnd" class="pa-form-control" value="" readonly>
                                 <i class="bi bi-calendar"></i>
                             </div>
                         </div>
-                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
+
+                        <div class="col-12 pa-form-group">
                             <label>หมายเหตุ</label>
-                            <input type="text" id="detailNote" class="pa-form-control" value="" readonly>
-                        </div>
-                        <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
-                            <label>วัตถุประสงค์</label>
-                            <input type="text" id="detailObjective" class="pa-form-control" value="" readonly>
+                            <textarea id="detailNote" class="pa-form-control" rows="3" readonly placeholder="-" style="resize: vertical;"></textarea>
                         </div>
 
                         <div class="col-12 mt-4">
@@ -99,7 +100,7 @@
                     </div>
                 </div>
 
-                <div class="pa-section d-flex flex-column" style="flex-grow: 1; min-height: 1000;">
+                <div class="pa-section d-flex flex-column" style="flex-grow: 1; min-height: 0;">
                     <div class="pa-prospect-header">
                         <div class="pa-section-title mb-0">
                             <i class="bi bi-people"></i> รายละเอียด Prospect
@@ -107,7 +108,7 @@
                         </div>
                     </div>
                     
-                    <div style="overflow: auto; flex-grow: 1; min-height: 1000;">
+                    <div style="overflow: auto; flex-grow: 1; min-height: 0;">
                         <table class="pa-table" id="prospectApproveTable">
                             <thead>
                                 <tr>

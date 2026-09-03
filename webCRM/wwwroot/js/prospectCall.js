@@ -47,16 +47,18 @@ async function getCampainList(page = 1, pageSize = 10) {
         const jsonResult = await response.json();
         const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
         const mapped = items.map(item => ({
-            code:      item.product_code   || '',
-            name:      item.product_name   || '',
-            status:    item.product_status || 'ปกติ',
-            startDate: item.product_start  ? item.product_start.substring(0, 10) : '',
-            endDate:   item.product_end    ? item.product_end.substring(0, 10)   : '',
-            remark:    item.product_remark || '',
-            createdBy: item.createrd_by    || item.created_by || '',
-            created:   item.created        ? item.created.substring(0, 10)       : '',
-            Objective_code: item.Objective_code || '',
-            IsImport:  item.IsImport || false
+            code:          item.product_code   || item.ProductCode || '',
+            name:          item.product_name   || item.ProductName || '',
+            status:        item.product_status || item.ProductStatus || 'ปกติ',
+            startDate:     item.product_start  ? String(item.product_start).substring(0, 10) : '',
+            endDate:       item.product_end    ? String(item.product_end).substring(0, 10)   : '',
+            remark:        item.product_remark || item.ProductRemark || '',
+            createdBy:     item.createrd_by    || item.created_by || item.CreatedBy || '',
+            createdByName: item.createrd_by_name || item.CreaterdByName || item.createrd_by || item.created_by || item.CreatedBy || '',
+            company:       item.product_company || item.ProductCompany || '',
+            created:       item.created        ? String(item.created).substring(0, 10)       : '',
+            Objective_code: item.Objective_code || item.ObjectiveCode || '',
+            IsImport:      item.IsImport || false
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -306,7 +308,13 @@ function renderCampaignList(items) {
                         </div>
                         <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
                             <span class="pa-card-id badge bg-light text-primary border px-2 py-0.5 extra-small">${escapeHtml(item.code)}</span>
+                            ${item.company ? `<span class="badge bg-light text-secondary border px-2 py-0.5 extra-small" title="บริษัท">${escapeHtml(item.company)}</span>` : ''}
                         </div>
+                        ${item.createdByName ? `
+                        <div class="d-flex align-items-center mb-1 min-w-0 w-100">
+                            <span class="badge bg-light text-muted border px-2 py-0.5 extra-small text-truncate" style="max-width: 100%;" title="ผู้สร้าง: ${escapeHtml(item.createdByName)}"><i class="bi bi-person me-1"></i>${escapeHtml(item.createdByName)}</span>
+                        </div>
+                        ` : ''}
                         <div class="pa-card-date extra-small text-muted text-truncate" title="เริ่ม: ${escapeHtml(formatDateTh(item.startDate))} • สิ้นสุด: ${escapeHtml(formatDateTh(item.endDate))}">เริ่ม: ${escapeHtml(formatDateTh(item.startDate))} &bull; สิ้นสุด: ${escapeHtml(formatDateTh(item.endDate))}</div>
                     </div>
                 </div>
@@ -491,7 +499,7 @@ function getStatusLeadBadgeClass(statusLead) {
         'Follow': 'bg-info text-white',
         'ติดตาม': 'bg-info text-white',
         'Cancel': 'bg-secondary text-white',
-        'Cancle': 'bg-secondary text-white',
+        'Cancel': 'bg-secondary text-white',
         'ยกเลิก': 'bg-secondary text-white',
         'Reject': 'bg-danger text-white',
         'ปฏิเสธ': 'bg-danger text-white'
@@ -506,7 +514,7 @@ function getStatusLeadSubtleBadgeClass(statusLead) {
         'Follow': 'bg-info-subtle text-info border-info-subtle',
         'ติดตาม': 'bg-info-subtle text-info border-info-subtle',
         'Cancel': 'bg-secondary-subtle text-secondary border-secondary-subtle',
-        'Cancle': 'bg-secondary-subtle text-secondary border-secondary-subtle',
+        'Cancel': 'bg-secondary-subtle text-secondary border-secondary-subtle',
         'ยกเลิก': 'bg-secondary-subtle text-secondary border-secondary-subtle',
         'DD0010': 'bg-danger-subtle text-danger border-danger-subtle',
         'Reject': 'bg-danger-subtle text-danger border-danger-subtle',

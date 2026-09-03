@@ -121,6 +121,11 @@ namespace webCRM.Controllers
         {
             try
             {
+                var company = HttpContext.Session.GetString("company");
+                if (request?.ProductInfo != null)
+                {
+                    request.ProductInfo.ProductCompany = company;
+                }
                 var handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }

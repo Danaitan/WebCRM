@@ -133,8 +133,25 @@ function parseDateTimestamp(val) {
     return isNaN(t) ? 0 : t;
 }
 
+function renderEmptyProspectCallDashboard() {
+    renderOverview([]);
+    initCallResultChart([]);
+    initObjectiveChart([]);
+    initTopCallers([]);
+    currentTableData = [];
+    currentPage = 1;
+    renderCampaignTable();
+}
+
 async function setDashboard() {
     if (!validateDateRange()) return;
+
+    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+    const branchEl = document.getElementById('filterBranch');
+    if (!variableFunc || !branchEl || branchEl.options.length === 0) {
+        renderEmptyProspectCallDashboard();
+        return;
+    }
 
     const hasFcrm006 = hasPermissionFCRM006();
     const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
@@ -686,8 +703,8 @@ async function resetFilters() {
                     return;
                 }
                 const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-                if (variableFunc && $el[0].options && $el[0].options.length > 1) {
-                    $el.val($el[0].options[1].value);
+                if (variableFunc && $el[0].options && $el[0].options.length > 0) {
+                    $el.val($el[0].options[0].value);
                     if (typeof $.fn !== 'undefined' && $.fn.select2) {
                         $el.trigger('change');
                     }
@@ -770,9 +787,9 @@ function findMatchingBranchValue($selectEl, userBranchName) {
 }
 
 function isBranchInVariableFunc(branchItem, variableFunc) {
-    if (!variableFunc || typeof variableFunc !== 'string') return true;
+    if (!variableFunc || typeof variableFunc !== 'string' || !variableFunc.trim()) return false;
     const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
-    if (allowed.length === 0) return true;
+    if (allowed.length === 0) return false;
 
     const code = String(branchItem.offcde || branchItem.branch_no || branchItem.branch_code || branchItem.BranchNo || branchItem.code || '').trim();
     const name = String(branchItem.branch_name || branchItem.branch || branchItem.name || branchItem.Branch || '').trim();
@@ -818,28 +835,25 @@ async function setFilterBranch(branchData) {
     const currentValue = selectEl.value || '';
     const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
 
-    if (selectEl.options.length <= 1) {
-        let optionsHtml = '';
-        if (Array.isArray(data)) {
-            data.forEach(item => {
-                if (item) {
-                    if (variableFunc && !isBranchInVariableFunc(item, variableFunc)) {
-                        return;
-                    }
-                    const code = String(item.offcde || '').trim();
-                    const name = item.branch_name;
-                    optionsHtml += `<option value="${code}">${name}</option>`;
-                }
-            });
-        }
-        selectEl.innerHTML = optionsHtml;
+    let optionsHtml = '';
+    if (variableFunc && Array.isArray(data)) {
+        data.forEach(item => {
+            if (item && isBranchInVariableFunc(item, variableFunc)) {
+                const code = String(item.offcde || '').trim();
+                const name = item.branch_name;
+                optionsHtml += `<option value="${code}">${name}</option>`;
+            }
+        });
     }
+    selectEl.innerHTML = optionsHtml;
 
     const hasFcrm006 = hasPermissionFCRM006();
     if (!hasFcrm006) {
         $(selectEl).prop('disabled', false);
-        if (currentValue) {
+        if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
             selectEl.value = currentValue;
+        } else if (selectEl.options.length > 0) {
+            selectEl.value = selectEl.options[0].value;
         } else if (window.USER_BRANCH_NAME) {
             const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
             if (matchedBranchVal) {
@@ -867,13 +881,10 @@ async function setFilterBranch(branchData) {
         if (typeof $.fn !== 'undefined' && $.fn.select2) {
             $(selectEl).trigger('change');
         }
-    } else if (currentValue) {
-        selectEl.value = currentValue;
-        if (typeof $.fn !== 'undefined' && $.fn.select2) {
-            $(selectEl).trigger('change');
+    } else if (selectEl.options.length > 0) {
+        if (!currentValue || $(selectEl).find(`option[value="${currentValue}"]`).length === 0) {
+            selectEl.value = selectEl.options[0].value;
         }
-    } else if (variableFunc && selectEl.options.length > 1) {
-        selectEl.value = selectEl.options[1].value;
         if (typeof $.fn !== 'undefined' && $.fn.select2) {
             $(selectEl).trigger('change');
         }

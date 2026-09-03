@@ -41,11 +41,166 @@ function initProductChart(data) {
 
     if (!data || typeof data !== 'object') return;
 
-    const getItemName = (item) => (item.name).trim();
+    const getItemName = (item) => (item.name || '').trim();
     const getItemCount = (item) => Number(item.count ?? 0);
 
     const companies = Object.keys(data);
 
+    // ตรวจสอบบริษัทที่มีข้อมูล (มีรายการและผลรวมมากกว่า 0)
+    const companiesWithData = companies.filter(comp => {
+        const list = data[comp];
+        return Array.isArray(list) && list.some(item => getItemCount(item) > 0);
+    });
+
+    // หากมีแค่บริษัทเดียวที่มีข้อมูล (หรือเลือกดูแค่ 1 บริษัท)
+    if (companiesWithData.length === 1 || (companiesWithData.length === 0 && companies.length === 1)) {
+        const targetCompany = companiesWithData.length === 1 ? companiesWithData[0] : companies[0];
+        const rawList = Array.isArray(data[targetCompany]) ? data[targetCompany] : [];
+
+        const validItems = [];
+        rawList.forEach(item => {
+            const name = getItemName(item);
+            const count = getItemCount(item);
+            if (name && count > 0) {
+                validItems.push({ name, count });
+            }
+        });
+
+        // เรียงลำดับจากจำนวนมากไปน้อย
+        validItems.sort((a, b) => b.count - a.count);
+
+        // ดึง 4 อันดับแรก และส่วนที่เหลือจัดเป็น "อื่นๆ"
+        const top4 = validItems.slice(0, 4);
+        const remaining = validItems.slice(4);
+
+        let othersCount = 0;
+        remaining.forEach(item => {
+            othersCount += item.count;
+        });
+
+        const processedData = top4.map(item => ({
+            name: item.name,
+            count: item.count,
+            isOthers: false
+        }));
+
+        if (remaining.length > 0 && othersCount > 0) {
+            processedData.push({
+                name: 'อื่นๆ',
+                count: othersCount,
+                isOthers: true,
+                subItems: remaining
+            });
+        }
+
+        const maxLabelLength = 10;
+        const formatProductName = (name, max = maxLabelLength) => {
+            if (!name) return '';
+            return name.length > max ? name.slice(0, max) + '...' : name;
+        };
+
+        const labels = processedData.map(item => formatProductName(item.name));
+        const values = processedData.map(item => item.count);
+
+        const bgColors = processedData.map((_, index) => chartColors[index % chartColors.length]);
+        const borderColors = bgColors.map(c => c.replace('0.75', '1'));
+
+        productChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'จำนวนลูกค้า (ราย)',
+                    data: values,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'การแบ่งตามประเภทผลิตภัณฑ์',
+                        color: '#000000ff',
+                        align: 'left',
+                        font: {
+                            family: "'Prompt', sans-serif",
+                            size: 18,
+                            weight: '700',
+                            style: 'normal'
+                        },
+                        padding: {
+                            top: 5,
+                            bottom: 15
+                        }
+                    },
+                    legend: false,
+                    tooltip: {
+                        backgroundColor: '#ffffff',
+                        titleColor: '#1e293b',
+                        bodyColor: '#334155',
+                        footerColor: '#0f172a',
+                        borderColor: '#cbd5e1',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function (tooltipItems) {
+                                if (!tooltipItems || !tooltipItems.length) return '';
+                                const item = processedData[tooltipItems[0].dataIndex];
+                                return item ? item.name : tooltipItems[0].label;
+                            },
+                            label: function (context) {
+                                const item = processedData[context.dataIndex];
+                                if (item && item.isOthers && Array.isArray(item.subItems) && item.subItems.length > 0) {
+                                    const lines = [
+                                        ` จำนวนรวม: ${Number(context.raw).toLocaleString()} ราย`,
+                                        '',
+                                        ' รายการในกลุ่มอื่นๆ:'
+                                    ];
+                                    item.subItems.forEach(sub => {
+                                        lines.push(`   • ${sub.name}: ${Number(sub.count).toLocaleString()} ราย`);
+                                    });
+                                    return lines;
+                                }
+                                return ` จำนวน: ${Number(context.raw).toLocaleString()} ราย`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'ผลิตภัณฑ์',
+                            font: { weight: 'bold', style: 'normal' }
+                        },
+                        ticks: {
+                            autoSkip: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'จำนวน (ราย)',
+                            font: { weight: 'bold', style: 'normal' }
+                        },
+                        ticks: {
+                            precision: 0,
+                            callback: function (value) {
+                                return value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        return;
+    }
+
+    // กรณีมีหลายบริษัทที่มีข้อมูล (ใช้กราฟ Stacked Bar แยกตามบริษัท)
     const productSet = new Set();
     companies.forEach(comp => {
         const list = data[comp];
@@ -148,7 +303,10 @@ function initProductChart(data) {
                         font: { weight: 'bold', style: 'normal' }
                     },
                     ticks: {
-                        precision: 0
+                        precision: 0,
+                        callback: function (value) {
+                            return value.toLocaleString();
+                        }
                     }
                 }
             }
@@ -166,42 +324,103 @@ function initOccupationChart(data) {
 
     if (!Array.isArray(data) || data.length === 0) return;
 
-    let othersCount = 0;
-    const validItems = [];
+    const isInvalidName = (name) => {
+        if (!name) return true;
+        const trimmed = name.trim();
+        if (!trimmed) return true;
+        if (trimmed === '-' || /^[-_\s]+$/.test(trimmed)) return true;
+        if (trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'n/a') return true;
+        if (trimmed === 'ไม่ระบุ') return true;
+        return false;
+    };
 
+    // รวมจำนวนตามชื่ออาชีพ และกรองพวกที่ไม่มีชื่อออก (เช่น "" " " "-")
+    const itemMap = new Map();
     data.forEach(item => {
         const name = (item.name || '').trim();
         const count = Number(item.count || 0);
 
-        if (!name || name === 'ไม่ระบุ' || name === 'อื่นๆ') {
-            othersCount += count;
+        if (isInvalidName(name) || count <= 0) {
+            return;
+        }
+
+        if (itemMap.has(name)) {
+            itemMap.set(name, itemMap.get(name) + count);
+        } else {
+            itemMap.set(name, count);
+        }
+    });
+
+    let rawOthersItem = null;
+    const validItems = [];
+
+    for (const [name, count] of itemMap.entries()) {
+        if (name === 'อื่นๆ' || name === 'อื่น ๆ') {
+            if (rawOthersItem) {
+                rawOthersItem.count += count;
+            } else {
+                rawOthersItem = { name: 'อื่นๆ', count: count };
+            }
         } else {
             validItems.push({ name, count });
         }
-    });
+    }
 
     // เรียงลำดับตาม count จากมากไปน้อย
     validItems.sort((a, b) => b.count - a.count);
 
-    // ดึง 7 อันแรก และส่วนที่เหลือรวมเข้ากลุ่ม "อื่นๆ"
-    const top7 = validItems.slice(0, 6);
-    const remaining = validItems.slice(6);
+    // ดึง 6 อันดับแรก และส่วนที่เหลือรวมเข้ากลุ่ม "อื่นๆ"
+    const maxTop = 6;
+    let topItems = [];
+    let remaining = [];
 
+    if (!rawOthersItem && validItems.length <= 7) {
+        topItems = validItems;
+        remaining = [];
+    } else {
+        topItems = validItems.slice(0, maxTop);
+        remaining = validItems.slice(maxTop);
+    }
+
+    const othersSubItems = [];
+    if (rawOthersItem) {
+        othersSubItems.push(rawOthersItem);
+    }
     remaining.forEach(item => {
+        othersSubItems.push(item);
+    });
+
+    othersSubItems.sort((a, b) => b.count - a.count);
+
+    let othersCount = 0;
+    othersSubItems.forEach(item => {
         othersCount += item.count;
     });
 
-    const processedData = [...top7];
+    const processedData = topItems.map(item => ({
+        name: item.name,
+        count: item.count,
+        isOthers: false
+    }));
 
-    // รวม "ไม่ระบุ" และส่วนที่เหลือเข้ากลุ่ม "อื่นๆ" ไว้ท้ายสุด
-    if (othersCount > 0) {
+    if (othersSubItems.length > 0 && othersCount > 0) {
         processedData.push({
             name: 'อื่นๆ',
-            count: othersCount
+            count: othersCount,
+            isOthers: true,
+            subItems: othersSubItems
         });
     }
 
-    const labels = processedData.map(item => item.name);
+    if (processedData.length === 0) return;
+
+    const maxLabelLength = 10;
+    const formatOccupationName = (name, max = maxLabelLength) => {
+        if (!name) return '';
+        return name.length > max ? name.slice(0, max) + '...' : name;
+    };
+
+    const labels = processedData.map(item => formatOccupationName(item.name));
     const values = processedData.map(item => item.count);
 
     const bgColors = processedData.map((_, index) => chartColors[index % chartColors.length]);
@@ -250,7 +469,24 @@ function initOccupationChart(data) {
                     borderColor: '#cbd5e1',
                     borderWidth: 1,
                     callbacks: {
+                        title: function (tooltipItems) {
+                            if (!tooltipItems || !tooltipItems.length) return '';
+                            const item = processedData[tooltipItems[0].dataIndex];
+                            return item ? item.name : tooltipItems[0].label;
+                        },
                         label: function (context) {
+                            const item = processedData[context.dataIndex];
+                            if (item && item.isOthers && Array.isArray(item.subItems) && item.subItems.length > 0) {
+                                const lines = [
+                                    ` จำนวนรวม: ${Number(context.raw).toLocaleString()} ราย`,
+                                    '',
+                                    ' รายการในกลุ่มอื่นๆ:'
+                                ];
+                                item.subItems.forEach(sub => {
+                                    lines.push(`   • ${sub.name}: ${Number(sub.count).toLocaleString()} ราย`);
+                                });
+                                return lines;
+                            }
                             return ` จำนวน: ${Number(context.raw).toLocaleString()} ราย`;
                         }
                     }
@@ -262,6 +498,9 @@ function initOccupationChart(data) {
                         display: true,
                         text: 'อาชีพ',
                         font: { weight: 'bold', style: 'normal' }
+                    },
+                    ticks: {
+                        autoSkip: false
                     }
                 },
                 y: {
@@ -387,12 +626,14 @@ function initAgeChart(data) {
 
 async function getDashboardCustomerInfo() {
     try {
+        const company = document.getElementById('dashboardCompany')?.value || '';
         const branch = document.getElementById('dashboardBranch')?.value || '';
         const cusType = document.getElementById('dashboardCustomerType')?.value || '';
         const gender = document.getElementById('dashboardGender')?.value || '';
         const contactStatus = document.getElementById('dashboardContactStatus')?.value || '';
 
         const params = new URLSearchParams();
+        if (company) params.append('company', company);
         if (branch) params.append('branch', branch);
         if (cusType) params.append('cusType', cusType);
         if (gender) params.append('gender', gender);
@@ -404,21 +645,27 @@ async function getDashboardCustomerInfo() {
         const response = await fetch(url);
         if (!response.ok) {
             console.error("HTTP error fetching dashboard customer info:", response.status);
+            renderEmptyDashboard();
             return;
         }
         const data = await response.json();
-        const branchResponse = await fetch('/Home/getBranchListForCRM');
-        const branchData = await branchResponse.json();
-        await setFilterCustType(data.custypMenu);
-        await setFilterGender(data.genderMenu);
-        await setFilterContractStatus(data.contractStatusMenu);
-        await setFilterBranch(branchData)
+        console.log("data", data);
+
         if (!data || data.status === false) {
             console.error("Error fetching dashboard customer info:", data ? data.message : "No data received");
+            renderEmptyDashboard();
             return;
         }
+
         if (data.companyCus) {
+            window._lastCompanyCus = data.companyCus;
+            const companyEl = document.getElementById('dashboardCompany');
+            if (companyEl && companyEl.options.length <= 1) {
+                await setFilterCompany(null, data.companyCus);
+            }
             setDataDashboardCustomer(data);
+        } else {
+            setDataDashboardCustomer({ companyCus: [] });
         }
         if (data.graph) {
             if (data.graph.product) initProductChart(data.graph.product);
@@ -428,6 +675,7 @@ async function getDashboardCustomerInfo() {
 
     } catch (error) {
         console.error("Error fetching dashboard customer info:", error);
+        renderEmptyDashboard();
     }
 }
 
@@ -456,7 +704,7 @@ async function setDataDashboardCustomer(data) {
                         <div class="stat-title">${item.name}</div>
                         <div class="stat-value-group">
                             <span class="stat-value">${item.count.toLocaleString()}</span>
-                            <span class="stat-unit">ราย</span>
+                            <span class="stat-unit">สัญญา</span>
                         </div>
                     </div>
                 </div>
@@ -474,23 +722,25 @@ async function setFilterCustType(data) {
     if (!selectEl) return;
 
     const currentValue = selectEl.value || '';
-
-    if (selectEl.options.length > 1) {
-        if (currentValue) selectEl.value = currentValue;
-        return;
-    }
-
     let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const seen = new Set();
     if (Array.isArray(data)) {
         data.forEach(item => {
-            if (item && item.name) {
-                optionsHtml += `<option value="${item.name}">${item.name}</option>`;
+            if (item) {
+                const name = typeof item === 'object' ? String(item.name ?? item.value ?? '').trim() : String(item).trim();
+                const value = typeof item === 'object' ? String(item.value ?? item.name ?? '').trim() : name;
+                if (value && !seen.has(value)) {
+                    seen.add(value);
+                    optionsHtml += `<option value="${value}">${name}</option>`;
+                }
             }
         });
     }
     selectEl.innerHTML = optionsHtml;
-    if (currentValue) {
+    if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
         selectEl.value = currentValue;
+    } else {
+        selectEl.value = '';
     }
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         $(selectEl).select2({
@@ -502,9 +752,7 @@ async function setFilterCustType(data) {
                 }
             }
         });
-        if (currentValue) {
-            $(selectEl).val(currentValue).trigger('change');
-        }
+        $(selectEl).val(selectEl.value).trigger('change.select2');
     }
 }
 
@@ -513,23 +761,25 @@ async function setFilterGender(data) {
     if (!selectEl) return;
 
     const currentValue = selectEl.value || '';
-
-    if (selectEl.options.length > 1) {
-        if (currentValue) selectEl.value = currentValue;
-        return;
-    }
-
     let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const seen = new Set();
     if (Array.isArray(data)) {
         data.forEach(item => {
-            if (item && item.name) {
-                optionsHtml += `<option value="${item.name}">${item.name}</option>`;
+            if (item) {
+                const name = typeof item === 'object' ? String(item.name ?? item.value ?? '').trim() : String(item).trim();
+                const value = typeof item === 'object' ? String(item.value ?? item.name ?? '').trim() : name;
+                if (value && !seen.has(value)) {
+                    seen.add(value);
+                    optionsHtml += `<option value="${value}">${name}</option>`;
+                }
             }
         });
     }
     selectEl.innerHTML = optionsHtml;
-    if (currentValue) {
+    if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
         selectEl.value = currentValue;
+    } else {
+        selectEl.value = '';
     }
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         $(selectEl).select2({
@@ -541,9 +791,7 @@ async function setFilterGender(data) {
                 }
             }
         });
-        if (currentValue) {
-            $(selectEl).val(currentValue).trigger('change');
-        }
+        $(selectEl).val(selectEl.value).trigger('change.select2');
     }
 }
 
@@ -552,23 +800,25 @@ async function setFilterContractStatus(data) {
     if (!selectEl) return;
 
     const currentValue = selectEl.value || '';
-
-    if (selectEl.options.length > 1) {
-        if (currentValue) selectEl.value = currentValue;
-        return;
-    }
-
     let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const seen = new Set();
     if (Array.isArray(data)) {
         data.forEach(item => {
-            if (item && item.name) {
-                optionsHtml += `<option value="${item.name}">${item.name}</option>`;
+            if (item) {
+                const name = typeof item === 'object' ? String(item.name ?? item.value ?? '').trim() : String(item).trim();
+                const value = typeof item === 'object' ? String(item.value ?? item.name ?? '').trim() : name;
+                if (value && !seen.has(value)) {
+                    seen.add(value);
+                    optionsHtml += `<option value="${value}">${name}</option>`;
+                }
             }
         });
     }
     selectEl.innerHTML = optionsHtml;
-    if (currentValue) {
+    if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
         selectEl.value = currentValue;
+    } else {
+        selectEl.value = '';
     }
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         $(selectEl).select2({
@@ -580,46 +830,104 @@ async function setFilterContractStatus(data) {
                 }
             }
         });
-        if (currentValue) {
-            $(selectEl).val(currentValue).trigger('change');
-        }
+        $(selectEl).val(selectEl.value).trigger('change.select2');
     }
 }
 
-function isBranchInVariableFunc(branchItem, variableFunc) {
-    if (!variableFunc || typeof variableFunc !== 'string') return true;
-    const allowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
-    if (allowed.length === 0) return true;
+function renderEmptyDashboard() {
+    const statTotalEl = document.getElementById('statTotalCount');
+    if (statTotalEl) statTotalEl.innerText = '0';
+    const customerCardContainer = document.getElementById('customerCard');
+    if (customerCardContainer) customerCardContainer.innerHTML = '';
+    if (productChartInstance) {
+        productChartInstance.destroy();
+        productChartInstance = null;
+    }
+    if (occupationChartInstance) {
+        occupationChartInstance.destroy();
+        occupationChartInstance = null;
+    }
+    if (ageChartInstance) {
+        ageChartInstance.destroy();
+        ageChartInstance = null;
+    }
+}
 
-    const code = String(branchItem.offcde || branchItem.branch_no || branchItem.branch_code || branchItem.BranchNo || branchItem.code || '').trim();
-    const name = String(branchItem.branch_name || branchItem.branch || branchItem.name || branchItem.Branch || '').trim();
+function updateDependentDropdownsState() {
+    const companyVal = ($('#dashboardCompany').val() || '').trim();
+    const isCompanySelected = (companyVal !== '');
 
-    return allowed.some(target => {
-        const targetClean = target.replace(/^0+/, '');
-        const targetPad = target.padStart(2, '0');
+    const dependentSelectors = [
+        '#dashboardBranch',
+        '#dashboardCustomerType',
+        '#dashboardGender',
+        '#dashboardContactStatus'
+    ];
 
-        if (code) {
-            const codeClean = code.replace(/^0+/, '');
-            const codePad = code.padStart(2, '0');
-            if (code === target || codePad === targetPad || (codeClean && targetClean && codeClean === targetClean)) {
-                return true;
+    dependentSelectors.forEach(selector => {
+        const $el = $(selector);
+        if ($el.length) {
+            $el.prop('disabled', !isCompanySelected);
+            if (!isCompanySelected && $el.val() !== '') {
+                $el.val('').trigger('change.select2');
             }
         }
-
-        if (name) {
-            if (name.startsWith(target + '-') || name.startsWith(target + ' -') || name.startsWith(target + ' ') ||
-                name.startsWith(targetPad + '-') || name.startsWith(targetPad + ' -') || name.startsWith(targetPad + ' ') ||
-                name === target || name === targetPad) {
-                return true;
-            }
-            const match = name.match(/^0*(\d+)/);
-            if (match && targetClean && match[1] === targetClean) {
-                return true;
-            }
-        }
-
-        return false;
     });
+}
+
+async function setFilterCompany(menuData, cusData) {
+    const selectEl = document.getElementById('dashboardCompany');
+    if (!selectEl) return;
+
+    const currentValue = selectEl.value || '';
+
+    let list = [];
+    if (Array.isArray(menuData) && menuData.length > 0) {
+        list = menuData;
+    } else if (Array.isArray(cusData) && cusData.length > 0) {
+        list = cusData;
+    }
+
+    if (list.length === 0 && selectEl.options.length > 1) {
+        return;
+    }
+
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const seen = new Set();
+    list.forEach(item => {
+        if (item) {
+            const name = typeof item === 'object' ? String(item.name || item.company_name || item.companyName || item.value || '').trim() : String(item).trim();
+            const value = typeof item === 'object' ? String(item.value ?? item.name ?? item.company_name ?? item.companyName ?? '').trim() : name;
+            if (value && !seen.has(value)) {
+                seen.add(value);
+                optionsHtml += `<option value="${value}">${name}</option>`;
+            }
+        }
+    });
+
+    if (seen.size === 0 && selectEl.options.length > 1) {
+        return;
+    }
+
+    selectEl.innerHTML = optionsHtml;
+    if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
+        selectEl.value = currentValue;
+    } else {
+        selectEl.value = '';
+    }
+
+    if (typeof $.fn !== 'undefined' && $.fn.select2) {
+        $(selectEl).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "ไม่พบข้อมูล";
+                }
+            }
+        });
+        $(selectEl).val(selectEl.value).trigger('change.select2');
+    }
 }
 
 async function setFilterBranch(data) {
@@ -628,32 +936,27 @@ async function setFilterBranch(data) {
 
     const currentValue = selectEl.value || '';
 
-    if (selectEl.options.length > 1) {
-        if (currentValue) selectEl.value = currentValue;
-        return;
-    }
-
-    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-
-    let optionsHtml = '';
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const seen = new Set();
     if (Array.isArray(data)) {
         data.forEach(item => {
             if (item) {
-                const code = String(item.offcde || '').trim();
-                const name = String(item.branch_name || '').trim();
-                if (variableFunc && !isBranchInVariableFunc(item, variableFunc)) {
-                    return;
+                const name = typeof item === 'object' ? String(item.name || item.branch_name || item.value || '').trim() : String(item).trim();
+                const value = typeof item === 'object' ? String(item.value ?? item.name ?? item.branch_name ?? '').trim() : name;
+                if (value && !seen.has(value)) {
+                    seen.add(value);
+                    optionsHtml += `<option value="${value}">${name}</option>`;
                 }
-                optionsHtml += `<option value="${name}">${name}</option>`;
             }
         });
     }
     selectEl.innerHTML = optionsHtml;
-    if (currentValue) {
+    if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
         selectEl.value = currentValue;
-    } else if (variableFunc && selectEl.options.length > 1) {
-        selectEl.value = selectEl.options[1].value;
+    } else {
+        selectEl.value = '';
     }
+
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         $(selectEl).select2({
             theme: 'bootstrap-5',
@@ -664,9 +967,63 @@ async function setFilterBranch(data) {
                 }
             }
         });
-        if (selectEl.value) {
-            $(selectEl).val(selectEl.value).trigger('change');
+        $(selectEl).val(selectEl.value).trigger('change.select2');
+    }
+}
+
+function setDropdownsLoadingState() {
+    const dependentSelectors = [
+        '#dashboardBranch',
+        '#dashboardCustomerType',
+        '#dashboardGender',
+        '#dashboardContactStatus'
+    ];
+
+    dependentSelectors.forEach(selector => {
+        const $el = $(selector);
+        if ($el.length) {
+            $el.html('<option value="">กำลังโหลด...</option>');
+            $el.prop('disabled', true);
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $el.val('').trigger('change.select2');
+            }
         }
+    });
+}
+
+async function loadDashboardDropdowns(company = '') {
+    try {
+        const params = new URLSearchParams();
+        if (company) params.append('company', company);
+        const queryString = params.toString();
+        const url = '/Home/GetCustommerDashboardDropdown' + (queryString ? `?${queryString}` : '');
+
+        const response = await fetch(url, { skipLoading: true });
+        if (!response.ok) {
+            console.error("HTTP error fetching dashboard dropdown:", response.status);
+            updateDependentDropdownsState();
+            return;
+        }
+        const data = await response.json();
+        console.log("GetCustommerDashboardDropdown data:", data);
+
+        if (!data || data.status === false) {
+            console.error("Error in dropdown data:", data ? data.message : "No data received");
+            updateDependentDropdownsState();
+            return;
+        }
+
+        if (!company) {
+            await setFilterCompany(data.companyMenu, window._lastCompanyCus || null);
+        }
+        await setFilterBranch(data.branchMenu);
+        await setFilterCustType(data.custypMenu);
+        await setFilterGender(data.genderMenu);
+        await setFilterContractStatus(data.contractStatusMenu);
+        updateDependentDropdownsState();
+    } catch (error) {
+        console.error("Error loading dashboard dropdowns:", error);
+        updateDependentDropdownsState();
     }
 }
 
@@ -692,11 +1049,25 @@ $(document).ready(async function () {
         });
     }
 
+    $('#dashboardCompany').on('change', async function () {
+        const companyVal = ($(this).val() || '').trim();
+        const isSelected = (companyVal !== '');
+
+        if (isSelected) {
+            setDropdownsLoadingState();
+            await loadDashboardDropdowns(companyVal);
+        } else {
+            $('#dashboardBranch, #dashboardCustomerType, #dashboardGender, #dashboardContactStatus').val('').trigger('change.select2');
+            updateDependentDropdownsState();
+            await loadDashboardDropdowns('');
+        }
+    });
+
+    updateDependentDropdownsState();
+
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
-        const branchResponse = await fetch('/Home/getBranchListForCRM');
-        const branchData = await branchResponse.json();
-        await setFilterBranch(branchData);
+        await loadDashboardDropdowns();
         await getDashboardCustomerInfo();
     } catch (error) {
         console.error("Error in document ready:", error);
@@ -716,26 +1087,20 @@ $(document).ready(async function () {
     });
 
     $('#dashboardClear').on('click', async function () {
-        const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-        const branchEl = document.getElementById('dashboardBranch');
-        let defaultBranchVal = '';
-        if (variableFunc && branchEl && branchEl.options.length > 1) {
-            defaultBranchVal = branchEl.options[1].value;
-        }
-
         if (typeof $.fn !== 'undefined' && $.fn.select2) {
-            $('.select2-filter').not('#dashboardBranch').val('').trigger('change');
-            if (branchEl) {
-                $(branchEl).val(defaultBranchVal).trigger('change');
-            }
+            $('.select2-filter').val('').trigger('change.select2');
         } else {
-            if (branchEl) branchEl.value = defaultBranchVal;
+            $('#dashboardCompany').val('');
+            $('#dashboardBranch').val('');
             $('#dashboardCustomerType').val('');
             $('#dashboardGender').val('');
             $('#dashboardContactStatus').val('');
         }
+        updateDependentDropdownsState();
+
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
+            await loadDashboardDropdowns('');
             await getDashboardCustomerInfo();
         } catch (error) {
             console.error("Error clearing dashboard filters:", error);

@@ -39,6 +39,9 @@ namespace webCRM.Models
         [JsonPropertyName("createrd_by")]
         public string? CreatedBy { get; set; }
 
+        [JsonPropertyName("createrd_by_name")]
+        public string? CreaterdByName { get; set; }
+
         [JsonPropertyName("updated_by")]
         public string? UpdatedBy { get; set; }
 
@@ -114,6 +117,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("createrd_by")]
         public string? CreatedBy { get; set; }
+
+        [JsonPropertyName("createrd_by_name")]
+        public string? CreaterdByName { get; set; }
 
         [JsonPropertyName("updated")]
         [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]

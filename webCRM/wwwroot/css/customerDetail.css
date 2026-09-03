@@ -75,10 +75,11 @@ body.crm-body {
 .search-result-table th {
     font-size: 0.85rem;
     color: #64748b !important;
+    white-space: nowrap;
 }
 
 .search-result-table td {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 .avatar-sm {
@@ -123,25 +124,29 @@ body.crm-body {
     display: flex;
     align-items: center;
     gap: .5rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #64748b !important;
-    min-width: 150px;
+    min-width: 135px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .detail-label-md {
     display: flex;
     align-items: center;
     gap: .5rem;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: #64748b !important;
-    min-width: 220px;
+    min-width: 180px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .detail-value {
     flex: 1;
     min-width: 0;
 
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 500;
     color: #334155 !important;
 
@@ -169,9 +174,16 @@ body.crm-body {
     background-color: transparent !important;
 }
 
-.crm-tabs .nav-link:hover:not(.active) {
+.crm-tabs .nav-link:hover:not(.active):not(.disabled) {
     color: #475569;
     border-bottom: 2px solid #cbd5e1 !important;
+}
+
+.crm-tabs .nav-link.disabled {
+    color: #cbd5e1 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    border-bottom: 2px solid transparent !important;
 }
 
 /* Badges and Consent */

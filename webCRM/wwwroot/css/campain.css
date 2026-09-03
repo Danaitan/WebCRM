@@ -12,6 +12,9 @@ body.crm-body {
 /* Sidebar Styling */
 .campaign-sidebar {
     background: transparent;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .sidebar-title {
@@ -32,6 +35,7 @@ body.crm-body {
     border-radius: 12px;
     padding: 2px;
     transition: all 0.2s ease;
+    min-width: 0;
 }
 
 .search-wrapper:focus-within {
@@ -45,6 +49,7 @@ body.crm-body {
     font-size: 0.875rem;
     padding: 0.6rem 0.8rem;
     flex-grow: 1;
+    min-width: 0;
 }
 
 /* Global Unified Placeholder Styling */
@@ -116,14 +121,34 @@ select.form-select option[value=""] {
     position: relative;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.campaign-table-wrapper .dataTables_wrapper,
+#campaignsTable_wrapper.dataTables_wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .campaign-list-container {
     max-height: calc(100vh - 280px);
-    overflow-y: auto;
-    padding-right: 4px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 4px 6px 4px 2px;
     background-color: transparent !important;  
     border-color: transparent !important;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 rgba(0, 0, 0, 0.03);
 }
 
 .campaign-list-container::-webkit-scrollbar {
@@ -131,17 +156,18 @@ select.form-select option[value=""] {
 }
 
 .campaign-list-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.campaign-list-container::-webkit-scrollbar-thumb {
-    background-color: transparent !important;  
-    border-color: transparent !important;
+    background: rgba(0, 0, 0, 0.03);
     border-radius: 4px;
 }
 
-.campaign-list-container:hover::-webkit-scrollbar-thumb {
+.campaign-list-container::-webkit-scrollbar-thumb {
     background-color: #cbd5e1 !important;
+    border-radius: 4px;
+    border: none !important;
+}
+
+.campaign-list-container:hover::-webkit-scrollbar-thumb {
+    background-color: #94a3b8 !important;
 }
 
 .campaign-card {
@@ -154,6 +180,10 @@ select.form-select option[value=""] {
     transition: all 0.25s ease;
     position: relative;
     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .pa-card-icon {
@@ -207,17 +237,27 @@ select.form-select option[value=""] {
     gap: 0.25rem;
 }
 
-.badge-status-normal {
+.badge-status-normal, .badge-status-approved, .badge-status-active {
     color: #16a34a;
     font-weight: 600;
 }
 
-.badge-status-cancel {
+.badge-status-warning, .badge-status-waiting-prospect {
+    color: #d97706;
+    font-weight: 600;
+}
+
+.badge-status-waiting-approve {
+    color: #0284c7;
+    font-weight: 600;
+}
+
+.badge-status-cancel, .badge-status-reject {
     color: #dc2626;
     font-weight: 600;
 }
 
-.badge-status-inactive {
+.badge-status-inactive, .badge-status-draft {
     color: #94a3b8;
     font-weight: 600;
 }
@@ -914,15 +954,28 @@ table.dataTable thead th, table.dataTable thead td {
     cursor: not-allowed;
     background: transparent;
 }
-#campaignsTable {
-    border-collapse: collapse;
+#campaignsTable,
+table.dataTable#campaignsTable {
+    border-collapse: collapse !important;
     background-color: transparent !important;
     --bs-table-bg: transparent;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    table-layout: fixed !important;
+    box-sizing: border-box !important;
+    display: block !important;
 }
 #campaignsTable > :not(caption) > * > * {
     background-color: transparent !important;
 }
+#campaignsTable tbody,
+#campaignsTable tr,
 #campaignsTable td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     border: none !important;
     padding: 0 !important;
     background-color: transparent !important;

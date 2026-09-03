@@ -45,8 +45,8 @@
             </div>
         </div>
 
-        <div class="row g-4" style="min-height: 900px;">
-            <div class="col-12 col-lg-5 d-flex flex-column gap-4">
+        <div class="row g-1" style="min-height: 900px;">
+            <div class="col-12 col-lg-6 col-xl-6 d-flex flex-column gap-4">
                 <div class="search-result">
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -74,13 +74,16 @@
                                     <table class="table table-borderless search-result-table mb-0 align-middle" id="person-result-table">
                                     <thead>
                                         <tr class="text-muted border-bottom">
-                                            <th class="fw-medium pb-2 text-center">ชื่อ-นามสกุล</th>
-                                            <th class="fw-medium pb-2 text-center">ทะเบียนรถ</th>
-                                            <th class="fw-medium pb-2 text-center">บริษัท</th>
-                                            <th class="fw-medium pb-2 text-center">เลขที่สัญญา</th>
+                                            <th class="fw-medium pb-2 text-center text-nowrap">ชื่อ-นามสกุล</th>
+                                            <th class="fw-medium pb-2 text-center text-nowrap">ทะเบียนรถ</th>
+                                            <th class="fw-medium pb-2 text-center text-nowrap">บริษัท</th>
+                                            <th class="fw-medium pb-2 text-center text-nowrap">เลขที่สัญญา</th>
                                         </tr>
                                     </thead>
                                     <tbody id="searchResultBody">
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4 text-muted">ไม่พบรายการ</td>
+                                        </tr>
                                     </tbody>
                                 </table>
                                 </div>
@@ -103,21 +106,6 @@
                                         </table>
                                     </div>
 
-                                    <div id="contact-MFIN" class="d-none flex-column flex-grow-1 h-100 min-vh-0">
-                                        <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MFIN">
-                                            <thead>
-                                                <tr class="text-muted border-bottom">
-                                                    <th class="fw-medium pb-2 text-center">สถานะสัญญา</th>
-                                                    <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
-                                                    <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
-                                                    <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
-                                                    <th class="fw-medium pb-2 text-center">ประเภทสัญญา</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
-                                    </div>
-                                    
                                     <div id="contact-MIB" class="d-none flex-column flex-grow-1 h-100 min-vh-0">
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MIB">
                                             <thead>
@@ -127,6 +115,21 @@
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทผลิตภัณฑ์</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่รับแจ้ง</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+
+                                    <div id="contact-MFIN" class="d-none flex-column flex-grow-1 h-100 min-vh-0">
+                                        <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MFIN">
+                                            <thead>
+                                                <tr class="text-muted border-bottom">
+                                                    <th class="fw-medium pb-2 text-center">สถานะสัญญา</th>
+                                                    <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
+                                                    <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
+                                                    <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
+                                                    <th class="fw-medium pb-2 text-center">ประเภทสัญญา</th>
                                                 </tr>
                                             </thead>
                                             <tbody></tbody>
@@ -143,19 +146,29 @@
             </div>
 
                 <!-- Product Summary -->
-                <div class="bg-white rounded-4 p-4 shadow-sm border">
+                @* <div class="bg-white rounded-4 p-4 shadow-sm border">
                     <h6 class="fw-bold mb-4 text-dark">สรุปผลิตภัณฑ์ของลูกค้า</h6>
                     <div class="d-flex flex-column gap-0" id="product-summary-container">
                     </div>
-                </div>
+                </div> *@
             </div>
 
             <!-- Right Column -->
-            <div class="col-12 col-lg-7">
+            <div class="col-12 col-lg-6 col-xl-6">
                 <!-- Customer Details Panel -->
                 <div class="bg-white rounded-4 shadow-sm border h-100 d-flex flex-column" style="overflow: hidden;">
 
-                    <div class="p-4 p-lg-5 pb-0" id="customer-detail-panel-bg" style="flex: 1; transition: background-color 0.3s ease;">
+                    <div class="p-4 p-lg-4 pb-0" id="customer-detail-panel-bg" style="flex: 1; transition: background-color 0.3s ease;">
+
+                        <!-- Tabs -->
+                        <ul class="nav nav-tabs crm-tabs border-0 flex-nowrap overflow-y-hidden mb-4">
+                            <li class="nav-item">
+                                <a class="nav-link active fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-info">ข้อมูลลูกค้า</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-muted fw-medium px-4 pb-3 text-nowrap cursor-pointer disabled" data-target="tab-content-contract" aria-disabled="true">สัญญา</a>
+                            </li>
+                        </ul>
 
                         <h6 class="fw-bold mb-4 text-dark" id="dynamic-detail-header">รายละเอียดข้อมูลลูกค้า</h6>
 
@@ -511,9 +524,9 @@
                                     <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="tab-table-guarantor">
                                         <thead>
                                             <tr class="text-muted border-bottom">
-                                                <th class="fw-medium pb-2 text-center">เลขบัตรประชาชน</th>
-                                                <th class="fw-medium pb-2 text-center">ชื่อ-นามสกุล</th>
-                                                <th class="fw-medium pb-2 text-center">เบอร์โทรศัพท์</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">เลขบัตรประชาชน</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">ชื่อ-นามสกุล</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">เบอร์โทรศัพท์</th>
                                             </tr>
                                         </thead>
                                         <tbody id="guarantorResultBody">
@@ -527,11 +540,11 @@
                                     <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="tab-table-payment">
                                         <thead>
                                             <tr class="text-muted border-bottom">
-                                                <th class="fw-medium pb-2 text-center">วันที่ชำระ</th>
-                                                <th class="fw-medium pb-2 text-center">ยอดชำระ</th>
-                                                <th class="fw-medium pb-2 text-center">ช่องทางชำระ</th>
-                                                <th class="fw-medium pb-2 text-center">ชำระเงินโดย</th>
-                                                <th class="fw-medium pb-2 text-center">เบอร์โทร</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">วันที่ชำระ</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">ยอดชำระ</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">ช่องทางชำระ</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">ชำระเงินโดย</th>
+                                                <th class="fw-medium pb-2 text-center text-nowrap">เบอร์โทร</th>
                                             </tr>
                                         </thead>
                                         <tbody id="paymentResultBody">
@@ -835,22 +848,10 @@
 
                         </div>
 
-                    <!-- Tabs -->
-                    <ul class="nav nav-tabs crm-tabs border-0 flex-nowrap overflow-y-hidden" style="margin-bottom: 0;">
-                       
-                        <li class="nav-item">
-                            <a class="nav-link active fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-info">ข้อมูลลูกค้า</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-muted fw-medium px-4 pb-3 text-nowrap cursor-pointer" data-target="tab-content-contract">สัญญา</a>
-                        </li>
-
-                    </ul>
-
                     </div>
 
                     <!-- PDPA Section -->
-                    <div class="p-4 p-lg-5 bg-light rounded-bottom-4 flex-grow-1 border-top">
+                    <div class="p-4 p-lg-4 bg-light rounded-bottom-4 flex-grow-1 border-top">
                         <h6 class="fw-bold mb-4 text-dark">การยินยอมเพื่อการตลาดและสิทธิพิเศษ (✅ = ยินยอม, ❌ = ไม่ยินยอม)
                             <i class="bi bi-info-circle text-primary ms-1" 
                                id="pdpa-info-icon"
@@ -915,7 +916,7 @@
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-medium small">ที่อยู่ในการติดต่อ</label>
-                                <textarea class="form-control" rows="4" placeholder="กรุณากรอกที่อยู่ในการติดต่อ"></textarea>
+                                <textarea class="form-control" rows="4" placeholder="กรุณากรอกที่อยู่ในการติดต่อ" style="resize: none;"></textarea>
                             </div>
                             <div class="col-md-8">
                                 <div class="row g-3">
@@ -968,7 +969,7 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-medium small">บันทึกข้อเสนอแนะ / ร้องเรียน <span class="text-danger">*</span></label>
-                            <textarea class="form-control" rows="3" placeholder="กรุณาระบุรายละเอียดของข้อเสนอแนะ / ร้องเรียน"></textarea>
+                            <textarea class="form-control" rows="3" placeholder="กรุณาระบุรายละเอียดของข้อเสนอแนะ / ร้องเรียน" style="resize: none;"></textarea>
                         </div>
 
                         <div class="d-flex justify-content-end gap-3 border-top pt-4">

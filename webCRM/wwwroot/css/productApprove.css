@@ -206,6 +206,7 @@ body {
 .status-yellow, .pa-status-badge.status-yellow { background-color: #fef5e5 !important; color: #d97706 !important; border-color: rgba(245, 176, 38, 0.2) !important; }
 .status-purple, .pa-status-badge.status-purple { background-color: #f3eef9 !important; color: var(--pa-purple) !important; border-color: rgba(121, 82, 179, 0.2) !important; }
 .status-red, .pa-status-badge.status-red { background-color: #fde8e8 !important; color: var(--pa-red) !important; border-color: rgba(220, 53, 69, 0.2) !important; }
+.status-gray, .pa-status-badge.status-gray { background-color: #f1f5f9 !important; color: #64748b !important; border-color: rgba(100, 116, 139, 0.2) !important; }
 
 .pa-card-name {
     font-size: 0.92rem;
@@ -391,7 +392,7 @@ textarea.pa-form-control {
     min-height: 80px;
     padding: 0.5rem 0.75rem;
     line-height: 1.5;
-    resize: vertical;
+    resize: none;
 }
 .pa-form-control-icon {
     position: relative;
@@ -443,6 +444,34 @@ textarea.pa-form-control {
     gap: 0.5rem;
     font-weight: 500;
     font-size: 0.9rem;
+}
+
+.pa-campaign-detail-section {
+    flex-shrink: 0;
+}
+
+.pa-prospect-section {
+    flex: 1 0 auto;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pa-table-responsive-wrapper {
+    overflow-x: auto;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 220px;
+    width: 100%;
+    border: 1px solid var(--pa-border);
+    border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pa-table-responsive-wrapper .pa-table {
+    min-width: 720px;
+    width: 100%;
+    margin-bottom: 0;
 }
 
 .pa-table {
@@ -975,5 +1004,9 @@ table.dataTable#campaignsTable {
 }
 #campaignsTable thead {
     display: none;
+}
+
+.swal2-textarea {
+    resize: none !important;
 }
 

@@ -59,7 +59,7 @@ async function sendEmail(to, cc, subject, content) {
     return response;
 }
 
-async function searchSuggestion(selectedGuidToPreserve = null) {
+async function searchSuggestion(selectedGuidToPreserve = null, showLoadingSpinner = true) {
     if (!table) return;
 
     var topicVal = $('#filterTopic').val() || '';
@@ -67,24 +67,25 @@ async function searchSuggestion(selectedGuidToPreserve = null) {
     var keyword = $('#customSearchInput').val() || '';
 
     try {
-        if (typeof showLoading === 'function') {
-            showLoading('กำลังค้นหาข้อมูล', 'กรุณารอสักครู่...');
+        if (showLoadingSpinner) {
+            startLoading('กำลังค้นหาข้อมูล...', 'กรุณารอสักครู่');
         }
 
         const url = `/Suggestions/GetSuggestions?status=${encodeURIComponent(statusVal)}&header=${encodeURIComponent(topicVal)}&search=${encodeURIComponent(keyword)}`;
-        const response = await fetch(url);
+        const response = await fetch(url, { skipLoading: true });
         if (!response.ok) {
             throw new Error('HTTP error ' + response.status);
         }
 
         const data = await response.json();
+        console.log("data",data)
         renderSuggestionsTable(data, selectedGuidToPreserve);
 
     } catch (error) {
         console.error("Error in searchSuggestion:", error);
     } finally {
-        if (typeof hideLoading === 'function') {
-            hideLoading();
+        if (showLoadingSpinner) {
+            stopLoading();
         }
     }
 }
@@ -350,6 +351,8 @@ $(document).ready(function () {
         searching: true,
         dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
         language: {
+            emptyTable: "ไม่พบรายการ",
+            zeroRecords: "ไม่พบรายการ",
             lengthMenu: "แสดง _MENU_ รายการ",
             info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
             infoEmpty: "แสดง 0 ถึง 0 จาก 0 รายการ",
@@ -775,7 +778,7 @@ function showDetails(row) {
     $('#detail-suggestion').text(getVal('suggestion'));
 
     const replyVal = getVal('reply');
-    $('#reply-input').val(replyVal !== '-' ? replyVal : '');
+    $('#reply-input').val('');
 
     $('#detail-guid').text(getVal('guid'));
     const updBy = getVal('updby');
@@ -855,6 +858,11 @@ async function UpdateSuggestion() {
         return;
     }
 
+    if (!reply || reply.trim() === "") {
+        showAlert('warning', 'แจ้งเตือน', 'กรุณากรอกข้อความตอบกลับก่อนบันทึก');
+        return;
+    }
+
     var $activeRow = $('#suggestionsTable tbody tr.table-active');
     var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
     if (!canShowReplyBox(currentStatus)) {
@@ -863,80 +871,71 @@ async function UpdateSuggestion() {
     }
 
     try {
-        var result = await AlertComponent.confirmSave('ต้องการบันทึกข้อความตอบกลับหรือไม่');
-
-        if (result.isConfirmed) {
-            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
-            var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`);
-            if (!response.ok) {
-                throw new Error("HTTP error " + response.status);
-            }
-            var msg = await response.json();
-            if (msg && msg.status === "error") {
-                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
-            }
-
-            var sendToVal = $("#detail-sendTo").text().trim();
-            if (sendToVal === '-' || sendToVal === 'undefined') {
-                sendToVal = '';
-            }
-
-            if (sendToVal) {
-                try {
-                    const sendToText = sendToVal;
-                    const $activeRow = $('#suggestionsTable tbody tr.table-active');
-                    const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
-                    const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                    const emailContent = `เรียน ${sendToText}<br><br>` +
-                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาดังนี้ ${reply} ` +
-                        `ขอขอบคุณ<br>` +
-                        `${fullNameTh}`;
-
-                    await sendEmail(
-                        sendToVal,
-                        null,
-                        "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
-                        emailContent
-                    );
-                    const endDate = new Date();
-                    endDate.setFullYear(endDate.getFullYear() + 10);
-
-                    const senderId = typeof userId !== 'undefined' ? userId : '';
-
-                    await PostNoti({
-                        header: "ข้อเสนอแนะ/ร้องเรียน",
-                        title: "เรื่อง : " + topicTitle,
-                        message: emailContent,
-                        receiver_email: sendToVal,
-                        sender: senderId,
-                        create_by: senderId,
-                        end_date: endDate,
-                    });
-
-                } catch (emailErr) {
-                    console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
-                }
-
-            }
-
-            if (typeof stopLoading === 'function') {
-                stopLoading(true);
-            } else if (typeof hideLoading === 'function') {
-                hideLoading();
-            }
-            $("#reply-input").val("");
-            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว', function () {
-                searchSuggestion(guid);
-            });
+        startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
+        var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`, {
+            skipLoading: true
+        });
+        if (!response.ok) {
+            throw new Error("HTTP error " + response.status);
         }
+        var msg = await response.json();
+        if (msg && msg.status === "error") {
+            throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+        }
+
+        var sendToVal = $("#detail-sendTo").text().trim();
+        if (sendToVal === '-' || sendToVal === 'undefined') {
+            sendToVal = '';
+        }
+
+        if (sendToVal) {
+            try {
+                const sendToText = sendToVal;
+                const $activeRow = $('#suggestionsTable tbody tr.table-active');
+                const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
+                const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                const emailContent = `เรียน ${sendToText}<br><br>` +
+                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาดังนี้ ${reply} ` +
+                    `ขอขอบคุณ<br>` +
+                    `${fullNameTh}`;
+
+                await sendEmail(
+                    sendToVal,
+                    null,
+                    "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
+                    emailContent
+                );
+                const endDate = new Date();
+                endDate.setFullYear(endDate.getFullYear() + 10);
+
+                const senderId = typeof userId !== 'undefined' ? userId : '';
+
+                await PostNoti({
+                    header: "ข้อเสนอแนะ/ร้องเรียน",
+                    title: "เรื่อง : " + topicTitle,
+                    message: emailContent,
+                    receiver_email: sendToVal,
+                    sender: senderId,
+                    create_by: senderId,
+                    end_date: endDate,
+                });
+
+            } catch (emailErr) {
+                console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
+            }
+
+        }
+
+        // โหลดข้อมูลล่าสุดก่อนปิด loading เพื่อให้หมุนรอบเดียวและข้อมูลอัปเดตเรียบร้อยก่อนแสดง alert
+        await searchSuggestion(guid, false);
+
+        $("#reply-input").val("");
+        stopLoading(true);
+        showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อความตอบกลับเรียบร้อยแล้ว');
 
     } catch (error) {
         console.error(error);
-        if (typeof stopLoading === 'function') {
-            stopLoading(true);
-        } else if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
+        stopLoading(true);
         showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
@@ -1006,14 +1005,15 @@ async function AddSuggestion() {
         var result = await AlertComponent.confirmSave('ต้องการบันทึกข้อเสนอแนะ / ร้องเรียนหรือไม่');
         if (result.isConfirmed) {
 
-            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูลข้อเสนอแนะ / ร้องเรียนของคุณ กรุณารอสักครู่...');
+            startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูลข้อเสนอแนะ / ร้องเรียนของคุณ กรุณารอสักครู่...');
 
             var response = await fetch(`/Suggestions/PostSuggestion`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(requestData)
+                body: JSON.stringify(requestData),
+                skipLoading: true
             });
 
             if (!response.ok) {
@@ -1061,11 +1061,10 @@ async function AddSuggestion() {
 
             }
 
-            if (typeof stopLoading === 'function') {
-                stopLoading(true);
-            } else if (typeof hideLoading === 'function') {
-                hideLoading();
-            }
+            // โหลดข้อมูลล่าสุดก่อนปิด loading
+            await searchSuggestion(null, false);
+
+            stopLoading(true);
 
             // Clear fields
             $("#post-title").val("");
@@ -1094,19 +1093,13 @@ async function AddSuggestion() {
                 modal.hide();
             }
 
-            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว', function () {
-                searchSuggestion();
-            });
+            showAlert('success', 'บันทึกสำเร็จ', 'บันทึกข้อเสนอแนะ / ร้องเรียนเรียบร้อยแล้ว');
 
         }
 
     } catch (error) {
         console.error(error);
-        if (typeof stopLoading === 'function') {
-            stopLoading(true);
-        } else if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
+        stopLoading(true);
         showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
@@ -1211,31 +1204,27 @@ async function PutSuggestionStatusUpd (){
     try {
         var result = await AlertComponent.confirmSave('ต้องการปิดงานข้อเสนอแนะ / ร้องเรียนหรือไม่');
         if (result.isConfirmed) {
-            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่...');
-            var response = await fetch(`/Suggestions/PutSuggestionStatusUpd?guid=${encodeURIComponent(guid)}`);
+            startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่...');
+            var response = await fetch(`/Suggestions/PutSuggestionStatusUpd?guid=${encodeURIComponent(guid)}`, {
+                skipLoading: true
+            });
             if (!response.ok) {
                 throw new Error("HTTP error " + response.status);
             }
             var msg = await response.json();
-            if (typeof stopLoading === 'function') {
-                stopLoading(true);
-            } else if (typeof hideLoading === 'function') {
-                hideLoading();
-            }
             if (msg && msg.status === "error") {
                 throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
             }
-            showAlert('success', 'สำเร็จ', 'ปิดงานเรียบร้อยแล้ว', function () {
-                searchSuggestion(guid);
-            });
+
+            // โหลดข้อมูลล่าสุดก่อนปิด loading
+            await searchSuggestion(guid, false);
+
+            stopLoading(true);
+            showAlert('success', 'สำเร็จ', 'ปิดงานเรียบร้อยแล้ว');
         }
     } catch (error) {
         console.error(error);
-        if (typeof stopLoading === 'function') {
-            stopLoading(true);
-        } else if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
+        stopLoading(true);
         showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
     }
 }
@@ -1311,7 +1300,7 @@ async function ForwardSuggestion() {
 
     if (result.isConfirmed && result.value) {
         try {
-            showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังส่งต่อข้อมูล กรุณารอสักครู่...');
+            startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังส่งต่อข้อมูล กรุณารอสักครู่...');
 
             const sendToVal = result.value;
             const sendToText = $('#swal-send-to option:selected').text().trim() || sendToVal;
@@ -1320,7 +1309,9 @@ async function ForwardSuggestion() {
             const suggestionDetail = $('#detail-suggestion').text().trim();
             const contactDateTime = $('#detail-contact-back').text().trim();
 
-            var response = await fetch(`/Suggestions/UpdateSuggestionStatus?guid=${encodeURIComponent(guid)}&statusTask=Forward&sendTo=${encodeURIComponent(sendToVal)}`);
+            var response = await fetch(`/Suggestions/UpdateSuggestionStatus?guid=${encodeURIComponent(guid)}&statusTask=Forward&sendTo=${encodeURIComponent(sendToVal)}`, {
+                skipLoading: true
+            });
             if (!response.ok) {
                 throw new Error("HTTP error " + response.status);
             }
@@ -1366,21 +1357,14 @@ async function ForwardSuggestion() {
 
             }
 
-            if (typeof stopLoading === 'function') {
-                stopLoading(true);
-            } else if (typeof hideLoading === 'function') {
-                hideLoading();
-            }
-            showAlert('success', 'สำเร็จ', 'ส่งต่อเรียบร้อยแล้ว', function () {
-                searchSuggestion(guid);
-            });
+            // โหลดข้อมูลล่าสุดก่อนปิด loading
+            await searchSuggestion(guid, false);
+
+            stopLoading(true);
+            showAlert('success', 'สำเร็จ', 'ส่งต่อเรียบร้อยแล้ว');
         } catch (error) {
             console.error(error);
-            if (typeof stopLoading === 'function') {
-                stopLoading(true);
-            } else if (typeof hideLoading === 'function') {
-                hideLoading();
-            }
+            stopLoading(true);
             showAlert('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการส่งต่อ: ' + error.message);
         }
     }

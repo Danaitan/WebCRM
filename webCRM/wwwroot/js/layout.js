@@ -249,24 +249,19 @@ function formatNotiDate(dateStr) {
                 timeZone: 'Asia/Bangkok',
                 year: 'numeric',
                 month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
+                day: '2-digit'
             });
             const parts = formatter.formatToParts(d);
             const getPart = (type) => (parts.find(p => p.type === type)?.value || '');
             const day = getPart('day');
             const month = getPart('month');
             const year = getPart('year');
-            const hour = getPart('hour');
-            const minute = getPart('minute');
-            return `${day}/${month}/${year} ${hour}:${minute}`;
+            return `${day}/${month}/${year}`;
         }
     } catch (e) {
         console.error("Error formatting noti date:", e);
     }
-    return String(dateStr).replace('T', ' ').replace('.000Z', '').slice(0, 16);
+    return String(dateStr).split('T')[0].split(' ')[0];
 }
 
 function getItemInfo(t, groupIsRead, groupObj) {
@@ -1021,7 +1016,7 @@ function renderNotifications(data) {
                                 <div class="d-flex flex-wrap align-items-center gap-2 mt-1 text-muted" style="font-size: 0.75rem;">
                                     ${info.sender ? `<span>ผู้ส่ง: ${info.sender}</span>` : ''}
                                     ${(info.sender && info.startDate) ? `<span class="opacity-50">•</span>` : ''}
-                                    ${info.startDate ? `<span>วันที่ส่ง: ${info.startDate}</span>` : ''}
+                                    ${info.startDate ? `<span>วันที่แจ้งเตือน: ${info.startDate}</span>` : ''}
                                 </div>
                             ` : ''}
                         </div>
@@ -1087,7 +1082,7 @@ function renderNotifications(data) {
                             ${(info.sender || info.startDate) ? `
                                 <div class="d-flex flex-wrap align-items-center gap-3 text-secondary" style="font-size: 0.8rem;">
                                     ${info.sender ? `<span>ผู้ส่ง: <strong>${info.sender}</strong></span>` : ''}
-                                    ${info.startDate ? `<span>วันที่ส่ง: <strong>${info.startDate}</strong></span>` : ''}
+                                    ${info.startDate ? `<span>วันที่แจ้งเตือน: <strong>${info.startDate}</strong></span>` : ''}
                                 </div>
                             ` : ''}
                         </div>

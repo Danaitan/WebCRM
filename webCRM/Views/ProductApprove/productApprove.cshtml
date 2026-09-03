@@ -1,6 +1,6 @@
 @{
-    ViewData["Title"] = "รายการแคมเปญ";
-    ViewData["HeaderTitle"] = "รายละเอียด Campaign Approve";
+    ViewData["Title"] = "Campaign Approve";
+    ViewData["HeaderTitle"] = "Campaign Approve";
 }
 
 @section Styles {
@@ -51,11 +51,11 @@
             
             <!-- Main Area -->
             <div class="pa-main-area">
-                <div class="pa-section">
+                <div class="pa-section pa-campaign-detail-section">
                     <div class="pa-section-title">
-                        <i class="bi bi-clipboard2-check"></i> รายละเอียด Campaign
+                        <i class="bi bi-clipboard2-check"></i> ข้อมูล Campaign
                     </div>
-                    <div class="row g-4">
+                    <div class="row g-3">
                         <div class="col-12 col-lg-6 col-xl-4 pa-form-group">
                             <label>รหัส Campaign</label>
                             <input type="text" id="detailId" class="pa-form-control" value="APP-0001" readonly>
@@ -83,12 +83,12 @@
                             </div>
                         </div>
 
-                        <div class="col-12 pa-form-group">
+                        <div class="col-12 pa-form-group mb-0">
                             <label>หมายเหตุ</label>
-                            <textarea id="detailNote" class="pa-form-control" rows="3" readonly placeholder="-" style="resize: vertical;"></textarea>
+                            <textarea id="detailNote" class="pa-form-control" rows="2" readonly placeholder="-" style="resize: none;"></textarea>
                         </div>
 
-                        <div class="col-12 mt-4">
+                        <div class="col-12 mt-2">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
                                     <i class="bi bi-file-earmark-text text-primary fs-5"></i>
@@ -100,7 +100,7 @@
                     </div>
                 </div>
 
-                <div class="pa-section d-flex flex-column" style="flex-grow: 1; min-height: 0;">
+                <div class="pa-section pa-prospect-section d-flex flex-column">
                     <div class="pa-prospect-header">
                         <div class="pa-section-title mb-0">
                             <i class="bi bi-people"></i> รายละเอียด Prospect
@@ -108,7 +108,7 @@
                         </div>
                     </div>
                     
-                    <div style="overflow: auto; flex-grow: 1; min-height: 0;">
+                    <div class="pa-table-responsive-wrapper">
                         <table class="pa-table" id="prospectApproveTable">
                             <thead>
                                 <tr>
@@ -198,7 +198,7 @@
                 </div> *@
 
                 <button class="btn-pa-clear" id="btnClearFilter">
-                    <i class="bi bi-arrow-repeat"></i> ล้างเงื่อนไข
+                    <i class="bi bi-arrow-counterclockwise"></i> ล้างเงื่อนไข
                 </button>
                 <button class="btn btn-primary mt-2" id="btnSearch">
                     <i class="bi bi-search"></i> ค้นหา

@@ -97,7 +97,19 @@ function renderCompanyTabs(contactData = currentContactData) {
 
     container.innerHTML = "";
 
-    masterData.company.forEach((comp, index) => {
+    const companyOrder = { 'micro': 1, 'mib': 2, 'mfin': 3 };
+    const sortedCompanies = [...masterData.company].sort((a, b) => {
+        const nameA = (a.company || "").toLowerCase().trim();
+        const nameB = (b.company || "").toLowerCase().trim();
+        const orderA = companyOrder[nameA] !== undefined ? companyOrder[nameA] : 999;
+        const orderB = companyOrder[nameB] !== undefined ? companyOrder[nameB] : 999;
+        if (orderA !== orderB) {
+            return orderA - orderB;
+        }
+        return nameA.localeCompare(nameB);
+    });
+
+    sortedCompanies.forEach((comp, index) => {
         const compName = comp.company || "";
         if (!compName) return;
 
@@ -213,10 +225,12 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         getmaster();
         initPopovers();
+        setContractTabEnabled(false);
     });
 } else {
     getmaster();
     initPopovers();
+    setContractTabEnabled(false);
 }
 
 function isCheck (isCheck)
@@ -579,14 +593,13 @@ async function performSearch() {
                                     </div>
                                 </td>
                                 <td class="py-3 text-muted text-center text-nowrap">
-                                    ${
-                                        licno?.match(/^(\d+)\s+(.+)$/)
-                                            ? `
-                                                <div>${licno.match(/^(\d+)\s+(.+)$/)[1]}</div>
-                                                <small class="text-muted">${licno.match(/^(\d+)\s+(.+)$/)[2]}</small>
-                                            `
-                                            : licno
-                                    }
+                                    ${(() => {
+                                        if (!licno || licno === '-') return '-';
+                                        const match = licno.trim().match(/^(.+)\s+([^\s]+)$/);
+                                        return match
+                                            ? `<div>${match[1]}</div><small class="text-muted">${match[2]}</small>`
+                                            : licno;
+                                    })()}
                                 </td>
                                 <td class="py-3 text-muted text-center text-nowrap">${comCde}</td>
                                 <td class="py-3 text-muted text-center text-nowrap">${contno}</td>
@@ -626,6 +639,7 @@ async function performSearch() {
                         const idx = parseInt(clickedRow.dataset.index);
                         const selectedCust = data[idx];
                         if (selectedCust) {
+                            setContractTabEnabled(false);
                             startLoading('กำลังโหลดข้อมูลลูกค้า...', 'ระบบกำลังดึงข้อมูลรายละเอียดและสัญญาของลูกค้า กรุณารอสักครู่...');
                             try {
                                 await displayCustomerDetails(selectedCust);
@@ -643,7 +657,7 @@ async function performSearch() {
 
                 } else {
                     document.getElementById("customerCount").innerText = "0";
-                    document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">ไม่พบข้อมูล</td></tr>';
+                    document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">ไม่พบรายการ</td></tr>';
                     currentContactData = null;
                     renderProductSummary(null);
                     renderCompanyTabs(null);
@@ -653,7 +667,7 @@ async function performSearch() {
                 }
             } else {
                 console.error("Error fetching data:", response.status);
-                document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>';
+                document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>';
             }
             
             searchBtn.innerHTML = originalText;
@@ -690,7 +704,7 @@ if (clearBtn) {
         clearCustomerDetails();
         clearContactTables();
         document.getElementById("customerCount").innerText = "0";
-        document.getElementById("searchResultBody").innerHTML = '';
+        document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">ไม่พบรายการ</td></tr>';
 
         currentContactData = null;
         renderProductSummary(null);
@@ -716,10 +730,27 @@ const tabLinks = document.querySelectorAll('.crm-tabs .nav-link');
 const detailHeader = document.getElementById('dynamic-detail-header');
 const tabContents = document.querySelectorAll('.tab-content-pane');
 
+function setContractTabEnabled(enabled) {
+    const contractTab = document.querySelector('.crm-tabs .nav-link[data-target="tab-content-contract"]');
+    if (!contractTab) return;
+    if (enabled) {
+        contractTab.classList.remove('disabled');
+        contractTab.removeAttribute('aria-disabled');
+    } else {
+        contractTab.classList.add('disabled');
+        contractTab.setAttribute('aria-disabled', 'true');
+        // If contract tab was active, switch back to customer info tab
+        if (contractTab.classList.contains('active')) {
+            const infoTab = document.querySelector('.crm-tabs .nav-link[data-target="tab-content-info"]');
+            if (infoTab) infoTab.click();
+        }
+    }
+}
+
 tabLinks.forEach(link => {
     link.addEventListener('click', function(e) {
         e.preventDefault();
-        if (this.classList.contains('active')) return;
+        if (this.classList.contains('active') || this.classList.contains('disabled')) return;
 
         tabLinks.forEach(t => {
             t.classList.remove('active');
@@ -800,6 +831,7 @@ document.addEventListener('click', function(e) {
             }
 
             if (targetId === "tab-table-contact") {
+                setContractTabEnabled(true);
                 const tabs = document.getElementById("contact-company-tabs");
                 if (tabs) {
                     tabs.classList.remove("d-none");
@@ -837,6 +869,7 @@ document.addEventListener('click', function(e) {
                     });
                 }, 50);
             } else if (targetId === "tab-table-person") {
+                setContractTabEnabled(false);
                 const tabs = document.getElementById("contact-company-tabs");
                 if (tabs) tabs.classList.add("d-none");
             }
@@ -1106,6 +1139,11 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
 
          // Update UI with actual data
         if (contract) {
+            setContractTabEnabled(true);
+            const contractTab = document.querySelector('.crm-tabs .nav-link[data-target="tab-content-contract"]');
+            if (contractTab && !contractTab.classList.contains('active')) {
+                contractTab.click();
+            }
 
             if (company === "MIB") {
                 document.getElementById("tab-buttons-normal").classList.add("d-none");
@@ -1316,6 +1354,8 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             const dtGuarantorConfig = {
                 data: data.guarantorsInfo || [],
                 destroy: true,
+                searching: false,
+                lengthChange: false,
                 createdRow: function(row, data, dataIndex) {
                     $(row).addClass('cursor-pointer').attr('title', 'คลิกเพื่อดูที่อยู่');
                 },
@@ -1326,8 +1366,6 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 ],
                 language: {
                     emptyTable: "ไม่พบข้อมูลผู้ค้ำประกัน",
-                    search: "ค้นหา:",
-                    lengthMenu: "แสดง _MENU_ รายการ",
                     info: "แสดงรายการที่ _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
                     infoEmpty: "แสดง 0 ถึง 0 จากทั้งหมด 0 รายการ",
                     paginate: {
@@ -1338,8 +1376,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                     }
                 },
                 pageLength: 5,
-                lengthMenu: [[5, 10, 25, 50], [5, 10, 25, 50]],
-                dom: '<"row flex-shrink-0 mx-0"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>><"flex-grow-1 overflow-auto min-vh-0"t><"row flex-shrink-0 mx-0 pt-2"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                dom: '<"flex-grow-1 overflow-auto min-vh-0"t><"row flex-shrink-0 mx-0 pt-2"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
                 order: []
             };
 

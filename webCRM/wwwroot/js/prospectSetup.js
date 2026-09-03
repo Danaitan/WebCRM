@@ -12,7 +12,18 @@ let selectedCampaign = null;
 let currentProductBatches = [];
 let currentBatchCustomers = [];
 let removedBatchCustomerIds = new Set();
+let manuallySelectedCustomers = new Map();
 let isCurrentCampaignImport = false;
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 const $campaignSearchInput = $("#campaignSearchInput");
 
@@ -352,7 +363,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
         const startItem = res.count > 0 ? (res.page - 1) * res.pageSize + 1 : 0;
         const endItem = Math.min(res.page * res.pageSize, res.count);
         const totalPages = Math.ceil(res.count / (res.pageSize || 1)) || 1;
-        batchListTextEl.textContent = `แสดง ${startItem} - ${endItem} จาก ${res.count} รายการ (หน้า ${res.page}/${totalPages}, ขนาด ${res.pageSize}/หน้า)`;
+        batchListTextEl.textContent = `แสดง ${startItem} ถึง ${endItem} จากทั้งหมด ${res.count} รายการ`;
     }
 
     const dataTableContainer = document.getElementById('dataTable');
@@ -378,18 +389,34 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 return str;
             };
 
+            const statusStr = String(item.status || '').trim().toLowerCase();
+            const normalizedStatus = statusStr.replace(/_/g, ' ');
+            let badgeClass = 'bg-secondary';
+
+            if (normalizedStatus === 'reject' || normalizedStatus === 'rejected' || normalizedStatus === 'ไม่อนุมัติ' || normalizedStatus === 'cancel' || normalizedStatus === 'cancelled' || normalizedStatus === 'ยกเลิก') {
+                badgeClass = 'bg-danger';
+            } else if (normalizedStatus === 'approve' || normalizedStatus === 'approved' || normalizedStatus === 'อนุมัติ' || normalizedStatus === 'อนุมัติแล้ว' || normalizedStatus === 'active' || normalizedStatus === 'ปกติ') {
+                badgeClass = 'bg-success';
+            } else if (normalizedStatus === 'waiting prospect' || normalizedStatus === 'waiting prospect (prospect setup)') {
+                badgeClass = 'bg-warning text-dark';
+            } else if (normalizedStatus === 'waiting approve' || normalizedStatus === 'waiting approval' || normalizedStatus === 'รออนุมัติ') {
+                badgeClass = 'bg-info text-dark';
+            } else if (normalizedStatus === 'draft' || normalizedStatus === 'ร่าง' || normalizedStatus === 'inactive') {
+                badgeClass = 'bg-secondary';
+            }
+
             card.innerHTML = `
                 <div class="d-flex justify-content-between">
-                    <div class="batch-id color-${color}">${item.code || `BATCH-${String(i+1).padStart(3,'0')}`}</div>
+                    <div class="batch-id color-${color}">${escapeHtml(item.code || `BATCH-${String(i+1).padStart(3,'0')}`)}</div>
                 </div>
-                <div class="batch-title">${item.name || '(ไม่มีชื่อ)'}</div>
+                <div class="batch-title">${escapeHtml(item.name || '(ไม่มีชื่อ)')}</div>
                 <div class="d-flex justify-content-between align-items-end">
                     <div class="batch-meta">
-                        <div>สร้างโดย: ${item.createdBy || '-'}</div>
-                        <div>${formatDisplayDate(item.created)}</div>
+                        <div>สร้างโดย: ${escapeHtml(item.createdBy || '-')}</div>
+                        <div>${escapeHtml(formatDisplayDate(item.created))}</div>
                     </div>
                     <div class="text-end">
-                        <span class="badge rounded-pill ${item.status === 'Active' ? 'bg-success' : 'bg-secondary'} mb-1">${item.status}</span>
+                        <span class="badge rounded-pill ${badgeClass} mb-1">${escapeHtml(item.status)}</span>
                         <div class="text-secondary mt-1"><i class="bi bi-file-earmark-text"></i></div>
                     </div>
                 </div>
@@ -399,6 +426,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 this.classList.add('active');
                 selectedCampaign = item;
                 removedBatchCustomerIds.clear();
+                manuallySelectedCustomers.clear();
                 updateSendForApprovalButtonState();
                 displayCampaignFile(item.file_id);
 
@@ -662,8 +690,9 @@ async function loadProspectList(page = 1, pageSize = 10) {
                         });
                     }
 
-                    const isRemoved = id && removedBatchCustomerIds.has(String(id).trim());
-                    const isMatchedInBatchRes = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c.id && String(c.id).trim() === String(id).trim());
+                    const idStr = (id && id !== '-') ? String(id).trim() : (idno && idno !== '-' ? String(idno).trim() : '');
+                    const isRemoved = idStr && removedBatchCustomerIds.has(idStr);
+                    const isMatchedInBatchRes = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c.id && String(c.id).trim() === idStr);
                     const isMatched = !isRemoved && (!!matchedBatch || isMatchedInBatchRes);
                     let isDraft = false;
                     if (isMatched) {
@@ -672,19 +701,29 @@ async function loadProspectList(page = 1, pageSize = 10) {
                         isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
                     }
 
-                    const isChecked = isMatched;
-                    const isDisabled = isMatched && !isDraft;
+                    const isManuallySelected = idStr && manuallySelectedCustomers.has(idStr) && !isRemoved;
+                    const isChecked = isMatched || isManuallySelected;
+                    const canSelect = isProspectSelectionAllowed();
+                    const isDisabled = !canSelect || (isMatched && !isDraft);
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td class="text-center">
                             <div class="form-check d-flex justify-content-center m-0">
-                                <input class="form-check-input row-checkbox" type="checkbox" data-id="${id}" data-idno="${idno}" data-batch="${prospectBatch}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
+                                <input class="form-check-input row-checkbox" type="checkbox" 
+                                    data-id="${escapeHtml(idStr)}" 
+                                    data-idno="${escapeHtml(idno !== '-' ? idno : '')}" 
+                                    data-name="${escapeHtml(name !== '-' ? name : '')}" 
+                                    data-phone="${escapeHtml(phone !== '-' ? phone : '')}" 
+                                    data-branch="${escapeHtml(branch !== '-' ? branch : '')}" 
+                                    data-batch="${escapeHtml(prospectBatch)}" 
+                                    ${isChecked ? 'checked' : ''} 
+                                    ${isDisabled ? 'disabled' : ''}>
                             </div>
                         </td>
-                        <td>${name}</td>
-                        <td>${phone}</td>
-                        <td>${branch}</td>
+                        <td>${escapeHtml(name)}</td>
+                        <td>${escapeHtml(phone)}</td>
+                        <td>${escapeHtml(branch)}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -777,17 +816,17 @@ function getSelectedList() {
     if (Array.isArray(currentBatchCustomers)) {
         currentBatchCustomers.forEach(c => {
             if (!c) return;
-            const idKey = c.id;
-            const trimmedId = idKey ? String(idKey).trim() : null;
+            const idKey = c.id ? String(c.id).trim() : null;
+            if (idKey && removedBatchCustomerIds.has(idKey)) return;
 
-            if (trimmedId) seenIds.add(trimmedId);
+            if (idKey) seenIds.add(idKey);
             const name = c.name || '-';
             const phone = c.phone || '-';
             const branch = c.branch || '-';
             const isDisabled = c.isDisabled !== undefined ? c.isDisabled : true;
 
             combinedList.push({
-                id: trimmedId || '',
+                id: idKey || '',
                 idno: c.idno || (c.raw ? c.raw.idno : ''),
                 name: name,
                 phone: phone,
@@ -798,34 +837,20 @@ function getSelectedList() {
         });
     }
 
-    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-    rowCheckboxes.forEach((checkbox, index) => {
-        if (checkbox.checked) {
-            const tr = checkbox.closest('tr');
-            const name = tr?.cells[1]?.textContent.trim() || '-';
-            const phone = tr?.cells[2]?.textContent.trim() || '-';
-            const branch = tr?.cells[3]?.textContent.trim() || '-';
-            const idno = checkbox.getAttribute('data-idno') || '';
-            const id = checkbox.getAttribute('data-id') || '';
-            const idKey = id ? String(id).trim() : null;
+    manuallySelectedCustomers.forEach((item, idKey) => {
+        if (idKey && removedBatchCustomerIds.has(idKey)) return;
+        if (idKey && seenIds.has(idKey)) return;
+        if (idKey) seenIds.add(idKey);
 
-            if (idKey && seenIds.has(idKey)) {
-                return;
-            }
-
-            if (idKey) seenIds.add(idKey);
-
-            combinedList.push({
-                id: idKey || '',
-                idno: idno,
-                name: name,
-                phone: phone,
-                branch: branch,
-                isDisabled: checkbox.disabled,
-                isBatchCustomer: false,
-                checkboxIndex: index
-            });
-        }
+        combinedList.push({
+            id: idKey || '',
+            idno: item.idno || '',
+            name: item.name || '-',
+            phone: item.phone || '-',
+            branch: item.branch || '-',
+            isDisabled: false,
+            isBatchCustomer: false
+        });
     });
 
     return combinedList;
@@ -835,7 +860,6 @@ function updateSelectedList() {
     const selectedTableBody = document.getElementById('selectedTableBody');
     const selectedCountText = document.getElementById('selectedCountText');
     const selectedTotalText = document.getElementById('selectedTotalText');
-    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
     if (!selectedTableBody) return;
     selectedTableBody.innerHTML = '';
@@ -846,13 +870,14 @@ function updateSelectedList() {
     if (combinedList.length === 0) {
         selectedTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3" style="font-size: 0.85rem;">ไม่มีรายการที่เลือก</td></tr>`;
     } else {
+        const canSelect = isProspectSelectionAllowed();
         combinedList.forEach((item) => {
             const newRow = document.createElement('tr');
             newRow.innerHTML = `
-                <td>${item.name}</td>
-                <td class="text-muted">${item.phone}</td>
-                <td class="text-muted">${item.branch}</td>
-                <td class="text-center">${item.isDisabled ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-index="${item.checkboxIndex !== undefined ? item.checkboxIndex : ''}" data-idno="${item.idno}" data-id="${item.id}"></i>`}</td>
+                <td>${escapeHtml(item.name)}</td>
+                <td class="text-muted">${escapeHtml(item.phone)}</td>
+                <td class="text-muted">${escapeHtml(item.branch)}</td>
+                <td class="text-center">${(item.isDisabled || !canSelect) ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-idno="${escapeHtml(item.idno)}" data-id="${escapeHtml(item.id)}"></i>`}</td>
             `;
             selectedTableBody.appendChild(newRow);
         });
@@ -865,23 +890,21 @@ function updateSelectedList() {
 
     document.querySelectorAll('#selectedTableBody .remove-item').forEach(btn => {
         btn.addEventListener('click', function () {
-            const targetIndex = this.getAttribute('data-index');
             const targetIdno = this.getAttribute('data-idno');
             const targetId = this.getAttribute('data-id');
 
-            const idStr = targetId ? String(targetId).trim() : '';
+            const idStr = targetId ? String(targetId).trim() : (targetIdno ? String(targetIdno).trim() : '');
 
-            if (idStr) removedBatchCustomerIds.add(idStr);
-
-            if (targetIndex !== '' && targetIndex !== null && rowCheckboxes[targetIndex]) {
-                rowCheckboxes[targetIndex].checked = false;
-                rowCheckboxes[targetIndex].disabled = false;
+            if (idStr) {
+                removedBatchCustomerIds.add(idStr);
+                manuallySelectedCustomers.delete(idStr);
             }
 
             const matchCbs = document.querySelectorAll('#dataTableBody .row-checkbox');
             matchCbs.forEach(cb => {
                 const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
-                if (idStr && cbId === idStr) {
+                const cbIdno = cb.getAttribute('data-idno') ? String(cb.getAttribute('data-idno')).trim() : '';
+                if (idStr && (cbId === idStr || cbIdno === idStr)) {
                     cb.checked = false;
                     cb.disabled = false;
                 }
@@ -890,7 +913,8 @@ function updateSelectedList() {
             if (Array.isArray(currentBatchCustomers)) {
                 const removeIndex = currentBatchCustomers.findIndex(c => {
                     const cId = c.id ? String(c.id).trim() : '';
-                    return idStr && cId === idStr;
+                    const cIdno = c.idno ? String(c.idno).trim() : '';
+                    return idStr && (cId === idStr || cIdno === idStr);
                 });
                 if (removeIndex !== -1) {
                     currentBatchCustomers.splice(removeIndex, 1);
@@ -908,12 +932,18 @@ function updateSelectedList() {
     updateSendForApprovalButtonState();
 }
 
+function isProspectSelectionAllowed() {
+    if (!selectedCampaign) return false;
+    const rawStatus = String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase();
+    const normalizedStatus = rawStatus.replace(/_/g, ' ');
+    return normalizedStatus === "waiting prospect" || normalizedStatus === "waiting prospect (prospect setup)";
+}
+
 function updateSendForApprovalButtonState() {
     const sendBtn = document.getElementById('sendForApprovalBtn');
     const saveBtn = document.getElementById('saveDraftBtn');
 
-    const rawStatus = selectedCampaign ? String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase() : '';
-    const isWaitingProspect = rawStatus === "waiting prospect" || rawStatus.replace(/_/g, ' ') === "waiting prospect";
+    const isWaitingProspect = isProspectSelectionAllowed();
 
     if (saveBtn) {
         const shouldDisableSave = !isWaitingProspect;
@@ -934,21 +964,9 @@ function updateSendForApprovalButtonState() {
     if (sendBtn) {
         const selectedList = getSelectedList();
         const hasSelectedItems = selectedList.length > 0;
+        const hasUnsavedChecked = manuallySelectedCustomers.size > 0;
 
-        const rowCheckboxes = document.querySelectorAll('#dataTableBody .row-checkbox');
-        let hasCheckedInTable = false;
-
-        rowCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
-                const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === cbId);
-                if (!isSavedInBatch) {
-                    hasCheckedInTable = true;
-                }
-            }
-        });
-
-        const shouldDisableSend = !isWaitingProspect || !hasSelectedItems || hasCheckedInTable;
+        const shouldDisableSend = !isWaitingProspect || !hasSelectedItems || hasUnsavedChecked;
 
         sendBtn.disabled = shouldDisableSend;
         if (shouldDisableSend) {
@@ -1024,6 +1042,9 @@ function updateCheckAllStatus() {
     const checkAll = document.getElementById('checkAll');
     const rowCheckboxes = document.querySelectorAll('.row-checkbox');
     if (!checkAll) return;
+    const canSelect = isProspectSelectionAllowed();
+    checkAll.disabled = !canSelect;
+
     const visibleCheckboxes = Array.from(rowCheckboxes);
     const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
     const someChecked = visibleCheckboxes.some(cb => cb.checked);
@@ -1035,15 +1056,53 @@ function updateCheckAllStatus() {
 function bindTableCheckboxEvents() {
     const checkAll = document.getElementById('checkAll');
     const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const canSelect = isProspectSelectionAllowed();
 
     if (checkAll) {
         const newCheckAll = checkAll.cloneNode(true);
         if (checkAll.parentNode) checkAll.parentNode.replaceChild(newCheckAll, checkAll);
+        newCheckAll.disabled = !canSelect;
         newCheckAll.addEventListener('change', function () {
+            if (!isProspectSelectionAllowed()) {
+                this.checked = false;
+                return;
+            }
             const isChecked = this.checked;
             rowCheckboxes.forEach(checkbox => {
                 if (!checkbox.disabled) {
                     checkbox.checked = isChecked;
+                    const idStr = checkbox.getAttribute('data-id') ? String(checkbox.getAttribute('data-id')).trim() : '';
+                    const idno = checkbox.getAttribute('data-idno') || '';
+                    const name = checkbox.getAttribute('data-name') || checkbox.closest('tr')?.cells[1]?.textContent.trim() || '-';
+                    const phone = checkbox.getAttribute('data-phone') || checkbox.closest('tr')?.cells[2]?.textContent.trim() || '-';
+                    const branch = checkbox.getAttribute('data-branch') || checkbox.closest('tr')?.cells[3]?.textContent.trim() || '-';
+
+                    if (idStr) {
+                        if (isChecked) {
+                            removedBatchCustomerIds.delete(idStr);
+                            const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === idStr);
+                            if (!isSavedInBatch) {
+                                manuallySelectedCustomers.set(idStr, {
+                                    id: idStr,
+                                    idno: idno,
+                                    name: name,
+                                    phone: phone,
+                                    branch: branch,
+                                    isDisabled: false,
+                                    isBatchCustomer: false
+                                });
+                            }
+                        } else {
+                            manuallySelectedCustomers.delete(idStr);
+                            removedBatchCustomerIds.add(idStr);
+                            if (Array.isArray(currentBatchCustomers)) {
+                                const removeIndex = currentBatchCustomers.findIndex(c => c && c.id && String(c.id).trim() === idStr);
+                                if (removeIndex !== -1) {
+                                    currentBatchCustomers.splice(removeIndex, 1);
+                                }
+                            }
+                        }
+                    }
                 }
             });
             updateSelectedList();
@@ -1052,6 +1111,42 @@ function bindTableCheckboxEvents() {
 
     rowCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function () {
+            if (!isProspectSelectionAllowed() || this.disabled) {
+                return;
+            }
+            const idStr = this.getAttribute('data-id') ? String(this.getAttribute('data-id')).trim() : '';
+            const idno = this.getAttribute('data-idno') || '';
+            const name = this.getAttribute('data-name') || this.closest('tr')?.cells[1]?.textContent.trim() || '-';
+            const phone = this.getAttribute('data-phone') || this.closest('tr')?.cells[2]?.textContent.trim() || '-';
+            const branch = this.getAttribute('data-branch') || this.closest('tr')?.cells[3]?.textContent.trim() || '-';
+
+            if (idStr) {
+                if (this.checked) {
+                    removedBatchCustomerIds.delete(idStr);
+                    const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === idStr);
+                    if (!isSavedInBatch) {
+                        manuallySelectedCustomers.set(idStr, {
+                            id: idStr,
+                            idno: idno,
+                            name: name,
+                            phone: phone,
+                            branch: branch,
+                            isDisabled: false,
+                            isBatchCustomer: false
+                        });
+                    }
+                } else {
+                    manuallySelectedCustomers.delete(idStr);
+                    removedBatchCustomerIds.add(idStr);
+                    if (Array.isArray(currentBatchCustomers)) {
+                        const removeIndex = currentBatchCustomers.findIndex(c => c && c.id && String(c.id).trim() === idStr);
+                        if (removeIndex !== -1) {
+                            currentBatchCustomers.splice(removeIndex, 1);
+                        }
+                    }
+                }
+            }
+
             updateSelectedList();
             updateCheckAllStatus();
         });
@@ -1259,6 +1354,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                         stopLoading(true);
                         Swal.fire({ title: "บันทึกสำเร็จ", icon: "success", timer: 1500, showConfirmButton: false });
                         removedBatchCustomerIds.clear();
+                        manuallySelectedCustomers.clear();
                         await refreshSelectedCampaignCustomers();
                         await loadProspectList(currentProspectPage, currentProspectPageSize);
                     }
@@ -1285,17 +1381,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        const rowCheckboxes = document.querySelectorAll('#dataTableBody .row-checkbox');
-        let hasUnsavedChecked = false;
-        rowCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
-                const isSaved = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === cbId);
-                if (!isSaved) hasUnsavedChecked = true;
-            }
-        });
-
-        if (hasUnsavedChecked) {
+        if (manuallySelectedCustomers.size > 0) {
             Swal.fire({
                 title: "แจ้งเตือน",
                 text: "มีรายการที่กดติ๊กเลือกอยู่ กรุณาบันทึกชุดข้อมูลก่อนส่งอนุมัติ",

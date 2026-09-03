@@ -29,6 +29,56 @@ function getCampaignStatus(date) {
     return end >= today ? 'Active' : 'Expire';
 }
 
+function isUserAllowedForCampaign(campaign) {
+    if (!campaign) return true;
+    const campaignOffcde = String(campaign.offcde || '').trim();
+    if (!campaignOffcde || campaignOffcde === '99' || campaignOffcde === 'ทุกสาขา') {
+        return true;
+    }
+
+    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
+    const userBranch = (typeof window.USER_BRANCH_NAME === 'string') ? window.USER_BRANCH_NAME.trim() : '';
+
+    if (!variableFunc && !userBranch) {
+        return true;
+    }
+
+    const campaignBranches = campaignOffcde.split(',').map(s => s.trim()).filter(Boolean);
+    if (campaignBranches.length === 0) return true;
+
+    if (variableFunc) {
+        const userAllowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
+        const match = campaignBranches.some(cBranch => {
+            const cClean = cBranch.replace(/^0+/, '');
+            const cPad = cBranch.padStart(2, '0');
+            return userAllowed.some(uBranch => {
+                const uClean = uBranch.replace(/^0+/, '');
+                const uPad = uBranch.padStart(2, '0');
+                return cBranch === uBranch || cPad === uPad || (cClean && uClean && cClean === uClean);
+            });
+        });
+        if (match) return true;
+    }
+
+    if (userBranch) {
+        const parts = userBranch.split('-');
+        const userBranchNo = parts[0].trim();
+        const userBranchNoClean = userBranchNo.replace(/^0+/, '');
+        const userBranchNoPad = userBranchNo.padStart(2, '0');
+        const userBranchName = parts.length > 1 ? parts.slice(1).join('-').trim() : userBranch;
+
+        const match = campaignBranches.some(cBranch => {
+            const cClean = cBranch.replace(/^0+/, '');
+            const cPad = cBranch.padStart(2, '0');
+            return cBranch === userBranchNo || cPad === userBranchNoPad || (cClean && userBranchNoClean && cClean === userBranchNoClean) ||
+                   userBranch.includes(cBranch) || (userBranchName && userBranchName.includes(cBranch));
+        });
+        if (match) return true;
+    }
+
+    return false;
+}
+
 // Fetch campaign list from API with page and pageSize
 async function getCampainList(page = 1, pageSize = 10) {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
@@ -58,13 +108,17 @@ async function getCampainList(page = 1, pageSize = 10) {
             company:       item.product_company || item.ProductCompany || '',
             created:       item.created        ? String(item.created).substring(0, 10)       : '',
             Objective_code: item.Objective_code || item.ObjectiveCode || '',
-            IsImport:      item.IsImport || false
+            IsImport:      item.IsImport || false,
+            offcde:        item.offcde         || item.Offcde || ''
         }));
+
+        const filteredMapped = mapped.filter(item => isUserAllowedForCampaign(item));
+
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
-            pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
-            count: jsonResult.count ?? mapped.length,
-            data: mapped
+            pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : filteredMapped.length),
+            count: filteredMapped.length,
+            data: filteredMapped
         };
     } catch (error) {
         console.error(error);
@@ -178,41 +232,13 @@ function extractProspectCustomers(data) {
             const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const rawAssignDate = item.assign_date || item.created || item.ImportDate || '';
-            let assignDate = '-';
-            if (rawAssignDate) {
-                const strDate = String(rawAssignDate).trim();
-                if (strDate.includes('T')) {
-                    assignDate = strDate.split('T')[0];
-                } else if (strDate.length >= 10) {
-                    assignDate = strDate.substring(0, 10);
-                } else {
-                    assignDate = strDate;
-                }
-            }
+            const assignDate = rawAssignDate ? formatDateTh(rawAssignDate) : '-';
             const phone = item.mobile || item.phone || '-';
             const status = getStatusLeadFromMaster('ผลการติดต่อ', item.isCallCase).NameTh;
             const statusLead = getStatusLeadFromMaster('statuslead', item.StatusLead).NameEn;
             const remarks = item.remark || '';
             const rawNextAppt = item.appointment || '';
-            let nextAppt = '-';
-            if (rawNextAppt) {
-                const strDate = String(rawNextAppt).trim();
-                if (strDate.includes('T')) {
-                    const [dPart, tPart] = strDate.split('T');
-                    const [y, m, d] = dPart.split('-');
-                    const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
-                    const timeFmt = tPart ? tPart.substring(0, 5) : '';
-                    nextAppt = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
-                } else if (strDate.length >= 10) {
-                    const dPart = strDate.substring(0, 10);
-                    const [y, m, d] = dPart.split('-');
-                    const timeFmt = strDate.length > 10 ? strDate.substring(11, 16) : '';
-                    const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
-                    nextAppt = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
-                } else {
-                    nextAppt = strDate;
-                }
-            }
+            const nextAppt = rawNextAppt ? formatDateCE(rawNextAppt) : '-';
 
             if (id || idno || (name && name !== '-')) {
                 items.push({
@@ -528,13 +554,21 @@ function setSelectValue($select, value) {
     if (!$select || !$select.length) return;
     if (value === null || value === undefined || value === '') {
         $select.val('');
+        if ($select.hasClass('select2-hidden-accessible')) {
+            $select.trigger('change');
+        }
         return;
     }
     const target = String(value).trim().toLowerCase();
     
     // 1. Direct jQuery .val() attempt
     $select.val(value);
-    if ($select.val() === String(value)) return;
+    if ($select.val() === String(value)) {
+        if ($select.hasClass('select2-hidden-accessible')) {
+            $select.trigger('change');
+        }
+        return;
+    }
 
     // 2. Loop options to match value, text, data-en, data-th, or data-code
     let matched = false;
@@ -556,6 +590,33 @@ function setSelectValue($select, value) {
     if (!matched) {
         $select.val('');
     }
+
+    if ($select.hasClass('select2-hidden-accessible')) {
+        $select.trigger('change');
+    }
+}
+
+// Initialize Select2 for modalContactResult
+function initContactResultSelect2() {
+    const $select = $('#modalContactResult');
+    if (!$select.length || typeof $.fn.select2 === 'undefined') return;
+
+    if ($select.hasClass('select2-hidden-accessible')) {
+        $select.select2('destroy');
+    }
+
+    $select.select2({
+        theme: 'bootstrap-5',
+        dropdownParent: $('#recordResultModal'),
+        placeholder: 'เลือกผลการติดต่อ',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function () {
+                return 'ไม่พบข้อมูล';
+            }
+        }
+    });
 }
 
 let masterDropdownData = [];
@@ -763,6 +824,7 @@ function populateDropdownOptions(dropdownList, objective) {
     });
 
     populateProductDropdownOptions(dropdownList, objective);
+    initContactResultSelect2();
 }
 
 // Populate product dropdown (#modalProduct) options based on Objective (CS/RM -> "ผลิตภัณฑ์ที่เสนอ_CS/RM", MC/FL -> "ผลิตภัณฑ์ที่เสนอ_MC/FL")
@@ -841,14 +903,88 @@ function populateProductDropdownOptions(dropdownList, objective) {
     }
 }
 
-// Format date string YYYY-MM-DD -> DD/MM/YYYY
+// Helper to normalize any Buddhist Era (BE/พ.ศ.) year to Christian Era (CE/ค.ศ.)
+function normalizeYearToCE(y) {
+    let yearNum = parseInt(y, 10);
+    if (!isNaN(yearNum)) {
+        if (yearNum > 2400) {
+            yearNum -= 543;
+        }
+        return String(yearNum).padStart(4, '0');
+    }
+    return y;
+}
+
+// Format date string to DD/MM/YYYY (CE / ค.ศ.)
 function formatDateTh(dateStr) {
-    if (!dateStr) return '';
+    if (!dateStr || dateStr === '-') return '-';
     let str = String(dateStr).trim();
+    if (!str || str === '-') return '-';
+
     if (str.includes('T')) str = str.split('T')[0];
     else if (str.includes(' ')) str = str.split(' ')[0];
-    const parts = str.split('-');
-    if (parts.length === 3 && parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+    // Check YYYY-MM-DD or DD-MM-YYYY
+    if (str.includes('-')) {
+        const parts = str.split('-');
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                const y = normalizeYearToCE(parts[0]);
+                const m = parts[1].padStart(2, '0');
+                const d = parts[2].padStart(2, '0');
+                return `${d}/${m}/${y}`;
+            } else if (parts[2].length === 4) {
+                const d = parts[0].padStart(2, '0');
+                const m = parts[1].padStart(2, '0');
+                const y = normalizeYearToCE(parts[2]);
+                return `${d}/${m}/${y}`;
+            }
+        }
+    }
+
+    // Check DD/MM/YYYY or YYYY/MM/DD
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+            if (parts[2].length === 4) {
+                const d = parts[0].padStart(2, '0');
+                const m = parts[1].padStart(2, '0');
+                const y = normalizeYearToCE(parts[2]);
+                return `${d}/${m}/${y}`;
+            } else if (parts[0].length === 4) {
+                const y = normalizeYearToCE(parts[0]);
+                const m = parts[1].padStart(2, '0');
+                const d = parts[2].padStart(2, '0');
+                return `${d}/${m}/${y}`;
+            }
+        }
+    }
+
+    return dateStr;
+}
+
+// Format datetime string to DD/MM/YYYY HH:mm (CE / ค.ศ.)
+function formatDateCE(dateStr) {
+    if (!dateStr || dateStr === '-') return '-';
+    let str = String(dateStr).trim();
+    if (!str || str === '-') return '-';
+
+    let timePart = '';
+    if (str.includes('T')) {
+        const parts = str.split('T');
+        str = parts[0];
+        timePart = parts[1] ? parts[1].substring(0, 5) : '';
+    } else if (str.includes(' ')) {
+        const parts = str.split(' ');
+        str = parts[0];
+        timePart = parts[1] ? parts[1].substring(0, 5) : '';
+    }
+
+    const dateOnly = formatDateTh(str);
+    if (dateOnly && dateOnly !== '-') {
+        return timePart ? `${dateOnly} ${timePart}` : dateOnly;
+    }
+
     return dateStr;
 }
 
@@ -1061,21 +1197,8 @@ function renderModalContactHistory(historyList) {
     }
 
     historyList.forEach((rawItem, index) => {
-        const dateStr = rawItem.created || '-';
-        let formattedDate = dateStr;
-        if (dateStr && dateStr.includes('T')) {
-            const [dPart, tPart] = dateStr.split('T');
-            const [y, m, d] = dPart.split('-');
-            const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
-            const timeFmt = tPart ? tPart.substring(0, 5) : '';
-            formattedDate = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
-        } else if (dateStr && dateStr.length >= 10 && dateStr.includes('-')) {
-            const dPart = dateStr.substring(0, 10);
-            const [y, m, d] = dPart.split('-');
-            const timeFmt = dateStr.length > 10 ? dateStr.substring(11, 16) : '';
-            const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
-            formattedDate = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
-        }
+        const dateStr = rawItem.created || rawItem.date || '-';
+        const formattedDate = dateStr && dateStr !== '-' ? formatDateCE(dateStr) : '-';
 
         const rawStatusLead = rawItem.status_lead || '';
         const statusLeadCode = getStatusLeadFromMaster('statuslead', rawStatusLead).NameEn || rawStatusLead || 'Follow';
@@ -1087,19 +1210,7 @@ function renderModalContactHistory(historyList) {
         const remarksText = rawItem.call_remark || '';
 
         const rawAppt = rawItem.appointment || '';
-        let apptDisplay = '-';
-        if (rawAppt) {
-            const strAppt = String(rawAppt).trim();
-            if (strAppt.includes('T')) {
-                const [dPart, tPart] = strAppt.split('T');
-                const [y, m, d] = dPart.split('-');
-                const dateFmt = (y && m && d) ? `${d}/${m}/${y}` : dPart;
-                const timeFmt = tPart ? tPart.substring(0, 5) : '';
-                apptDisplay = timeFmt ? `${dateFmt} ${timeFmt}` : dateFmt;
-            } else {
-                apptDisplay = strAppt;
-            }
-        }
+        const apptDisplay = rawAppt ? formatDateCE(rawAppt) : '-';
 
         const badgeClass = getStatusLeadSubtleBadgeClass(statusLeadCode);
         const iconClass = rawItem.icon || 'bi-telephone';
@@ -1131,16 +1242,51 @@ function renderModalContactHistory(historyList) {
             setSelectValue($('#modalInterestLevel'), rawItem.interest_level || '');
             setSelectValue($('#modalSalesResult'), rawItem.call_result_description || '');
 
-            if (rawAppt && rawAppt.includes('T')) {
-                const [dPart, tPart] = rawAppt.split('T');
+            if (rawAppt) {
+                const strAppt = String(rawAppt).trim();
+                let dPart = '';
+                let tPart = '';
+                if (strAppt.includes('T')) {
+                    const [d, t] = strAppt.split('T');
+                    dPart = d;
+                    tPart = t ? t.substring(0, 5) : '';
+                } else if (strAppt.includes(' ')) {
+                    const [d, t] = strAppt.split(' ');
+                    dPart = d;
+                    tPart = t ? t.substring(0, 5) : '';
+                } else {
+                    dPart = strAppt;
+                }
+
+                if (dPart.includes('/')) {
+                    const parts = dPart.split('/');
+                    if (parts.length === 3) {
+                        const y = normalizeYearToCE(parts[2]);
+                        const m = parts[1].padStart(2, '0');
+                        const d = parts[0].padStart(2, '0');
+                        dPart = `${y}-${m}-${d}`;
+                    }
+                } else if (dPart.includes('-')) {
+                    const parts = dPart.split('-');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) {
+                            const y = normalizeYearToCE(parts[0]);
+                            const m = parts[1].padStart(2, '0');
+                            const d = parts[2].padStart(2, '0');
+                            dPart = `${y}-${m}-${d}`;
+                        } else if (parts[2].length === 4) {
+                            const y = normalizeYearToCE(parts[2]);
+                            const m = parts[1].padStart(2, '0');
+                            const d = parts[0].padStart(2, '0');
+                            dPart = `${y}-${m}-${d}`;
+                        }
+                    }
+                }
+
                 $('#modalNextDate').val(dPart);
-                $('#modalNextTime').val(tPart ? tPart.substring(0, 5) : '');
-            } else if (rawAppt && rawAppt.includes(' ')) {
-                const parts = rawAppt.split(' ');
-                $('#modalNextDate').val(parts[0] || '');
-                $('#modalNextTime').val(parts[1] ? parts[1].substring(0, 5) : '');
+                $('#modalNextTime').val(tPart);
             } else {
-                $('#modalNextDate').val(rawItem.nextDate || rawAppt || '');
+                $('#modalNextDate').val(rawItem.nextDate || '');
                 $('#modalNextTime').val(rawItem.nextTime || '');
             }
 
@@ -1176,6 +1322,16 @@ async function openRecordResultModal(trElement) {
     };
 
     const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
+    if (activeCampaign && !isUserAllowedForCampaign(activeCampaign)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'ไม่มีสิทธิ์บันทึกข้อมูล',
+            text: 'แคมเปญนี้ถูกกำหนดให้ใช้เฉพาะสาขาที่เลือก คุณไม่มีสิทธิ์บันทึกผลการติดต่อสำหรับแคมเปญนี้',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'ตกลง'
+        });
+        return;
+    }
     const campaignObjectiveCode = (customer && (customer.objective || customer.Objective_code)) || (activeCampaign ? (activeCampaign.Objective_code || '') : (selectedCampaignObjective || ''));
     const objBadge = getObjectiveBadge(campaignObjectiveCode);
 
@@ -1183,10 +1339,10 @@ async function openRecordResultModal(trElement) {
     populateProductDropdownOptions(masterDropdownData, campaignObjectiveCode);
 
     // Set modal title & customer summary info
-    $('#modalCustName').text(customer.name);
+    $('#modalCustName').text(customer.name).attr('title', customer.name);
     $('#modalCustPhone').text(customer.phone);
-    $('#modalCustCampaign').text(selectedCampaignCode);
-    $('#modalCustCampaignName').text(selectedCampaignName);
+    $('#modalCustCampaign').text(selectedCampaignCode).attr('title', selectedCampaignCode);
+    $('#modalCustCampaignName').text(selectedCampaignName).attr('title', selectedCampaignName);
     
     $('#modalCustObjective')
         .attr('class', `pc-modal-obj-badge ${objBadge.iconBg}`)
@@ -1205,7 +1361,7 @@ async function openRecordResultModal(trElement) {
         .attr('class', `badge ${lastResultClass} border px-3 py-1 rounded-pill fw-semibold`)
         .text(displayStatus);
 
-    $('#modalCustNextAppt').text(customer.nextAppt || '-');
+    $('#modalCustNextAppt').text(customer.nextAppt && customer.nextAppt !== '-' ? formatDateCE(customer.nextAppt) : '-');
 
     // Reset form fields
     setSelectValue($('#modalContactResult'), '');
@@ -1255,6 +1411,18 @@ async function openRecordResultModal(trElement) {
 
 // Save Record Result
 function saveRecordResult() {
+    const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
+    if (activeCampaign && !isUserAllowedForCampaign(activeCampaign)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'ไม่มีสิทธิ์บันทึกข้อมูล',
+            text: 'แคมเปญนี้ถูกกำหนดให้ใช้เฉพาะสาขาที่เลือก คุณไม่มีสิทธิ์บันทึกผลการติดต่อสำหรับแคมเปญนี้',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'ตกลง'
+        });
+        return;
+    }
+
     const resultVal = $('#modalContactResult').val();
     const statusLeadVal = $('#modalStatusLead').val();
     const reportVal = $('#modalContactReport').val();
@@ -1533,6 +1701,11 @@ $(document).ready(function () {
     $('#btnSaveResult').on('click', function (e) {
         e.preventDefault();
         saveRecordResult();
+    });
+
+    // Modal shown handler to re-align Select2
+    $('#recordResultModal').on('shown.bs.modal', function () {
+        initContactResultSelect2();
     });
 
     // 3CX Call button click handler

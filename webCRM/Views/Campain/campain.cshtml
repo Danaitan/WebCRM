@@ -1,11 +1,11 @@
 @{
-    ViewData["Title"] = "สร้าง Campaign";
-    ViewData["HeaderTitle"] = "สร้าง Campaign";
+    ViewData["Title"] = "Campaign Create";
+    ViewData["HeaderTitle"] = "Campaign Create";
     ViewData["HeaderSubtitle"] = "สร้างและจัดการ Campaign สำหรับใช้งานในระบบ CRM";
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/campain.css?v=4" />
+    <link rel="stylesheet" href="~/css/campain.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
 }
 
@@ -22,7 +22,7 @@
                             <input type="text" id="campaignSearchInput" placeholder="ค้นหา Campaign" class="w-100" style="border: none; outline: none; font-size: 0.875rem; padding: 0.6rem 0.8rem; background: transparent; min-width: 0;">
                         </div>
                         <div>
-                            <button type="button" id="btnSearch" class="btn btn-primary px-4 py-2 fw-medium d-flex align-items-center gap-2 rounded-3 shadow-sm">
+                            <button type="button" id="btnSearch" class="btn btn-primary px-3 py-2 fw-medium d-flex align-items-center gap-2 rounded-3 shadow-sm text-nowrap">
                                 <i class="bi bi-search"></i>
                                 <span>ค้นหา</span>
                             </button>

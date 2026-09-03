@@ -158,6 +158,17 @@ async function getProductBatchByProductCode(productCode){
     }
 }
 
+async function getProspectCustomerView(productBatch) {
+    try {
+        const response = await fetch(`/ProductApprove/GetProspectCustomerView?productBatch=${encodeURIComponent(productBatch)}`);
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (err) {
+        console.error("Error in getProspectCustomerView:", err);
+        return null;
+    }
+}
+
 // Extract prospect items from API result
 function extractProspectCustomers(data) {
     if (!data) return { items: [], totalCount: 0 };
@@ -167,14 +178,12 @@ function extractProspectCustomers(data) {
     }
 
     let items = [];
-    let totalCount = 0;
-
-    if (raw && typeof raw === 'object') {
-        totalCount = raw.Customer?.total ?? raw.total ?? raw.count ?? (Array.isArray(raw.data) ? raw.data.length : (Array.isArray(raw.result) ? raw.result.length : 0));
-    }
+    const seenKeys = new Set();
 
     const checkAndPush = (item) => {
         if (!item) return;
+
+        // Check nested arrays
         if (Array.isArray(item.Customer?.data)) {
             item.Customer.data.forEach(c => checkAndPush(c));
             return;
@@ -191,20 +200,20 @@ function extractProspectCustomers(data) {
             item.objectCustomer.data.forEach(c => checkAndPush(c));
             return;
         }
-        if (item.Customer && typeof item.Customer === 'object' && !Array.isArray(item.Customer)) {
-            checkAndPush(item.Customer);
+        if (Array.isArray(item.IsBatch?.data)) {
+            item.IsBatch.data.forEach(c => checkAndPush(c));
             return;
         }
-        if (item.customer && typeof item.customer === 'object' && !Array.isArray(item.customer)) {
-            checkAndPush(item.customer);
+        if (Array.isArray(item.isBatch?.data)) {
+            item.isBatch.data.forEach(c => checkAndPush(c));
             return;
         }
-        if (item.ObjectCustomer && typeof item.ObjectCustomer === 'object' && !Array.isArray(item.ObjectCustomer)) {
-            checkAndPush(item.ObjectCustomer);
+        if (Array.isArray(item.IsNotBatch?.data)) {
+            item.IsNotBatch.data.forEach(c => checkAndPush(c));
             return;
         }
-        if (item.objectCustomer && typeof item.objectCustomer === 'object' && !Array.isArray(item.objectCustomer)) {
-            checkAndPush(item.objectCustomer);
+        if (Array.isArray(item.isNotBatch?.data)) {
+            item.isNotBatch.data.forEach(c => checkAndPush(c));
             return;
         }
         if (Array.isArray(item.Customer)) {
@@ -219,36 +228,114 @@ function extractProspectCustomers(data) {
             item.customers.forEach(c => checkAndPush(c));
             return;
         }
+        if (Array.isArray(item.ObjectCustomer)) {
+            item.ObjectCustomer.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.objectCustomer)) {
+            item.objectCustomer.forEach(c => checkAndPush(c));
+            return;
+        }
         if (Array.isArray(item.prospects)) {
             item.prospects.forEach(c => checkAndPush(c));
             return;
         }
+        if (Array.isArray(item.batches)) {
+            item.batches.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.productBatch)) {
+            item.productBatch.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.prospectBatch)) {
+            item.prospectBatch.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.data)) {
+            item.data.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.result)) {
+            item.result.forEach(c => checkAndPush(c));
+            return;
+        }
+        if (Array.isArray(item.items)) {
+            item.items.forEach(c => checkAndPush(c));
+            return;
+        }
+
+        // Check nested single objects
+        if (item.Customer && typeof item.Customer === 'object') {
+            checkAndPush(item.Customer);
+            return;
+        }
+        if (item.customer && typeof item.customer === 'object') {
+            checkAndPush(item.customer);
+            return;
+        }
+        if (item.ObjectCustomer && typeof item.ObjectCustomer === 'object') {
+            checkAndPush(item.ObjectCustomer);
+            return;
+        }
+        if (item.objectCustomer && typeof item.objectCustomer === 'object') {
+            checkAndPush(item.objectCustomer);
+            return;
+        }
+        if (item.IsBatch && typeof item.IsBatch === 'object') {
+            checkAndPush(item.IsBatch);
+            return;
+        }
+        if (item.isBatch && typeof item.isBatch === 'object') {
+            checkAndPush(item.isBatch);
+            return;
+        }
+        if (item.IsNotBatch && typeof item.IsNotBatch === 'object') {
+            checkAndPush(item.IsNotBatch);
+            return;
+        }
+        if (item.isNotBatch && typeof item.isNotBatch === 'object') {
+            checkAndPush(item.isNotBatch);
+            return;
+        }
+        if (item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
+            checkAndPush(item.data);
+            return;
+        }
 
         if (typeof item === 'object') {
-            console.log("item", item);
-            const idno = item.idno || '';
-            const id = item.id || '';
-            const name = item.nameCus || '-';
-            const contract = item.contno || '-';
-            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
-            const offcde = item.offcde || '-';
-            const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
-            const createdDate = item.created || item.ImportDate || '-';
-            const createdBy = item.created_by || '-';
+            const idno = item.idno || item.id_no || item.IdNo || item.IDNO || '';
+            const id = item.id || item.Id || item.prospect_id || item.prospectId || item.ID || '';
+            const name = item.nameCus || item.customer_name || item.customerName || item.name || item.cus_name || item.fullname || item.FullName || item.CustomerName || item.Name || item.CustName || item.cust_name || item.ชื่อลูกค้า || '-';
+            const contract = item.contno || item.contract_no || item.contractNo || item.contract || item.ContNo || item.เลขที่สัญญา || '-';
+            const branch = item.branch_Name || item.branch_name || item.branchName || item.branch || item.BranchName || item.ชื่อสาขาเดิม || item.ชื่อสาขา || item.branch_title || item.offcde || '-';
+            const offcde = item.offcde || item.contractoffcde || item.contractOffCde || item.branch_offcde || item.branchOffcde || item.branch_code || item.branchCode || '';
+            const carLocation = item.provinceUsecar || item.provinceUseCar || item.ProvinceUseCar || item.province_usecar || item.carLocation || item.car_location || item.carLocation_name || item.province || item.สถานที่ใช้รถ || '-';
+            const createdDate = item.created || item.created_date || item.createdDate || item.Created || item.ImportDate || item.import_date || item.importDate || item.date || item.วันที่เลือกข้อมูล || '-';
+            const createdBy = item.created_by || item.createdBy || item.createrd_by || item.CreaterdBy || item.create_by || item.createBy || item.staffName || item.StaffName || item.staff_name || item.createrd_by_name || item.ผู้เลือกข้อมูล || '-';
 
-            if (id || idno || (name && name !== '-')) {
-                items.push({
-                    id: String(id || '').trim(),
-                    idno: String(idno || '').trim(),
-                    branch: String(branch).trim(),
-                    offcde: String(offcde).trim(),
-                    name: String(name).trim(),
-                    contract: String(contract).trim(),
-                    carLocation: String(carLocation).trim(),
-                    createdDate: String(createdDate).trim(),
-                    createdBy: String(createdBy).trim(),
-                    raw: item
-                });
+            const cleanName = String(name || '').trim();
+            const cleanContract = String(contract || '').trim();
+            const cleanId = String(id || '').trim();
+            const cleanIdno = String(idno || '').trim();
+
+            if (cleanId || cleanIdno || (cleanName && cleanName !== '-') || (cleanContract && cleanContract !== '-')) {
+                const uniqueKey = cleanId ? `id_${cleanId}` : (cleanIdno ? `idno_${cleanIdno}_${cleanContract}` : `${cleanName}_${cleanContract}`);
+                if (!seenKeys.has(uniqueKey)) {
+                    seenKeys.add(uniqueKey);
+                    items.push({
+                        id: cleanId,
+                        idno: cleanIdno,
+                        branch: String(branch || '-').trim(),
+                        offcde: String(offcde || '').trim(),
+                        name: cleanName,
+                        contract: cleanContract,
+                        carLocation: String(carLocation || '-').trim(),
+                        createdDate: String(createdDate || '-').trim(),
+                        createdBy: String(createdBy || '-').trim(),
+                        raw: item
+                    });
+                }
             }
         }
     };
@@ -267,27 +354,75 @@ function extractProspectCustomers(data) {
         }
     }
 
-    if (totalCount === 0) totalCount = items.length;
+    let totalCount = items.length;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        const rawTotal = raw.Customer?.total ?? raw.total ?? raw.count;
+        if (typeof rawTotal === 'number' && rawTotal > totalCount) {
+            totalCount = rawTotal;
+        }
+    }
 
     return { items, totalCount };
 }
 
 function formatDateTime(dateStr) {
-    if (!dateStr || dateStr === '-') return '-';
-    var str = String(dateStr).trim();
-    if (str.includes('T')) {
-        var parts = str.split('T');
+    if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') return '-';
+    try {
+        var str = String(dateStr).trim();
+        if (!str || str === '-') return '-';
+
+        let d;
+        if (/^\d+$/.test(str)) {
+            d = new Date(parseInt(str, 10));
+        } else {
+            let parsedStr = str;
+            const yearMatch = str.match(/^(\d{4})[-/]/);
+            if (yearMatch && parseInt(yearMatch[1], 10) > 2400) {
+                const gregorianYear = parseInt(yearMatch[1], 10) - 543;
+                parsedStr = gregorianYear + str.substring(4);
+            }
+            d = new Date(parsedStr);
+        }
+
+        if (d && !isNaN(d.getTime())) {
+            const formatter = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Asia/Bangkok',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            const parts = formatter.formatToParts(d);
+            const getPart = (type) => (parts.find(p => p.type === type)?.value || '');
+            const day = getPart('day');
+            const month = getPart('month');
+            const year = getPart('year');
+            const hour = getPart('hour');
+            const minute = getPart('minute');
+            if (day && month && year && hour && minute) {
+                return `${day}/${month}/${year} ${hour}:${minute}`;
+            }
+        }
+    } catch (e) {
+        console.error("Error formatting date time:", e);
+    }
+
+    var rawStr = String(dateStr).trim();
+    if (rawStr.includes('T')) {
+        var parts = rawStr.split('T');
         var datePart = formatDate(parts[0]);
         var timePart = parts[1] ? parts[1].substring(0, 5) : '';
         return timePart ? `${datePart} ${timePart}` : datePart;
     }
-    if (str.includes(' ')) {
-        var parts = str.split(' ');
+    if (rawStr.includes(' ')) {
+        var parts = rawStr.split(' ');
         var datePart = formatDate(parts[0]);
         var timePart = parts[1] ? parts[1].substring(0, 5) : '';
         return timePart ? `${datePart} ${timePart}` : datePart;
     }
-    return formatDate(str);
+    return formatDate(rawStr);
 }
 
 async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
@@ -306,21 +441,55 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>`;
     }
 
-    const currentCampaign = campaigns.find(c => c.code === productCode);
-    const isImport = currentCampaign ? (currentCampaign.IsImport === true || currentCampaign.IsImport === 'true' || currentCampaign.IsImport === 1 || currentCampaign.IsImport === '1') : false;
+    let items = [];
+    let totalCount = 0;
 
-    let res = null;
-    if (isImport) {
-        const etlRes = await getCampaignDataForETL(productCode);
-        res = etlRes ? (etlRes.IsBatch || etlRes.isBatch || etlRes.is_batch || etlRes) : null;
-    } else {
-        res = await getProductBatchByProductCode(productCode);
+    // 1. Try getProductBatchByProductCode first
+    try {
+        const batchRes = await getProductBatchByProductCode(productCode);
+        const parsedBatch = extractProspectCustomers(batchRes);
+        if (parsedBatch.items && parsedBatch.items.length > 0) {
+            items = parsedBatch.items;
+            totalCount = parsedBatch.totalCount;
+        }
+    } catch (e) {
+        console.error("Error fetching product batch:", e);
     }
 
-    const { items, totalCount } = extractProspectCustomers(res);
+    // 2. If no items, try getCampaignDataForETL (for import campaigns or ETL data)
+    if (!items || items.length === 0) {
+        try {
+            const etlRes = await getCampaignDataForETL(productCode);
+            if (etlRes) {
+                const parsedEtl = extractProspectCustomers(etlRes);
+                if (parsedEtl.items && parsedEtl.items.length > 0) {
+                    items = parsedEtl.items;
+                    totalCount = parsedEtl.totalCount;
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching ETL data:", e);
+        }
+    }
+
+    // 3. Fallback to GetProspectCustomerView if still no items
+    if (!items || items.length === 0) {
+        try {
+            const viewRes = await getProspectCustomerView(productCode);
+            if (viewRes) {
+                const parsedView = extractProspectCustomers(viewRes);
+                if (parsedView.items && parsedView.items.length > 0) {
+                    items = parsedView.items;
+                    totalCount = parsedView.totalCount;
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching ProspectCustomerView:", e);
+        }
+    }
 
     rawProspectItems = items;
-    prospectTotalCount = totalCount;
+    prospectTotalCount = totalCount || items.length;
 
     filterProspectTable();
 }
@@ -340,28 +509,48 @@ function getObjectiveBadge(obj) {
 
 // Map status → badge CSS class
 function statusClass(status) {
-    var map = {
-        'กำลังพิจารณา':    'status-blue',
-        'รอข้อมูลเพิ่มเติม': 'status-yellow',
-        'รออนุมัติ':        'status-purple',
-        'อนุมัติแล้ว':      'status-green',
-        'ไม่อนุมัติ':       'status-red',
-        'ปกติ':             'status-blue'
-    };
-    return map[status] || 'status-blue';
+    if (!status) return 'status-green';
+    var s = String(status).trim().toLowerCase();
+    var normalized = s.replace(/_/g, ' ');
+    if (normalized === 'reject' || normalized === 'rejected' || normalized === 'ไม่อนุมัติ' || normalized === 'cancel' || normalized === 'cancelled' || normalized === 'ยกเลิก') {
+        return 'status-red';
+    }
+    if (normalized === 'approve' || normalized === 'approved' || normalized === 'อนุมัติ' || normalized === 'อนุมัติแล้ว' || normalized === 'active' || normalized === 'ปกติ') {
+        return 'status-green';
+    }
+    if (normalized === 'waiting prospect' || normalized === 'waiting prospect (prospect setup)' || normalized === 'รอข้อมูลเพิ่มเติม') {
+        return 'status-yellow';
+    }
+    if (normalized === 'waiting approve' || normalized === 'waiting approval' || normalized === 'รออนุมัติ' || normalized === 'กำลังพิจารณา') {
+        return 'status-blue';
+    }
+    if (normalized === 'draft' || normalized === 'ร่าง' || normalized === 'inactive') {
+        return 'status-gray';
+    }
+    return 'status-blue';
 }
 
 // format date from YYYY-MM-DD to DD/MM/YYYY
 function formatDate(dateStr) {
-    if (!dateStr) return '';
-    var str = String(dateStr).trim();
-    if (str.includes('T')) str = str.split('T')[0];
-    else if (str.includes(' ')) str = str.split(' ')[0];
-    var parts = str.split('-');
-    if (parts.length === 3) {
-        return parts[2] + '/' + parts[1] + '/' + parts[0];
+    if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') return '';
+    try {
+        var str = String(dateStr).trim();
+        if (!str || str === '-') return '';
+
+        if (str.includes('T')) str = str.split('T')[0];
+        else if (str.includes(' ')) str = str.split(' ')[0];
+
+        var parts = str.split('-');
+        if (parts.length === 3 && parts[0].length === 4) {
+            let year = parseInt(parts[0], 10);
+            if (year > 2400) year -= 543;
+            return parts[2].padStart(2, '0') + '/' + parts[1].padStart(2, '0') + '/' + year;
+        }
+        return str;
+    } catch (e) {
+        console.error("Error formatting date:", e);
     }
-    return str;
+    return String(dateStr || '');
 }
 
 async function displayCampaignFile(fileId) {
@@ -790,11 +979,14 @@ $(document).ready(async function () {
     if (branch) {
         renderBranchOptions(branch);
     }
-    $("#campaignsTable").on("click", ".pa-card", function () {
-        const code = String($(this).data("code"));
+    $("#campaignsTable").on("click", ".pa-card, tbody tr", function () {
+        const card = $(this).hasClass("pa-card") ? $(this) : $(this).find(".pa-card");
+        if (!card.length) return;
+        const code = String(card.data("code"));
+        if (!code) return;
         selectedCampaignCode = code;
         $(".pa-card").removeClass("active");
-        $(this).addClass("active");
+        card.addClass("active");
         const campaign = campaigns.find(c => c.code === code);
         if (campaign) {
             updateDetailPanel(campaign);
@@ -955,7 +1147,8 @@ $(document).ready(async function () {
             inputLabel: 'ระบุสาเหตุการไม่อนุมัติ',
             inputPlaceholder: 'กรอกเหตุผลการไม่อนุมัติที่นี่...',
             inputAttributes: {
-                'aria-label': 'กรอกเหตุผลการไม่อนุมัติที่นี่'
+                'aria-label': 'กรอกเหตุผลการไม่อนุมัติที่นี่',
+                'style': 'resize: none;'
             },
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
@@ -1059,7 +1252,8 @@ $(document).ready(async function () {
             inputLabel: 'ระบุสาเหตุที่แก้ไข',
             inputPlaceholder: 'กรอกหมายเหตุการแก้ไขที่นี่...',
             inputAttributes: {
-                'aria-label': 'กรอกหมายเหตุการส่งแก้ไขที่นี่'
+                'aria-label': 'กรอกหมายเหตุการส่งแก้ไขที่นี่',
+                'style': 'resize: none;'
             },
             showCancelButton: true,
             confirmButtonColor: '#f59e0b',

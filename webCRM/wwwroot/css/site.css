@@ -100,6 +100,46 @@ body {
   margin-bottom: 1.5rem;
 }
 
+/* Header Sticky State */
+.crm-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: #ffffff;
+}
+
+/* Sidebar Sticky & Scroll State */
+.sidebar,
+#crmSidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  max-height: 100vh;
+  z-index: 1020;
+}
+
+.sidebar-nav {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 /* Sidebar Collapsed State */
 #crmSidebar.collapsed {
   width: 70px !important;

@@ -715,7 +715,7 @@ function filterAndRenderProspectTable() {
     const displayTotal = filteredItems.length;
 
     if (filteredItems.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบรายการ Prospect</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบข้อมูล</td></tr>`;
     } else {
         const totalPages = Math.ceil(filteredItems.length / prospectPageSize) || 1;
         if (prospectPage > totalPages) prospectPage = totalPages;
@@ -731,19 +731,19 @@ function filterAndRenderProspectTable() {
             html += `
                 <tr>
                     <td class="text-center"><input type="checkbox" class="form-check-input prospect-checkbox" data-id="${escapeHtml(item.id)}" data-contract="${escapeHtml(item.contract)}"></td>
-                    <td>
+                    <td class="text-center">
                         <div class="fw-medium">${escapeHtml(item.branch)}</div>
                     </td>
                     <td>
                         <div class="fw-medium">${escapeHtml(item.name)}</div>
                         <div class="text-gray" style="font-size: 0.75rem;">${escapeHtml(item.idno)}</div>
                     </td>
-                    <td>${escapeHtml(item.contract)}</td>
-                    <td>${escapeHtml(item.custType)}</td>
-                    <td>${escapeHtml(item.occupation)}</td>
-                    <td>${escapeHtml(item.carLocation)}</td>
-                    <td>${escapeHtml(item.assignee)}</td>
-                    <td><span class="status-dot ${dotClass}"></span><span class="status-text ${dotClass}">${statusText}</span></td>
+                    <td class="text-center">${escapeHtml(item.contract)}</td>
+                    <td class="text-center">${escapeHtml(item.custType)}</td>
+                    <td class="text-center">${escapeHtml(item.occupation)}</td>
+                    <td class="text-center">${escapeHtml(item.carLocation)}</td>
+                    <td class="text-center">${escapeHtml(item.assignee)}</td>
+                    <td class="text-center"><span class="status-dot ${dotClass}"></span><span class="status-text ${dotClass}">${statusText}</span></td>
                 </tr>
             `;
         });
@@ -934,9 +934,14 @@ function buildPageRange(current, total) {
 
     function getStatusClass(status) {
         if (!status) return 'approved';
-        const s = status.toLowerCase();
-        if (s.includes('wait') || s.includes('รอ')) return 'waiting';
-        if (s.includes('draft') || s.includes('ร่าง')) return 'draft';
+        const s = String(status).trim().toLowerCase();
+        const normalized = s.replace(/_/g, ' ');
+        if (normalized === 'reject' || normalized === 'rejected' || normalized === 'ไม่อนุมัติ' || normalized === 'cancel' || normalized === 'cancelled' || normalized === 'ยกเลิก') return 'rejected';
+        if (normalized === 'waiting prospect' || normalized === 'waiting prospect (prospect setup)') return 'waiting-prospect';
+        if (normalized === 'waiting approve' || normalized === 'waiting approval' || normalized === 'รออนุมัติ') return 'waiting-approve';
+        if (normalized.includes('draft') || normalized.includes('ร่าง') || normalized === 'inactive') return 'draft';
+        if (normalized === 'approve' || normalized === 'approved' || normalized === 'อนุมัติ' || normalized === 'อนุมัติแล้ว' || normalized === 'active' || normalized === 'ปกติ') return 'approved';
+        if (normalized.includes('wait') || normalized.includes('รอ')) return 'waiting-prospect';
         return 'approved';
     }
 
@@ -1030,9 +1035,9 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
         const total = totalBatchCount;
 
         if (total === 0 || filteredCampaigns.length === 0) {
-            container.innerHTML = '<div class="p-3 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูล Campaign</div>';
+            container.innerHTML = '<div class="p-3 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูล</div>';
             const pageInfo = document.getElementById('batchPageInfo');
-            if (pageInfo) pageInfo.textContent = '0 - 0 จาก 0';
+            if (pageInfo) pageInfo.textContent = 'แสดง 0 ถึง 0 รายการ';
             updatePaginationButtons(1, 1);
             return;
         }
@@ -1086,7 +1091,7 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
         });
 
         const pageInfo = document.getElementById('batchPageInfo');
-        if (pageInfo) pageInfo.textContent = `${from} - ${to} จาก ${total}`;
+        if (pageInfo) pageInfo.textContent = `แสดง ${from} ถึง ${to} จาก ${total} รายการ`;
 
         updatePaginationButtons(batchPage, totalPages);
     }

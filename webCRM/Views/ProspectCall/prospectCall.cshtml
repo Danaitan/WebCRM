@@ -1,12 +1,14 @@
 @{
     ViewData["Title"] = "ขายและติดตาม";
-    ViewData["HeaderTitle"] = "รายละเอียด ขายและติดตาม";
+    ViewData["HeaderTitle"] = "ขายและติดตาม";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/productApprove.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/prospectCall.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 }
 
 <div class="pa-layout">
@@ -158,84 +160,102 @@
                 <!-- Customer Summary Info Card -->
                 <div class="pc-summary-card mb-4 p-3 rounded-3 bg-white border">
                     <div class="row g-3 align-items-center">
-                        <!-- Row 1 -->
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-person fs-5"></i></div>
-                                <div>
-                                    <div class="text-muted extra-small">ชื่อลูกค้า</div>
-                                    <div class="fw-bold text-dark fs-6" id="modalCustName">น.ส. อมรรัตน์ ใจดี</div>
-                                </div>
+                        <!-- 1. Customer Name -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-person fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">ชื่อลูกค้า</div>
+                                <div class="fw-bold text-dark small text-truncate d-block" id="modalCustName">-</div>
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-success bg-success-subtle"><i class="bi bi-telephone-fill fs-5"></i></div>
-                                <div>
-                                    <div class="text-muted extra-small">เบอร์โทรศัพท์</div>
-                                    <div class="d-flex align-items-center gap-2 mt-0.5">
-                                        <span class="fw-bold text-dark fs-6" id="modalCustPhone"></span>
-                                        <button type="button" class="btn btn-success btn-sm rounded-pill px-3 py-1 fw-bold shadow-sm d-inline-flex align-items-center gap-1.5 pc-btn-call" id="btnModalCall">
-                                            <i class="bi bi-telephone-outbound-fill"></i> <span>โทรออก</span>
-                                        </button>
-                                    </div>
-                                </div>
+
+                        <!-- 2. Customer Phone & Call Button -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-success" style="background-color: #ecfdf5;">
+                                <i class="bi bi-telephone fs-5"></i>
                             </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-megaphone fs-5"></i></div>
-                                <div>
-                                    <div class="text-muted extra-small">แคมเปญ</div>
-                                    <div class="fw-bold text-dark fs-6" id="modalCustCampaign">CMP-2024-0001</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-megaphone fs-5"></i></div>
-                                <div>
-                                    <div class="text-muted extra-small">ชื่อแคมเปญ</div>
-                                    <div class="fw-bold text-dark fs-6" id="modalCustCampaignName">โปรโมชัน ดอกเบี้ยพิเศษ 2.99%</div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">เบอร์โทรศัพท์</div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="fw-bold text-dark small" id="modalCustPhone">-</span>
+                                    <button type="button" class="btn btn-sm pc-btn-call rounded-pill py-0 px-2 d-flex align-items-center gap-1" id="btnModalCall">
+                                        <i class="bi bi-telephone-outbound"></i> โทรออก
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Row 2 -->
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-person-badge fs-5"></i></div>
+                        <!-- 3. Campaign Code -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-megaphone fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">รหัส Campaign</div>
+                                <div class="fw-bold text-dark small text-truncate d-block" id="modalCustCampaign">-</div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Campaign Name -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-megaphone fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">ชื่อแคมเปญ</div>
+                                <div class="fw-bold text-dark small text-truncate d-block" id="modalCustCampaignName" title="-">-</div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Objective -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-card-checklist fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">วัตถุประสงค์</div>
                                 <div>
-                                    <div class="text-muted extra-small">วัตถุประสงค์</div>
-                                    <div><span class="pc-modal-obj-badge green" id="modalCustObjective"></span></div>
+                                    <span class="pc-modal-obj-badge green" id="modalCustObjective">-</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-info-circle fs-5"></i></div>
+
+                        <!-- 6. Status Lead -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-info-circle fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">Status Lead ปัจจุบัน</div>
                                 <div>
-                                    <div class="text-muted extra-small">Status Lead ปัจจุบัน</div>
-                                    <div><span class="status-badge badge bg-primary text-white" id="modalCustLeadStatus">Follow</span></div>
+                                    <span class="status-badge badge bg-secondary text-white" id="modalCustLeadStatus">-</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-journal-text fs-5"></i></div>
+
+                        <!-- 7. Last Result -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-bookmark fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">ผลการติดต่อล่าสุด</div>
                                 <div>
-                                    <div class="text-muted extra-small">ผลการติดต่อล่าสุด</div>
-                                    <div><span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1 rounded-pill fw-semibold" id="modalCustLastResult">ขอข้อมูลเพิ่มเติม</span></div>
+                                    <span class="badge bg-secondary text-white border px-3 py-1 rounded-pill fw-semibold" id="modalCustLastResult">-</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <div class="d-flex align-items-center gap-2.5">
-                                <div class="pc-summary-icon text-primary"><i class="bi bi-calendar-event fs-5"></i></div>
-                                <div>
-                                    <div class="text-muted extra-small">นัดหมายครั้งถัดไป</div>
-                                    <div class="fw-bold text-dark fs-6" id="modalCustNextAppt">20/05/2024 14:00</div>
-                                </div>
+
+                        <!-- 8. Next Appointment -->
+                        <div class="col-12 col-sm-6 col-lg-3 d-flex align-items-center gap-2">
+                            <div class="pc-summary-icon text-primary">
+                                <i class="bi bi-calendar-event fs-5"></i>
+                            </div>
+                            <div class="pc-summary-content">
+                                <div class="text-muted extra-small">นัดหมายครั้งถัดไป</div>
+                                <div class="fw-bold text-dark small text-truncate d-block" id="modalCustNextAppt">-</div>
                             </div>
                         </div>
                     </div>
@@ -268,7 +288,7 @@
                                     <div class="col-md-8">
                                         <label class="form-label text-dark small fw-medium mb-1">รายงานผลการติดต่อ <span class="text-danger">*</span></label>
                                         <div class="position-relative">
-                                            <textarea class="form-control form-control-sm" id="modalContactReport" rows="4" maxlength="500" placeholder="ระบุรายละเอียดการติดต่อ เช่น ลูกค้าสนใจ / ไม่สนใจ / ขอข้อมูลเพิ่มเติม / สาเหตุ ฯลฯ"></textarea>
+                                            <textarea class="form-control form-control-sm" id="modalContactReport" rows="4" maxlength="500" placeholder="ระบุรายละเอียดการติดต่อ เช่น ลูกค้าสนใจ / ไม่สนใจ / ขอข้อมูลเพิ่มเติม / สาเหตุ ฯลฯ" style="resize: none;"></textarea>
                                             <span class="position-absolute bottom-0 end-0 p-2 text-muted extra-small" id="contactReportCount" style="pointer-events: none; z-index: 5;">0/500</span>
                                         </div>
                                     </div>
@@ -324,7 +344,7 @@
                             <div class="col-12 flex-grow-1 d-flex flex-column">
                                 <label class="form-label text-dark small fw-medium mb-1">หมายเหตุเพิ่มเติม</label>
                                 <div class="position-relative flex-grow-1 d-flex flex-column">
-                                    <textarea class="form-control form-control-sm flex-grow-1" id="modalRemarks" style="min-height: 80px;" maxlength="300" placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+                                    <textarea class="form-control form-control-sm flex-grow-1" id="modalRemarks" style="min-height: 80px; resize: none;" maxlength="300" placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
                                     <span class="position-absolute bottom-0 end-0 p-2 text-muted extra-small" id="remarksCount" style="pointer-events: none; z-index: 5;">0/300</span>
                                 </div>
                             </div>
@@ -355,8 +375,12 @@
 @section Scripts {
     <script>
         window.CURRENT_USER_ID = '@(Context.Session.GetString("personalId") ?? "")';
+        window.USER_BRANCH_NAME = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("branchName") ?? ""));
+        window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
+        window.USER_ROLE_ID = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("roleId") ?? ""));
     </script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="~/js/prospectCall.js" asp-append-version="true"></script>
 }

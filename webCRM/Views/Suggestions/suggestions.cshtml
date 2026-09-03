@@ -1,6 +1,6 @@
 @{
-    ViewData["Title"] = "ข้อเสนอแนะ / ร้องเรียน";
-    ViewData["HeaderTitle"] = "ข้อเสนอแนะ / ร้องเรียน";
+    ViewData["Title"] = "ข้อเสนอแนะ/ร้องเรียน";
+    ViewData["HeaderTitle"] = "ข้อเสนอแนะ/ร้องเรียน";
     ViewData["HeaderSubtitle"] = "บันทึกและติดตามข้อเสนอแนะ ข้อร้องเรียน หรือความสนใจผลิตภัณฑ์จากลูกค้า";
 
     var funcId = Context.Session.GetString("func_id") ?? "";
@@ -231,19 +231,19 @@
                             </div>
 
                             <div class="d-flex justify-content-end gap-2 mt-2">
-                                <div id="forwardBtnContainer">
-                                    <button 
-                                    type="button" 
-                                    class="btn btn-warning px-4 fw-bold" 
-                                    id="forwardBtn" 
-                                    style="border-radius: 4px;"
-                                    >
-                                    ส่งต่อ
-                                    </button>
-                                </div>
-
                                 @if (hasClosePermission)
                                 {
+                                    <div id="forwardBtnContainer">
+                                        <button 
+                                        type="button" 
+                                        class="btn btn-warning px-4 fw-bold" 
+                                        id="forwardBtn" 
+                                        style="border-radius: 4px;"
+                                        >
+                                        ส่งต่อ
+                                        </button>
+                                    </div>
+
                                     <div id="closeBtnContainer">
                                         <button 
                                         type="button" 
@@ -318,7 +318,7 @@
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-medium small">ที่อยู่ในการติดต่อ</label>
-                                <textarea class="form-control" rows="4" id="post-address" placeholder="กรุณากรอกที่อยู่ในการติดต่อ"></textarea>
+                                <textarea class="form-control" rows="4" id="post-address" placeholder="กรุณากรอกที่อยู่ในการติดต่อ" style="resize: none;"></textarea>
                             </div>
                             <div class="col-md-8">
                                 <div class="row g-3">
@@ -379,7 +379,7 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-medium small">บันทึกข้อเสนอแนะ / ร้องเรียน <span class="text-danger">*</span></label>
-                            <textarea class="form-control" rows="3" id="post-reply" placeholder="กรุณาระบุรายละเอียดของข้อเสนอแนะ / ร้องเรียน"></textarea>
+                            <textarea class="form-control" rows="3" id="post-reply" placeholder="กรุณาระบุรายละเอียดของข้อเสนอแนะ / ร้องเรียน" style="resize: none;"></textarea>
                         </div>
 
                         <div class="d-flex justify-content-end gap-3 border-top pt-4">

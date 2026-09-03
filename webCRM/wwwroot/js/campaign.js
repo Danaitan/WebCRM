@@ -82,11 +82,24 @@ function getObjectiveBadge(obj) {
 function getCampaignStatusBadgeClass(status) {
     if (!status) return 'badge-status-normal';
     const s = String(status).trim().toLowerCase();
-    if (s === 'cancel' || s === 'cancelled' || s === 'ยกเลิก' || s === 'reject' || s === 'rejected' || s === 'ไม่อนุมัติ') {
+    const normalized = s.replace(/_/g, ' ');
+    if (normalized === 'cancel' || normalized === 'cancelled' || normalized === 'ยกเลิก' || normalized === 'reject' || normalized === 'rejected' || normalized === 'ไม่อนุมัติ') {
         return 'badge-status-cancel';
     }
-    if (s === 'inactive' || s === 'close' || s === 'closed' || s === 'ปิด') {
+    if (normalized === 'inactive' || normalized === 'close' || normalized === 'closed' || normalized === 'ปิด' || normalized === 'draft' || normalized === 'ร่าง') {
         return 'badge-status-inactive';
+    }
+    if (normalized === 'waiting prospect' || normalized === 'waiting prospect (prospect setup)') {
+        return 'badge-status-waiting-prospect';
+    }
+    if (normalized === 'waiting approve' || normalized === 'waiting approval' || normalized === 'รออนุมัติ') {
+        return 'badge-status-waiting-approve';
+    }
+    if (normalized === 'approve' || normalized === 'approved' || normalized === 'อนุมัติ' || normalized === 'อนุมัติแล้ว' || normalized === 'active' || normalized === 'ปกติ') {
+        return 'badge-status-normal';
+    }
+    if (normalized.includes('waiting') || normalized.includes('รอ') || normalized === 'pending') {
+        return 'badge-status-waiting-prospect';
     }
     return 'badge-status-normal';
 }
@@ -1493,7 +1506,7 @@ async function getCheckProductNo() {
         if (missingFields.length > 0) {
             Swal.fire({ 
                 title: "กรอกข้อมูลไม่ครบถ้วน", 
-                text: `กรุณากรอกหรือเลือกข้อมูลช่องที่มีเครื่องหมาย (*) ให้ครบถ้วน:\n${missingFields.join(", ")}`, 
+                html: `กรุณากรอกหรือเลือกข้อมูลช่องที่มีเครื่องหมาย (*)<br>ให้ครบถ้วน:<br><div class="mt-2 text-danger fw-semibold">${missingFields.join(", ")}</div>`, 
                 icon: "warning" 
             });
             return;
@@ -1723,7 +1736,7 @@ async function getCheckProductNo() {
         if (missingFields.length > 0) {
             Swal.fire({ 
                 title: "กรอกข้อมูลไม่ครบถ้วน", 
-                text: `กรุณากรอกหรือเลือกข้อมูลช่องที่มีเครื่องหมาย (*) ให้ครบถ้วน:\n${missingFields.join(", ")}`, 
+                html: `กรุณากรอกหรือเลือกข้อมูลช่องที่มีเครื่องหมาย (*)<br>ให้ครบถ้วน:<br><div class="mt-2 text-danger fw-semibold">${missingFields.join(", ")}</div>`, 
                 icon: "warning" 
             });
             return;

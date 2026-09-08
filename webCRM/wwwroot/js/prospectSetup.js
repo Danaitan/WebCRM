@@ -39,8 +39,20 @@ $campaignSearchInput.off("input").on("input", function () {
     }
 });
 
-$(".search-box i").off("click").on("click", function () {
+$(".panel-left .search-box i").off("click").on("click", function () {
     SearchCampaign();
+});
+
+const $prospectSearchInput = $("#prospectSearchInput");
+
+$prospectSearchInput.off("keyup").on("keyup", function (e) {
+    if (e.key === "Enter" || e.keyCode === 13) {
+        loadProspectList(1, currentProspectPageSize);
+    }
+});
+
+$("#prospectSearchIcon, #btnSearchProspect").off("click").on("click", function () {
+    loadProspectList(1, currentProspectPageSize);
 });
 
 async function SearchCampaign() {
@@ -112,7 +124,7 @@ async function displayCampaignFile(fileId) {
                         .text(fileName)
                         .attr("data-filepath", filePath)
                         .css("cursor", "pointer")
-                        .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                        .attr("title", "คลิกเพื่อเปิดดูไฟล์");
                     $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
                     return;
                 }
@@ -129,8 +141,31 @@ async function displayCampaignFile(fileId) {
 $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
     const filePath = $(this).attr("data-filepath");
     const fileName = $(this).text().trim();
-    if (filePath) {
-        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+    if (!fileName && !filePath) return;
+
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    const previewableExts = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.txt'];
+
+    if (previewableExts.includes(ext)) {
+        if (filePath) {
+            window.open(`/Campain/PreviewFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+        }
+    } else {
+        Swal.fire({
+            title: "แจ้งเตือน",
+            text: "ไฟล์นี้ไม่สามารถเปิดดูได้ในขณะนี้",
+            icon: "info",
+            showCancelButton: true,
+            confirmButtonColor: "#0d6efd",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: '<i class="bi bi-download me-1"></i> ดาวน์โหลด',
+            cancelButtonText: 'ปิด',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed && filePath) {
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+            }
+        });
     }
 });
 
@@ -393,16 +428,16 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
             const normalizedStatus = statusStr.replace(/_/g, ' ');
             let badgeClass = 'bg-secondary';
 
-            if (normalizedStatus === 'reject' || normalizedStatus === 'rejected' || normalizedStatus === 'ไม่อนุมัติ' || normalizedStatus === 'cancel' || normalizedStatus === 'cancelled' || normalizedStatus === 'ยกเลิก') {
-                badgeClass = 'bg-danger';
-            } else if (normalizedStatus === 'approve' || normalizedStatus === 'approved' || normalizedStatus === 'อนุมัติ' || normalizedStatus === 'อนุมัติแล้ว' || normalizedStatus === 'active' || normalizedStatus === 'ปกติ') {
-                badgeClass = 'bg-success';
-            } else if (normalizedStatus === 'waiting prospect' || normalizedStatus === 'waiting prospect (prospect setup)') {
+            if (normalizedStatus === 'reject' || normalizedStatus === 'return' ) {
+                badgeClass = 'bg-orange text-white';
+            } else if (normalizedStatus === 'approved' || normalizedStatus === 'approve') {
+                badgeClass = 'bg-success text-white';
+            } else if (normalizedStatus === 'waiting prospect') {
                 badgeClass = 'bg-warning text-dark';
-            } else if (normalizedStatus === 'waiting approve' || normalizedStatus === 'waiting approval' || normalizedStatus === 'รออนุมัติ') {
+            } else if (normalizedStatus === 'waiting approve') {
                 badgeClass = 'bg-info text-dark';
-            } else if (normalizedStatus === 'draft' || normalizedStatus === 'ร่าง' || normalizedStatus === 'inactive') {
-                badgeClass = 'bg-secondary';
+            } else if (normalizedStatus === 'draft') {
+                badgeClass = 'bg-secondary text-white';
             }
 
             card.innerHTML = `
@@ -590,6 +625,8 @@ async function getProspect(page = 1, pageSize = 10) {
         currentProspectPage = page;
         currentProspectPageSize = pageSize;
 
+        const searchVal = $("#prospectSearchInput").val() ? $("#prospectSearchInput").val().trim() : "";
+
         if (isCurrentCampaignImport && selectedCampaign && selectedCampaign.code) {
             const response = await getCampaignDataForETL(selectedCampaign.code);
             let rawData = [];
@@ -598,6 +635,16 @@ async function getProspect(page = 1, pageSize = 10) {
                 if (Array.isArray(etlResult.data)) rawData = etlResult.data;
                 else if (Array.isArray(etlResult.result)) rawData = etlResult.result;
                 else if (Array.isArray(etlResult)) rawData = etlResult;
+            }
+
+            if (searchVal) {
+                const s = searchVal.toLowerCase();
+                rawData = rawData.filter(item => {
+                    const name = (item.nameCus || item.name || '').toLowerCase();
+                    const phone = (item.mobile || item.phone || '').toLowerCase();
+                    const branch = (item.branchName || item.ชื่อสาขาเดิม || '').toLowerCase();
+                    return name.includes(s) || phone.includes(s) || branch.includes(s);
+                });
             }
 
             const total = rawData.length;
@@ -616,6 +663,9 @@ async function getProspect(page = 1, pageSize = 10) {
         const filterParams = getFilterParams();
         filterParams.set('page', page);
         filterParams.set('pageSize', pageSize);
+        if (searchVal) {
+            filterParams.set('search', searchVal);
+        }
 
         const response = await fetch(`/ProspectSetup/GetProspect?${filterParams.toString()}`);
         const jsonResult = await response.json();
@@ -628,6 +678,21 @@ async function getProspect(page = 1, pageSize = 10) {
 }
 
 async function loadProspectList(page = 1, pageSize = 10) {
+    if (!selectedCampaign) {
+        const totalFoundEl = document.getElementById('totalFound');
+        if (totalFoundEl) totalFoundEl.textContent = '0';
+
+        const tbody = document.getElementById('dataTableBody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูล กรุณาเลือก Campaign ทางด้านซ้ายก่อน</td></tr>`;
+        }
+
+        bindTableCheckboxEvents();
+        renderProspectPaginationControls(1, pageSize, 0);
+        const goToInput = document.getElementById('goToPageInput');
+        if (goToInput) goToInput.value = '1';
+        return;
+    }
 
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
@@ -648,7 +713,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
         if (tbody) {
             tbody.innerHTML = '';
             if (rawData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">ไม่พบข้อมูลลูกค้าเป้าหมาย</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูลลูกค้าเป้าหมาย</td></tr>`;
             } else {
                 rawData.forEach(item => {
                     const name = item.nameCus || '-';
@@ -698,7 +763,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     if (isMatched) {
                         const bStatus = (typeof matchedBatch === 'object' && matchedBatch ? (matchedBatch.status || matchedBatch.assign_status || matchedBatch.product_batch_status || matchedBatch.batch_status) : null) || item.status || item.assign_status || '';
                         const statusStr = String(bStatus || '').trim().toLowerCase();
-                        isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
+                        isDraft = statusStr === 'waiting prospect' || statusStr === 'return';
                     }
 
                     const isManuallySelected = idStr && manuallySelectedCustomers.has(idStr) && !isRemoved;
@@ -936,7 +1001,7 @@ function isProspectSelectionAllowed() {
     if (!selectedCampaign) return false;
     const rawStatus = String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase();
     const normalizedStatus = rawStatus.replace(/_/g, ' ');
-    return normalizedStatus === "waiting prospect" || normalizedStatus === "waiting prospect (prospect setup)";
+    return normalizedStatus === "waiting prospect" || normalizedStatus === "return";
 }
 
 function updateSendForApprovalButtonState() {
@@ -1209,6 +1274,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                 dynamicFilterContainer.querySelectorAll('select').forEach(sel => sel.value = '');
                 dynamicFilterContainer.querySelectorAll('input').forEach(inp => inp.value = '');
             }
+            const prospectSearchInput = document.getElementById('prospectSearchInput');
+            if (prospectSearchInput) prospectSearchInput.value = '';
+
             ['filterCustType', 'filterGender', 'filterJob', 'filterStatus', 'filterBranch'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -1462,7 +1530,6 @@ async function getProductBatchByProductCode(productCode){
             return [];
         }
         const data = await response.json();
-        console.log("response",response)
         return data || [];
     }catch(err){
         console.error("Error in getProductBatchByProductCode:", err);
@@ -1591,7 +1658,6 @@ function extractCustomers(data) {
         }
 
         if (typeof item === 'object') {
-            console.log("item",item)
             const idno = item.idno || '';
             const id = item.id || item.Id || '';
             const name = item.nameCus || '-';
@@ -1599,7 +1665,7 @@ function extractCustomers(data) {
             const branch = item.branchName || item.ชื่อสาขาเดิม || '-';
             const statusVal = item.assign_status || item.status || '';
             const statusStr = String(statusVal).trim().toLowerCase();
-            const isDraft = statusStr === 'draft' || statusStr === '' || statusStr === '1';
+            const isDraft = statusStr === 'waiting prospect' || statusStr === 'return';
             const isDisabled = item.isDisabled !== undefined ? item.isDisabled : !isDraft;
 
             if (id || idno || (name !== '-' && name !== '')) {

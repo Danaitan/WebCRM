@@ -11,6 +11,9 @@ let currentTableData = [];
 let currentPage = 1;
 let pageSize = 10;
 
+let fpStartDate = null;
+let fpEndDate = null;
+
 const objectiveColors = {
     'CS': '#3b82f6',
     'MC': '#10b981',
@@ -75,31 +78,63 @@ function validateDateRange() {
 }
 
 function bindDateRangeEvents() {
-    $('#filterStartDate').on('change input', function () {
-        const startDate = $(this).val();
-        if (startDate) {
-            $('#filterEndDate').attr('min', startDate);
-            const endDate = $('#filterEndDate').val();
-            if (endDate && endDate < startDate) {
-                $('#filterEndDate').val('');
-            }
-        } else {
-            $('#filterEndDate').removeAttr('min');
-        }
-    });
+    if (typeof flatpickr !== 'undefined') {
+        const thLocale = (typeof flatpickr.l1ons !== 'undefined' && flatpickr.l1ons.th) ? flatpickr.l1ons.th : 'default';
 
-    $('#filterEndDate').on('change input', function () {
-        const endDate = $(this).val();
-        if (endDate) {
-            $('#filterStartDate').attr('max', endDate);
-            const startDate = $('#filterStartDate').val();
-            if (startDate && startDate > endDate) {
-                $('#filterStartDate').val('');
+        fpStartDate = flatpickr('#filterStartDate', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: false,
+            disableMobile: true,
+            locale: thLocale,
+            onChange: function (selectedDates, dateStr) {
+                if (fpEndDate) {
+                    fpEndDate.set('minDate', dateStr || null);
+                }
             }
-        } else {
-            $('#filterStartDate').removeAttr('max');
-        }
-    });
+        });
+
+        fpEndDate = flatpickr('#filterEndDate', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: false,
+            disableMobile: true,
+            locale: thLocale,
+            onChange: function (selectedDates, dateStr) {
+                if (fpStartDate) {
+                    fpStartDate.set('maxDate', dateStr || null);
+                }
+            }
+        });
+    } else {
+        $('#filterStartDate').on('change input', function () {
+            const startDate = $(this).val();
+            if (startDate) {
+                $('#filterEndDate').attr('min', startDate);
+                const endDate = $('#filterEndDate').val();
+                if (endDate && endDate < startDate) {
+                    $('#filterEndDate').val('');
+                }
+            } else {
+                $('#filterEndDate').removeAttr('min');
+            }
+        });
+
+        $('#filterEndDate').on('change input', function () {
+            const endDate = $(this).val();
+            if (endDate) {
+                $('#filterStartDate').attr('max', endDate);
+                const startDate = $('#filterStartDate').val();
+                if (startDate && startDate > endDate) {
+                    $('#filterStartDate').val('');
+                }
+            } else {
+                $('#filterStartDate').removeAttr('max');
+            }
+        });
+    }
 }
 
 function isRowExpired(row) {
@@ -684,8 +719,20 @@ async function applyFilters() {
 }
 
 async function resetFilters() {
-    $('#filterStartDate').val('').removeAttr('max');
-    $('#filterEndDate').val('').removeAttr('min');
+    if (fpStartDate) {
+        fpStartDate.clear();
+        fpStartDate.set('maxDate', null);
+    } else {
+        $('#filterStartDate').val('').removeAttr('max');
+    }
+
+    if (fpEndDate) {
+        fpEndDate.clear();
+        fpEndDate.set('minDate', null);
+    } else {
+        $('#filterEndDate').val('').removeAttr('min');
+    }
+
     $('#filterCampaign').val('');
 
     const hasFcrm006 = hasPermissionFCRM006();
@@ -734,16 +781,46 @@ async function GetMasterObjective() {
 }
     
 async function setFilterCallType(){
+    try {
+        const objectives = await GetMasterObjective();
+        const filterCallType = document.getElementById('filterCallType');
+        if (!filterCallType) return;
 
-    const objectives = await GetMasterObjective();
-    const filterCallType = document.getElementById('filterCallType');
-    objectives.forEach(obj => {                
-        const code = obj.Code || "";
-        const nameEn = obj.NameEn || "";
-        const nameTh = obj.NameTh || "";
-        filterCallType.innerHTML += `<option value="${code}">${code}: ${nameEn} ${nameTh}</option>`;
-    });
+        const currentValue = $(filterCallType).val() || '';
+        let optionsHtml = '<option value="">ทั้งหมด</option>';
+        if (Array.isArray(objectives)) {
+            objectives.forEach(obj => {                
+                const code = obj.Code || "";
+                const nameEn = obj.NameEn || "";
+                const nameTh = obj.NameTh || "";
+                if (code) {
+                    optionsHtml += `<option value="${code}">${code}: ${nameEn} ${nameTh}</option>`;
+                }
+            });
+        }
+        filterCallType.innerHTML = optionsHtml;
 
+        if (currentValue && $(filterCallType).find(`option[value="${currentValue}"]`).length > 0) {
+            filterCallType.value = currentValue;
+        } else {
+            filterCallType.value = '';
+        }
+
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(filterCallType).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                language: {
+                    noResults: function () {
+                        return "ไม่พบข้อมูล";
+                    }
+                }
+            });
+            $(filterCallType).trigger('change');
+        }
+    } catch (err) {
+        console.error("Error setting call type filter:", err);
+    }
 }
 
 function findMatchingBranchValue($selectEl, userBranchName) {
@@ -914,7 +991,8 @@ async function setFilterCallResult(){
         const filterCallResult = document.getElementById('filterCallResult');
         if (!filterCallResult) return;
 
-        filterCallResult.innerHTML = '<option value="">ทั้งหมด</option>';
+        const currentValue = $(filterCallResult).val() || '';
+        let optionsHtml = '<option value="">ทั้งหมด</option>';
         const items = response?.[0]?.Dropdown?.[0]?.item || [];
         if (Array.isArray(items)) {
             items.forEach(obj => {                
@@ -922,8 +1000,30 @@ async function setFilterCallResult(){
                 const code = obj.Code || "";
                 const nameTh = obj.NameTh || "";
                 const labelText = nameTh || "";
-                filterCallResult.innerHTML += `<option value="${code}">${labelText}</option>`;
+                if (code) {
+                    optionsHtml += `<option value="${code}">${labelText}</option>`;
+                }
             });
+        }
+        filterCallResult.innerHTML = optionsHtml;
+
+        if (currentValue && $(filterCallResult).find(`option[value="${currentValue}"]`).length > 0) {
+            filterCallResult.value = currentValue;
+        } else {
+            filterCallResult.value = '';
+        }
+
+        if (typeof $.fn !== 'undefined' && $.fn.select2) {
+            $(filterCallResult).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                language: {
+                    noResults: function () {
+                        return "ไม่พบข้อมูล";
+                    }
+                }
+            });
+            $(filterCallResult).trigger('change');
         }
     } catch (err) {
         console.error("Error setting filter call result:", err);

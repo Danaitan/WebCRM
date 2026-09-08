@@ -29,13 +29,13 @@
                     <div class="col-md-3">
                         <label class="form-label-custom">วันที่เริ่มต้น</label>
                         <div class="position-relative">
-                            <input type="date" id="filterStartDate" class="form-control form-control-custom" style="padding-left: 35px;" readonly>
+                            <input type="text" id="filterStartDate" class="form-control form-control-custom bg-white" placeholder="วว/ดด/ปปปป" readonly>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label-custom">วันที่สิ้นสุด</label>
                         <div class="position-relative">
-                            <input type="date" id="filterEndDate" class="form-control form-control-custom" style="padding-left: 35px;" readonly>
+                            <input type="text" id="filterEndDate" class="form-control form-control-custom bg-white" placeholder="วว/ดด/ปปปป" readonly>
                         </div>
                     </div>
                     
@@ -113,7 +113,7 @@
             <div class="card-custom p-4 h-100 d-flex flex-column">
                 
                 <div class="mb-3">
-                    <button type="button" id="autoAssignBtn" class="btn-outline-custom w-100 d-flex align-items-center justify-content-center gap-2 py-2" style="font-size: 0.9rem; font-weight: 600; border-color: var(--primary-blue); color: var(--primary-blue);">
+                    <button type="button" id="autoAssignBtn" class="btn-outline-custom w-100 d-flex align-items-center justify-content-center gap-2 py-2" style="font-size: 0.9rem; font-weight: 600; border-color: var(--primary-blue); color: var(--primary-blue);" disabled>
                         <i class="bi bi-robot fs-5"></i> Auto Assign
                     </button>
                 </div>
@@ -139,7 +139,8 @@
                     <span class="fw-medium text-primary" id="selectedProspectCount">Selected: 0 รายการ</span>
                 </div>
                 
-                <button id="assignBtn" class="btn-primary-custom w-100 d-flex align-items-center justify-content-center gap-2 py-3 mt-auto" style="font-size: 1rem;">
+                <button id="assignBtn" class="btn-primary-custom w-100 d-flex align-items-center justify-content-center gap-2 py-3 mt-auto" style="font-size: 1rem;" disabled>
+                    Assign
                 </button>
                 
             </div>

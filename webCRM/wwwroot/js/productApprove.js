@@ -512,20 +512,17 @@ function statusClass(status) {
     if (!status) return 'status-green';
     var s = String(status).trim().toLowerCase();
     var normalized = s.replace(/_/g, ' ');
-    if (normalized === 'reject' || normalized === 'rejected' || normalized === 'ไม่อนุมัติ' || normalized === 'cancel' || normalized === 'cancelled' || normalized === 'ยกเลิก') {
+    if (normalized === 'reject' || normalized === 'cancel') {
         return 'status-red';
     }
-    if (normalized === 'approve' || normalized === 'approved' || normalized === 'อนุมัติ' || normalized === 'อนุมัติแล้ว' || normalized === 'active' || normalized === 'ปกติ') {
+    if (normalized === 'approved') {
         return 'status-green';
     }
-    if (normalized === 'waiting prospect' || normalized === 'waiting prospect (prospect setup)' || normalized === 'รอข้อมูลเพิ่มเติม') {
+    if (normalized === 'waiting prospect' ) {
         return 'status-yellow';
     }
-    if (normalized === 'waiting approve' || normalized === 'waiting approval' || normalized === 'รออนุมัติ' || normalized === 'กำลังพิจารณา') {
+    if (normalized === 'waiting approve') {
         return 'status-blue';
-    }
-    if (normalized === 'draft' || normalized === 'ร่าง' || normalized === 'inactive') {
-        return 'status-gray';
     }
     return 'status-blue';
 }
@@ -570,7 +567,7 @@ async function displayCampaignFile(fileId) {
                         .text(fileName)
                         .attr("data-filepath", filePath)
                         .css("cursor", "pointer")
-                        .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                        .attr("title", "คลิกเพื่อเปิดดูไฟล์");
                     $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
                     return;
                 }
@@ -587,8 +584,31 @@ async function displayCampaignFile(fileId) {
 $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
     const filePath = $(this).attr("data-filepath");
     const fileName = $(this).text().trim();
-    if (filePath) {
-        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+    if (!fileName && !filePath) return;
+
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    const previewableExts = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.txt'];
+
+    if (previewableExts.includes(ext)) {
+        if (filePath) {
+            window.open(`/Campain/PreviewFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+        }
+    } else {
+        Swal.fire({
+            title: "แจ้งเตือน",
+            text: "ไฟล์นี้ไม่สามารถเปิดดูได้ในขณะนี้",
+            icon: "info",
+            showCancelButton: true,
+            confirmButtonColor: "#0d6efd",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: '<i class="bi bi-download me-1"></i> ดาวน์โหลด',
+            cancelButtonText: 'ปิด',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed && filePath) {
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+            }
+        });
     }
 });
 
@@ -956,6 +976,42 @@ function renderProspectPaginationControls(total) {
     controls.innerHTML = html;
 }
 
+let fpStartDate = null;
+let fpEndDate = null;
+
+function initDatePickers() {
+    if (typeof flatpickr !== 'undefined') {
+        const thLocale = (typeof flatpickr.l1ons !== 'undefined' && flatpickr.l1ons.th) ? flatpickr.l1ons.th : 'default';
+        fpStartDate = flatpickr('#filterStartDate', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: false,
+            disableMobile: true,
+            locale: thLocale,
+            onChange: function (selectedDates, dateStr) {
+                if (fpEndDate) {
+                    fpEndDate.set('minDate', dateStr || null);
+                }
+            }
+        });
+
+        fpEndDate = flatpickr('#filterEndDate', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: false,
+            disableMobile: true,
+            locale: thLocale,
+            onChange: function (selectedDates, dateStr) {
+                if (fpStartDate) {
+                    fpStartDate.set('maxDate', dateStr || null);
+                }
+            }
+        });
+    }
+}
+
 function applyAllFilters() {
     page = 1;
     if (typeof campaignTable !== "undefined" && campaignTable) {
@@ -965,15 +1021,28 @@ function applyAllFilters() {
 }
 
 function clearAllFilters() {
-    const ids = ['filterStartDate', 'filterEndDate', 'filterStatus', 'filterBranch', 'filterBy', 'campaignSearch', 'prospectSearch'];
+    const ids = ['filterStatus', 'filterBranch', 'filterBy', 'campaignSearch', 'prospectSearch'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    if (fpStartDate) {
+        fpStartDate.clear();
+    } else {
+        const el = document.getElementById('filterStartDate');
+        if (el) el.value = '';
+    }
+    if (fpEndDate) {
+        fpEndDate.clear();
+    } else {
+        const el = document.getElementById('filterEndDate');
+        if (el) el.value = '';
+    }
     applyAllFilters();
 }
 
 $(document).ready(async function () {
+    initDatePickers();
     initDataTables();
     branch = await getBranchList();
     if (branch) {
@@ -1029,6 +1098,9 @@ $(document).ready(async function () {
         applyAllFilters();
     });
 
+    $("#filterStatus, #filterBranch").off("change").on("change", function () {
+        applyAllFilters();
+    });
 
     $("#campaignSearch, #filterBy, #prospectSearch, #filterStartDate, #filterEndDate").off("keydown").on("keydown", function (e) {
         if (e.key === "Enter" || e.keyCode === 13) {
@@ -1096,8 +1168,12 @@ $(document).ready(async function () {
                         endDate.setFullYear(endDate.getFullYear() + 10);
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
-                        const receiver = selectedCampaignCreatedBy;
-                        if (receiver) {
+                        const creator = selectedCampaignCreatedBy || (currentCampaign ? currentCampaign.createdBy : '');
+                        const receivers = new Set();
+                        if (creator) receivers.add(creator);
+                        if (senderId) receivers.add(senderId);
+
+                        for (const receiver of receivers) {
                             await PostNoti({
                                 header: "Campaign",
                                 title: `Campaign ${code} (${name})`,
@@ -1168,7 +1244,7 @@ $(document).ready(async function () {
                 try {
                     var request = {
                         product_code: code || "",
-                        status: "Cancel",
+                        status: "reject",
                         product_remark: result.value,
                     };
                     const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {
@@ -1201,8 +1277,12 @@ $(document).ready(async function () {
                         endDate.setFullYear(endDate.getFullYear() + 10);
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
-                        const receiver = selectedCampaignCreatedBy;
-                        if (receiver) {
+                        const creator = selectedCampaignCreatedBy || (currentCampaign ? currentCampaign.createdBy : '');
+                        const receivers = new Set();
+                        if (creator) receivers.add(creator);
+                        if (senderId) receivers.add(senderId);
+
+                        for (const receiver of receivers) {
                             await PostNoti({
                                 header: "Campaign",
                                 title: `Campaign ${code} (${name})`,
@@ -1273,7 +1353,7 @@ $(document).ready(async function () {
                 try {
                     var request = {
                         product_code: code || "",
-                        status: "reject",
+                        status: "return",
                         product_remark: result.value,
                     };
                     const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {
@@ -1308,8 +1388,12 @@ $(document).ready(async function () {
                         endDate.setFullYear(endDate.getFullYear() + 10);
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
-                        const receiver = selectedCampaignCreatedBy;
-                        if (receiver) {
+                        const creator = selectedCampaignCreatedBy || (currentCampaign ? currentCampaign.createdBy : '');
+                        const receivers = new Set();
+                        if (creator) receivers.add(creator);
+                        if (senderId) receivers.add(senderId);
+
+                        for (const receiver of receivers) {
                             await PostNoti({
                                 header: "Campaign",
                                 title: `Campaign ${code} (${name})`,

@@ -91,7 +91,8 @@ namespace webCRM.Controllers
         public async Task<IActionResult> GetProspect(
             GetProspectRequest request,
             int page = 1,
-            int pageSize = 10
+            int pageSize = 10,
+            string search = ""
             )
         {
 
@@ -109,7 +110,8 @@ namespace webCRM.Controllers
                     {
                         $"page={page}",
                         $"pageSize={pageSize}",
-                        "isNotAssign=true"
+                        "isNotAssign=true",
+                        $"search={Uri.EscapeDataString(search ?? "")}"
                     };
 
                     if (request != null)

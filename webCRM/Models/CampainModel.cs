@@ -60,6 +60,9 @@ namespace webCRM.Models
         [JsonPropertyName("file_id")]
         [JsonConverter(typeof(FlexibleStringConverter))]
         public string? file_id { get; set; }
+
+        [JsonPropertyName("product_description")]
+        public string? product_description { get; set; }
     }
 
     public class FilterInfo
@@ -134,6 +137,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("IsImport")]
         public bool IsImport { get; set; }
+
+        [JsonPropertyName("product_description")]
+        public string? product_description { get; set; }
     }
 
     public class Branch

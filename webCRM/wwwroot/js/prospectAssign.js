@@ -216,6 +216,15 @@ async function loadAndRenderStaffList(branchId) {
         staffArray = res.result;
     }
 
+    // กรองเฉพาะผู้รับผิดชอบที่มี role_id เป็น RCRM011
+    staffArray = staffArray.filter(s => {
+        if (!s) return false;
+        if (typeof s === 'object') {
+            return (s.role_id || '') === 'RCRM011';
+        }
+        return true;
+    });
+
     if (staffArray.length === 0) {
         const noDataHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูลพนักงาน</div>';
         if (dropdownMenu) dropdownMenu.innerHTML = noDataHtml;
@@ -329,14 +338,26 @@ async function UpdateProspectCustomer(overrideParams = {}){
             }
         }
 
-        const selectedCheckboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
-        const ids = overrideParams.id || Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-id')).filter(Boolean);
+        const assignStatus = overrideParams.assign_status || 'assigned';
+        const isReassign = assignStatus === 'reassign' || btnText === 'ReAssign';
+
+        let selectedCheckboxes = Array.from(document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked'));
+        if (isReassign && !overrideParams.id) {
+            selectedCheckboxes = selectedCheckboxes.filter(cb => {
+                const st = (cb.getAttribute('data-status') || '').toLowerCase().trim();
+                const row = cb.closest('tr');
+                const statusText = row ? (row.querySelector('.status-text')?.textContent || '').toLowerCase().trim() : '';
+                return st === 'assigned' || st === 'reassign' || (statusText.includes('assign') && !statusText.includes('wait'));
+            });
+        }
+
+        const ids = overrideParams.id || selectedCheckboxes.map(cb => cb.getAttribute('data-id')).filter(Boolean);
 
         if (!ids || ids.length === 0) {
             if (typeof showAlert === 'function') {
-                showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
+                showAlert('warning', 'แจ้งเตือน', isReassign ? 'ไม่พบรายการ Prospect ที่มีสถานะ Assign สำหรับการ ReAssign' : 'กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
             } else {
-                alert('กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
+                alert(isReassign ? 'ไม่พบรายการ Prospect ที่มีสถานะ Assign สำหรับการ ReAssign' : 'กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
             }
             return null;
         }
@@ -358,12 +379,20 @@ async function UpdateProspectCustomer(overrideParams = {}){
             return null;
         }
 
+        if (assign_case !== 'Auto Bot' && assigneeList.length > 1) {
+            if (typeof showAlert === 'function') {
+                showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบเพียงคนเดียว หากไม่ใช่การ Auto Assign');
+            } else {
+                alert('กรุณาเลือกผู้รับผิดชอบเพียงคนเดียว หากไม่ใช่การ Auto Assign');
+            }
+            return null;
+        }
+
         const filterStartDateEl = document.getElementById('filterStartDate');
         const filterEndDateEl = document.getElementById('filterEndDate');
         const assignDate = filterStartDateEl ? filterStartDateEl.value : '';
         const assignExpire = filterEndDateEl ? filterEndDateEl.value : '';
         const assignRemark = overrideParams.assign_remark || 'Assigned manually';
-        const assignStatus = overrideParams.assign_status || 'assigned';
 
         // Group prospect IDs per staff member (Round-Robin distribution)
         const staffAssignments = {};
@@ -458,7 +487,7 @@ function extractProspectCustomers(data) {
     let items = [];
     let totalCount = 0;
     if (raw && typeof raw === 'object') {
-        totalCount = raw.Customer?.total ?? raw.total ?? raw.count ?? (Array.isArray(raw.data) ? raw.data.length : (Array.isArray(raw.result) ? raw.result.length : 0));
+        totalCount = raw.Customer.total;
     }
 
     const checkAndPush = (item) => {
@@ -662,7 +691,6 @@ async function loadProspectAssignData(productCode) {
 
     rawProspectItems = items;
     prospectTotalCount = totalCount;
-
     updateSummaryCardCounts(items, totalCount);
     filterAndRenderProspectTable();
 }
@@ -730,7 +758,7 @@ function filterAndRenderProspectTable() {
             const statusText = getStatusLabel(item.status, item.assignee);
             html += `
                 <tr>
-                    <td class="text-center"><input type="checkbox" class="form-check-input prospect-checkbox" data-id="${escapeHtml(item.id)}" data-contract="${escapeHtml(item.contract)}"></td>
+                    <td class="text-center"><input type="checkbox" class="form-check-input prospect-checkbox" data-id="${escapeHtml(item.id)}" data-contract="${escapeHtml(item.contract)}" data-status="${escapeHtml(item.status)}"></td>
                     <td class="text-center">
                         <div class="fw-medium">${escapeHtml(item.branch)}</div>
                     </td>
@@ -769,13 +797,26 @@ function filterAndRenderProspectTable() {
 
 function updateAssignButtonDisabledState() {
     const assignBtn = document.getElementById('assignBtn');
-    if (!assignBtn) return;
+    const autoAssignBtn = document.getElementById('autoAssignBtn');
 
     const assigneeTags = document.querySelectorAll('#responsibleSelectBox .branch-tag');
-    if (assigneeTags.length === 0) {
-        assignBtn.disabled = true;
-    } else {
-        assignBtn.disabled = false;
+    const checkedProspects = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
+    const hasCheckedProspects = checkedProspects.length > 0;
+
+    if (assignBtn) {
+        if (assigneeTags.length === 0 || !hasCheckedProspects) {
+            assignBtn.disabled = true;
+        } else {
+            assignBtn.disabled = false;
+        }
+    }
+
+    if (autoAssignBtn) {
+        if (!hasCheckedProspects) {
+            autoAssignBtn.disabled = true;
+        } else {
+            autoAssignBtn.disabled = false;
+        }
     }
 }
 
@@ -966,7 +1007,7 @@ async function displayCampaignFile(fileId) {
                         .text(fileName)
                         .attr("data-filepath", filePath)
                         .css("cursor", "pointer")
-                        .attr("title", "คลิกเพื่อดาวน์โหลดไฟล์");
+                        .attr("title", "คลิกเพื่อเปิดดูไฟล์");
                     $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
                     return;
                 }
@@ -983,8 +1024,31 @@ async function displayCampaignFile(fileId) {
 $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
     const filePath = $(this).attr("data-filepath");
     const fileName = $(this).text().trim();
-    if (filePath) {
-        window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+    if (!fileName && !filePath) return;
+
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    const previewableExts = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.txt'];
+
+    if (previewableExts.includes(ext)) {
+        if (filePath) {
+            window.open(`/Campain/PreviewFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+        }
+    } else {
+        Swal.fire({
+            title: "แจ้งเตือน",
+            text: "ไฟล์นี้ไม่สามารถเปิดดูได้ในขณะนี้",
+            icon: "info",
+            showCancelButton: true,
+            confirmButtonColor: "#0d6efd",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: '<i class="bi bi-download me-1"></i> ดาวน์โหลด',
+            cancelButtonText: 'ปิด',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed && filePath) {
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+            }
+        });
     }
 });
 
@@ -1013,8 +1077,8 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
 
             if (codeInput) codeInput.value = campaign.code;
             if (nameInput) nameInput.value = campaign.name;
-            if (startInput) startInput.value = campaign.startDate;
-            if (endInput) endInput.value = campaign.endDate;
+            if (startInput) startInput.value = typeof formatThaiDate === 'function' ? formatThaiDate(campaign.startDate) : campaign.startDate;
+            if (endInput) endInput.value = typeof formatThaiDate === 'function' ? formatThaiDate(campaign.endDate) : campaign.endDate;
             if (remarkInput) remarkInput.value = campaign.remark;
 
             // Set selected branches in UI based on offcde
@@ -1233,8 +1297,6 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     init();
 })();
 
-
-
 // RESPONSIBLE PERSON MULTI-SELECT
 (function () {
     function initMultiSelect(containerId, selectBoxId, dropdownMenuId, optionClass) {
@@ -1346,6 +1408,23 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
             if (this.disabled) return;
             const btnText = this.textContent.trim();
             if (btnText === 'ReAssign') {
+                const checkedBoxes = Array.from(document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked'));
+                const assignableCheckboxes = checkedBoxes.filter(cb => {
+                    const st = (cb.getAttribute('data-status') || '').toLowerCase().trim();
+                    const row = cb.closest('tr');
+                    const statusText = row ? (row.querySelector('.status-text')?.textContent || '').toLowerCase().trim() : '';
+                    return st === 'assigned' || st === 'reassign' || (statusText.includes('assign') && !statusText.includes('wait'));
+                });
+
+                if (assignableCheckboxes.length === 0) {
+                    if (typeof showAlert === 'function') {
+                        showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการ Prospect ที่มีสถานะ Assign เพื่อทำการ ReAssign');
+                    } else {
+                        alert('กรุณาเลือกรายการ Prospect ที่มีสถานะ Assign เพื่อทำการ ReAssign');
+                    }
+                    return;
+                }
+
                 const modalElement = document.getElementById('reAssignModal');
                 if (modalElement && typeof bootstrap !== 'undefined') {
                     const bsModal = new bootstrap.Modal(modalElement);
@@ -1354,6 +1433,16 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
                     $('#reAssignModal').modal('show');
                 }
             } else {
+                const assigneeTags = document.querySelectorAll('#responsibleSelectBox .branch-tag');
+                if (assigneeTags.length > 1) {
+                    if (typeof showAlert === 'function') {
+                        showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบเพียงคนเดียว หากไม่ใช่การ Auto Assign');
+                    } else {
+                        alert('กรุณาเลือกผู้รับผิดชอบเพียงคนเดียว หากไม่ใช่การ Auto Assign');
+                    }
+                    return;
+                }
+
                 if (typeof startLoading === 'function') {
                     startLoading('กำลังบันทึกข้อมูล...', 'ระบบกำลังทำการ Assign Prospect กรุณารอสักครู่...');
                 }
@@ -1382,9 +1471,8 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
         confirmReAssignBtn.addEventListener('click', async function() {
             const newAssigneeTags = document.querySelectorAll('#newResponsibleSelectBox .branch-tag');
             const newAssigneeList = Array.from(newAssigneeTags).map(tag => tag.getAttribute('data-value')).filter(Boolean);
-            const newAssignee = newAssigneeList.join(',');
 
-            if (!newAssignee) {
+            if (!newAssigneeList || newAssigneeList.length === 0) {
                 if (typeof showAlert === 'function') {
                     showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบใหม่');
                 } else {
@@ -1392,6 +1480,17 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
                 }
                 return;
             }
+
+            if (newAssigneeList.length > 1) {
+                if (typeof showAlert === 'function') {
+                    showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกผู้รับผิดชอบเพียงคนเดียว หากไม่ใช่การ Auto Assign');
+                } else {
+                    alert('กรุณาเลือกผู้รับผิดชอบเพียงคนเดียว หากไม่ใช่การ Auto Assign');
+                }
+                return;
+            }
+
+            const newAssignee = newAssigneeList.join(',');
 
             const remarkInput = document.querySelector('#reAssignModal textarea');
             const remark = remarkInput ? remarkInput.value.trim() : '';
@@ -1437,6 +1536,7 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     const autoAssignBtn = document.getElementById('autoAssignBtn');
     if (autoAssignBtn) {
         autoAssignBtn.addEventListener('click', async function(e) {
+            if (this.disabled) return;
             e.preventDefault();
 
             const filterBranchSelect = document.getElementById('filterBranchSelect');

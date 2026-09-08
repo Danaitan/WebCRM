@@ -158,10 +158,10 @@
                                     <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">Line ID</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-line">-</div>
                                 </div>
-                                <div class="d-flex mb-3 align-items-start">
+                                @* <div class="d-flex mb-3 align-items-start">
                                     <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">เลขประจำตัวประชาชน</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-idno">-</div>
-                                </div>
+                                </div> *@
                                 <div class="d-flex mb-3 align-items-start">
                                     <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">สถานะเคส</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-status">-</div>
@@ -221,7 +221,7 @@
                                         <textarea id="reply-input" class="form-control mb-2" rows="3" style="resize: none; border-color: #e2e8f0;" placeholder="กรอกข้อความตอบกลับที่นี่..."></textarea>
                                         <div class="d-flex justify-content-between mb-3 text-dark-blue" style="font-size: 0.85rem; font-family: 'Courier New', Courier, monospace; font-weight: bold;">
                                             <span>@(Context.Session.GetString("fullNameEn") ?? "")</span>
-                                            <span>@DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss", new System.Globalization.CultureInfo("th-TH"))</span>
+                                            <span id="reply-current-time">@DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)</span>
                                         </div>
                                         <div class="d-flex justify-content-end gap-2">
                                             <button type="button" class="btn btn-primary px-4 fw-bold" id="saveReplyBtn" style="border-radius: 4px;">บันทึก</button>
@@ -363,7 +363,7 @@
                                 <label class="form-label fw-medium small">วันที่และเวลา (ให้ติดต่อกลับ)<span class="text-danger">*</span></label>
                                 <div class="d-flex gap-2">
                                     <div class="position-relative flex-grow-1">
-                                        <input type="date" class="form-control" id="post-contact-date">
+                                        <input type="text" class="form-control bg-white" id="post-contact-date" placeholder="วว/ดด/ปปปป" readonly>
                                     </div>
                                     <div class="position-relative" style="width: 120px;">
                                         <input type="time" class="form-control text-center" id="post-contact-time" value="00:00">

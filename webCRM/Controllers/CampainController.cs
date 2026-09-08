@@ -195,7 +195,7 @@ namespace webCRM.Controllers
             }
         }
 
-        public async Task<List<MasterFilter>> GetMasterFilter()
+        public async Task<List<MasterFilter>> GetMasterFilter(string? company = null)
         {
 
             try
@@ -207,15 +207,41 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var company = HttpContext.Session.GetString("company");
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getMasterFilter/{company}");
+                    var comp = !string.IsNullOrWhiteSpace(company) ? company : (HttpContext.Session.GetString("company") ?? "MICRO");
+                    if (string.IsNullOrWhiteSpace(comp)) comp = "MICRO";
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getMasterFilter/{comp}");
 
                     if (response.IsSuccessStatusCode)
                     {
                         string data = await response.Content.ReadAsStringAsync();
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<MasterFilter>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        var result = apiResponse?
-                            .GroupBy(x => x.FCode)
+                        List<MasterFilter>? list = null;
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(data);
+                            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                            {
+                                list = JsonSerializer.Deserialize<List<MasterFilter>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            }
+                            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                            {
+                                if (doc.RootElement.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    list = JsonSerializer.Deserialize<List<MasterFilter>>(dataProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                }
+                                else if (doc.RootElement.TryGetProperty("result", out var resultProp) && resultProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    list = JsonSerializer.Deserialize<List<MasterFilter>>(resultProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                }
+                            }
+                        }
+                        catch (Exception parseEx)
+                        {
+                            Console.WriteLine($"Error parsing GetMasterFilter: {parseEx.Message}");
+                        }
+
+                        var result = list?
+                            .Where(x => !string.IsNullOrWhiteSpace(x.FCode))
+                            .GroupBy(x => x.FCode!.Trim(), StringComparer.OrdinalIgnoreCase)
                             .Select(g => g.First())
                             .ToList();
 
@@ -249,6 +275,19 @@ namespace webCRM.Controllers
                 using var client = new HttpClient(handler);
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
+                var comp = HttpContext.Session.GetString("company") ?? "MICRO";
+                if (string.IsNullOrWhiteSpace(comp)) comp = "MICRO";
+                if (request != null)
+                {
+                    foreach (var item in request)
+                    {
+                        if (string.IsNullOrWhiteSpace(item.fcompany))
+                        {
+                            item.fcompany = comp;
+                        }
+                    }
+                }
+
                 var content = new StringContent(
                     JsonSerializer.Serialize(request),
                     Encoding.UTF8,
@@ -275,7 +314,7 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid)
+        public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid, string? company = null)
         {
             try
             {
@@ -286,15 +325,45 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var company = HttpContext.Session.GetString("company");
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductFilterByGuid/{fguid}/{company}");
+                    var comp = !string.IsNullOrWhiteSpace(company) ? company : (HttpContext.Session.GetString("company") ?? "MICRO");
+                    if (string.IsNullOrWhiteSpace(comp)) comp = "MICRO";
+                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductFilterByGuid/{fguid}/{comp}");
 
                     if (response.IsSuccessStatusCode)
                     {
                         string data = await response.Content.ReadAsStringAsync();
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<GetFilterByGuid>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        var result = apiResponse?
-                            .GroupBy(x => x.fcode)
+                        List<GetFilterByGuid>? list = null;
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(data);
+                            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                            {
+                                list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            }
+                            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                            {
+                                if (doc.RootElement.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(dataProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                }
+                                else if (doc.RootElement.TryGetProperty("result", out var resultProp) && resultProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(resultProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                }
+                                else if (doc.RootElement.TryGetProperty("filters", out var filtersProp) && filtersProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(filtersProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                }
+                            }
+                        }
+                        catch (Exception parseEx)
+                        {
+                            Console.WriteLine($"Error parsing GetFilterByGuid: {parseEx.Message}");
+                        }
+
+                        var result = list?
+                            .Where(x => !string.IsNullOrWhiteSpace(x.fcode))
+                            .GroupBy(x => x.fcode!.Trim(), StringComparer.OrdinalIgnoreCase)
                             .Select(g => g.First())
                             .ToList();
 
@@ -639,6 +708,69 @@ namespace webCRM.Controllers
             catch (System.Exception ex)
             {
                 return BadRequest("Error downloading file: " + ex.Message);
+            }
+        }
+
+        [HttpGet]
+        public IActionResult PreviewFile(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    return NotFound("File path is empty.");
+                }
+
+                string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
+                string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
+
+                string cleanedRelativePath = filePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+                string fullPath = Path.GetFullPath(Path.Combine(contentRootPath, cleanedRelativePath));
+
+                string fullRootPath = Path.GetFullPath(rootPath);
+                string fullContentRootPath = Path.GetFullPath(contentRootPath);
+
+                if (!fullPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) &&
+                    !fullPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Invalid file path.");
+                }
+
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    string altPath = Path.GetFullPath(Path.Combine(rootPath, cleanedRelativePath));
+                    if (System.IO.File.Exists(altPath) &&
+                        (altPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) || altPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        fullPath = altPath;
+                    }
+                    else
+                    {
+                        return NotFound("File not found on server.");
+                    }
+                }
+
+                string contentType = "application/octet-stream";
+                string ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                switch (ext)
+                {
+                    case ".pdf": contentType = "application/pdf"; break;
+                    case ".png": contentType = "image/png"; break;
+                    case ".jpg": case ".jpeg": contentType = "image/jpeg"; break;
+                    case ".gif": contentType = "image/gif"; break;
+                    case ".webp": contentType = "image/webp"; break;
+                    case ".svg": contentType = "image/svg+xml"; break;
+                    case ".txt": contentType = "text/plain; charset=utf-8"; break;
+                    default:
+                        contentType = "application/octet-stream"; break;
+                }
+
+                byte[] fileBytes = System.IO.File.ReadAllBytes(fullPath);
+                return File(fileBytes, contentType);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest("Error previewing file: " + ex.Message);
             }
         }
 

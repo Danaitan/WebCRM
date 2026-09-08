@@ -515,3 +515,8 @@
             align-self: center;
         }
     }
+
+    .bg-orange {
+        background-color: #f97316 !important;
+        color: #ffffff !important;
+    }

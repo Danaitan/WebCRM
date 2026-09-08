@@ -8,6 +8,9 @@ let currentTableData = [];
 let currentPage = 1;
 let pageSize = 10;
 
+let fpStartDate = null;
+let fpEndDate = null;
+
 const statusColors = {
     'Pending': '#f59e0b',
     'Forward': '#0284c7',
@@ -111,19 +114,13 @@ async function setFilterBranch(branchData) {
     }
 
     const currentValue = $(selectEl).val() || selectEl.value || '';
-    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
 
-    let validItems = [];
-    if (variableFunc && items.length > 0) {
-        validItems = items.filter(item => isBranchInVariableFunc(item, variableFunc));
-    }
+    let optionsHtml = '<option value="">ทั้งหมด</option>';
+    const seenNames = new Set();
+    const seenValues = new Set();
 
-    let optionsHtml = '';
-    if (validItems.length > 0) {
-        optionsHtml = '<option value="">ทั้งหมด</option>';
-        const seenValues = new Set();
-
-        validItems.forEach(item => {
+    if (items && items.length > 0) {
+        items.forEach(item => {
             if (!item) return;
 
             const code = String(item.e_mail || item.email || item.Email || item.offcde || item.branch_code || item.branch_no || item.code || item.name || item.branch || '').trim();
@@ -132,8 +129,13 @@ async function setFilterBranch(branchData) {
 
             if (!code && !name && !branch) return;
 
+            const nameKey = name ? name.toLowerCase() : '';
+            if (nameKey && seenNames.has(nameKey)) return;
+
             const val = code || name || branch;
             if (seenValues.has(val)) return;
+
+            if (nameKey) seenNames.add(nameKey);
             seenValues.add(val);
 
             let displayName = '';
@@ -167,10 +169,8 @@ async function setFilterBranch(branchData) {
 
     if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
         $(selectEl).val(currentValue).trigger('change');
-    } else if (variableFunc && selectEl.options.length > 1 && validItems.length !== items.length) {
-        $(selectEl).val(selectEl.options[1].value).trigger('change');
-    } else if (selectEl.options.length > 0) {
-        $(selectEl).val(selectEl.options[0].value).trigger('change');
+    } else {
+        $(selectEl).val('').trigger('change');
     }
 }
 
@@ -314,31 +314,63 @@ function validateDateRange() {
 }
 
 function bindDateRangeEvents() {
-    $('#filterStartDate').on('change input', function () {
-        const startDate = $(this).val();
-        if (startDate) {
-            $('#filterEndDate').attr('min', startDate);
-            const endDate = $('#filterEndDate').val();
-            if (endDate && endDate < startDate) {
-                $('#filterEndDate').val('');
-            }
-        } else {
-            $('#filterEndDate').removeAttr('min');
-        }
-    });
+    if (typeof flatpickr !== 'undefined') {
+        const thLocale = (typeof flatpickr.l1ons !== 'undefined' && flatpickr.l1ons.th) ? flatpickr.l1ons.th : 'default';
 
-    $('#filterEndDate').on('change input', function () {
-        const endDate = $(this).val();
-        if (endDate) {
-            $('#filterStartDate').attr('max', endDate);
-            const startDate = $('#filterStartDate').val();
-            if (startDate && startDate > endDate) {
-                $('#filterStartDate').val('');
+        fpStartDate = flatpickr('#filterStartDate', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: false,
+            disableMobile: true,
+            locale: thLocale,
+            onChange: function (selectedDates, dateStr) {
+                if (fpEndDate) {
+                    fpEndDate.set('minDate', dateStr || null);
+                }
             }
-        } else {
-            $('#filterStartDate').removeAttr('max');
-        }
-    });
+        });
+
+        fpEndDate = flatpickr('#filterEndDate', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: false,
+            disableMobile: true,
+            locale: thLocale,
+            onChange: function (selectedDates, dateStr) {
+                if (fpStartDate) {
+                    fpStartDate.set('maxDate', dateStr || null);
+                }
+            }
+        });
+    } else {
+        $('#filterStartDate').on('change input', function () {
+            const startDate = $(this).val();
+            if (startDate) {
+                $('#filterEndDate').attr('min', startDate);
+                const endDate = $('#filterEndDate').val();
+                if (endDate && endDate < startDate) {
+                    $('#filterEndDate').val('');
+                }
+            } else {
+                $('#filterEndDate').removeAttr('min');
+            }
+        });
+
+        $('#filterEndDate').on('change input', function () {
+            const endDate = $(this).val();
+            if (endDate) {
+                $('#filterStartDate').attr('max', endDate);
+                const startDate = $('#filterStartDate').val();
+                if (startDate && startDate > endDate) {
+                    $('#filterStartDate').val('');
+                }
+            } else {
+                $('#filterStartDate').removeAttr('max');
+            }
+        });
+    }
 }
 
 function renderEmptySuggestionDashboard() {
@@ -374,7 +406,6 @@ async function setDashboard() {
     if (provider) params.append('provider', provider);
     if (topic) params.append('title', topic);
     if (status) params.append('status', status);
-
     const queryString = params.toString();
     const url = `/DashboardSuggestion/GetSuggestionDashboard${queryString ? '?' + queryString : ''}`;
 
@@ -641,7 +672,8 @@ function renderSuggestionTable() {
         const lastUpdStr = formatDate(row.LastUpdDate);
 
         const suggesDesc = row.suggesDesc || '-';
-        const nameCus = row.nameCus || '-';
+        // const nameCus = row.nameCus || '-';
+        const nameCus = row.nameProvider || '-';
         const provider = row.sendToPerson || row.sendToGroupAbb || '-';
         const branch = row.sendToPersonAbb || row.sendToGroupFull || '-';
 
@@ -663,6 +695,7 @@ function renderSuggestionTable() {
 
         const rawDay = row.Day !== undefined && row.Day !== null ? row.Day : (row.day !== undefined && row.day !== null ? row.day : null);
         const days = rawDay !== null ? `${rawDay} วัน` : '-';
+        const createBy = row.createdName || '-';
 
         rowsHtml += `
             <tr>
@@ -674,6 +707,7 @@ function renderSuggestionTable() {
                 <td class="text-center">${statusBadge}</td>
                 <td class="text-muted extra-small">${lastUpdStr}</td>
                 <td class="text-center fw-semibold text-secondary small">${days}</td>
+                <td class="text-center fw-semibold">${createBy}</td>
             </tr>
         `;
     });
@@ -769,29 +803,24 @@ function applySuggestionFilters() {
 }
 
 async function resetSuggestionFilters() {
-    $('#filterStartDate').val('').removeAttr('max');
-    $('#filterEndDate').val('').removeAttr('min');
+    if (fpStartDate) {
+        fpStartDate.clear();
+        fpStartDate.set('maxDate', null);
+    } else {
+        $('#filterStartDate').val('').removeAttr('max');
+    }
+
+    if (fpEndDate) {
+        fpEndDate.clear();
+        fpEndDate.set('minDate', null);
+    } else {
+        $('#filterEndDate').val('').removeAttr('min');
+    }
 
     const select2Ids = ['#filterBranch', '#filterProvider', '#filterTopic', '#filterStatus'];
     select2Ids.forEach(id => {
         const $el = $(id);
         if ($el.length) {
-            if (id === '#filterBranch') {
-                const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-                if (variableFunc && $el[0].options && $el[0].options.length > 1) {
-                    $el.val($el[0].options[1].value);
-                    if (typeof $.fn !== 'undefined' && $.fn.select2) {
-                        $el.trigger('change');
-                    }
-                    return;
-                } else if ($el[0].options && $el[0].options.length > 0) {
-                    $el.val($el[0].options[0].value);
-                    if (typeof $.fn !== 'undefined' && $.fn.select2) {
-                        $el.trigger('change');
-                    }
-                    return;
-                }
-            }
             $el.val('');
             if (typeof $.fn !== 'undefined' && $.fn.select2) {
                 $el.trigger('change');
@@ -1259,14 +1288,25 @@ $(document).ready(async function () {
             const personalAbb = Array.isArray(raw.personalAbb) ? raw.personalAbb : (Array.isArray(jsonResult.personalAbb) ? jsonResult.personalAbb : []);
             const personal = Array.isArray(raw.personal) ? raw.personal : (Array.isArray(jsonResult.personal) ? jsonResult.personal : []);
 
-            const branch = [
-                ...group,
-                ...personalAbb
-            ];
+            const seenBranchNames = new Set();
+            const branch = [];
+            [...group, ...personalAbb].forEach(item => {
+                if (!item) return;
+                const nameKey = String(item.name || item.Name || item.branch_name || item.branchName || item.groupName || item.branch || item.Branch || '').trim().toLowerCase();
+                if (nameKey) {
+                    if (!seenBranchNames.has(nameKey)) {
+                        seenBranchNames.add(nameKey);
+                        branch.push(item);
+                    }
+                } else {
+                    branch.push(item);
+                }
+            });
             const provider = [
                 ...group,
                 ...personal
             ];
+
             await setFilterBranch(branch);
             await setFilterprovider(provider);
         } else {

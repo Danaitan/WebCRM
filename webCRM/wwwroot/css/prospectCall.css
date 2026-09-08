@@ -473,3 +473,34 @@
     color: #ffffff;
 }
 
+/* Ensure full height sidebar and campaign list container */
+.pa-page-wrapper {
+    height: calc(100vh - 75px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pa-layout {
+    display: flex;
+    flex-grow: 1;
+    min-height: 0;
+    height: 100%;
+    gap: 1rem;
+    overflow: hidden;
+}
+
+.pa-sidebar-left {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.campaign-list-container {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+

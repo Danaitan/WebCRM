@@ -147,9 +147,25 @@ async function loadBranchesData() {
 }
 
 //LOAD USERS DATA
-async function loadUsersData() {
-    $('#userSearchInput').val('');
-    $('#userRoleFilter').val('');
+async function loadUsersData(preserveFilter = true) {
+    const currentSearch = preserveFilter ? ($('#userSearchInput').val() || '') : '';
+    const currentRoleFilter = preserveFilter ? ($('#userRoleFilter').val() || '') : '';
+    let currentPage = null;
+    if (preserveFilter && usersDataTable) {
+        try {
+            currentPage = usersDataTable.page();
+        } catch (e) { }
+    }
+
+    if (!preserveFilter) {
+        $('#userSearchInput').val('');
+        if ($('#userRoleFilter').hasClass('select2-hidden-accessible')) {
+            $('#userRoleFilter').val('').trigger('change.select2');
+        } else {
+            $('#userRoleFilter').val('');
+        }
+    }
+
     $('#usersTableBody').html(`
         <tr>
             <td colspan="6" class="text-center py-4 text-muted">
@@ -176,8 +192,30 @@ async function loadUsersData() {
         });
         allUsersData = parseApiResponse(response);
         $('#statTotalUsers').text(allUsersData.length);
-        $('#userCountBadge').text(allUsersData.length);
         renderUsersTable(allUsersData);
+
+        if (preserveFilter) {
+            if (currentSearch) {
+                $('#userSearchInput').val(currentSearch);
+            }
+            if (currentRoleFilter) {
+                if ($('#userRoleFilter').hasClass('select2-hidden-accessible')) {
+                    $('#userRoleFilter').val(currentRoleFilter).trigger('change.select2');
+                } else {
+                    $('#userRoleFilter').val(currentRoleFilter);
+                }
+            }
+            filterUsersTable();
+
+            if (currentPage !== null && usersDataTable) {
+                const info = usersDataTable.page.info();
+                if (currentPage < info.pages) {
+                    usersDataTable.page(currentPage).draw('page');
+                }
+            }
+        } else {
+            $('#userCountBadge').text(allUsersData.length);
+        }
     } catch (error) {
         console.error("Failed to load users data:", error);
         allUsersData = [];
@@ -187,7 +225,7 @@ async function loadUsersData() {
             <tr>
                 <td colspan="6" class="text-center py-4 text-danger">
                     <i class="bi bi-exclamation-triangle me-1"></i>เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้งาน 
-                    <button class="btn btn-sm btn-outline-danger ms-2 rounded-pill px-3" onclick="loadUsersData()">
+                    <button class="btn btn-sm btn-outline-danger ms-2 rounded-pill px-3" onclick="loadUsersData(true)">
                         <i class="bi bi-arrow-clockwise me-1"></i>ลองใหม่
                     </button>
                 </td>
@@ -347,6 +385,14 @@ function renderUsersTable(data) {
             dom: '<"d-flex justify-content-between align-items-center mb-2"l>rt<"d-flex justify-content-between align-items-center mt-3"ip>',
             order: []
         });
+
+        usersDataTable.on('draw', function () {
+            const count = usersDataTable.rows({ filter: 'applied' }).count();
+            $('#userCountBadge').text(count);
+        });
+
+        const initialCount = usersDataTable.rows({ filter: 'applied' }).count();
+        $('#userCountBadge').text(initialCount);
     } catch (err) {
         console.error("Error rendering users table:", err);
     }
@@ -354,8 +400,8 @@ function renderUsersTable(data) {
 
 function filterUsersTable() {
     if (!usersDataTable) return;
-    const searchVal = $('#userSearchInput').val();
-    const roleFilterVal = $('#userRoleFilter').val();
+    const searchVal = $('#userSearchInput').val() || '';
+    const roleFilterVal = $('#userRoleFilter').val() || '';
 
     usersDataTable.search(searchVal);
     if (roleFilterVal) {
@@ -400,6 +446,8 @@ async function loadRolesData() {
 
 function renderRolesFilterDropdown(roles) {
     const userFilter = $('#userRoleFilter');
+    const prevValue = userFilter.val();
+
     if (userFilter.hasClass('select2-hidden-accessible')) {
         userFilter.select2('destroy');
     }
@@ -414,6 +462,10 @@ function renderRolesFilterDropdown(roles) {
         }
     });
 
+    if (prevValue) {
+        userFilter.val(prevValue);
+    }
+
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         userFilter.select2({
             theme: 'bootstrap-5',
@@ -423,6 +475,10 @@ function renderRolesFilterDropdown(roles) {
         }).on('change', function () {
             filterUsersTable();
         });
+
+        if (prevValue) {
+            userFilter.val(prevValue).trigger('change.select2');
+        }
     }
 }
 

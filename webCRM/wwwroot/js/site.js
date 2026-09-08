@@ -102,6 +102,32 @@ function showAlert(type, title, text, confirmCallback = null) {
     });
 }
 
+// Configure default Flatpickr settings globally
+if (typeof flatpickr !== 'undefined') {
+    if (typeof flatpickr.l1ons !== 'undefined' && flatpickr.l1ons.th) {
+        flatpickr.localize(flatpickr.l1ons.th);
+    }
+    flatpickr.setDefaults({
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        allowInput: false,
+        disableMobile: true
+    });
+}
+
+function formatThaiDate(dateStr) {
+    if (!dateStr || dateStr === '-' || dateStr === 'null' || dateStr === 'undefined') return '-';
+    try {
+        const clean = String(dateStr).trim().substring(0, 10);
+        const parts = clean.split('-');
+        if (parts.length === 3 && parts[0].length === 4) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    } catch (e) { }
+    return dateStr;
+}
+
 // Sidebar toggle logic
 document.addEventListener('DOMContentLoaded', function () {
     const sidebar = document.getElementById('crmSidebar');
@@ -140,3 +166,4 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleBtn.addEventListener('click', toggleSidebar);
     }
 });
+

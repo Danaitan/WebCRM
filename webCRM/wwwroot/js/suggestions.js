@@ -78,7 +78,6 @@ async function searchSuggestion(selectedGuidToPreserve = null, showLoadingSpinne
         }
 
         const data = await response.json();
-        console.log("data",data)
         renderSuggestionsTable(data, selectedGuidToPreserve);
 
     } catch (error) {
@@ -276,25 +275,25 @@ function updateActionButtonsState(status, updBy = '') {
     }
 
     // ถ้าไม่ใช่คนสร้าง จะซ่อนปุ่มส่งต่อและปิดงาน
-    if (!userIsCreator) {
-        $('#forwardBtnContainer').hide();
-        $('#closeBtnContainer').hide();
-    } else {
-        // ปุ่มส่งต่อ
-        if (canShowForwardBtn(status)) {
-            $('#forwardBtnContainer').show();
-        } else {
-            $('#forwardBtnContainer').hide();
-        }
+    // if (!userIsCreator) {
+    //     $('#forwardBtnContainer').hide();
+    //     $('#closeBtnContainer').hide();
+    // } else {
+    //     // ปุ่มส่งต่อ
+    //     if (canShowForwardBtn(status)) {
+    //         $('#forwardBtnContainer').show();
+    //     } else {
+    //         $('#forwardBtnContainer').hide();
+    //     }
 
-        // ปุ่มปิดงาน
-        $('#closeBtnContainer').show();
-        if (canEnableCloseBtn(status)) {
-            $('#closeBtn').prop('disabled', false);
-        } else {
-            $('#closeBtn').prop('disabled', true);
-        }
-    }
+    //     // ปุ่มปิดงาน
+    //     $('#closeBtnContainer').show();
+    //     if (canEnableCloseBtn(status)) {
+    //         $('#closeBtn').prop('disabled', false);
+    //     } else {
+    //         $('#closeBtn').prop('disabled', true);
+    //     }
+    // }
 }
 
 function clearDetails() {
@@ -400,6 +399,9 @@ $(document).ready(function () {
     $('#suggestionsTable tbody').on('click', 'tr', function () {
         showDetails(this);
     });
+
+    // เริ่มต้นแสดงเวลาแบบ Real-time ในช่องตอบกลับ
+    startReplyTimeClock();
 
     // โหลดข้อมูลเริ่มต้น
     searchSuggestion();
@@ -750,6 +752,19 @@ function formatDateDisplay(dateStr) {
         return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
     }
     return '-';
+}
+
+function startReplyTimeClock() {
+    function updateReplyTime() {
+        const $el = $('#reply-current-time');
+        if (!$el.length) return;
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const formatted = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        $el.text(formatted);
+    }
+    updateReplyTime();
+    setInterval(updateReplyTime, 1000);
 }
 
 function showDetails(row) {

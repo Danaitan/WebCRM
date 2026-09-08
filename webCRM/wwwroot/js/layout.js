@@ -889,7 +889,7 @@ function renderNotifications(data) {
             totalCount = data.totalCount;
         }
 
-        let rawList = data.response || data.data || data.result || data.notifications;
+        let rawList = data.response;
         if (typeof rawList === 'string') {
             try { rawList = JSON.parse(rawList); } catch (e) { }
         }
@@ -897,7 +897,7 @@ function renderNotifications(data) {
             groups = rawList;
         } else if (Array.isArray(data)) {
             groups = data;
-        } else if (data.Id !== undefined || data.id !== undefined || data.header || data.title) {
+        } else if (data.title) {
             groups = [data];
         }
     } else if (Array.isArray(data)) {
@@ -913,6 +913,7 @@ function renderNotifications(data) {
         if (Array.isArray(item.title)) {
             normalizedGroups.push(item);
         } else {
+            console.log("item",item);
             const h = item.header || item.Header || item.topic || item.Topic || 'การแจ้งเตือน';
             if (!headerMap.has(h)) {
                 const newGroup = {
@@ -938,18 +939,6 @@ function renderNotifications(data) {
 
     groups = normalizedGroups;
 
-    if (totalCount === 0 && groups.length > 0) {
-        groups.forEach(g => {
-            if (Array.isArray(g.title)) {
-                totalCount += g.title.length;
-            } else if (g.count !== undefined && g.count !== null) {
-                totalCount += Number(g.count) || 0;
-            } else {
-                totalCount += 1;
-            }
-        });
-    }
-
     if (totalCount > 0) {
         notiBadge.text(totalCount > 99 ? '99+' : totalCount).show();
         notiHeaderCount.text(totalCount);
@@ -965,9 +954,6 @@ function renderNotifications(data) {
             const headerText = group.header || 'การแจ้งเตือน';
             const collapseId = `notiCollapse_${index}`;
             const modalCollapseId = `modalNotiCollapse_${index}`;
-            const groupEndDate = group.end_date || group.endDate || '';
-            const groupStartDate = group.start_date || group.startDate || group.create_date || group.createDate || '';
-            const groupSender = group.sender || group.Sender || '';
 
             const isDropdownExpanded = openDropdownIds.has(collapseId);
             const isModalExpanded = openModalIds.size > 0 ? openModalIds.has(modalCollapseId) : true;
@@ -981,7 +967,7 @@ function renderNotifications(data) {
                 titles = [headerText];
             }
 
-            const groupCount = (group.count !== undefined && group.count !== null && group.count > 0) ? group.count : titles.length;
+            const groupCount = group.count;
 
             let dropdownTitlesHtml = '';
             titles.forEach((t, tIdx) => {
@@ -1037,7 +1023,7 @@ function renderNotifications(data) {
                             <i class="bi bi-bell-fill text-primary me-2"></i>${headerText}
                         </span>
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.75rem;">${groupCount}</span>
+                            <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.75rem;">${groupCount > 0 ? groupCount : ""}</span>
                             <i class="bi bi-chevron-down text-secondary" style="font-size: 0.75rem;"></i>
                         </div>
                     </div>
@@ -1100,7 +1086,7 @@ function renderNotifications(data) {
                          aria-controls="${modalCollapseId}">
                         <span class="fw-bold text-dark fs-6"><i class="bi bi-bell-fill text-primary me-2"></i>${headerText}</span>
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-primary rounded-pill fs-6 px-3 py-1">${groupCount}</span>
+                            <span class="badge bg-primary rounded-pill fs-6 px-3 py-1">${groupCount > 0 ? groupCount : ""}</span>
                             <i class="bi bi-chevron-down text-secondary" style="font-size: 0.85rem;"></i>
                         </div>
                     </div>
@@ -1310,12 +1296,12 @@ function renderSidebarMenu(items) {
         const children = childrenMap[idStr] || [];
 
         if (children.length > 0) {
-            // Ensure "ข้อมูลลูกค้า" is sorted to be the first child item
+            // Ensure "ข้อมูลสัญญา" is sorted to be the first child item
             children.sort((a, b) => {
                 const aTitle = (a.Title ?? a.title ?? '').trim();
                 const bTitle = (b.Title ?? b.title ?? '').trim();
-                if (aTitle === 'ข้อมูลลูกค้า') return -1;
-                if (bTitle === 'ข้อมูลลูกค้า') return 1;
+                if (aTitle === 'ข้อมูลสัญญา') return -1;
+                if (bTitle === 'ข้อมูลสัญญา') return 1;
                 return 0;
             });
             // Check if child is active or parent matches current URL

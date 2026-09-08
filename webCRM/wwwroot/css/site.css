@@ -40,12 +40,57 @@ body {
   width: 100%;
 }
 
-.filter-date-range input[type="date"] {
+.filter-date-range input[type="date"],
+.filter-date-range input[type="text"],
+.filter-date-range .form-control {
   min-width: 0;
   flex: 1 1 0%;
   padding-left: 6px;
   padding-right: 6px;
 }
+
+/* Flatpickr Styling */
+.flatpickr-calendar {
+  font-family: 'Prompt', 'Kanit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12) !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px;
+}
+
+.flatpickr-day.selected, 
+.flatpickr-day.startRange, 
+.flatpickr-day.endRange {
+  background: #1e5dd1 !important;
+  border-color: #1e5dd1 !important;
+}
+
+.flatpickr-day.today {
+  border-color: #1e5dd1 !important;
+}
+
+.flatpickr-day:hover {
+  background: #eff6ff !important;
+}
+
+.flatpickr-input[readonly] {
+  background-color: #ffffff !important;
+  cursor: pointer;
+}
+
+.flatpickr-input[readonly]:disabled,
+.flatpickr-input:disabled,
+.flatpickr-input[disabled] {
+  background-color: var(--bs-secondary-bg, #e9ecef) !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+  font-family: 'Prompt', 'Kanit', sans-serif !important;
+  font-weight: 500 !important;
+}
+
 
 /* Loading Overlay Style */
 .loading-overlay {

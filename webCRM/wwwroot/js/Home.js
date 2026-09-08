@@ -649,7 +649,6 @@ async function getDashboardCustomerInfo() {
             return;
         }
         const data = await response.json();
-        console.log("data", data);
 
         if (!data || data.status === false) {
             console.error("Error fetching dashboard customer info:", data ? data.message : "No data received");
@@ -681,7 +680,7 @@ async function getDashboardCustomerInfo() {
 
 async function setDataDashboardCustomer(data) {
     if (!data || !Array.isArray(data.companyCus)) return;
-    const customerTotal = data.companyCus.map(item => item.count).reduce((a, b) => a + b, 0);
+    const customerTotal = data.companyCus.map(item => Number(item.count) || 0).reduce((a, b) => a + b, 0);
     const customerList = data.companyCus;
     const statTotalEl = document.getElementById('statTotalCount');
     if (statTotalEl) {
@@ -691,8 +690,38 @@ async function setDataDashboardCustomer(data) {
     const customerCardContainer = document.getElementById('customerCard');
     if (customerCardContainer) {
         customerCardContainer.innerHTML = '';
+
+        // คำนวณเปอร์เซ็นต์แบบ Largest Remainder Method เพื่อให้ผลรวมทุกการ์ดเท่ากับ 100.00% พอดีเสมอ
+        let percentages = [];
+        if (customerTotal > 0 && customerList.length > 0) {
+            const scaled = customerList.map((item, idx) => {
+                const raw = ((Number(item.count) || 0) / customerTotal) * 10000;
+                const floorVal = Math.floor(raw);
+                return {
+                    idx,
+                    floorVal,
+                    remainder: raw - floorVal
+                };
+            });
+
+            const currentSum = scaled.reduce((sum, item) => sum + item.floorVal, 0);
+            const diff = 10000 - currentSum;
+
+            // เรียงลำดับตาม remainder มากไปน้อย เพื่อบวก 0.01% ให้กับตัวที่มีเศษเหลือมากที่สุด
+            const sortedByRemainder = [...scaled].sort((a, b) => b.remainder - a.remainder);
+            for (let i = 0; i < diff && i < sortedByRemainder.length; i++) {
+                sortedByRemainder[i].floorVal += 1;
+            }
+
+            // จัดเรียงกลับตามลำดับ index เดิม
+            sortedByRemainder.sort((a, b) => a.idx - b.idx);
+            percentages = sortedByRemainder.map(item => (item.floorVal / 100).toFixed(2));
+        } else {
+            percentages = customerList.map(() => '0.00');
+        }
+
         customerList.forEach((item, index) => {
-            const customerPercent = customerTotal > 0 ? (item.count / customerTotal * 100).toFixed(2) : '0.00';
+            const customerPercent = percentages[index] || '0.00';
             const div = document.createElement('div');
             div.className = 'customer-stat-card ' + cardColor[index % cardColor.length];
             div.innerHTML = `
@@ -703,7 +732,7 @@ async function setDataDashboardCustomer(data) {
                     <div class="stat-info">
                         <div class="stat-title">${item.name}</div>
                         <div class="stat-value-group">
-                            <span class="stat-value">${item.count.toLocaleString()}</span>
+                            <span class="stat-value">${(Number(item.count) || 0).toLocaleString()}</span>
                             <span class="stat-unit">สัญญา</span>
                         </div>
                     </div>
@@ -1005,7 +1034,6 @@ async function loadDashboardDropdowns(company = '') {
             return;
         }
         const data = await response.json();
-        console.log("GetCustommerDashboardDropdown data:", data);
 
         if (!data || data.status === false) {
             console.error("Error in dropdown data:", data ? data.message : "No data received");

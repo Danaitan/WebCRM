@@ -1012,6 +1012,7 @@ async function getContact(idno) {
                         $(row).find('td').addClass('text-center py-3 contract-col');
 
                         const contractEndDate = data.endDate;
+
                         if (!isContractActive(contractEndDate)) {
                             $(row).find('td').css('color', '#94a3b8');
                         } else {
@@ -1082,7 +1083,6 @@ const formatValues = (value) => {
 
 const isContractActive = (endDate) => {
     if (!endDate) return false;
-
     const end = new Date(endDate);
     if (isNaN(end.getTime())) return false;
 
@@ -1462,7 +1462,6 @@ async function getReceiveList(contno, company){
         const data = await response.json();
 
         if (requestId !== currentReceiveListRequestId) return;
-        console.log("data", data)
         const dtPaymentConfig = {
             data: data || [],
             destroy: true,
@@ -1566,3 +1565,22 @@ async function getClaimList(tracking){
         
     }
 }
+
+function startReplyTimeClock() {
+    const el = document.getElementById('reply-current-time');
+    if (!el) return;
+    function updateReplyTime() {
+        const target = document.getElementById('reply-current-time');
+        if (!target) return;
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        target.innerText = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    updateReplyTime();
+    setInterval(updateReplyTime, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    startReplyTimeClock();
+});
+

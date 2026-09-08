@@ -8,17 +8,23 @@ let selectedRoleId = null;
 let selectedRoleName = '';
 let usersDataTable = null;
 let rolesDataTable = null;
+// เก็บค่า filter ปัจจุบันเพื่อ restore หลัง reload
+let currentUserSearch = '';
+let currentRoleFilterValue = '';
 
 $(document).ready(function () {
     // Initialize page data
     initPage();
 
-    // Event listeners for searching & filtering users
+    // Event listeners for searching users
     $('#userSearchInput').on('keyup input', function () {
+        currentUserSearch = $(this).val() || '';
         filterUsersTable();
     });
 
-    $('#userRoleFilter').on('change', function () {
+    // ใช้ delegated event บน document เพื่อหลีกปัญหา Select2 destroy ทำให้ event หาย
+    $(document).on('change', '#userRoleFilter', function () {
+        currentRoleFilterValue = $(this).val() || '';
         filterUsersTable();
     });
 
@@ -148,8 +154,9 @@ async function loadBranchesData() {
 
 //LOAD USERS DATA
 async function loadUsersData(preserveFilter = true) {
-    const currentSearch = preserveFilter ? ($('#userSearchInput').val() || '') : '';
-    const currentRoleFilter = preserveFilter ? ($('#userRoleFilter').val() || '') : '';
+    // ใช้ global vars เก็บค่า filter แทนการ read จาก DOM (เพราะ Select2 อาจยังไม่ sync)
+    let savedSearch = preserveFilter ? currentUserSearch : '';
+    let savedRoleFilter = preserveFilter ? currentRoleFilterValue : '';
     let currentPage = null;
     if (preserveFilter && usersDataTable) {
         try {
@@ -158,6 +165,9 @@ async function loadUsersData(preserveFilter = true) {
     }
 
     if (!preserveFilter) {
+        // รีเซ็ต global filter state
+        currentUserSearch = '';
+        currentRoleFilterValue = '';
         $('#userSearchInput').val('');
         if ($('#userRoleFilter').hasClass('select2-hidden-accessible')) {
             $('#userRoleFilter').val('').trigger('change.select2');
@@ -195,24 +205,32 @@ async function loadUsersData(preserveFilter = true) {
         renderUsersTable(allUsersData);
 
         if (preserveFilter) {
-            if (currentSearch) {
-                $('#userSearchInput').val(currentSearch);
+            // Restore search input
+            if (savedSearch) {
+                $('#userSearchInput').val(savedSearch);
+                currentUserSearch = savedSearch;
             }
-            if (currentRoleFilter) {
+            // Restore role filter ด้วย global var
+            if (savedRoleFilter) {
+                $('#userRoleFilter').val(savedRoleFilter);
                 if ($('#userRoleFilter').hasClass('select2-hidden-accessible')) {
-                    $('#userRoleFilter').val(currentRoleFilter).trigger('change.select2');
-                } else {
-                    $('#userRoleFilter').val(currentRoleFilter);
+                    // trigger('change') เพื่อให้ Select2 อัพเดต UI แต่ไม่ re-trigger filterUsersTable
+                    // (เพราะ filterUsersTable จะถูกเรียกใน setTimeout ด้านล่างอยู่แล้ว)
+                    $('#userRoleFilter').trigger('change.select2');
                 }
+                currentRoleFilterValue = savedRoleFilter;
             }
-            filterUsersTable();
+            // ให้ DataTable render ครบก่อนแล้วค่อย apply filter
+            setTimeout(function () {
+                filterUsersTable();
 
-            if (currentPage !== null && usersDataTable) {
-                const info = usersDataTable.page.info();
-                if (currentPage < info.pages) {
-                    usersDataTable.page(currentPage).draw('page');
+                if (currentPage !== null && usersDataTable) {
+                    const info = usersDataTable.page.info();
+                    if (currentPage < info.pages) {
+                        usersDataTable.page(currentPage).draw('page');
+                    }
                 }
-            }
+            }, 50);
         } else {
             $('#userCountBadge').text(allUsersData.length);
         }
@@ -369,6 +387,7 @@ function renderUsersTable(data) {
         });
 
         usersDataTable = $('#usersTable').DataTable({
+            destroy: true,
             language: {
                 search: "ค้นหาในตาราง:",
                 lengthMenu: "แสดง _MENU_ รายการต่อหน้า",
@@ -386,8 +405,9 @@ function renderUsersTable(data) {
             order: []
         });
 
-        usersDataTable.on('draw', function () {
-            const count = usersDataTable.rows({ filter: 'applied' }).count();
+        usersDataTable.on('draw.dt', function () {
+            const table = $('#usersTable').DataTable();
+            const count = table.rows({ filter: 'applied' }).count();
             $('#userCountBadge').text(count);
         });
 
@@ -400,12 +420,13 @@ function renderUsersTable(data) {
 
 function filterUsersTable() {
     if (!usersDataTable) return;
-    const searchVal = $('#userSearchInput').val() || '';
-    const roleFilterVal = $('#userRoleFilter').val() || '';
+    // ใช้ global vars เพื่อให้แน่ใจว่าค่าถูกต้องเสมอ
+    const searchVal = currentUserSearch || $('#userSearchInput').val() || '';
+    const roleFilterVal = currentRoleFilterValue || '';
 
     usersDataTable.search(searchVal);
     if (roleFilterVal) {
-        usersDataTable.column(3).search(roleFilterVal);
+        usersDataTable.column(3).search(roleFilterVal, false, false, true);
     } else {
         usersDataTable.column(3).search('');
     }
@@ -446,38 +467,37 @@ async function loadRolesData() {
 
 function renderRolesFilterDropdown(roles) {
     const userFilter = $('#userRoleFilter');
-    const prevValue = userFilter.val();
 
+    // Destroy Select2 ก่อน rebuild
     if (userFilter.hasClass('select2-hidden-accessible')) {
         userFilter.select2('destroy');
     }
-    userFilter.find('option:not(:first)').remove();
 
+    // ล้าง options แล้วเพิ่ม "ทั้งหมด" + รายการสิทธิ์
+    userFilter.empty();
+    userFilter.append('<option value="">-- ทั้งหมด --</option>');
     roles.forEach(role => {
         const id = role.role_id || '';
         const name = role.role_name || '';
-
         if (id) {
             userFilter.append(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
         }
     });
 
-    if (prevValue) {
-        userFilter.val(prevValue);
-    }
+    // Set ค่าก่อน init Select2
+    userFilter.val(currentRoleFilterValue || '');
 
+    // Init Select2 ใหม่ (ไม่ต้องผูก event ที่นี่ เพราะใช้ delegated event บน document แล้ว)
     if (typeof $.fn !== 'undefined' && $.fn.select2) {
         userFilter.select2({
             theme: 'bootstrap-5',
-            placeholder: '-- กรองตามบทบาทสิทธิ์ทั้งหมด --',
+            placeholder: '-- ทั้งหมด --',
             allowClear: true,
             width: '100%'
-        }).on('change', function () {
-            filterUsersTable();
         });
-
-        if (prevValue) {
-            userFilter.val(prevValue).trigger('change.select2');
+        // Restore ค่าให้ Select2 UI แสดงตัวเลือกที่ถูก
+        if (currentRoleFilterValue) {
+            userFilter.val(currentRoleFilterValue).trigger('change.select2');
         }
     }
 }

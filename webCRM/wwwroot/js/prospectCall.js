@@ -160,7 +160,10 @@ async function getCampaignDataForETL(productCode) {
 
 async function getProductBatchByProductCode(productCode){
     try{
-        const response = await fetch(`/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}`);
+
+        let url = `/ProspectSetup/getProductBatchByProductCode?productCode=${encodeURIComponent(productCode)}`;
+        url += `&assignTo=${encodeURIComponent(window.CURRENT_USER_ID)}`;
+        const response = await fetch(url);
         if (!response.ok) {
             console.error("getProductBatchByProductCode HTTP error:", response.status, response.statusText);
             return [];

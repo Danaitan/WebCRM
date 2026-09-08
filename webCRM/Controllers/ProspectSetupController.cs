@@ -205,7 +205,7 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> getProductBatchByProductCode(string productCode)
+        public async Task<IActionResult> getProductBatchByProductCode(string productCode, string assignTo)
         {
             try
             {
@@ -216,9 +216,12 @@ namespace webCRM.Controllers
                 using (var client = new HttpClient(handler))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync(
-                        $"{domain}/crm/api/v1/p3/getProductBatchByProductCode?product_code={Uri.EscapeDataString(productCode)}"
-                    );
+                    var url = $"{domain}/crm/api/v1/p3/getProductBatchByProductCode?product_code={Uri.EscapeDataString(productCode)}";
+                    if (!string.IsNullOrEmpty(assignTo))
+                    {
+                        url += $"&assign_to={assignTo}";
+                    }
+                    var response = await client.GetAsync(url);
                     string data = await response.Content.ReadAsStringAsync();
                     if (!response.IsSuccessStatusCode)
                     {

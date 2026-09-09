@@ -4,10 +4,11 @@
     ViewData["HideSidebar"] = false;
 
     var roleId = Context.Session.GetString("roleId") ?? "";
-    var hasRcrm011 = roleId.Split(',').Select(r => r.Trim()).Contains("RCRM011");
-    var hasRcrm014 = roleId.Split(',').Select(r => r.Trim()).Contains("RCRM014");
     var userBranchName = Context.Session.GetString("branchName") ?? "";
     var userPersonalId = Context.Session.GetString("personalId") ?? "";
+    var funcId = Context.Session.GetString("func_id") ?? "";
+    var hasFCRM006 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM006");
+    var hasFCRM007 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM007");
 }
 
 @section Styles {
@@ -39,14 +40,14 @@
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">สาขา</label>
-                    <select id="filterBranch" class="form-select form-select-sm select2-filter" @(hasRcrm014 ? "disabled" : "")>
+                    <select id="filterBranch" class="form-select form-select-sm select2-filter" @(hasFCRM006 ? "disabled" : "")>
                         <option value="">ทั้งหมด</option>
                     </select>
                 </div>
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">ผู้โทร</label>
-                    <select id="filterCaller" class="form-select form-select-sm select2-filter" @(hasRcrm014 ? "disabled" : "")>
+                    <select id="filterCaller" class="form-select form-select-sm select2-filter" @(hasFCRM006 ? "disabled" : "")>
                         <option value="">ทั้งหมด</option>
                     </select>
                 </div>
@@ -189,7 +190,7 @@
 
     <div class="row g-4 mb-4">
 
-        @if (!hasRcrm011)
+        @if (!hasFCRM007)
         {
             <div class="col-12 col-xl-4 d-flex flex-column" id="topCallers">
                 <div class="pc-card p-3 flex-grow-1 d-flex flex-column justify-content-between">
@@ -208,7 +209,7 @@
             </div>
         }
 
-        <div class="@(hasRcrm011 ? "col-12" : "col-12 col-xl-8")" id="campaignTableCol">
+        <div class="@(hasFCRM007 ? "col-12" : "col-12 col-xl-8")" id="campaignTableCol">
             <div class="d-flex align-items-center justify-content-between mb-2">
                 <div class="d-flex align-items-center gap-2">
                     <span class="text-muted extra-small">แสดง</span>
@@ -264,10 +265,11 @@
 @section Scripts {
     <script>
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "")';
-        window.HAS_RCRM014 = @(hasRcrm014 ? "true" : "false");
         window.USER_BRANCH_NAME = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(userBranchName));
         window.USER_PERSONAL_ID = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(userPersonalId));
         window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
+        window.HAS_FCRM006 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM006));
+        
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

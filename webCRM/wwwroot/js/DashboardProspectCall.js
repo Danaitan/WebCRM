@@ -26,6 +26,7 @@ function hasPermissionFCRM006() {
         return window.HAS_FCRM006;
     }
     const funcId = (typeof window.FUNC_ID === 'string') ? window.FUNC_ID : '';
+
     if (!funcId) return false;
     const list = funcId.split(',').map(s => s.trim()).filter(Boolean);
     return list.includes('FCRM006');
@@ -172,7 +173,7 @@ function renderEmptyProspectCallDashboard() {
     renderOverview([]);
     initCallResultChart([]);
     initObjectiveChart([]);
-    initTopCallers([]);
+    renderTopCallers([]);
     currentTableData = [];
     currentPage = 1;
     renderCampaignTable();

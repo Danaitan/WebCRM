@@ -2,10 +2,8 @@
     ViewData["Title"] = "ข้อเสนอแนะ/ร้องเรียน";
     ViewData["HeaderTitle"] = "ข้อเสนอแนะ/ร้องเรียน";
     ViewData["HeaderSubtitle"] = "บันทึกและติดตามข้อเสนอแนะ ข้อร้องเรียน หรือความสนใจผลิตภัณฑ์จากลูกค้า";
-
     var funcId = Context.Session.GetString("func_id") ?? "";
-    var funcList = funcId.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    var hasClosePermission = funcList.Contains("FCRM003", StringComparer.OrdinalIgnoreCase);
+    var hasClosePermission = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM003");
 }
 
 @section Styles {
@@ -363,7 +361,7 @@
                                 <label class="form-label fw-medium small">วันที่และเวลา (ให้ติดต่อกลับ)<span class="text-danger">*</span></label>
                                 <div class="d-flex gap-2">
                                     <div class="position-relative flex-grow-1">
-                                        <input type="text" class="form-control bg-white" id="post-contact-date" placeholder="วว/ดด/ปปปป" readonly>
+                                        <input type="date" class="form-control bg-white" id="post-contact-date">
                                     </div>
                                     <div class="position-relative" style="width: 120px;">
                                         <input type="time" class="form-control text-center" id="post-contact-time" value="00:00">

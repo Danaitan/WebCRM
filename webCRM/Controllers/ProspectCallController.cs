@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
@@ -59,6 +60,25 @@ namespace webCRM.Controllers
                     var response = await client.PostAsync($"{domain}/crm/api/v1/p2/postHistoryCall", content);
                     response.EnsureSuccessStatusCode();
                     string data = await response.Content.ReadAsStringAsync();
+
+                    string targetId = "";
+                    if (body.ValueKind == JsonValueKind.Object && body.TryGetProperty("idno", out JsonElement idnoElem))
+                    {
+                        if (idnoElem.ValueKind == JsonValueKind.String)
+                            targetId = idnoElem.GetString() ?? "";
+                        else
+                            targetId = idnoElem.ToString();
+                    }
+
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "postHistoryCall",
+                        targetId: targetId,
+                        targetType: "CUSTOMER",
+                        message: "postHistoryCall successfully",
+                        module: "postHistoryCall"
+                    );
+
                     return Content(data, "application/json");
                 }
             }

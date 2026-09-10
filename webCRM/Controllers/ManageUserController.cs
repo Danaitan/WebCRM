@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using webCRM.Models;
 using System.Text;
 using System.Text.Json;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
@@ -160,6 +161,15 @@ namespace webCRM.Controllers
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "PostCRMPersonalRole",
+                    targetId: request.role_id ?? "",
+                    targetType: "ROLE",
+                    message: "PostCRMPersonalRole successfully",
+                    module: "PostCRMPersonalRole"
+                );
+                        
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -204,6 +214,15 @@ namespace webCRM.Controllers
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "postPageRole",
+                    targetId: request.RoleId ?? "",
+                    targetType: "ROLE",
+                    message: "postPageRole successfully",
+                    module: "postPageRole"
+                );
+                
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -248,6 +267,15 @@ namespace webCRM.Controllers
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "postCRMRole",
+                    targetId: "",
+                    targetType: "ROLE",
+                    message: "postCRMRole successfully",
+                    module: "postCRMRole"
+                );
+                
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -291,6 +319,15 @@ namespace webCRM.Controllers
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "deleteCRMRole",
+                    targetId: request.role_id ?? "",
+                    targetType: "ROLE",
+                    message: "deleteCRMRole successfully",
+                    module: "deleteCRMRole"
+                );
+
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -333,6 +370,15 @@ namespace webCRM.Controllers
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "deleteCRMPersonalRole",
+                    targetId: request.role_id ?? "",
+                    targetType: "ROLE",
+                    message: "deleteCRMPersonalRole successfully",
+                    module: "deleteCRMPersonalRole"
+                );
+                
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -371,6 +417,16 @@ namespace webCRM.Controllers
                             detail = json
                         });
                     }
+
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "updateStatusPersonalRole",
+                        targetId: request.user ?? "",
+                        targetType: "USER",
+                        message: "updateStatusPersonalRole successfully",
+                        module: "updateStatusPersonalRole"
+                    );
+                    
                     return Ok(new { status = "success", data = json });
                 }
             }
@@ -409,6 +465,16 @@ namespace webCRM.Controllers
                             detail = json
                         });
                     }
+
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "UpdateCRMRole",
+                        targetId: request.user ?? "",
+                        targetType: "USER",
+                        message: "updateCRMRole successfully",
+                        module: "updateCRMRole"
+                    );
+
                     return Ok(new { status = "success", data = json });
                 }
             }
@@ -488,6 +554,15 @@ namespace webCRM.Controllers
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "UpsertRoleFunc",
+                    targetId: request.user ?? "",
+                    targetType: "USER",
+                    message: "UpsertRoleFunc successfully",
+                    module: "UpsertRoleFunc"
+                );
+
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -526,6 +601,16 @@ namespace webCRM.Controllers
                             detail = json
                         });
                     }
+
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "UpdateVariableFunc",
+                        targetId: request.user ?? "",
+                        targetType: "USER",
+                        message: "UpdateVariableFunc successfully",
+                        module: "UpdateVariableFunc"
+                    );
+
                     return Ok(new { status = "success", data = json });
                 }
             }

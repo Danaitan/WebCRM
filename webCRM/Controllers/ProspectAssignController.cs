@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
@@ -45,6 +46,14 @@ namespace webCRM.Controllers
                     {
                         return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
                     }
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "UpdateProspectCustomer",
+                        targetId: request.assign_to ?? "",
+                        targetType: "USER",
+                        message: "UpdateProspectCustomer successfully",
+                        module: "UpdateProspectCustomer"
+                    );
                     return Content(data, "application/json");
                 }
             }

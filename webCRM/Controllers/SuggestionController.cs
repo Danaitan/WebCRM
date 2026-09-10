@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Linq;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
@@ -53,6 +54,15 @@ namespace webCRM.Controllers
                 var response = await client.PostAsJsonAsync($"{domain}/crm/api/v1/suggestionDetail", request);
                 if (response.IsSuccessStatusCode)
                 {
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "AddRequestSuggestion",
+                        targetId: request.Guid ?? "",
+                        targetType: "SUGGESTION",
+                        message: "AddRequestSuggestion successfully",
+                        module: "AddRequestSuggestion"
+                    );
+
                     return "ยืนยันการบันทึกข้อมูล";
                 }
 
@@ -191,6 +201,15 @@ namespace webCRM.Controllers
                     // Fallback if not valid JSON
                 }
 
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "ReplySuggestion",
+                    targetId: request.guid ?? "",
+                    targetType: "SUGGESTION",
+                    message: "ReplySuggestion successfully",
+                    module: "UpdateSuggestion"
+                );
+
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -259,6 +278,16 @@ namespace webCRM.Controllers
                 }
 
                 string json = await response.Content.ReadAsStringAsync();
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "PostSuggestion",
+                    targetId: request.Guid ?? "",
+                    targetType: "SUGGESTION",
+                    message: "PostSuggestion successfully",
+                    module: "PostSuggestion"
+                );
+
                 try
                 {
                     if (!string.IsNullOrWhiteSpace(json))
@@ -298,6 +327,16 @@ namespace webCRM.Controllers
                 {
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "PutSuggestionStatusUpd",
+                    targetId: guid,
+                    targetType: "SUGGESTION",
+                    message: "PutSuggestionStatusUpd successfully",
+                    module: "PutSuggestionStatusUpd"
+                );
+                
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)
@@ -336,6 +375,16 @@ namespace webCRM.Controllers
                 {
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "UpdateSuggestionStatus",
+                    targetId: guid ?? "",
+                    targetType: "SUGGESTION",
+                    message: $"Update status To: {statusTask}",
+                    module: "UpdateSuggestionStatus"
+                );
+
                 return Ok(new { status = "success" });
             }
             catch (Exception ex)

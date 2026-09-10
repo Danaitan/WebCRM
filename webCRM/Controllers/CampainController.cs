@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Runtime.CompilerServices;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
@@ -89,24 +90,20 @@ namespace webCRM.Controllers
                     var response = await client.PutAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}", null);
                     if (response.IsSuccessStatusCode)
                     {
+                        await ActivityLogger.SendAsync(
+                            HttpContext,
+                            action: "Remove Campaign",
+                            targetId: productId,
+                            targetType: "Campaign",
+                            message: "Remove campaign successfully",
+                            module: "putProductRemove"
+                        );
+
                         return "Remove Success";
                     }
 
-                    var getResponse = await client.GetAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}");
-                    if (getResponse.IsSuccessStatusCode)
-                    {
-                        return "Remove Success";
-                    }
-
-                    var deleteResponse = await client.DeleteAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}");
-                    if (deleteResponse.IsSuccessStatusCode)
-                    {
-                        return "Remove Success";
-                    }
-
-                    var lastResponse = response.StatusCode != System.Net.HttpStatusCode.MethodNotAllowed ? response : getResponse;
-                    string errStr = await lastResponse.Content.ReadAsStringAsync();
-                    return $"Remove Failed: ({lastResponse.StatusCode}) {errStr}";
+                    string errStr = await response.Content.ReadAsStringAsync();
+                    return $"Remove Failed: ({response.StatusCode}) {errStr}";
                 }
             }
             catch (System.Exception ex)
@@ -146,6 +143,15 @@ namespace webCRM.Controllers
                 {
                     return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "Post Campaign",
+                    targetId: "",
+                    targetType: "Campaign",
+                    message: "Post campaign successfully",
+                    module: "postNewProduct"
+                );
 
                 string json = await response.Content.ReadAsStringAsync();
 
@@ -412,6 +418,16 @@ namespace webCRM.Controllers
                             detail = json
                         });
                     }
+
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "Update Campaign",
+                        targetId: request.ProductInfo?.Id ?? "",
+                        targetType: "Campaign",
+                        message: "Update campaign successfully",
+                        module: "putProductsPhase3"
+                    );
+
                     return Ok(new { status = "success", data = json });
                 }
             }

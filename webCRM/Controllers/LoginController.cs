@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
@@ -112,7 +113,7 @@ namespace webCRM.Controllers
                         string formattedBranchNo = int.TryParse(branchNo, out int bNo) ? bNo.ToString("00") : branchNo;
                         HttpContext.Session.SetString("branchName", $"{formattedBranchNo}-{branch}");
 
-                        var loginLog = new 
+                        var loginLog = new
                         {
                             personalCde = pCode,
                             action = "เข้าสู่ระบบ"
@@ -126,6 +127,16 @@ namespace webCRM.Controllers
                         await client.PostAsync(
                             $"{domain}/crm/api/v1/loginlog",
                             content);
+
+                        await ActivityLogger.SendAsync(
+                            HttpContext,
+                            action: "Login",
+                            targetId: pCode,
+                            targetType: "USER",
+                            message: "Login successfully",
+                            module: "Login"
+                        );
+
                     }
                     else
                     {

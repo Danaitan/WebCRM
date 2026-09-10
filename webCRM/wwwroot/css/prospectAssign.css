@@ -408,3 +408,98 @@ body {
 
 /* Utility classes */
 .text-gray { color: var(--text-gray); }
+
+.custom-multi-select {
+    position: relative;
+    width: 100%;
+}
+
+.multi-select-box {
+    min-height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #fff;
+    padding: 6px 35px 6px 10px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.multi-select-placeholder {
+    color: #6c757d;
+}
+
+.multi-select-arrow {
+    position: absolute;
+    right: 10px;
+    top: 9px;
+    color: #6c757d;
+}
+
+.multi-select-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    z-index: 9999;
+    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+}
+
+.multi-select-dropdown.show {
+    display: block;
+}
+
+.multi-select-search {
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+    border-bottom: 1px solid #eee;
+}
+
+.branch-option {
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.branch-option:hover {
+    background: #f5f5f5;
+}
+
+.branch-option label {
+    width: 100%;
+    cursor: pointer;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.branch-option input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.branch-tag {
+    display: inline-flex;
+    align-items: center;
+    background: #e9ecef;
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 13px;
+}
+
+.branch-tag .remove-branch {
+    margin-left: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}

@@ -377,7 +377,6 @@ async function renderMasterFilters() {
             $container.append(rowHtml);
         });
 
-        // Attach checkbox change event
         $(".filter-chk").off("change").on("change", function (e) {
             if (!isCurrentCampaignEditable()) {
                 e.preventDefault();
@@ -397,7 +396,6 @@ async function renderMasterFilters() {
             updateSelectedFiltersDisplay();
         });
 
-        // Click row toggles checkbox
         $(".filter-name-row").off("click").on("click", function (e) {
             if (!isCurrentCampaignEditable()) return;
             if ($(e.target).is("input[type='checkbox']")) return;
@@ -405,7 +403,6 @@ async function renderMasterFilters() {
             $chk.prop("checked", !$chk.is(":checked")).trigger("change");
         });
 
-        // Select All Filters Checkbox handler
         $("#chkSelectAllFilters").off("change").on("change", function () {
             if (!isCurrentCampaignEditable()) {
                 return;
@@ -590,24 +587,20 @@ $(document).ready(async function () {
                 name: b.branch_name || "ไม่ทราบชื่อ"
             }));
 
-        const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-        branchesData = masterBranchesData.filter(b => isBranchInVariableFunc(b, variableFunc));
-
-        // Always add virtual "ทุกสาขา" (code 99) option at the top
+        branchesData = [...masterBranchesData];
         branchesData.unshift({
             code: "99",
             name: "ทุกสาขา"
         });
+
     } catch (err) {
         console.error("Failed to load branches:", err);
     } finally {
         stopLoading();
     }
 
-    // UI State Variables
     let selectedBranches = [];
 
-    // Flatpickr instances
     let fpStartDate = null;
     let fpEndDate = null;
     let fpModalStartDate = null;
@@ -621,9 +614,9 @@ $(document).ready(async function () {
             altInput: true,
             altFormat: 'd/m/Y',
             allowInput: false,
+            minDate: 'today',
             disableMobile: true,
             locale: thLocale,
-            clickOpens: false,
             onChange: function (selectedDates, dateStr) {
                 if (fpEndDate) {
                     fpEndDate.set('minDate', dateStr || null);
@@ -654,21 +647,17 @@ $(document).ready(async function () {
             altInput: true,
             altFormat: 'd/m/Y',
             defaultDate: 'today',
+            minDate: 'today',
             allowInput: false,
             disableMobile: true,
             locale: thLocale,
-            clickOpens: false,
             onChange: function (selectedDates, dateStr) {
                 if (fpModalEndDate) {
                     fpModalEndDate.set('minDate', dateStr || 'today');
                 }
             }
         });
-        if (fpModalStartDate && fpModalStartDate.altInput) {
-            fpModalStartDate.altInput.disabled = true;
-            fpModalStartDate.altInput.classList.remove('bg-white');
-        }
-
+        
         fpModalEndDate = flatpickr('#modalEndDate', {
             dateFormat: 'Y-m-d',
             altInput: true,
@@ -678,14 +667,12 @@ $(document).ready(async function () {
             disableMobile: true,
             locale: thLocale,
             onChange: function (selectedDates, dateStr) {
-                // modalStartDate is fixed to current date
             }
         });
     }
 
-    // Sorting State Variables
-    let activeSortField = "endDate"; // Default to product_end (checked in mockup)
-    let activeSortOrder = "asc"; // Default to A to Z (checked in mockup)
+    let activeSortField = "endDate";
+    let activeSortOrder = "asc";
     let tempSortField = "endDate";
     let tempSortOrder = "asc";
 
@@ -700,7 +687,6 @@ $(document).ready(async function () {
         "endDate": 5
     };
 
-    // DOM Elements
     const $campaignsTable = $("#campaignsTable");
     const $totalCampaignsCount = $("#totalCampaignsCount");
     const $campaignSearchInput = $("#campaignSearchInput");
@@ -711,19 +697,15 @@ $(document).ready(async function () {
     const $descriptions = $("#descriptions");
     const $remarksCharCounter = $("#remarksCharCounter");
 
-    // Helper to identify excluded branches (MIB, MFIN, สาขาใหญ่)
     function isExcludedBranch(branch) {
         if (!branch) return false;
         const code = String(branch.code || "").trim().toUpperCase();
         const name = String(branch.name || "").trim().toUpperCase();
         
-        // 1. MIB
         if (code === "MIB" || name.includes("MIB")) return true;
         
-        // 2. MFIN
         if (code === "MFIN" || name.includes("MFIN")) return true;
         
-        // 3. สาขาใหญ่
         if (code === "00" || code === "000" || name.includes("สาขาใหญ่") || name.includes("สำนักงานใหญ่") || name.includes("HEAD OFFICE") || name.includes("MAIN BRANCH")) return true;
         
         return false;
@@ -749,7 +731,6 @@ $(document).ready(async function () {
         }
     }
 
-    // Initialize Branch Checkbox List
     function renderBranchCheckboxes() {
         $branchesListContainer.empty();
         branchesData.forEach(branch => {
@@ -762,7 +743,6 @@ $(document).ready(async function () {
             $branchesListContainer.append(itemHtml);
         });
 
-        // Attach event handlers to dynamic checkboxes
         $(".branch-chk").on("change", function () {
             const code = $(this).val();
             const isChecked = $(this).is(":checked");
@@ -803,7 +783,6 @@ $(document).ready(async function () {
         });
     }
 
-    // Sync Branch Checklist checkboxes with selectedBranches array
     function syncCheckboxesState() {
         $(".branch-chk").prop("checked", false);
         if (selectedBranches.includes("99")) {
@@ -822,12 +801,8 @@ $(document).ready(async function () {
         updateSelectAllState();
     }
 
-    // Update Branch Input Display with tag pills
     function updateBranchDisplay() {
-        // Clear existing tags
         $branchSelectDisplay.find(".branch-tag").remove();
-        
-        // Exclude virtual "99" (ทุกสาขา) option from tag pill display
         const displayBranches = selectedBranches.filter(code => code !== "99");
         
         if (displayBranches.length === 0) {
@@ -836,19 +811,16 @@ $(document).ready(async function () {
             $branchSelectDisplay.removeClass("is-invalid");
             $("#branchSelectPlaceholder").hide();
             
-            // Render tags
             displayBranches.forEach(code => {
                 const branchObj = (masterBranchesData && masterBranchesData.find(b => b.code === code)) || branchesData.find(b => b.code === code);
                 if (branchObj) {
                     const labelText = `${branchObj.name}`;
-                    // Special blue styling for specific selected tags
                     const tagHtml = `
                         <div class="branch-tag branch-tag-blue" data-code="${code}">
                             <span>${labelText}</span>
                             <button type="button" class="tag-remove-btn" title="นำออก">&times;</button>
                         </div>
                     `;
-                    // Append before the arrow
                     $(tagHtml).insertBefore($branchSelectDisplay.find(".branch-dropdown-arrow"));
                 }
             });
@@ -922,10 +894,9 @@ $(document).ready(async function () {
         }
     }
 
-    // Remove tag click event handler (using event delegation)
     $branchSelectDisplay.on("click", ".tag-remove-btn", function (e) {
         if ($("#branchSelectDisplay").hasClass("disabled") || $("#branchSelectContainer").hasClass("disabled")) return;
-        e.stopPropagation(); // Avoid opening the dropdown
+        e.stopPropagation();
         const code = $(this).closest(".branch-tag").attr("data-code");
         selectedBranches = selectedBranches.filter(b => b !== code);
         
@@ -934,7 +905,6 @@ $(document).ready(async function () {
         updateBranchDisplay();
     });
 
-    // Toggle Dropdown Panel
     $branchSelectDisplay.on("click", function (e) {
         if (!selectedCampaignCode) return;
         if ($(this).hasClass("disabled") || $("#branchSelectContainer").hasClass("disabled")) return;
@@ -942,23 +912,18 @@ $(document).ready(async function () {
         $branchSelectDisplay.toggleClass("open");
         $branchDropdownPanel.toggleClass("show");
         
-        // Clear branch search input on open
         $branchSearchInput.val("").trigger("input");
     });
 
-    // Toggle Sort Dropdown Panel
     $sortBtn.on("click", function (e) {
         e.stopPropagation();
         $sortDropdownPanel.toggleClass("show");
-        
-        // Initialize temporary selection with current active state
         tempSortField = activeSortField;
         tempSortOrder = activeSortOrder;
         
         updateSortUIState();
     });
 
-    // Update CSS selected classes in dropdown list based on temp states
     function updateSortUIState() {
         $(".sort-option").removeClass("selected");
         $(`.sort-option[data-field="${tempSortField}"]`).addClass("selected");
@@ -967,27 +932,23 @@ $(document).ready(async function () {
         $(`.sort-order-option[data-order="${tempSortOrder}"]`).addClass("selected");
     }
 
-    // Click sort field option
     $(".sort-option").on("click", function (e) {
         e.stopPropagation();
         tempSortField = $(this).data("field");
         updateSortUIState();
     });
 
-    // Click sort order option
     $(".sort-order-option").on("click", function (e) {
         e.stopPropagation();
         tempSortOrder = $(this).data("order");
         updateSortUIState();
     });
 
-    // Close sort dropdown when clicking Cancel
     $("#cancelSortBtn").on("click", function (e) {
         e.stopPropagation();
         $sortDropdownPanel.removeClass("show");
     });
 
-    // Click Apply Sort button
     $("#applySortBtn").on("click", function (e) {
         e.stopPropagation();
         activeSortField = tempSortField;
@@ -1000,7 +961,6 @@ $(document).ready(async function () {
         $sortDropdownPanel.removeClass("show");
     });
 
-    // Close dropdowns when clicking outside
     $(document).on("click", function (e) {
         if (!$(e.target).closest(".sort-select-container").length) {
             $sortDropdownPanel.removeClass("show");
@@ -1013,7 +973,6 @@ $(document).ready(async function () {
         }
     });
 
-    // Search/Filter Branches inside dropdown
     $branchSearchInput.on("input", function () {
         const searchVal = $(this).val().toLowerCase().trim();
         
@@ -1115,7 +1074,6 @@ $(document).ready(async function () {
         }
     }
 
-    // Load Campaign into Form
     async function loadCampaignToForm(code) {
         const campaign = campaigns.find(c => c.code === code);
         console.log("campaign",campaign);
@@ -1137,10 +1095,10 @@ $(document).ready(async function () {
             $('#submitFormBtn, #btnGotoETL').prop('disabled', isDisabled);
             $('#btnImportFile').prop('disabled', isDisabled);
             $('#campaignName').prop('disabled', isDisabled);
-            $('#startDate').prop('disabled', true);
+            $('#startDate').prop('disabled', isDisabled);
             $('#endDate').prop('disabled', isDisabled);
             if (fpStartDate && fpStartDate.altInput) {
-                fpStartDate.altInput.disabled = true;
+                fpStartDate.altInput.disabled = isDisabled;
                 fpStartDate.altInput.classList.remove('bg-white');
             }
             if (fpEndDate && fpEndDate.altInput) fpEndDate.altInput.disabled = isDisabled;
@@ -1160,7 +1118,7 @@ $(document).ready(async function () {
             }
 
             //#endregion
-            // Populate inputs
+
             $("#campaignCode").val(campaign.code);
             $("#campaignName").val(campaign.name);
             if (fpStartDate) {
@@ -1194,7 +1152,6 @@ $(document).ready(async function () {
             $("#campaignObjective").val(campaign.objective || "");
             $("#descriptions").val(campaign.descriptions);
             
-            // Populate remarks if not empty
             const remarksText = (campaign.remarks || campaign.product_remark || "").trim();
             if (remarksText) {
                 $("#campaignRemarks").val(remarksText);
@@ -1203,17 +1160,14 @@ $(document).ready(async function () {
                 $("#campaignRemarks").val("");
                 $("#campaignRemarksContainer").addClass("d-none").hide();
             }
-            
-            // Update character counter
+
             const currentLen = campaign.descriptions ? campaign.descriptions.length : 0;
             $remarksCharCounter.text(`${currentLen} / 500`);
-            
-            // Populate branch selector
+
             selectedBranches = [...campaign.branches];
             syncCheckboxesState();
             updateBranchDisplay();
             
-            // Populate file input display
             $("#fileInput").val("");
             if (selectedCampaignFileId) {
                 try {
@@ -1252,13 +1206,11 @@ $(document).ready(async function () {
                 $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
                 $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
             }
-            
-            // Ensure master filters are loaded
+
             if (!masterFiltersData || masterFiltersData.length === 0) {
                 await renderMasterFilters();
             }
 
-            // Fetch assigned filters for selected campaign via GetFilterByGuid
             if (selectedCampaignGuid) {
                 try {
                     const filterData = await GetFilterByGuid(selectedCampaignGuid);
@@ -1305,21 +1257,18 @@ $(document).ready(async function () {
             }
 
             updateFilterSelectionUI();
-            
-            // Re-render list to update active card styling
+
             renderCampaignsList();
         } finally {
             stopLoading();
         }
     }
 
-    // Click Campaign Card event handler (using event delegation)
     $campaignsTable.on("click", ".campaign-card", async function () {
         const code = String($(this).data("code"));
         await loadCampaignToForm(code);
     });
 
-    // Character Counter for Remarks Textarea
     $descriptions.on("input", function () {
         const currentLen = $(this).val().length;
         $remarksCharCounter.text(`${currentLen} / 500`);
@@ -1328,7 +1277,6 @@ $(document).ready(async function () {
         }
     });
 
-    // Restrict main endDate so it cannot be earlier than main startDate
     $("#startDate").on("change input", function () {
         const startDateVal = $(this).val();
         if (startDateVal) {
@@ -1341,7 +1289,6 @@ $(document).ready(async function () {
         }
     });
 
-    // Search/Filter Campaigns in Sidebar List
     $("#btnSearch").off("click").on("click", function () {
         SearchCampaign();
     });
@@ -1356,7 +1303,6 @@ $(document).ready(async function () {
         SearchCampaign();
     });
 
-    // Refresh List Buttons Action
     $("#refreshCampaignsListBtn").off("click").on("click", async function () {
         $campaignSearchInput.val("");
         $("#campaignStatusFilter").val("");
@@ -1374,7 +1320,6 @@ $(document).ready(async function () {
         }
     });
 
-    // Refresh Filters Button Action
     $("#refreshFiltersBtn").off("click").on("click", async function () {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
@@ -1399,7 +1344,6 @@ $(document).ready(async function () {
         }
     });
 
-    // Home / Back Actions
     $("#homeActionBtn").off("click").on("click", function () {
         window.location.href = "/";
     });
@@ -1412,7 +1356,6 @@ $(document).ready(async function () {
         Swal.fire({ title: "เมนู Prospect Setup", text: "กำลังย้ายไปเมนูการตั้งค่ากลุ่มลูกค้า Prospect", icon: "info", timer: 1200, showConfirmButton: false });
     });
 
-    // Variables for Modal
     let modalSelectedBranches = [];
     const $modalBranchSelectDisplay = $("#modalBranchSelectDisplay");
     const $modalBranchDropdownPanel = $("#modalBranchDropdownPanel");
@@ -1438,7 +1381,6 @@ $(document).ready(async function () {
         }
     }
 
-    // Init Modal Branch Checkboxes
     function renderModalBranchCheckboxes() {
         $modalBranchesListContainer.empty();
         branchesData.forEach(branch => {
@@ -1509,8 +1451,7 @@ $(document).ready(async function () {
 
     function updateModalBranchDisplay() {
         $modalBranchSelectDisplay.find(".branch-tag").remove();
-        
-        // Exclude virtual "99" (ทุกสาขา) option from tag pill display
+
         const displayBranches = modalSelectedBranches.filter(code => code !== "99");
         
         if (displayBranches.length === 0) {
@@ -1570,7 +1511,6 @@ $(document).ready(async function () {
         }
     });
 
-    // Disallow special characters in Campaign Name (allow Thai characters, English letters, numbers, and spaces)
     $("#modalCampaignName, #campaignName").on("input", function () {
         const val = $(this).val();
         const sanitized = val.replace(/[^a-zA-Z0-9\u0E00-\u0E7F\s]/g, "");
@@ -1590,16 +1530,17 @@ $(document).ready(async function () {
         }
     });
 
-    // Restrict modalEndDate so it cannot be earlier than modalStartDate
-    $("#modalStartDate").on("change input", function () {
+    $("#modalStartDate").on("change", function () {
         const startDateVal = $(this).val();
-        if (startDateVal) {
-            $("#modalEndDate").attr("min", startDateVal);
-            if ($("#modalEndDate").val() && $("#modalEndDate").val() < startDateVal) {
-                $("#modalEndDate").val(startDateVal);
+
+        if (fpModalEndDate) {
+            fpModalEndDate.set("minDate", startDateVal || "today");
+
+            const endDateVal = $("#modalEndDate").val();
+
+            if (endDateVal && startDateVal && endDateVal < startDateVal) {
+                fpModalEndDate.setDate(startDateVal, true);
             }
-        } else {
-            $("#modalEndDate").removeAttr("min");
         }
     });
 
@@ -1636,9 +1577,7 @@ async function getCheckProductNo() {
     }
 }
 
-    // Click "+ New" Button to open modal
     $("#newActionBtn").on("click", function () {
-        // Clear Modal Form
         $("#modalCampaignCode").val("กำลังสร้างรหัส...");
         $("#modalCampaignName").val("");
 
@@ -1647,17 +1586,6 @@ async function getCheckProductNo() {
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
-
-        if (fpModalStartDate) {
-            fpModalStartDate.setDate(todayStr, true);
-            if (fpModalStartDate.altInput) {
-                fpModalStartDate.altInput.disabled = true;
-                fpModalStartDate.altInput.classList.remove('bg-white');
-            }
-        } else {
-            $("#modalStartDate").val(todayStr);
-        }
-        $("#modalStartDate").prop("disabled", true);
 
         if (fpModalEndDate) {
             fpModalEndDate.clear();
@@ -1669,29 +1597,24 @@ async function getCheckProductNo() {
         $("#modalRemarks").val("");
         $("#modalRemarksCharCounter").text("0 / 500");
         $("#modalCampaignName, #modalStartDate, #modalEndDate, #modalCampaignObjective, #modalBranchSelectDisplay, #modalRemarks").removeClass("is-invalid");
-        
-        // Reset Branch selection in modal
+
         modalSelectedBranches = [];
         syncModalCheckboxesState();
         updateModalBranchDisplay();
-        
-        // Reset isImportFromExcel checkbox & file inputs in modal
+
         $("#modalChkImportExcel").prop("checked", false);
         $("#modalfileInput").val("");
         $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
 
-        // Fetch and populate Product Code from GetCheckProductNo
         getCheckProductNo().then(newCode => {
             $("#modalCampaignCode").val(newCode);
             $("#campaignCode").val(newCode);
         });
-        
-        // Show modal
+
         var myModal = new bootstrap.Modal(document.getElementById('createCampaignModal'));
         myModal.show();
     });
 
-    // Modal Submit Button
     $("#modalSubmitBtn").off("click").on("click", function () {
         const name = $("#modalCampaignName").val().trim();
         const code = $("#modalCampaignCode").val().trim();
@@ -1764,10 +1687,7 @@ async function getCheckProductNo() {
             cancelButtonText: "ยกเลิก"
         }).then(async (result) => {
             if (result.isConfirmed) {
-                // Hide modal
                 bootstrap.Modal.getInstance(document.getElementById('createCampaignModal')).hide();
-
-                // Show Global Loading Overlay
                 startLoading("กำลังสร้างแคมเปญใหม่", "ระบบกำลังบันทึกข้อมูล...");
 
                 try {
@@ -1873,7 +1793,6 @@ async function getCheckProductNo() {
         
     });
 
-    // Click Delete Button
     $("#deleteActionBtn").off("click").on("click", function () {
         if (!selectedCampaignId && !selectedCampaignCode) {
             Swal.fire({ title: "ไม่สามารถลบได้", text: "กรุณาเลือกแคมเปญที่ต้องการลบจากรายการด้านซ้ายก่อน", icon: "warning" });
@@ -1898,8 +1817,6 @@ async function getCheckProductNo() {
                     
                     if (response.ok && resultText.includes("Success")) {
                         Swal.fire({ title: "ลบสำเร็จ!", text: "แคมเปญถูกลบออกจากระบบแล้ว", icon: "success" });
-                        
-                        // Re-fetch fresh campaign list from server
                         renderCampaignsList();
                         
                         setProductFormState(false);
@@ -1917,10 +1834,8 @@ async function getCheckProductNo() {
         });
     });
 
-    // Cancel Form Button
     $("#cancelFormBtn").off("click").on("click", function () {
         if (selectedCampaignCode) {
-            // Reload original
             loadCampaignToForm(selectedCampaignCode);
             Swal.fire({ title: "ยกเลิกการแก้ไข", text: "คืนค่าข้อมูลเดิมเรียบร้อย", icon: "info", timer: 1000, showConfirmButton: false });
         } else {
@@ -1928,7 +1843,6 @@ async function getCheckProductNo() {
         }
     });
 
-    // Submit Form Button
     $("#submitFormBtn").off("click").on("click", function () {
         if (!selectedCampaignCode) {
             Swal.fire({ 
@@ -2223,7 +2137,6 @@ async function getCheckProductNo() {
         }
     });
 
-    // Initial Execution on Load
     try {
         await renderMasterObjectives();
         renderBranchCheckboxes();
@@ -2231,7 +2144,6 @@ async function getCheckProductNo() {
         await renderMasterFilters();
         initDataTables();
 
-        // Initialize Bootstrap Popovers
         const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
         [...popoverTriggerList].forEach(popoverTriggerEl => {
             bootstrap.Popover.getOrCreateInstance(popoverTriggerEl, {
@@ -2242,12 +2154,10 @@ async function getCheckProductNo() {
             });
         });
 
-        // Auto remove is-invalid class on user input/change
         $(document).on("input change", "#campaignName, #startDate, #endDate, #campaignObjective, #modalCampaignName, #modalStartDate, #modalEndDate, #modalCampaignObjective", function () {
             $(this).removeClass("is-invalid");
         });
 
-        // Close popovers when clicking outside
         $(document).off('click.popoverDismiss').on('click.popoverDismiss', function (e) {
             $('[data-bs-toggle="popover"]').each(function () {
                 if (!this.contains(e.target) && $(e.target).closest('.popover').length === 0) {

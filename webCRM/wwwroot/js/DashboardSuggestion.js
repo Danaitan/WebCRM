@@ -385,9 +385,8 @@ function renderEmptySuggestionDashboard() {
 async function setDashboard() {
     if (!validateDateRange()) return;
 
-    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
     const branchEl = document.getElementById('filterBranch');
-    if (!variableFunc || !branchEl || branchEl.options.length === 0) {
+    if (!branchEl || branchEl.options.length === 0) {
         renderEmptySuggestionDashboard();
         return;
     }

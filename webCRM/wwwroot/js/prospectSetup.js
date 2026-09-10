@@ -15,6 +15,8 @@ let removedBatchCustomerIds = new Set();
 let manuallySelectedCustomers = new Map();
 let isCurrentCampaignImport = false;
 
+let filterAbortController = null;
+
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -456,101 +458,555 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                     </div>
                 </div>
             `;
-            card.addEventListener('click', async function() {
-                dataTableContainer.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
+            // card.addEventListener('click', async function() {
+            //     dataTableContainer.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
+            //     this.classList.add('active');
+            //     selectedCampaign = item;
+            //     removedBatchCustomerIds.clear();
+            //     manuallySelectedCustomers.clear();
+            //     updateSendForApprovalButtonState();
+            //     displayCampaignFile(item.file_id);
+
+            //     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
+
+            //     try {
+            //         const requestId = ++currentFilterRequestId;
+            //         const dynamicFilterContainer = document.getElementById('dynamicFilter');
+            //         if (dynamicFilterContainer) {
+            //             dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2"><div class="spinner-border spinner-border-sm text-primary me-2"></div>กำลังโหลดตัวกรอง...</div>';
+            //         }
+
+            //         const targetGuid = item.guid || '';
+
+            //         if (targetGuid) {
+            //             try {
+            //                 const filterData = await getProductFilterByGuid(targetGuid);
+
+            //                 if (requestId !== currentFilterRequestId) {
+            //                     return;
+            //                 }
+
+            //                 let rawFilters = filterData;
+            //                 if (typeof rawFilters === 'string') {
+            //                     try { rawFilters = JSON.parse(rawFilters); } catch(e) {}
+            //                 }
+
+            //                 let filters = [];
+            //                 if (Array.isArray(rawFilters)) {
+            //                     filters = rawFilters;
+            //                 } else if (rawFilters && typeof rawFilters === 'object') {
+            //                     if (Array.isArray(rawFilters.data)) filters = rawFilters.data;
+            //                     else if (Array.isArray(rawFilters.result)) filters = rawFilters.result;
+            //                     else if (Array.isArray(rawFilters.filters)) filters = rawFilters.filters;
+            //                 }
+
+            //                 const isImport = Array.isArray(filters) && filters.some(filter => {
+            //                     const name = (typeof filter === 'object' && filter ? (filter.fname || filter.fName || filter.FName || filter.f_name || '') : String(filter)).toLowerCase();
+            //                     return name === 'import';
+            //                 });
+            //                 isCurrentCampaignImport = isImport;
+
+            //                 if (dynamicFilterContainer) {
+            //                     dynamicFilterContainer.innerHTML = '';
+                                
+            //                     if (isImport) {
+            //                         dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-primary py-2" style="font-size:0.85rem;"><i class="bi bi-file-earmark-excel me-1"></i>แคมเปญประเภทนำเข้าข้อมูล (Import Excel)</div>';
+            //                     } else {
+            //                         const option = await fetch (`/ProspectSetup/getFilterDropdown`)
+            //                         const optionData = await option.json();
+                                    
+            //                         if (filters.length > 0) {
+            //                             filters.forEach((filter) => {
+            //                                 // const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
+
+            //                                 const fCode =
+            //                                     typeof filter === 'string'
+            //                                         ? filter
+            //                                         : (
+            //                                             filter.fcode ||
+            //                                             filter.fCode ||
+            //                                             filter.FCode ||
+            //                                             filter.code ||
+            //                                             filter.f_code ||
+            //                                             filter.filterCode ||
+            //                                             filter.filter_code ||
+            //                                             filter.FilterCode ||
+            //                                             ''
+            //                                         );
+
+            //                                 const filterHTML = productFilterHTML(fCode, optionData);
+
+            //                                 if (filterHTML) {
+            //                                     dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
+            //                                 }
+            //                             });
+            //                         } else {
+            //                             dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+            //                         }
+            //                     }
+            //                 }
+            //             } catch (err) {
+            //                 console.error("Error calling getProductFilterByGuid:", err);
+            //                 isCurrentCampaignImport = false;
+            //                 if (dynamicFilterContainer && requestId === currentFilterRequestId) {
+            //                     dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-danger py-2" style="font-size:0.85rem;">เกิดข้อผิดพลาดในการโหลดตัวกรอง</div>';
+            //                 }
+            //             }
+            //         } else {
+            //             isCurrentCampaignImport = false;
+            //             if (dynamicFilterContainer) {
+            //                 dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+            //             }
+            //         }
+
+            //         if (requestId === currentFilterRequestId) {
+            //             await refreshSelectedCampaignCustomers();
+            //             await loadProspectList(1, currentProspectPageSize);
+            //         }
+            //     } catch (err) {
+            //         console.error("Error in card click handler:", err);
+            //     } finally {
+            //         stopLoading();
+            //     }
+            // });
+            
+            card.addEventListener('click', async function () {
+
+                // เปลี่ยน Campaign
+                dataTableContainer
+                    .querySelectorAll('.batch-card')
+                    .forEach(c => c.classList.remove('active'));
+
                 this.classList.add('active');
+
                 selectedCampaign = item;
+
+                // Reset state
                 removedBatchCustomerIds.clear();
                 manuallySelectedCustomers.clear();
-                updateSendForApprovalButtonState();
-                displayCampaignFile(item.file_id);
 
-                startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
+                currentBatchCustomers = [];
+                currentProductBatches = [];
+
+                isCurrentCampaignImport = false;
+
+                currentSelectedPage = 1;
+
+                updateSendForApprovalButtonState();
+
+                // แสดงไฟล์ Campaign
+                await displayCampaignFile(item.file_id);
+
+                if (filterAbortController) {
+                    try {
+                        filterAbortController.abort();
+                    } catch (e) {
+                        console.warn("Cannot abort previous filter request:", e);
+                    }
+                }
+
+                filterAbortController = new AbortController();
+
+                const signal = filterAbortController.signal;
+
+                // Request ID สำหรับป้องกัน response เก่าทับ Campaign ใหม่
+                const requestId = ++currentFilterRequestId;
+
+                const dynamicFilterContainer =
+                    document.getElementById('dynamicFilter');
+
+                const targetGuid = item.guid || '';
+
+                startLoading(
+                    'กำลังโหลดข้อมูล...',
+                    'กรุณารอสักครู่'
+                );
 
                 try {
-                    const requestId = ++currentFilterRequestId;
-                    const dynamicFilterContainer = document.getElementById('dynamicFilter');
+
                     if (dynamicFilterContainer) {
-                        dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2"><div class="spinner-border spinner-border-sm text-primary me-2"></div>กำลังโหลดตัวกรอง...</div>';
+
+                        dynamicFilterContainer.innerHTML = `
+                            <div class="col-12 text-center text-muted py-2">
+                                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                กำลังโหลดตัวกรอง...
+                            </div>
+                        `;
                     }
 
-                    const targetGuid = item.guid || '';
+                    if (!targetGuid) {
 
-                    if (targetGuid) {
-                        try {
-                            const filterData = await getProductFilterByGuid(targetGuid);
+                        console.warn(
+                            "Campaign ไม่มี product_guid:",
+                            item
+                        );
 
+                        isCurrentCampaignImport = false;
+
+                        if (
+                            dynamicFilterContainer &&
+                            requestId === currentFilterRequestId
+                        ) {
+                            dynamicFilterContainer.innerHTML = `
+                                <div class="col-12 text-center text-warning py-2"
+                                    style="font-size:0.85rem;">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Campaign นี้ไม่มีข้อมูล GUID สำหรับโหลดเงื่อนไข
+                                </div>
+                            `;
+                        }
+
+                    } else {
+
+                        const filterData =
+                            await getProductFilterByGuid(
+                                targetGuid,
+                                signal
+                            );
+
+                        // ถ้า Campaign ถูกเปลี่ยนไปแล้ว
+                        if (requestId !== currentFilterRequestId) {
+                            console.log(
+                                "Skip old Campaign filter response:",
+                                requestId
+                            );
+                            return;
+                        }
+                        let rawFilters = filterData;
+
+                        if (typeof rawFilters === 'string') {
+
+                            try {
+                                rawFilters = JSON.parse(rawFilters);
+                            } catch (e) {
+
+                                console.error(
+                                    "Cannot parse filter response:",
+                                    e
+                                );
+
+                                rawFilters = [];
+                            }
+                        }
+
+                        let filters = [];
+
+                        if (Array.isArray(rawFilters)) {
+
+                            filters = rawFilters;
+
+                        } else if (
+                            rawFilters &&
+                            typeof rawFilters === 'object'
+                        ) {
+
+                            if (Array.isArray(rawFilters.data)) {
+
+                                filters = rawFilters.data;
+
+                            } else if (Array.isArray(rawFilters.result)) {
+
+                                filters = rawFilters.result;
+
+                            } else if (Array.isArray(rawFilters.filters)) {
+
+                                filters = rawFilters.filters;
+
+                            } else if (
+                                rawFilters.data &&
+                                typeof rawFilters.data === 'object'
+                            ) {
+
+                                filters = [rawFilters.data];
+                            }
+                        }
+
+                        const isImport = filters.some(filter => {
+
+                            if (
+                                typeof filter === 'string' ||
+                                typeof filter === 'number'
+                            ) {
+                                return String(filter)
+                                    .trim()
+                                    .toLowerCase() === 'import';
+                            }
+
+                            if (
+                                filter &&
+                                typeof filter === 'object'
+                            ) {
+
+                                const name =
+                                    filter.fname ||
+                                    filter.fName ||
+                                    filter.FName ||
+                                    filter.f_name ||
+                                    filter.filterName ||
+                                    filter.filter_name ||
+                                    '';
+
+                                return String(name)
+                                    .trim()
+                                    .toLowerCase() === 'import';
+                            }
+
+                            return false;
+                        });
+
+                        isCurrentCampaignImport = isImport;
+
+                        if (dynamicFilterContainer) {
+                            dynamicFilterContainer.innerHTML = '';
+                        }
+                        if (isImport) {
+
+                            if (dynamicFilterContainer) {
+
+                                dynamicFilterContainer.innerHTML = `
+                                    <div class="col-12 text-center text-primary py-2"
+                                        style="font-size:0.85rem;">
+                                        <i class="bi bi-file-earmark-excel me-1"></i>
+                                        แคมเปญประเภทนำเข้าข้อมูล (Import Excel)
+                                    </div>
+                                `;
+                            }
+
+                        } else {
+                            const optionResponse =
+                                await fetch(
+                                    `/ProspectSetup/getFilterDropdown`,
+                                    {
+                                        method: 'GET',
+                                        signal: signal,
+                                        headers: {
+                                            'Accept': 'application/json'
+                                        }
+                                    }
+                                );
+
+                            // ตรวจ request เก่าอีกครั้ง
                             if (requestId !== currentFilterRequestId) {
+                                console.log(
+                                    "Skip old Dropdown response:",
+                                    requestId
+                                );
                                 return;
                             }
 
-                            let rawFilters = filterData;
-                            if (typeof rawFilters === 'string') {
-                                try { rawFilters = JSON.parse(rawFilters); } catch(e) {}
+                            if (!optionResponse.ok) {
+
+                                throw new Error(
+                                    `getFilterDropdown HTTP ${optionResponse.status} ${optionResponse.statusText}`
+                                );
                             }
 
-                            let filters = [];
-                            if (Array.isArray(rawFilters)) {
-                                filters = rawFilters;
-                            } else if (rawFilters && typeof rawFilters === 'object') {
-                                if (Array.isArray(rawFilters.data)) filters = rawFilters.data;
-                                else if (Array.isArray(rawFilters.result)) filters = rawFilters.result;
-                                else if (Array.isArray(rawFilters.filters)) filters = rawFilters.filters;
-                            }
+                            const optionData =
+                                await optionResponse.json();
 
-                            const isImport = Array.isArray(filters) && filters.some(filter => {
-                                const name = (typeof filter === 'object' && filter ? (filter.fname || filter.fName || filter.FName || filter.f_name || '') : String(filter)).toLowerCase();
-                                return name === 'import';
-                            });
-                            isCurrentCampaignImport = isImport;
+                            // Render Filter
+                            if (
+                                filters.length > 0 &&
+                                dynamicFilterContainer
+                            ) {
 
-                            if (dynamicFilterContainer) {
-                                dynamicFilterContainer.innerHTML = '';
-                                
-                                if (isImport) {
-                                    dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-primary py-2" style="font-size:0.85rem;"><i class="bi bi-file-earmark-excel me-1"></i>แคมเปญประเภทนำเข้าข้อมูล (Import Excel)</div>';
-                                } else {
-                                    const option = await fetch (`/ProspectSetup/getFilterDropdown`)
-                                    const optionData = await option.json();
-                                    
-                                    if (filters.length > 0) {
-                                        filters.forEach((filter) => {
-                                            const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
-                                            const filterHTML = productFilterHTML(fCode, optionData);
+                                let renderedCount = 0;
 
-                                            if (filterHTML) {
-                                                dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
-                                            }
-                                        });
-                                    } else {
-                                        dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
+                                filters.forEach(filter => {
+
+                                    const fCode =
+                                        typeof filter === 'string'
+                                            ? filter
+                                            : (
+                                                filter.fcode ||
+                                                filter.fCode ||
+                                                filter.FCode ||
+                                                filter.code ||
+                                                filter.f_code ||
+                                                filter.filterCode ||
+                                                filter.filter_code ||
+                                                filter.FilterCode ||
+                                                ''
+                                            );
+
+                                    const normalizedFCode =
+                                        String(fCode || '')
+                                            .trim()
+                                            .toUpperCase();
+
+                                    console.log(
+                                        "Rendering Filter:",
+                                        filter,
+                                        "=>",
+                                        normalizedFCode
+                                    );
+
+                                    if (!normalizedFCode) {
+
+                                        console.warn(
+                                            "Filter ไม่มี fcode:",
+                                            filter
+                                        );
+
+                                        return;
                                     }
+
+                                    const filterHTML =
+                                        productFilterHTML(
+                                            normalizedFCode,
+                                            optionData
+                                        );
+
+                                    if (filterHTML) {
+
+                                        dynamicFilterContainer
+                                            .insertAdjacentHTML(
+                                                'beforeend',
+                                                filterHTML
+                                            );
+
+                                        renderedCount++;
+
+                                    } else {
+
+                                        console.warn(
+                                            "ไม่พบ HTML สำหรับ Filter:",
+                                            normalizedFCode
+                                        );
+                                    }
+                                });
+
+                                // =================================================
+                                // ไม่มี Filter ไหน Render ได้
+                                // =================================================
+
+                                if (renderedCount === 0) {
+
+                                    dynamicFilterContainer.innerHTML = `
+                                        <div class="col-12 text-center text-warning py-2"
+                                            style="font-size:0.85rem;">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                            ไม่พบตัวกรองที่รองรับ
+                                        </div>
+                                    `;
+
+                                } else {
+
+                                    console.log(
+                                        `Render Filter สำเร็จ ${renderedCount} รายการ`
+                                    );
                                 }
+
+                            } else {
+
+                                if (dynamicFilterContainer) {
+
+                                    dynamicFilterContainer.innerHTML = `
+                                        <div class="col-12 text-center text-muted py-2"
+                                            style="font-size:0.85rem;">
+                                            ไม่มีข้อมูลตัวกรองสำหรับรายการนี้
+                                        </div>
+                                    `;
+                                }
+
+                                console.log(
+                                    "Campaign นี้ไม่มี Filter"
+                                );
                             }
-                        } catch (err) {
-                            console.error("Error calling getProductFilterByGuid:", err);
-                            isCurrentCampaignImport = false;
-                            if (dynamicFilterContainer && requestId === currentFilterRequestId) {
-                                dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-danger py-2" style="font-size:0.85rem;">เกิดข้อผิดพลาดในการโหลดตัวกรอง</div>';
-                            }
-                        }
-                    } else {
-                        isCurrentCampaignImport = false;
-                        if (dynamicFilterContainer) {
-                            dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
                         }
                     }
 
-                    if (requestId === currentFilterRequestId) {
-                        await refreshSelectedCampaignCustomers();
-                        await loadProspectList(1, currentProspectPageSize);
+                    // =====================================================
+                    // Load Selected Customers
+                    // =====================================================
+
+                    if (requestId !== currentFilterRequestId) {
+                        return;
                     }
+
+                    await refreshSelectedCampaignCustomers();
+
+                    // =====================================================
+                    // Load Prospect
+                    // =====================================================
+
+                    if (requestId !== currentFilterRequestId) {
+                        return;
+                    }
+
+                    await loadProspectList(
+                        1,
+                        currentProspectPageSize
+                    );
+
                 } catch (err) {
-                    console.error("Error in card click handler:", err);
+
+                    // Abort ไม่ถือว่าเป็น Error
+                    if (err.name === 'AbortError') {
+
+                        console.log(
+                            "Campaign request cancelled:",
+                            item.code
+                        );
+
+                        return;
+                    }
+
+                    console.error(
+                        "======================================"
+                    );
+
+                    console.error(
+                        "ERROR LOADING CAMPAIGN FILTER"
+                    );
+
+                    console.error(
+                        "Campaign:",
+                        item
+                    );
+
+                    console.error(
+                        "GUID:",
+                        targetGuid
+                    );
+
+                    console.error(
+                        "Error:",
+                        err
+                    );
+
+                    console.error(
+                        "======================================"
+                    );
+
+                    isCurrentCampaignImport = false;
+
+                    if (
+                        dynamicFilterContainer &&
+                        requestId === currentFilterRequestId
+                    ) {
+
+                        dynamicFilterContainer.innerHTML = `
+                            <div class="col-12 text-center text-danger py-2"
+                                style="font-size:0.85rem;">
+                                <i class="bi bi-exclamation-circle me-1"></i>
+                                เกิดข้อผิดพลาดในการโหลดตัวกรอง
+                                <div class="small mt-1">
+                                    ${escapeHtml(err.message || '')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
                 } finally {
-                    stopLoading();
+
+                    // เฉพาะ Campaign ล่าสุดเท่านั้นที่หยุด Loading
+                    if (requestId === currentFilterRequestId) {
+                        stopLoading();
+                    }
                 }
             });
+
             dataTableContainer.appendChild(card);
         });
     }
@@ -1509,14 +1965,50 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-async function getProductFilterByGuid(guid) {
+// async function getProductFilterByGuid(guid) {
+//     if (!guid) return [];
+//     try {
+//         const response = await fetch(`/ProspectSetup/GetProductFilterByGuid?guid=${encodeURIComponent(guid)}`);
+//         if (!response.ok) return [];
+//         const data = await response.json();
+//         return data || [];
+//     } catch (err) {
+//         console.error("Error in getProductFilterByGuid:", err);
+//         return [];
+//     }
+// }
+
+async function getProductFilterByGuid(guid, signal = null) {
     if (!guid) return [];
+
     try {
-        const response = await fetch(`/ProspectSetup/GetProductFilterByGuid?guid=${encodeURIComponent(guid)}`);
-        if (!response.ok) return [];
+        const response = await fetch(
+            `/ProspectSetup/GetProductFilterByGuid?guid=${encodeURIComponent(guid)}`,
+            signal ? { signal } : undefined
+        );
+
+        if (!response.ok) {
+            console.error(
+                "GetProductFilterByGuid HTTP error:",
+                response.status,
+                response.statusText
+            );
+            return [];
+        }
+
         const data = await response.json();
+
+        console.log("GetProductFilterByGuid response:", data);
+
         return data || [];
+
     } catch (err) {
+
+        if (err.name === 'AbortError') {
+            console.log("GetProductFilterByGuid request aborted");
+            return [];
+        }
+
         console.error("Error in getProductFilterByGuid:", err);
         return [];
     }

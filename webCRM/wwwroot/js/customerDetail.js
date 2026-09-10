@@ -983,10 +983,8 @@ async function getContact(idno) {
 
             function loadDataTable(tableId, dataList, company, idno) {
                 const sortedDataList = [...(dataList || [])].sort((a, b) => {
-                    const aEndDate = a.endDate;
-                    const bEndDate = b.endDate;
-                    const aActive = isContractActive(aEndDate);
-                    const bActive = isContractActive(bEndDate);
+                    const aActive = a.IsActive;
+                    const bActive = b.IsActive;
                     if (aActive && !bActive) return -1;
                     if (!aActive && bActive) return 1;
                     return 0;
@@ -996,7 +994,7 @@ async function getContact(idno) {
                     data: sortedDataList,
                     destroy: true,
                     columns: [
-                        { data: row => isContractActive(row.endDate) ? 'A' : '' },
+                        { data: row => row.IsActive == 1 ? 'A' : '' },
                         { data: row => row.contno || '-' },
                         { data: row => {
                             if (company === 'MIB') {
@@ -1011,9 +1009,7 @@ async function getContact(idno) {
                         $(row).addClass('hover-row border-bottom cursor-pointer contract-row');
                         $(row).find('td').addClass('text-center py-3 contract-col');
 
-                        const contractEndDate = data.endDate;
-
-                        if (!isContractActive(contractEndDate)) {
+                        if (!row.IsActive) {
                             $(row).find('td').css('color', '#94a3b8');
                         } else {
                             $(row).find('td').css('color', '#1e293b');
@@ -1079,18 +1075,6 @@ const formatValues = (value) => {
     } else {
         return '-';
     }
-};
-
-const isContractActive = (endDate) => {
-    if (!endDate) return false;
-    const end = new Date(endDate);
-    if (isNaN(end.getTime())) return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-
-    return today <= end;
 };
 
 async function getContactInfo(idno, company, encodedC, clickedRow) {

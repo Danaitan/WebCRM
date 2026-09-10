@@ -204,7 +204,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
         });
     }
 
-    table.draw();
+    table.order([[0, 'desc']]).draw();
 
     let targetRow = null;
     if (selectedGuidToPreserve) {
@@ -265,36 +265,61 @@ function canEnableCloseBtn(status) {
 }
 
 function updateActionButtonsState(status, updBy = '') {
-    const userIsCreator = isCreator(updBy);
+    const lowerStatus = String(status || '').toLowerCase().trim();
 
     // กล่องบันทึกข้อมูล
-    if (canShowReplyBox(status)) {
+    if (canShowReplyBox(lowerStatus)) {
         $('#replyBoxSection').show();
     } else {
         $('#replyBoxSection').hide();
     }
 
-    // ถ้าไม่ใช่คนสร้าง จะซ่อนปุ่มส่งต่อและปิดงาน
-    // if (!userIsCreator) {
-    //     $('#forwardBtnContainer').hide();
-    //     $('#closeBtnContainer').hide();
-    // } else {
-    //     // ปุ่มส่งต่อ
-    //     if (canShowForwardBtn(status)) {
-    //         $('#forwardBtnContainer').show();
-    //     } else {
-    //         $('#forwardBtnContainer').hide();
-    //     }
+    // ปุ่มส่งต่อ
+    if (lowerStatus === 'close') {
+        $('#forwardBtn').prop('disabled', true);
+    } else {
+        $('#forwardBtn').prop('disabled', false);
+    }
 
-    //     // ปุ่มปิดงาน
-    //     $('#closeBtnContainer').show();
-    //     if (canEnableCloseBtn(status)) {
-    //         $('#closeBtn').prop('disabled', false);
-    //     } else {
-    //         $('#closeBtn').prop('disabled', true);
-    //     }
-    // }
+    // ปุ่มปิดงาน
+    if (lowerStatus === 'close') {
+        $('#closeBtn').prop('disabled', true);
+    } else {
+        $('#closeBtn').prop('disabled', false);
+    }
 }
+
+// function updateActionButtonsState(status, updBy = '') {
+//     const userIsCreator = isCreator(updBy);
+
+//     // กล่องบันทึกข้อมูล
+//     if (canShowReplyBox(status)) {
+//         $('#replyBoxSection').show();
+//     } else {
+//         $('#replyBoxSection').hide();
+//     }
+
+//     // ถ้าไม่ใช่คนสร้าง จะซ่อนปุ่มส่งต่อและปิดงาน
+//     // if (!userIsCreator) {
+//     //     $('#forwardBtnContainer').hide();
+//     //     $('#closeBtnContainer').hide();
+//     // } else {
+//     //     // ปุ่มส่งต่อ
+//     //     if (canShowForwardBtn(status)) {
+//     //         $('#forwardBtnContainer').show();
+//     //     } else {
+//     //         $('#forwardBtnContainer').hide();
+//     //     }
+
+//     //     // ปุ่มปิดงาน
+//     //     $('#closeBtnContainer').show();
+//     //     if (canEnableCloseBtn(status)) {
+//     //         $('#closeBtn').prop('disabled', false);
+//     //     } else {
+//     //         $('#closeBtn').prop('disabled', true);
+//     //     }
+//     // }
+// }
 
 function clearDetails() {
     $('#detail-nameprovider').text('-');
@@ -1205,10 +1230,10 @@ async function PutSuggestionStatusUpd (){
 
     var $activeRow = $('#suggestionsTable tbody tr.table-active');
     var updBy = $activeRow.length ? ($activeRow.attr('data-updby') || '') : '';
-    if (!isCreator(updBy)) {
-        showAlert('warning', 'แจ้งเตือน', 'คุณไม่มีสิทธิ์ปิดงาน เนื่องจากไม่ใช่ผู้สร้างรายการนี้');
-        return;
-    }
+    // if (!isCreator(updBy)) {
+    //     showAlert('warning', 'แจ้งเตือน', 'คุณไม่มีสิทธิ์ปิดงาน เนื่องจากไม่ใช่ผู้สร้างรายการนี้');
+    //     return;
+    // }
 
     var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
     if (!canEnableCloseBtn(currentStatus)) {

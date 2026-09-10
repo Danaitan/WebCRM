@@ -122,45 +122,288 @@ function getBranchName(b) {
     return b.branch_name || b.branchName || b.BranchName || b.Bname || b.bname || getBranchCode(b);
 }
 
-function renderBranchDropdownOptions(allowedOffcdes = null) {
-    const selectEl = document.getElementById('filterBranchSelect');
-    if (!selectEl) return;
-    selectEl.innerHTML = '<option value="">-- เลือกสาขา --</option>';
+// function renderBranchDropdownOptions(allowedOffcdes = null) {
+//     const selectEl = document.getElementById('filterBranchSelect');
+//     if (!selectEl) return;
+//     selectEl.innerHTML = '<option value="">-- เลือกสาขา --</option>';
 
-    let branchesToRender = allBranch || [];
+//     let branchesToRender = allBranch || [];
+//     if (Array.isArray(allowedOffcdes)) {
+//         branchesToRender = branchesToRender.filter(b => allowedOffcdes.includes(getBranchCode(b)));
+//     }
+
+//     branchesToRender.forEach(b => {
+//         const code = getBranchCode(b);
+//         const name = getBranchName(b);
+//         if (!code) return;
+
+//         const opt = document.createElement('option');
+//         opt.value = code;
+//         opt.textContent = name;
+//         selectEl.appendChild(opt);
+//     });
+// }
+
+function renderBranchDropdownOptions(allowedOffcdes = null) {
+    const container = document.getElementById('branchOptions');
+
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    let branches = allBranch || [];
+
     if (Array.isArray(allowedOffcdes)) {
-        branchesToRender = branchesToRender.filter(b => allowedOffcdes.includes(getBranchCode(b)));
+        branches = branches.filter(b => {
+            const code = getBranchCode(b);
+            return allowedOffcdes.includes(code);
+        });
     }
 
-    branchesToRender.forEach(b => {
+    branches.forEach(b => {
         const code = getBranchCode(b);
         const name = getBranchName(b);
+
         if (!code) return;
 
-        const opt = document.createElement('option');
-        opt.value = code;
-        opt.textContent = name;
-        selectEl.appendChild(opt);
+        const div = document.createElement('div');
+        div.className = 'branch-option';
+
+        div.innerHTML = `
+            <label>
+                <input type="checkbox"
+                       class="branch-checkbox"
+                       value="${code}"
+                       data-name="${name}">
+                <span>${name}</span>
+            </label>
+        `;
+
+        container.appendChild(div);
+    });
+
+    bindBranchCheckboxEvents();
+}
+
+function bindBranchCheckboxEvents() {
+
+    document.querySelectorAll('.branch-checkbox').forEach(checkbox => {
+
+        checkbox.addEventListener('change', function () {
+
+            updateBranchSelectedDisplay();
+
+            const selectedBranches = getSelectedBranchCodes();
+
+            loadAndRenderStaffList(selectedBranches);
+        });
     });
 }
 
-function setSelectedBranches(offcdeString) {
-    const selectEl = document.getElementById('filterBranchSelect');
-    if (!selectEl) return;
+function getSelectedBranchCodes() {
 
-    const offcdes = offcdeString
-        ? String(offcdeString).split(',').map(s => s.trim()).filter(Boolean)
-        : [];
+    return Array.from(
+        document.querySelectorAll('.branch-checkbox:checked')
+    ).map(x => x.value);
+}
 
-    renderBranchDropdownOptions(offcdeString ? offcdes : null);
+// function updateBranchSelectedDisplay() {
 
-    if (offcdes.length > 0) {
-        selectEl.value = offcdes[0];
-    } else {
-        selectEl.value = '';
+//     const box = document.getElementById('branchSelectBox');
+
+//     if (!box) return;
+
+//     const selected = Array.from(
+//         document.querySelectorAll('.branch-checkbox:checked')
+//     );
+
+//     box.innerHTML = '';
+
+//     if (selected.length === 0) {
+
+//         box.innerHTML = `
+//             <span class="multi-select-placeholder">
+//                 -- เลือกสาขา --
+//             </span>
+//             <span class="multi-select-arrow">▼</span>
+//         `;
+
+//         return;
+//     }
+
+//     selected.forEach(checkbox => {
+
+//         const tag = document.createElement('span');
+//         tag.className = 'branch-tag';
+
+//         tag.innerHTML = `
+//             ${checkbox.dataset.name}
+//             <span class="remove-branch"
+//                   data-value="${checkbox.value}">
+//                 ×
+//             </span>
+//         `;
+
+//         tag.querySelector('.remove-branch')
+//             .addEventListener('click', function (e) {
+
+//                 e.stopPropagation();
+
+//                 checkbox.checked = false;
+
+//                 updateBranchSelectedDisplay();
+
+//                 loadAndRenderStaffList(
+//                     getSelectedBranchCodes()
+//                 );
+//             });
+
+//         box.appendChild(tag);
+//     });
+
+//     const arrow = document.createElement('span');
+
+//     arrow.className = 'multi-select-arrow';
+//     arrow.innerHTML = '▼';
+
+//     box.appendChild(arrow);
+// }
+
+function updateBranchSelectedDisplay() {
+
+    const box = document.getElementById('branchSelectBox');
+
+    if (!box) return;
+
+    const selected = Array.from(
+        document.querySelectorAll('.branch-checkbox:checked')
+    );
+
+    box.innerHTML = '';
+
+    if (selected.length === 0) {
+
+        box.innerHTML = `
+            <span class="multi-select-placeholder">
+                -- เลือกสาขา --
+            </span>
+            <span class="multi-select-arrow">▼</span>
+        `;
+
+        return;
     }
 
-    loadAndRenderStaffList(selectEl.value);
+    selected.forEach(checkbox => {
+
+        const tag = document.createElement('span');
+        tag.className = 'branch-tag';
+
+        tag.innerHTML = `
+            ${checkbox.dataset.name}
+            <span class="remove-branch"
+                  data-value="${checkbox.value}">
+                ×
+            </span>
+        `;
+
+        tag.querySelector('.remove-branch')
+            .addEventListener('click', function (e) {
+
+                e.stopPropagation();
+
+                checkbox.checked = false;
+
+                updateBranchSelectedDisplay();
+
+                const selectedBranches = getSelectedBranchCodes();
+
+                loadAndRenderStaffList(selectedBranches);
+            });
+
+        box.appendChild(tag);
+    });
+
+    const arrow = document.createElement('span');
+
+    arrow.className = 'multi-select-arrow';
+    arrow.innerHTML = '▼';
+
+    box.appendChild(arrow);
+}
+
+function initBranchMultiSelect() {
+
+    const box = document.getElementById('branchSelectBox');
+    const dropdown = document.getElementById('branchDropdownMenu');
+
+    if (!box || !dropdown) return;
+
+    box.addEventListener('click', function () {
+
+        dropdown.classList.toggle('show');
+    });
+
+    document.addEventListener('click', function (e) {
+
+        const container = document.getElementById(
+            'branchSelectContainer'
+        );
+
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
+    const searchInput = document.getElementById('branchSearchInput');
+
+    if (searchInput) {
+
+        searchInput.addEventListener('input', function () {
+
+            const keyword = this.value.toLowerCase().trim();
+
+            document.querySelectorAll('.branch-option')
+                .forEach(option => {
+
+                    const text = option.innerText.toLowerCase();
+
+                    option.style.display =
+                        text.includes(keyword)
+                            ? ''
+                            : 'none';
+                });
+        });
+    }
+}
+
+// function setSelectedBranches(offcdeString) {
+//     const selectEl = document.getElementById('filterBranchSelect');
+//     if (!selectEl) return;
+
+//     const offcdes = offcdeString
+//         ? String(offcdeString).split(',').map(s => s.trim()).filter(Boolean)
+//         : [];
+
+//     renderBranchDropdownOptions(offcdeString ? offcdes : null);
+
+//     if (offcdes.length > 0) {
+//         selectEl.value = offcdes[0];
+//     } else {
+//         selectEl.value = '';
+//     }
+
+//     loadAndRenderStaffList(selectEl.value);
+// }
+
+function setSelectedBranches(offcdeString) {
+
+    renderBranchDropdownOptions();
+    document.querySelectorAll('.branch-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    updateBranchSelectedDisplay();
+    loadAndRenderStaffList([]);
 }
 
 async function getStaffList(branchId){
@@ -177,102 +420,283 @@ async function getStaffList(branchId){
     }
 }
 
-async function loadAndRenderStaffList(branchId) {
+// async function loadAndRenderStaffList(branchId) {
+//     const dropdownMenu = document.getElementById('responsibleDropdownMenu');
+//     const newDropdownMenu = document.getElementById('newResponsibleDropdownMenu');
+
+//     // Clear existing tags in responsibleSelectBox and newResponsibleSelectBox
+//     const selectBox = document.getElementById('responsibleSelectBox');
+//     if (selectBox) {
+//         selectBox.querySelectorAll('.branch-tag').forEach(tag => tag.remove());
+//     }
+//     const newSelectBox = document.getElementById('newResponsibleSelectBox');
+//     if (newSelectBox) {
+//         newSelectBox.querySelectorAll('.branch-tag').forEach(tag => tag.remove());
+//     }
+//     if (typeof updateAssignButtonDisabledState === 'function') {
+//         updateAssignButtonDisabledState();
+//     }
+
+//     if (!branchId) {
+//         const defaultHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">กรุณาเลือกสาขา</div>';
+//         if (dropdownMenu) dropdownMenu.innerHTML = defaultHtml;
+//         if (newDropdownMenu) newDropdownMenu.innerHTML = defaultHtml;
+//         return;
+//     }
+
+//     const loadingHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล...</div>';
+//     if (dropdownMenu) dropdownMenu.innerHTML = loadingHtml;
+//     if (newDropdownMenu) newDropdownMenu.innerHTML = loadingHtml;
+
+//     const res = await getStaffList(branchId);
+
+//     let staffArray = [];
+//     if (Array.isArray(res)) {
+//         staffArray = res;
+//     } else if (res && Array.isArray(res.data)) {
+//         staffArray = res.data;
+//     } else if (res && Array.isArray(res.result)) {
+//         staffArray = res.result;
+//     }
+
+//     // กรองเฉพาะผู้รับผิดชอบที่มี role_id เป็น RCRM011
+//     staffArray = staffArray.filter(s => {
+//         if (!s) return false;
+//         if (typeof s === 'object') {
+//             return (s.role_id || '') === 'RCRM011';
+//         }
+//         return true;
+//     });
+
+//     if (staffArray.length === 0) {
+//         const noDataHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูลพนักงาน</div>';
+//         if (dropdownMenu) dropdownMenu.innerHTML = noDataHtml;
+//         if (newDropdownMenu) newDropdownMenu.innerHTML = noDataHtml;
+//         return;
+//     }
+
+//     let html = '';
+//     let newHtml = '';
+//     staffArray.forEach(s => {
+//         let val = '';
+//         let name = '';
+//         if (typeof s === 'string') {
+//             val = s;
+//             name = s;
+//         } else if (s && typeof s === 'object') {
+//             val = s.personnel_code || '';
+//             name = s.thname || '';
+
+//             if (!val || !name) {
+//                 const keys = Object.keys(s);
+//                 if (!val) {
+//                     const codeKey = keys.find(k => /code|id|personnel|staff|emp|user/i.test(k));
+//                     if (codeKey && s[codeKey] != null) val = String(s[codeKey]);
+//                 }
+//                 if (!name) {
+//                     const nameKey = keys.find(k => /name|full|first|display/i.test(k));
+//                     if (nameKey && s[nameKey] != null) name = String(s[nameKey]);
+//                 }
+//             }
+
+//             if (!val) val = name;
+//             if (!name) name = val;
+//         }
+//         if (!val && !name) return;
+
+//         const displayText = (val && name && val !== name && !name.includes(val)) ? `${val} - ${name}` : (name || val);
+
+//         html += `
+//             <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="${escapeHtml(val)}">
+//                 <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+//                 <span>${escapeHtml(displayText)}</span>
+//             </div>
+//         `;
+
+//         newHtml += `
+//             <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="${escapeHtml(val)}">
+//                 <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+//                 <span>${escapeHtml(displayText)}</span>
+//             </div>
+//         `;
+//     });
+
+//     if (dropdownMenu) dropdownMenu.innerHTML = html;
+//     if (newDropdownMenu) newDropdownMenu.innerHTML = newHtml;
+// }
+
+async function loadAndRenderStaffList(branchIds) {
+
     const dropdownMenu = document.getElementById('responsibleDropdownMenu');
     const newDropdownMenu = document.getElementById('newResponsibleDropdownMenu');
 
-    // Clear existing tags in responsibleSelectBox and newResponsibleSelectBox
+    // รองรับทั้ง string และ array
+    if (!Array.isArray(branchIds)) {
+        branchIds = branchIds ? [branchIds] : [];
+    }
+
+    // Clear existing tags
     const selectBox = document.getElementById('responsibleSelectBox');
     if (selectBox) {
         selectBox.querySelectorAll('.branch-tag').forEach(tag => tag.remove());
     }
+
     const newSelectBox = document.getElementById('newResponsibleSelectBox');
     if (newSelectBox) {
         newSelectBox.querySelectorAll('.branch-tag').forEach(tag => tag.remove());
     }
+
     if (typeof updateAssignButtonDisabledState === 'function') {
         updateAssignButtonDisabledState();
     }
 
-    if (!branchId) {
-        const defaultHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">กรุณาเลือกสาขา</div>';
+    if (branchIds.length === 0) {
+        const defaultHtml =
+            '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">กรุณาเลือกสาขา</div>';
+
         if (dropdownMenu) dropdownMenu.innerHTML = defaultHtml;
         if (newDropdownMenu) newDropdownMenu.innerHTML = defaultHtml;
+
         return;
     }
 
-    const loadingHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล...</div>';
+    const loadingHtml =
+        '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">' +
+        '<i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล...</div>';
+
     if (dropdownMenu) dropdownMenu.innerHTML = loadingHtml;
     if (newDropdownMenu) newDropdownMenu.innerHTML = loadingHtml;
 
-    const res = await getStaffList(branchId);
+    // โหลด staff ของทุกสาขา
+    const results = await Promise.all(
+        branchIds.map(branchId => getStaffList(branchId))
+    );
 
+    // รวม staff ทุกสาขา
     let staffArray = [];
-    if (Array.isArray(res)) {
-        staffArray = res;
-    } else if (res && Array.isArray(res.data)) {
-        staffArray = res.data;
-    } else if (res && Array.isArray(res.result)) {
-        staffArray = res.result;
-    }
 
-    // กรองเฉพาะผู้รับผิดชอบที่มี role_id เป็น RCRM011
+    results.forEach(res => {
+        if (Array.isArray(res)) {
+            staffArray.push(...res);
+        } else if (res && Array.isArray(res.data)) {
+            staffArray.push(...res.data);
+        } else if (res && Array.isArray(res.result)) {
+            staffArray.push(...res.result);
+        }
+    });
+
+    // ลบข้อมูลซ้ำ
+    const uniqueStaff = [];
+    const seen = new Set();
+
+    staffArray.forEach(s => {
+        const key = typeof s === 'object'
+            ? (s.personnel_code || s.id || JSON.stringify(s))
+            : String(s);
+
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniqueStaff.push(s);
+        }
+    });
+
+    staffArray = uniqueStaff;
+
+    // กรอง role RCRM011
     staffArray = staffArray.filter(s => {
         if (!s) return false;
+
         if (typeof s === 'object') {
             return (s.role_id || '') === 'RCRM011';
         }
+
         return true;
     });
 
     if (staffArray.length === 0) {
-        const noDataHtml = '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูลพนักงาน</div>';
+        const noDataHtml =
+            '<div class="p-2 text-center text-muted" style="font-size: 0.85rem;">ไม่พบข้อมูลพนักงาน</div>';
+
         if (dropdownMenu) dropdownMenu.innerHTML = noDataHtml;
         if (newDropdownMenu) newDropdownMenu.innerHTML = noDataHtml;
+
         return;
     }
 
     let html = '';
     let newHtml = '';
+
     staffArray.forEach(s => {
+
         let val = '';
         let name = '';
+
         if (typeof s === 'string') {
             val = s;
             name = s;
+
         } else if (s && typeof s === 'object') {
+
             val = s.personnel_code || '';
             name = s.thname || '';
 
             if (!val || !name) {
                 const keys = Object.keys(s);
+
                 if (!val) {
-                    const codeKey = keys.find(k => /code|id|personnel|staff|emp|user/i.test(k));
-                    if (codeKey && s[codeKey] != null) val = String(s[codeKey]);
+                    const codeKey = keys.find(k =>
+                        /code|id|personnel|staff|emp|user/i.test(k)
+                    );
+
+                    if (codeKey && s[codeKey] != null) {
+                        val = String(s[codeKey]);
+                    }
                 }
+
                 if (!name) {
-                    const nameKey = keys.find(k => /name|full|first|display/i.test(k));
-                    if (nameKey && s[nameKey] != null) name = String(s[nameKey]);
+                    const nameKey = keys.find(k =>
+                        /name|full|first|display/i.test(k)
+                    );
+
+                    if (nameKey && s[nameKey] != null) {
+                        name = String(s[nameKey]);
+                    }
                 }
             }
 
             if (!val) val = name;
             if (!name) name = val;
         }
+
         if (!val && !name) return;
 
-        const displayText = (val && name && val !== name && !name.includes(val)) ? `${val} - ${name}` : (name || val);
+        const displayText =
+            (val && name && val !== name && !name.includes(val))
+                ? `${val} - ${name}`
+                : (name || val);
 
         html += `
-            <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded" style="cursor: pointer;" data-value="${escapeHtml(val)}">
-                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+            <div class="dropdown-item d-flex align-items-center gap-2 py-2 responsible-option rounded"
+                 style="cursor: pointer;"
+                 data-value="${escapeHtml(val)}">
+
+                <input type="checkbox"
+                       class="form-check-input mt-0 border-primary"
+                       style="pointer-events: none;">
+
                 <span>${escapeHtml(displayText)}</span>
             </div>
         `;
 
         newHtml += `
-            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded" style="cursor: pointer;" data-value="${escapeHtml(val)}">
-                <input type="checkbox" class="form-check-input mt-0 border-primary" style="pointer-events: none;">
+            <div class="dropdown-item d-flex align-items-center gap-2 py-2 new-responsible-option rounded"
+                 style="cursor: pointer;"
+                 data-value="${escapeHtml(val)}">
+
+                <input type="checkbox"
+                       class="form-check-input mt-0 border-primary"
+                       style="pointer-events: none;">
+
                 <span>${escapeHtml(displayText)}</span>
             </div>
         `;
@@ -1280,24 +1704,39 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
         if (batchPage < getTotalBatchPages()) { loadBatch(batchPage + 1); }
     });
 
+    // async function init() {
+    //     allBranch = await getAllBranch();
+    //     renderBranchDropdownOptions();
+
+    //     const filterBranchSelect = document.getElementById('filterBranchSelect');
+    //     if (filterBranchSelect) {
+    //         // filterBranchSelect.addEventListener('change', function () {
+    //         //     loadAndRenderStaffList(this.value);
+    //         // });
+
+    //         filterBranchSelect.addEventListener('change', function () {
+    //             const selectedBranches = Array.from(this.selectedOptions)
+    //                 .map(option => option.value);
+
+    //             loadAndRenderStaffList(selectedBranches);
+    //         });
+
+    //     }
+
+    //     await loadBatch(1);
+    // }
     async function init() {
         allBranch = await getAllBranch();
         renderBranchDropdownOptions();
-
-        const filterBranchSelect = document.getElementById('filterBranchSelect');
-        if (filterBranchSelect) {
-            filterBranchSelect.addEventListener('change', function () {
-                loadAndRenderStaffList(this.value);
-            });
-        }
-
+        initBranchMultiSelect();
+        updateBranchSelectedDisplay();
+        loadAndRenderStaffList([]);
         await loadBatch(1);
     }
 
-    init();
+init();
 })();
 
-// RESPONSIBLE PERSON MULTI-SELECT
 (function () {
     function initMultiSelect(containerId, selectBoxId, dropdownMenuId, optionClass) {
         const container = document.getElementById(containerId);
@@ -1400,7 +1839,6 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     updateAssignButtonDisabledState();
 })();
 
-// ASSIGN / RE-ASSIGN BUTTON CLICK
 (function () {
     const assignBtn = document.getElementById('assignBtn');
     if (assignBtn) {
@@ -1531,7 +1969,6 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     }
 })();
 
-// AUTO ASSIGN BUTTON CLICK
 (function () {
     const autoAssignBtn = document.getElementById('autoAssignBtn');
     if (autoAssignBtn) {

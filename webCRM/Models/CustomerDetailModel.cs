@@ -132,6 +132,8 @@ namespace webCRM.Models
 
         [JsonPropertyName("startDate")]
         public DateTime? StartDate { get; set; }
+        [JsonPropertyName("IsActive")]
+        public DateTime? IsActive { get; set; }
     }
 
     public class RequestCustomerDetail

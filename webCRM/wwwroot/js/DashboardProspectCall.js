@@ -937,7 +937,7 @@ async function setFilterBranch(branchData) {
 
     const hasFcrm006 = hasPermissionFCRM006();
     if (!hasFcrm006) {
-        $(selectEl).prop('disabled', false);
+        // $(selectEl).prop('disabled', true);
         if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
             selectEl.value = currentValue;
         } else if (selectEl.options.length > 0) {
@@ -960,12 +960,12 @@ async function setFilterBranch(branchData) {
             });
             $(selectEl).trigger('change');
         }
-    } else if (window.HAS_RCRM014 && window.USER_BRANCH_NAME) {
+    } else if (window.USER_BRANCH_NAME) {
         const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
         if (matchedBranchVal) {
             selectEl.value = matchedBranchVal;
         }
-        $(selectEl).prop('disabled', true);
+        // $(selectEl).prop('disabled', true);
         if (typeof $.fn !== 'undefined' && $.fn.select2) {
             $(selectEl).trigger('change');
         }
@@ -1049,7 +1049,7 @@ async function setFilterEmployee(){
         if (!filterEmployee) return;
 
         const hasFcrm006 = hasPermissionFCRM006();
-        const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
+        const isLockedCaller = !hasFcrm006;
         const userPersonalId = (window.USER_PERSONAL_ID || '').toString().trim();
 
         if (isLockedCaller && userPersonalId) {

@@ -973,7 +973,7 @@ async function getContact(idno) {
         }
 
         const data = await response.json();
-        
+
         if (requestId !== currentContactRequestId) return;
 
         if (data) {
@@ -994,7 +994,7 @@ async function getContact(idno) {
                     data: sortedDataList,
                     destroy: true,
                     columns: [
-                        { data: row => row.IsActive == 1 ? 'A' : '' },
+                        { data: row => row.IsActive == true ? 'A' : '' },
                         { data: row => row.contno || '-' },
                         { data: row => {
                             if (company === 'MIB') {
@@ -1009,10 +1009,10 @@ async function getContact(idno) {
                         $(row).addClass('hover-row border-bottom cursor-pointer contract-row');
                         $(row).find('td').addClass('text-center py-3 contract-col');
 
-                        if (!row.IsActive) {
-                            $(row).find('td').css('color', '#94a3b8');
-                        } else {
+                        if (data.IsActive) {
                             $(row).find('td').css('color', '#1e293b');
+                        } else {
+                            $(row).find('td').css('color', '#94a3b8');
                         }
 
                         const cEncoded = encodeURIComponent(JSON.stringify(data));

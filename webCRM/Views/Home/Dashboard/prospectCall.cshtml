@@ -40,14 +40,14 @@
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">สาขา</label>
-                    <select id="filterBranch" class="form-select form-select-sm select2-filter" @(hasFCRM006 ? "disabled" : "")>
+                    <select id="filterBranch" class="form-select form-select-sm select2-filter">
                         <option value="">ทั้งหมด</option>
                     </select>
                 </div>
 
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label text-muted small fw-medium">ผู้โทร</label>
-                    <select id="filterCaller" class="form-select form-select-sm select2-filter" @(hasFCRM006 ? "disabled" : "")>
+                    <select id="filterCaller" class="form-select form-select-sm select2-filter" @(hasFCRM006 ? "" : "disabled")>
                         <option value="">ทั้งหมด</option>
                     </select>
                 </div>
@@ -269,6 +269,7 @@
         window.USER_PERSONAL_ID = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(userPersonalId));
         window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
         window.HAS_FCRM006 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM006));
+        console.log("window.HAS_FCRM006",window.HAS_FCRM006)
         
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

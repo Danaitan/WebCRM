@@ -59,7 +59,7 @@ namespace webCRM.Controllers
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
                 string personalCode = "100664";
-                // string personalCode = "190006";
+                // string personalCode = "100657";
                 if (!string.IsNullOrWhiteSpace(user))
                 {
                     personalCode = DecodeBase64(user);
@@ -124,18 +124,18 @@ namespace webCRM.Controllers
                             Encoding.UTF8,
                             "application/json");
 
-                        await client.PostAsync(
-                            $"{domain}/crm/api/v1/loginlog",
-                            content);
+                        // await client.PostAsync(
+                        //     $"{domain}/crm/api/v1/loginlog",
+                        //     content);
 
-                        await ActivityLogger.SendAsync(
-                            HttpContext,
-                            action: "Login",
-                            targetId: pCode,
-                            targetType: "USER",
-                            message: "Login successfully",
-                            module: "Login"
-                        );
+                        // await ActivityLogger.SendAsync(
+                        //     HttpContext,
+                        //     action: "Login",
+                        //     targetId: pCode,
+                        //     targetType: "USER",
+                        //     message: "Login successfully",
+                        //     module: "Login"
+                        // );
 
                     }
                     else

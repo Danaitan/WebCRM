@@ -140,6 +140,10 @@ namespace webCRM.Models
 
         [JsonPropertyName("product_description")]
         public string? product_description { get; set; }
+
+        [JsonPropertyName("isActive")]
+        public bool isActive { get; set; }
+        
     }
 
     public class Branch

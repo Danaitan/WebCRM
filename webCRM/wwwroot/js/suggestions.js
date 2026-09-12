@@ -1,6 +1,26 @@
 
 let table;
 
+async function getProfileByEmail(email) {
+    try {
+        const response = await fetch(`/Login/GetProfileByEmail?email=${email}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in getProfileByEmail:", error);
+    }
+}
+
+async function getProfileByCode (personalCode){
+    try {
+        const response = await fetch(`/Login/GetProfile?user=${personalCode}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in getProfileByCode:", error);
+    }
+}
+
 async function PostNoti(PostNotiData){
     try {
         const payload = {
@@ -230,12 +250,12 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     }
 }
 
-function isCreator(updBy) {
-    const personalId = (typeof currentPersonalId !== 'undefined' ? currentPersonalId : (window.CURRENT_PERSONAL_ID || '')).toString().trim();
-    if (!personalId) return false;
-    if (!updBy || updBy === '-' || updBy === 'null' || updBy === 'undefined') return false;
-    return String(updBy).trim().toLowerCase() === personalId.toLowerCase();
-}
+// function isCreator(updBy) {
+//     const personalId = window.CURRENT_PERSONAL_ID.toString().trim();
+//     if (!personalId) return false;
+//     if (!updBy || updBy === '-' || updBy === 'null' || updBy === 'undefined') return false;
+//     return String(updBy).trim().toLowerCase() === personalId.toLowerCase();
+// }
 
 function canShowReplyBox(status) {
     if (!status) return true;
@@ -923,24 +943,30 @@ async function UpdateSuggestion() {
             throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
         }
 
-        var sendToVal = $("#detail-sendTo").text().trim();
-        if (sendToVal === '-' || sendToVal === 'undefined') {
-            sendToVal = '';
-        }
-
-        if (sendToVal) {
             try {
-                const sendToText = sendToVal;
+
                 const $activeRow = $('#suggestionsTable tbody tr.table-active');
+                const creator = $activeRow.length
+                    ? ($activeRow.attr('data-updby') || '')
+                    : '';
+                const profile = await getProfileByCode(creator);
+                const userIdBase64 = btoa(profile.personnel_code);
                 const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
-                const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                const emailContent = `เรียน ${sendToText}<br><br>` +
-                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาดังนี้ ${reply} ` +
+                const fullNameTh = userFullNameTh || '';
+                const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                const emailContent =
+                    `เรียน ${profile.thname}<br><br>` +
+                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fullNameTh} ` +
+                    `ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                    `โดยมีเนื้อหาดังนี้ ${reply}<br><br>` +
+                    `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                    `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                    `<br><br>` +
                     `ขอขอบคุณ<br>` +
                     `${fullNameTh}`;
 
                 await sendEmail(
-                    sendToVal,
+                    profile.e_mail,
                     null,
                     "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
                     emailContent
@@ -949,12 +975,19 @@ async function UpdateSuggestion() {
                 endDate.setFullYear(endDate.getFullYear() + 10);
 
                 const senderId = typeof userId !== 'undefined' ? userId : '';
+                const notiContent = `เรียน ${profile.thname},<br><br>` +
+                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ` +
+                    `ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                    `โดยมีเนื้อหาดังนี้ ${reply}<br><br>` +
+                    `ขอขอบคุณ<br>` +
+                    `${fullNameTh}`;
 
                 await PostNoti({
                     header: "ข้อเสนอแนะ/ร้องเรียน",
                     title: "เรื่อง : " + topicTitle,
-                    message: emailContent,
-                    receiver_email: sendToVal,
+                    message: notiContent,
+                    receiver_email: profile.e_mail,
+                    receiver: profile.personnel_code,
                     sender: senderId,
                     create_by: senderId,
                     end_date: endDate,
@@ -963,8 +996,6 @@ async function UpdateSuggestion() {
             } catch (emailErr) {
                 console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
             }
-
-        }
 
         // โหลดข้อมูลล่าสุดก่อนปิด loading เพื่อให้หมุนรอบเดียวและข้อมูลอัปเดตเรียบร้อยก่อนแสดง alert
         await searchSuggestion(guid, false);
@@ -1067,12 +1098,23 @@ async function AddSuggestion() {
 
             if (sendToVal) {
                 try {
+                    const profile = await getProfileByEmail(sendToVal);
+                    const userIdBase64 = btoa(profile.personnel_code);
+                    const sendToText = sendToVal;
                     const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                    const emailContent = `เรียน ${sendToText}<br><br>` +
-                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail} ` +
+                    const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+
+                    const emailContent =
+                        `เรียน ${sendToText}<br><br>` +
+                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                        `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
+                        `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                        `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                        `<br><br>` +
                         `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
                         `ขอขอบคุณ<br>` +
                         `${fullNameTh}`;
+
 
                     await sendEmail(
                         sendToVal,
@@ -1278,10 +1320,10 @@ async function ForwardSuggestion() {
 
     var $activeRow = $('#suggestionsTable tbody tr.table-active');
     var updBy = $activeRow.length ? ($activeRow.attr('data-updby') || '') : '';
-    if (!isCreator(updBy)) {
-        showAlert('warning', 'แจ้งเตือน', 'คุณไม่มีสิทธิ์ส่งต่อ เนื่องจากไม่ใช่ผู้สร้างรายการนี้');
-        return;
-    }
+    // if (!isCreator(updBy)) {
+    //     showAlert('warning', 'แจ้งเตือน', 'คุณไม่มีสิทธิ์ส่งต่อ เนื่องจากไม่ใช่ผู้สร้างรายการนี้');
+    //     return;
+    // }
 
     var currentStatus = $activeRow.length ? ($activeRow.attr('data-status') || '') : '';
     if (!canShowForwardBtn(currentStatus)) {
@@ -1363,9 +1405,17 @@ async function ForwardSuggestion() {
 
             if (sendToVal) {
                 try {
+                    const profile = await getProfileByEmail(sendToVal);
+                    const userIdBase64 = btoa(profile.personnel_code);
                     const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                    const emailContent = `เรียน ${sendToText}<br><br>` +
-                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้ถูกส่งต่อให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail} ` +
+                    const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                    const emailContent =
+                        `เรียน ${sendToText}<br><br>` +
+                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้ถูกส่งต่อให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                        `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
+                        `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                        `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                        `<br><br>` +
                         `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
                         `ขอขอบคุณ<br>` +
                         `${fullNameTh}`;

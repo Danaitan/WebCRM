@@ -162,21 +162,21 @@
                                     <span class="badge badge-objective-mc objective-badge">MC</span>
                                     <div class="lh-sm">
                                         <div class="fw-bold text-dark extra-small">Marketing Collector</div>
-                                        <div class="text-muted" style="font-size: 0.7rem;">ตามหนี้</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">Marketing ตามหนี้</div>
                                     </div>
                                 </div>
                                 <div class="objective-item">
                                     <span class="badge badge-objective-fl objective-badge">FL</span>
                                     <div class="lh-sm">
                                         <div class="fw-bold text-dark extra-small">Following</div>
-                                        <div class="text-muted" style="font-size: 0.7rem;">เฟิร์สสายตามหนี้</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">เร่งรัด ตามหนี้</div>
                                     </div>
                                 </div>
                                 <div class="objective-item">
                                     <span class="badge badge-objective-rm objective-badge">RM</span>
                                     <div class="lh-sm">
                                         <div class="fw-bold text-dark extra-small">Relation Management</div>
-                                        <div class="text-muted" style="font-size: 0.7rem;">ตามหนี้</div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">กระชับความสัมพันธ์</div>
                                     </div>
                                 </div>
                             </div>
@@ -256,6 +256,7 @@
                 </div>
 
             </div>
+            
         </div>
 
     </div>
@@ -269,7 +270,9 @@
         window.USER_PERSONAL_ID = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(userPersonalId));
         window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
         window.HAS_FCRM006 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM006));
-        console.log("window.HAS_FCRM006",window.HAS_FCRM006)
+        window.HAS_FCRM007 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM007));
+        console.log("window.HAS_FCRM006",window.HAS_FCRM006);
+        console.log("window.HAS_FCRM007",window.HAS_FCRM007);
         
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

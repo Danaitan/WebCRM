@@ -20,15 +20,14 @@ namespace webCRM.Controllers
         };
         public async Task<IActionResult> Index([FromQuery] string? user)
         {
-            var result = await GetProfileByPersonalCode(user);
-            if (result is ContentResult cr && cr.ContentType?.Contains("text/html") == true)
+            string personalCode = "100664";
+            // string personalCode = "100657";
+            if (!string.IsNullOrWhiteSpace(user))
             {
-                return cr;
+                personalCode = DecodeBase64(user);
             }
-            if (result is UnauthorizedObjectResult or UnauthorizedResult)
-            {
-                return result;
-            }
+            await GetProfileByPersonalCode(personalCode);
+            await PostDailyNotiAndEmail(personalCode);
             return RedirectToAction("Index", "Home");
         }
 
@@ -38,7 +37,7 @@ namespace webCRM.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-        public async Task<IActionResult> GetProfileByPersonalCode([FromQuery] string? user = null)
+        public async Task<IActionResult> GetProfileByPersonalCode([FromQuery] string personalCode)
         {
             try
             {
@@ -57,13 +56,6 @@ namespace webCRM.Controllers
                 }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                string personalCode = "100664";
-                // string personalCode = "100657";
-                if (!string.IsNullOrWhiteSpace(user))
-                {
-                    personalCode = DecodeBase64(user);
-                }
 
                 string url = $"{domain}/crm/api/v1/p2/getProfileByPersonalCode/{personalCode}";
                 var response = await client.GetAsync(url);
@@ -128,14 +120,14 @@ namespace webCRM.Controllers
                         //     $"{domain}/crm/api/v1/loginlog",
                         //     content);
 
-                        // await ActivityLogger.SendAsync(
-                        //     HttpContext,
-                        //     action: "Login",
-                        //     targetId: pCode,
-                        //     targetType: "USER",
-                        //     message: "Login successfully",
-                        //     module: "Login"
-                        // );
+                        await ActivityLogger.SendAsync(
+                            HttpContext,
+                            action: "Login",
+                            targetId: pCode,
+                            targetType: "USER",
+                            message: "Login successfully",
+                            module: "Login"
+                        );
 
                     }
                     else
@@ -267,6 +259,138 @@ namespace webCRM.Controllers
                 return Unauthorized(new { message = $"Login failed: {ex.Message}" });
             }
         }
-    
+
+        public async Task<IActionResult> GetProfile([FromQuery] string? user = null)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+                string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
+                if (string.IsNullOrEmpty(domain))
+                {
+                    return Unauthorized(new { message = "Login failed: API Domain is not configured. (ApiSettings:APILogin is null)" });
+                }
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                string url = $"{domain}/crm/api/v1/p2/getProfileByPersonalCode/{user}";
+                var response = await client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                string json = await response.Content.ReadAsStringAsync();
+
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { message = $"Login failed: {ex.Message}" });
+            }
+
+        }
+
+        public async Task<IActionResult> GetProfileByEmail([FromBody] string email)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new HttpClient(handler);
+
+                var bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
+                string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
+
+                if (string.IsNullOrEmpty(domain))
+                {
+                    return Unauthorized(new { message = "Login failed: API Domain is not configured. (ApiSettings:APILogin is null)" });
+                }
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                string url = $"{domain}/crm/api/v1/profile";
+                var response = await client.PostAsJsonAsync(url, email);
+                response.EnsureSuccessStatusCode();
+                string json = await response.Content.ReadAsStringAsync();
+
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { message = $"Login failed: {ex.Message}" });
+            }
+
+        }
+
+        public async Task<IActionResult> PostDailyNotiAndEmail([FromBody] string personalCode)
+        {
+            try
+            {
+                var handler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback =
+                        (message, cert, chain, errors) => true
+                };
+
+                using var client = new HttpClient(handler);
+
+                var bearerToken =
+                    Environment.GetEnvironmentVariable("ApiSettings__BearerToken")
+                    ?? configuration["ApiSettings:BearerToken"];
+
+                string? domain =
+                    Environment.GetEnvironmentVariable("ApiSettings__APIDomain")
+                    ?? configuration["ApiSettings:APIDomain"];
+
+                if (string.IsNullOrEmpty(domain))
+                {
+                    return Unauthorized(new
+                    {
+                        message = "API Domain is not configured."
+                    });
+                }
+
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", bearerToken);
+
+                string url = $"{domain}/crm/api/v1/p3/postDailyNotiAndEmail";
+
+                var requestBody = new
+                {
+                    personalCode = personalCode
+                };
+
+                var response = await client.PostAsJsonAsync(url, requestBody);
+
+                string json = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return StatusCode((int)response.StatusCode, new
+                    {
+                        message = "API request failed",
+                        statusCode = (int)response.StatusCode,
+                        response = json
+                    });
+                }
+
+                return Content(json, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
     }
 }

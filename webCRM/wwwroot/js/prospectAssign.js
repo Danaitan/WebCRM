@@ -39,6 +39,27 @@ async function PostNoti(PostNotiData){
     }
 }
 
+async function sendEmail(to, cc, subject, content) {
+    const ccArray = Array.isArray(cc)
+        ? cc
+        : (typeof cc === 'string' && cc.trim() !== '' ? cc.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const response = await fetch("/Suggestions/SendEmail", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            to: to,
+            cc: ccArray,
+            subject: subject,
+            content: content
+        }),
+        skipLoading: true
+    });
+
+    return response;
+}
+
 async function sendPostNotiForAssign(requestData, actionType) {
     try {
         if (!requestData || !requestData.assign_to) return;
@@ -64,10 +85,28 @@ async function sendPostNotiForAssign(requestData, actionType) {
 
         const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
         const message =
-            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ท่านได้รับการ <b>${typeName} Prospect</b>${campaignLabel ? ` จาก Campaign <b>${campaignLabel}</b>` : ''} จำนวน <b>${count}</b> รายการ<br>` +
-            (remark ? `หมายเหตุ: ${escapeHtml(remark)}<br>` : '') +
-            `<br>ขอขอบคุณ<br>` +
-            `${fullNameTh}`;
+            `<div style="line-height: 1.7;">
+                <div>
+                    ท่านได้รับการ <b>${typeName} Prospect</b>
+                    ${campaignLabel ? `จาก Campaign <b>${campaignLabel}</b>` : ''}
+                    จำนวน <b>${count}</b> รายการ
+                </div>
+
+                ${remark ? `
+                <div style="margin-top: 8px;">
+                    <span style="color: #666;">หมายเหตุ:</span>
+                    ${escapeHtml(remark)}
+                </div>
+                ` : ''}
+
+                <div style="margin-top: 16px;">
+                    ขอขอบคุณ
+                </div>
+
+                <div style="font-weight: 600; margin-top: 2px;">
+                    ${fullNameTh}
+                </div>
+            </div>`;
 
         const endDate = new Date();
         endDate.setFullYear(endDate.getFullYear() + 10);
@@ -88,7 +127,51 @@ async function sendPostNotiForAssign(requestData, actionType) {
                 create_by: senderId,
                 end_date: endDate
             });
+
+            const receiver_profile = await getProfileByCode(receiver);
+            const userIdBase64 = btoa(receiver);
+            const fullNameTh = userFullNameTh || '';
+            const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+            const emailContent =
+                `<div style="line-height: 1.7;">
+                    <div>
+                        ท่านได้รับการ <b>${typeName} Prospect</b>
+                        ${campaignLabel ? `จาก Campaign <b>${campaignLabel}</b>` : ''}
+                        จำนวน <b>${count}</b> รายการ
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        เข้าสู่ระบบผ่านลิงก์
+                        <a href="${homeUrl}" target="_blank">
+                            คลิกที่นี่เพื่อเข้าสู่ระบบCRM
+                        </a>
+                    </div>
+
+                    ${remark ? `
+                    <div style="margin-top: 8px;">
+                        <span style="color: #666;">หมายเหตุ:</span>
+                        ${escapeHtml(remark)}
+                    </div>
+                    ` : ''}
+
+                    <div style="margin-top: 16px;">
+                        ขอขอบคุณ
+                    </div>
+
+                    <div style="font-weight: 600; margin-top: 2px;">
+                        ${fullNameTh}
+                    </div>
+                </div>`;
+
+            await sendEmail(
+                receiver_profile.e_mail,
+                null,
+                "CRM : Assign Campaign " + campaignName,
+                emailContent
+            );
+
         }
+
     } catch (err) {
         console.error("Error sending PostNoti for Assign:", err);
     }
@@ -603,15 +686,15 @@ async function loadAndRenderStaffList(branchIds) {
     staffArray = uniqueStaff;
 
     // กรอง role RCRM011
-    staffArray = staffArray.filter(s => {
-        if (!s) return false;
+    // staffArray = staffArray.filter(s => {
+    //     if (!s) return false;
 
-        if (typeof s === 'object') {
-            return (s.role_id || '') === 'RCRM011';
-        }
+    //     if (typeof s === 'object') {
+    //         return (s.role_id || '') === 'RCRM011';
+    //     }
 
-        return true;
-    });
+    //     return true;
+    // });
 
     if (staffArray.length === 0) {
         const noDataHtml =
@@ -978,6 +1061,7 @@ function extractProspectCustomers(data) {
             const occupation = item.occupation || '-';
             const assignee = item.staffName || '-';
             const status = item.assign_status || '-';
+            const isActive = item.isActive || false;
 
             if (id || idno || (name && name !== '-')) {
                 items.push({
@@ -993,7 +1077,8 @@ function extractProspectCustomers(data) {
                     status: String(status).trim(),
                     createdDate: String(createdDate).trim(),
                     createdBy: String(createdBy).trim(),
-                    raw: item
+                    raw: item,
+                    isActive: isActive,
                 });
             }
         }
@@ -1180,9 +1265,21 @@ function filterAndRenderProspectTable() {
         pageItems.forEach(item => {
             const dotClass = getStatusDotClass(item.status, item.assignee);
             const statusText = getStatusLabel(item.status, item.assignee);
+            const isActive = item.isActive;
+
             html += `
                 <tr>
-                    <td class="text-center"><input type="checkbox" class="form-check-input prospect-checkbox" data-id="${escapeHtml(item.id)}" data-contract="${escapeHtml(item.contract)}" data-status="${escapeHtml(item.status)}"></td>
+                    <td class="text-center">
+                        <input 
+                            type="checkbox" 
+                            class="form-check-input prospect-checkbox" 
+                            data-id="${escapeHtml(item.id)}" 
+                            data-contract="${escapeHtml(item.contract)}" 
+                            -status="${escapeHtml(item.status)}"
+                            ${isActive ? '' : 'disabled'}
+                        >
+                    </td>
+
                     <td class="text-center">
                         <div class="fw-medium">${escapeHtml(item.branch)}</div>
                     </td>
@@ -1242,6 +1339,7 @@ function updateAssignButtonDisabledState() {
             autoAssignBtn.disabled = false;
         }
     }
+
 }
 
 function updateSelectedCount() {

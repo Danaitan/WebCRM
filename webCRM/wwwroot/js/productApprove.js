@@ -11,6 +11,37 @@ let prospectPageSize = 5;
 let prospectTotalCount = 0;
 let rawProspectItems = [];
 
+async function getProfileByCode (personalCode){
+    try {
+        const response = await fetch(`/Login/GetProfile?user=${personalCode}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in getProfileByCode:", error);
+    }
+}
+
+async function sendEmail(to, cc, subject, content) {
+    const ccArray = Array.isArray(cc)
+        ? cc
+        : (typeof cc === 'string' && cc.trim() !== '' ? cc.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const response = await fetch("/Suggestions/SendEmail", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            to: to,
+            cc: ccArray,
+            subject: subject,
+            content: content
+        }),
+        skipLoading: true
+    });
+
+    return response;
+}
+
 async function getCampaignDataForETL(productCode) {
     try {
         const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`);
@@ -304,15 +335,17 @@ function extractProspectCustomers(data) {
         }
 
         if (typeof item === 'object') {
-            const idno = item.idno || item.id_no || item.IdNo || item.IDNO || '';
-            const id = item.id || item.Id || item.prospect_id || item.prospectId || item.ID || '';
-            const name = item.nameCus || item.customer_name || item.customerName || item.name || item.cus_name || item.fullname || item.FullName || item.CustomerName || item.Name || item.CustName || item.cust_name || item.ชื่อลูกค้า || '-';
-            const contract = item.contno || item.contract_no || item.contractNo || item.contract || item.ContNo || item.เลขที่สัญญา || '-';
-            const branch = item.branch_Name || item.branch_name || item.branchName || item.branch || item.BranchName || item.ชื่อสาขาเดิม || item.ชื่อสาขา || item.branch_title || item.offcde || '-';
-            const offcde = item.offcde || item.contractoffcde || item.contractOffCde || item.branch_offcde || item.branchOffcde || item.branch_code || item.branchCode || '';
-            const carLocation = item.provinceUsecar || item.provinceUseCar || item.ProvinceUseCar || item.province_usecar || item.carLocation || item.car_location || item.carLocation_name || item.province || item.สถานที่ใช้รถ || '-';
-            const createdDate = item.created || item.created_date || item.createdDate || item.Created || item.ImportDate || item.import_date || item.importDate || item.date || item.วันที่เลือกข้อมูล || '-';
-            const createdBy = item.created_by || item.createdBy || item.createrd_by || item.CreaterdBy || item.create_by || item.createBy || item.staffName || item.StaffName || item.staff_name || item.createrd_by_name || item.ผู้เลือกข้อมูล || '-';
+
+            const idno = item.idno || '';
+            const id = item.id || '';
+            const name = item.nameCus || item.customer_name || '-';
+            const contract = item.contno || '-';
+            const offcde = item.offcde || '';
+            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
+            const createdDate = item.created || item.ImportDate || '-';
+            const createdBy = item.created_by || '-';
+            const isActive = item.isActive || false;
 
             const cleanName = String(name || '').trim();
             const cleanContract = String(contract || '').trim();
@@ -648,7 +681,6 @@ function updateDetailPanel(campaign) {
     const status = campaign.status || '';
     const note = campaign.remark || '-';
     const objective = campaign.objective || '';
-
     selectedCampaignCreatedBy = campaign.createdBy || '';
     const detailId = document.getElementById('detailId');
     if (detailId) detailId.value = id;
@@ -675,6 +707,17 @@ function updateDetailPanel(campaign) {
     if (detailStatus) {
         detailStatus.textContent = status;
         detailStatus.className = 'pa-status-box ' + statusClass(status);
+    }
+
+    const isActive = campaign.isActive;
+    if (isActive) {
+        $('#btnApprove').show();
+        $('#btnReject').show();
+        $('#btnReturn').show();
+    } else {
+        $('#btnApprove').hide();
+        $('#btnReject').hide();
+        $('#btnReturn').hide();
     }
 
     displayCampaignFile(campaign.file_id);
@@ -743,7 +786,8 @@ async function getCampainList(page, pageSize) {
             created:       item.created        ? String(item.created).substring(0, 10) : '',
             objective:     item.Objective_code || item.ObjectiveCode || '',
             file_id:       item.file_id || "",
-            IsImport:      item.IsImport || false
+            IsImport:      item.IsImport || false,
+            isActive:      item.isActive || false
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -1139,6 +1183,7 @@ $(document).ready(async function () {
                     var request = {
                         product_code: code || "",
                         status: "approved",
+                        product_remark: "",
                     };
                     const response = await fetch(`/ProspectSetup/updateProductBatchStatus`, {
                         method: 'PUT',
@@ -1169,22 +1214,34 @@ $(document).ready(async function () {
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
                         const creator = selectedCampaignCreatedBy || (currentCampaign ? currentCampaign.createdBy : '');
-                        const receivers = new Set();
-                        if (creator) receivers.add(creator);
-                        if (senderId) receivers.add(senderId);
 
-                        for (const receiver of receivers) {
-                            await PostNoti({
-                                header: "Campaign",
-                                title: `Campaign ${code} (${name})`,
-                                message: Content,
-                                receiver: receiver,
-                                sender: senderId,
-                                create_by: senderId,
-                                end_date: endDate,
-                            });
-                        }
+                        await PostNoti({
+                            header: "Campaign",
+                            title: `Campaign ${code} (${name})`,
+                            message: Content,
+                            receiver: creator,
+                            sender: senderId,
+                            create_by: senderId,
+                            end_date: endDate,
+                        });
 
+                        const profile = await getProfileByCode(creator);
+                        const userIdBase64 = btoa(profile.personnel_code);
+                        const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                        const emailContent =
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ได้รับการอนุมัติเรียบร้อยแล้ว<br><br>` +
+                            `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                            `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                            `<br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+                        
+                        await sendEmail(
+                            profile.e_mail,
+                            null,
+                            "CRM : การอนุมัติ Campaign เรื่อง " + name,
+                            emailContent
+                        );
                         stopLoading(true);
                         Swal.fire({
                             title: 'อนุมัติเรียบร้อย!',
@@ -1278,21 +1335,34 @@ $(document).ready(async function () {
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
                         const creator = selectedCampaignCreatedBy || (currentCampaign ? currentCampaign.createdBy : '');
-                        const receivers = new Set();
-                        if (creator) receivers.add(creator);
-                        if (senderId) receivers.add(senderId);
 
-                        for (const receiver of receivers) {
-                            await PostNoti({
-                                header: "Campaign",
-                                title: `Campaign ${code} (${name})`,
-                                message: Content,
-                                receiver: receiver,
-                                sender: senderId,
-                                create_by: senderId,
-                                end_date: endDate,
-                            });
-                        }
+                        await PostNoti({
+                            header: "Campaign",
+                            title: `Campaign ${code} (${name})`,
+                            message: Content,
+                            receiver: creator,
+                            sender: senderId,
+                            create_by: senderId,
+                            end_date: endDate,
+                        });
+
+                        const profile = await getProfileByCode(creator);
+                        const userIdBase64 = btoa(profile.personnel_code);
+                        const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                        const emailContent =
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ไม่ได้รับการอนุมัติ<br><br>` +
+                            `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                            `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                            `<br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+                        
+                        await sendEmail(
+                            profile.e_mail,
+                            null,
+                            "CRM : ไม่อนุมัติ Campaign เรื่อง " + name,
+                            emailContent
+                        );
 
                         stopLoading(true);
                         Swal.fire({
@@ -1389,26 +1459,41 @@ $(document).ready(async function () {
 
                         const senderId = typeof userId !== 'undefined' ? userId : '';
                         const creator = selectedCampaignCreatedBy || (currentCampaign ? currentCampaign.createdBy : '');
-                        const receivers = new Set();
-                        if (creator) receivers.add(creator);
-                        if (senderId) receivers.add(senderId);
 
-                        for (const receiver of receivers) {
-                            await PostNoti({
-                                header: "Campaign",
-                                title: `Campaign ${code} (${name})`,
-                                message: Content,
-                                receiver: receiver,
-                                sender: senderId,
-                                create_by: senderId,
-                                end_date: endDate,
-                            });
-                        }
+                        await PostNoti({
+                            header: "Campaign",
+                            title: `Campaign ${code} (${name})`,
+                            message: Content,
+                            receiver: creator,
+                            sender: senderId,
+                            create_by: senderId,
+                            end_date: endDate,
+                        });
 
+                        const profile = await getProfileByCode(creator);
+                        const userIdBase64 = btoa(profile.personnel_code);
+                        const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                        const emailContent =
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ได้ถูกส่งกลับให้แก้ไข<br>` +
+                            `<b>หมายเหตุการแก้ไข:</b> ${remark}<br><br>` +
+                            `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                            `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                            `<br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+                        
+                        await sendEmail(
+                            profile.e_mail,
+                            null,
+                            "CRM : ส่งกลับแก้ไข Campaign เรื่อง " + name,
+                            emailContent
+                        );
+                        console.log("creator", creator);
+                        console.log("profile",profile)
                         stopLoading(true);
                         Swal.fire({
-                            title: 'ส่งแก้ไขเรียบร้อย!',
-                            text: `ส่งแก้ไข ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
+                            title: 'ส่งกลับแก้ไขเรียบร้อย!',
+                            text: `ส่งกลับแก้ไข ${code || 'รายการ'} เรียบร้อยแล้ว (หมายเหตุ: ${remark})`,
                             icon: 'warning',
                             confirmButtonColor: '#f59e0b',
                             confirmButtonText: 'ตกลง'

@@ -1179,6 +1179,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     const idno = item.idno || '-';
                     const id = item.id || item.Id || '-';
                     const prospectBatch = item.prospect_batch || item.product_batch || '';
+                    const isActive = item.isActive;
 
                     let matchedBatch = null;
                     if (Array.isArray(currentProductBatches) && currentProductBatches.length > 0) {
@@ -1191,8 +1192,8 @@ async function loadProspectList(page = 1, pageSize = 10) {
                                        (id && strB === String(id).trim());
                             }
 
-                            const bBatch = b.prospect_batch || b.prospectBatch || b.product_batch || b.productBatch || b.batch_id || b.batch || b.code || b.product_batch_remark || '';
-                            const bId = b.id || b.Id || b.ID || b.cus_id || b.cust_id || '';
+                            const bBatch = b.prospect_batch || b.product_batch || '';
+                            const bId = b.id || '';
                             const bIds = Array.isArray(b.id) ? b.id : (Array.isArray(b.ids) ? b.ids : (Array.isArray(b.prospects) ? b.prospects : []));
 
                             if (prospectBatch && bBatch && String(bBatch).trim() === String(prospectBatch).trim()) {
@@ -1225,7 +1226,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     const isManuallySelected = idStr && manuallySelectedCustomers.has(idStr) && !isRemoved;
                     const isChecked = isMatched || isManuallySelected;
                     const canSelect = isProspectSelectionAllowed();
-                    const isDisabled = !canSelect || (isMatched && !isDraft);
+                    const isDisabled = !canSelect || (isMatched && !isDraft) || !isActive;
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `

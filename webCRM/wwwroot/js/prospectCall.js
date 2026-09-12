@@ -35,15 +35,6 @@ async function SearchCampaign() {
     loadCampaignData(1, campaignPageSize);
 }
 
-function getCampaignStatus(date) {
-    if (!date) return 'Expire';
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(0, 0, 0, 0);
-    return end >= today ? 'Active' : 'Expire';
-}
-
 function isUserAllowedForCampaign(campaign) {
     if (!campaign) return true;
     const campaignOffcde = String(campaign.offcde || '').trim();
@@ -124,7 +115,8 @@ async function getCampainList(page = 1, pageSize = 10) {
             created:       item.created        ? String(item.created).substring(0, 10)       : '',
             Objective_code: item.Objective_code || item.ObjectiveCode || '',
             IsImport:      item.IsImport || false,
-            offcde:        item.offcde         || item.Offcde || ''
+            offcde:        item.offcde         || item.Offcde || '',
+            isActive:      item.isActive || false
         }));
 
         const filteredMapped = mapped.filter(item => isUserAllowedForCampaign(item));
@@ -257,6 +249,7 @@ function extractProspectCustomers(data) {
             const remarks = item.remark || '';
             const rawNextAppt = item.appointment || '';
             const nextAppt = rawNextAppt ? formatDateCE(rawNextAppt) : '-';
+            const isActive = item.isActive || false;
 
             if (id || idno || (name && name !== '-')) {
                 items.push({
@@ -272,6 +265,7 @@ function extractProspectCustomers(data) {
                     statusLead: String(statusLead).trim(),
                     remarks: String(remarks).trim(),
                     nextAppt: String(nextAppt).trim(),
+                    isActive: isActive,
                     historyList: item.historyList || [],
                     raw: item
                 });
@@ -335,12 +329,13 @@ function renderCampaignList(items) {
     items.forEach(item => {
         const activeClass = (item.code === selectedCampaignCode) ? 'active' : '';
         
-        const statusText = getCampaignStatus(item.endDate);
-        const statusBadgeClass = (statusText === 'Active')
-            ? 'bg-success-subtle text-success border-success-subtle'
-            : 'bg-danger-subtle text-danger border-danger-subtle';
         // Objective badge styling (CS เขียว, MC/CL เหลือง, RM ฟ้า, FL ส้ม)
         const objBadge = getObjectiveBadge(item.Objective_code || '');
+        const statusText = item.isActive ? 'Active' : 'Expire';
+        const statusBadgeClass = (item.isActive)
+            ? 'bg-success-subtle text-success border-success-subtle'
+            : 'bg-danger-subtle text-danger border-danger-subtle';
+            
         const card = $(`
             <div class="pa-card ${activeClass} p-3 rounded-3 mb-2 border shadow-sm-hover cursor-pointer overflow-hidden" data-code="${escapeHtml(item.code)}">
                 <div class="d-flex align-items-center gap-2.5 w-100 overflow-hidden">
@@ -496,12 +491,12 @@ async function loadProspectCallData(productCode, page = 1, pageSize = 10) {
     $tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดข้อมูล Prospect...</td></tr>');
 
     const currentCampaign = campaignsData.find(c => c.code === productCode);
-    const isImport = currentCampaign ? (currentCampaign.IsImport === true || currentCampaign.IsImport === 'true' || currentCampaign.IsImport === 1 || currentCampaign.IsImport === '1') : false;
+    const isImport = currentCampaign ? currentCampaign.IsImport === true : false;
 
     let res = null;
     if (isImport) {
         const etlRes = await getCampaignDataForETL(productCode);
-        res = etlRes ? (etlRes.IsBatch || etlRes.isBatch || etlRes.is_batch || etlRes) : null;
+        res = etlRes ? (etlRes.IsBatch || etlRes) : null;
     } else {
         res = await getProductBatchByProductCode(productCode);
     }
@@ -1507,6 +1502,11 @@ async function openRecordResultModal(trElement) {
     // Populate modalProduct dropdown based on Objective (CS/RM vs MC/FL)
     populateProductDropdownOptions(masterDropdownData, campaignObjectiveCode);
 
+    if (customer.isActive) {
+        $('#btnSaveResult').show();
+    } else {
+        $('#btnSaveResult').hide();
+    }
     // Set modal title & customer summary info
     $('#modalCustName').text(customer.name).attr('title', customer.name);
     $('#modalCustPhone').text(customer.phone);

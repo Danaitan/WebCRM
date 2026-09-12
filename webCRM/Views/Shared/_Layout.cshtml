@@ -290,10 +290,15 @@
                         ?? Configuration["ApiSettings:APIDomain"] 
                         ?? Configuration.GetSection("ApiSettings")["APIDomain"] 
                         ?? "";
+        var webDomain = Environment.GetEnvironmentVariable("ApiSettings__WebDomain")
+                        ?? Configuration["ApiSettings:WebDomain"]
+                        ?? Configuration.GetSection("ApiSettings")["WebDomain"]
+                        ?? "";
     }
     <script>
         var userId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(personalId ?? ""));
         var apiDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiDomain ?? ""));
+        var webDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(webDomain ?? ""));
         var currentUserEmail = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("email") ?? ""));
         var userFullNameEn = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameEn") ?? ""));
         var userFullNameTh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameTh") ?? ""));

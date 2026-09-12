@@ -467,38 +467,56 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
             throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
         }
 
-        if (senderEmail && senderEmail !== '-' && senderEmail !== 'undefined' && senderEmail !== 'null') {
+        if (senderEmail) {
             try {
-                const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                const emailContent = `เรียน ${senderEmail}<br><br>` +
-                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียน โดยมีเนื้อหาดังนี้ ${reply} <br><br>` +
+                const userIdBase64 = btoa(userId);
+                const $activeRow = $('#suggestionsTable tbody tr.table-active');
+                const creator = $activeRow.length
+                    ? ($activeRow.attr('data-updby') || '')
+                    : '';
+                const profile = await getProfileByCode(creator);
+                const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
+                const fullNameTh = userFullNameTh || '';
+                const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                const emailContent =
+                    `เรียน ${profile.thname}<br><br>` +
+                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fullNameTh} ` +
+                    `ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                    `โดยมีเนื้อหาดังนี้ ${reply}<br><br>` +
+                    `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                    `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                    `<br><br>` +
                     `ขอขอบคุณ<br>` +
                     `${fullNameTh}`;
 
-                if (typeof sendEmail === 'function') {
-                    await sendEmail(
-                        senderEmail,
-                        null,
-                        "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน",
-                        emailContent
-                    );
-                }
+                await sendEmail(
+                    profile.e_mail,
+                    null,
+                    "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
+                    emailContent
+                );
 
                 const endDate = new Date();
                 endDate.setFullYear(endDate.getFullYear() + 10);
                 const senderId = typeof userId !== 'undefined' ? userId : '';
+                const notiContent = `เรียน ${profile.thname},<br><br>` +
+                    `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${fullNameTh} ` +
+                    `ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                    `โดยมีเนื้อหาดังนี้ ${reply}<br><br>` +
+                    `ขอขอบคุณ<br>` +
+                    `${fullNameTh}`;
 
-                if (typeof PostNoti === 'function') {
-                    await PostNoti({
-                        header: "ข้อเสนอแนะ/ร้องเรียน",
-                        title: "เรื่อง : ตอบกลับข้อเสนอแนะ/ร้องเรียน",
-                        message: emailContent,
-                        receiver_email: senderEmail,
-                        sender: senderId,
-                        create_by: senderId,
-                        end_date: endDate,
-                    });
-                }
+                await PostNoti({
+                    header: "ข้อเสนอแนะ/ร้องเรียน",
+                    title: "เรื่อง : " + topicTitle,
+                    message: notiContent,
+                    receiver_email: profile.e_mail,
+                    receiver: profile.personnel_code,
+                    sender: senderId,
+                    create_by: senderId,
+                    end_date: endDate,
+                });
+                
             } catch (emailErr) {
                 console.error("เกิดข้อผิดพลาดในการส่งอีเมลตอบกลับ:", emailErr);
             }

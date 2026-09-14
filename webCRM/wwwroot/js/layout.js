@@ -228,14 +228,15 @@ async function getNotiDetail(id) {
 function fetchNotifications() {
     const personalCode = typeof userId !== 'undefined' ? userId : '';
     $.ajax({
-        url: '/Layout/GetNotification?overall=true&receiver='+personalCode,
+        // url: '/Layout/GetNotification?overall=true&receiver='+personalCode,
+        url: '/Home/GetNotification?overall=true&receiver='+personalCode,
         type: 'GET',
         dataType: 'json',
         success: function (response) {
             renderNotifications(response);
         },
         error: function (err) {
-            console.error("Error fetching notifications from /Layout/GetNotification:", err);
+            console.error("Error fetching notifications:", err);
         }
     });
 }

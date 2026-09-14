@@ -1,18 +1,13 @@
-
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http.Headers;
-using Microsoft.AspNetCore.WebUtilities;
+using System.Text.Json;
+using webCRM.Services;
 
 namespace webCRM.Controllers
 {
     public class DashboardSuggestionController(
-        IConfiguration configuration) : Controller
+        CRMService crmService) : Controller
     {
-
-        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
-        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
-
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
             return View("~/Views/Home/Dashboard/suggestion.cshtml");
         }
@@ -23,85 +18,61 @@ namespace webCRM.Controllers
             string? provider,
             string? branch,
             string? title,
-            string? status
-        )
+            string? status)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                var data = await crmService.GetSuggestionDashboard(
+                    startdate,
+                    enddate,
+                    provider,
+                    branch,
+                    title,
+                    status);
 
-                    var queryParams = new Dictionary<string, string?>();
-                    if (startdate != null)
-                        queryParams["startdate"] = startdate;
-                    if (enddate != null)
-                        queryParams["enddate"] = enddate;
-                    if (!string.IsNullOrEmpty(provider))
-                        queryParams["provider"] = provider;
-                    if (!string.IsNullOrEmpty(title))
-                        queryParams["title"] = title;
-                    if (!string.IsNullOrEmpty(status))
-                        queryParams["status"] = status;
-                    if (!string.IsNullOrEmpty(branch))
-                        queryParams["branch"] = branch;
-
-                    var url = QueryHelpers.AddQueryString(
-                        $"{domain}/crm/api/v1/p3/suggestionDashboard", queryParams);
-                    var response = await client.GetAsync(url);
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(data))
-                    {
-                        return Content(string.IsNullOrWhiteSpace(data)
-                            ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}"
-                            : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
-
+                return Content(data, "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        data = Array.Empty<object>()
+                    }),
+                    "application/json");
             }
         }
 
         public async Task<IActionResult> GetPersonalAndGroup()
         {
-
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                var data =
+                    await crmService.GetPersonalAndGroup();
 
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getPersonalAndGroup");
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(data))
-                    {
-                        return Content(string.IsNullOrWhiteSpace(data)
-                            ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"group\": [], \"personal\": [], \"personalAbb\": []}}"
-                            : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
-
+                return Content(data, "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
-            }
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
 
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        group = Array.Empty<object>(),
+                        personal = Array.Empty<object>(),
+                        personalAbb = Array.Empty<object>()
+                    }),
+                    "application/json");
+            }
         }
 
         public async Task<IActionResult> GetSuggestionDashboardExcel(
@@ -110,53 +81,35 @@ namespace webCRM.Controllers
             string? provider,
             string? branch,
             string? title,
-            string? status
-        )
+            string? status)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                var data =
+                    await crmService.GetSuggestionDashboardExcel(
+                        startdate,
+                        enddate,
+                        provider,
+                        branch,
+                        title,
+                        status);
 
-                    var queryParams = new Dictionary<string, string?>();
-                    if (startdate != null)
-                        queryParams["startdate"] = startdate;
-                    if (enddate != null)
-                        queryParams["enddate"] = enddate;
-                    if (!string.IsNullOrEmpty(provider))
-                        queryParams["provider"] = provider;
-                    if (!string.IsNullOrEmpty(title))
-                        queryParams["title"] = title;
-                    if (!string.IsNullOrEmpty(status))
-                        queryParams["status"] = status;
-                    if (!string.IsNullOrEmpty(branch))
-                        queryParams["branch"] = branch;
-
-                    var url = QueryHelpers.AddQueryString(
-                        $"{domain}/crm/api/v1/p3/suggestionDashboardExcel", queryParams);
-                    var response = await client.GetAsync(url);
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(data))
-                    {
-                        return Content(string.IsNullOrWhiteSpace(data)
-                            ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}"
-                            : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
-
+                return Content(data, "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        data = Array.Empty<object>()
+                    }),
+                    "application/json");
             }
         }
-    
     }
 }

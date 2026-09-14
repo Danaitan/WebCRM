@@ -10,10 +10,11 @@ using webCRM.Services;
 
 namespace webCRM.Controllers
 {
-    public class CampainController(IConfiguration configuration, IWebHostEnvironment webHostEnvironment) : Controller
+    public class CampainController(
+        CRMService crmService,
+        IWebHostEnvironment webHostEnvironment
+        ) : Controller
     {
-        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
-        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
         public async Task<IActionResult> Index()
         {
             return View("campain");
@@ -26,470 +27,329 @@ namespace webCRM.Controllers
             string startDate = "",
             string endDate = "",
             string branch = "",
-            string search = ""
-            )
+            string search = "")
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    string userId = HttpContext.Session.GetString("personalId") ?? "";
-                    string reqPage = string.IsNullOrEmpty(page) ? "1" : page;
-                    string reqPageSize = string.IsNullOrEmpty(pageSize) ? "20" : pageSize;
-
-                    string url = $"{domain}/crm/api/v1/p2/getProductsPhase3/{reqPage}/{reqPageSize}";
-                    var queryParams = new List<string>();
-                    if (!string.IsNullOrEmpty(status)) queryParams.Add($"status={Uri.EscapeDataString(status)}");
-                    if (!string.IsNullOrEmpty(startDate)) queryParams.Add($"startDate={Uri.EscapeDataString(startDate)}");
-                    if (!string.IsNullOrEmpty(endDate)) queryParams.Add($"endDate={Uri.EscapeDataString(endDate)}");
-                    if (!string.IsNullOrEmpty(branch)) queryParams.Add($"branch={Uri.EscapeDataString(branch)}");
-                    if (!string.IsNullOrEmpty(search)) queryParams.Add($"search={Uri.EscapeDataString(search)}");
-
-                    if (queryParams.Count > 0)
-                    {
-                        url += "?" + string.Join("&", queryParams);
-                    }
-                    var response = await client.GetAsync(url);
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    //if (response.IsSuccessStatusCode)
-                    {
-                        using var doc = JsonDocument.Parse(data);
-
-                        var firstData = doc.RootElement
-                                           .GetProperty("data")[0];
-
-                        var productStart = firstData
-                                           .GetProperty("product_start")
-                                           .GetString();
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<CampainPagedResult>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        var result = apiResponse;
-
-                        return result ?? new CampainPagedResult();
-                    }
-
-                }
+                return await crmService.GetCampainList(
+                    page,
+                    pageSize,
+                    status,
+                    startDate,
+                    endDate,
+                    branch,
+                    search);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
                 return new CampainPagedResult();
             }
-
         }
 
         public async Task<string> DeleteCampain(string productId)
         {
             try
             {
-                var handler = new HttpClientHandler
+                var result =
+                    await crmService.DeleteCampain(productId);
+
+                if (result.Success)
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                    await ActivityLogger.SendAsync(
+                        HttpContext,
+                        action: "Remove Campaign",
+                        targetId: productId,
+                        targetType: "Campaign",
+                        message: "Remove campaign successfully",
+                        module: "putProductRemove"
+                    );
 
-                    var response = await client.PutAsync($"{domain}/crm/api/v1/p2/putProductRemove/{productId}", null);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        await ActivityLogger.SendAsync(
-                            HttpContext,
-                            action: "Remove Campaign",
-                            targetId: productId,
-                            targetType: "Campaign",
-                            message: "Remove campaign successfully",
-                            module: "putProductRemove"
-                        );
-
-                        return "Remove Success";
-                    }
-
-                    string errStr = await response.Content.ReadAsStringAsync();
-                    return $"Remove Failed: ({response.StatusCode}) {errStr}";
+                    return "Remove Success";
                 }
+
+                return
+                    $"Remove Failed: ({result.StatusCode}) {result.Error}";
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการลบข้อมูล: " + ex.Message;
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการลบข้อมูล: " + ex.Message;
+
                 return "Remove Failed: " + ex.Message;
             }
         }
 
         [HttpPost]
-        public async Task<IActionResult> PostCampain([FromBody] PostCampaign request)
+        public async Task<IActionResult> PostCampain([FromBody] PostCampaign? request)
         {
             try
             {
-                var company = HttpContext.Session.GetString("company");
-                if (request?.ProductInfo != null)
+                if (request == null)
                 {
-                    request.ProductInfo.ProductCompany = company;
-                }
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                var content = new StringContent(
-                    JsonSerializer.Serialize(new[] { request }),
-                    Encoding.UTF8,
-                    "application/json");
-
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p2/postNewProduct",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
-                }
-
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "Post Campaign",
-                    targetId: "",
-                    targetType: "Campaign",
-                    message: "Post campaign successfully",
-                    module: "postNewProduct"
-                );
-
-                string json = await response.Content.ReadAsStringAsync();
-
-                return Ok(new { status = "success" });
-            }
-            catch (System.Exception ex)
-            {
-                return Ok(new { status = "error", message = ex.Message });
-            }
-
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = "ไม่พบข้อมูล Campaign"
+                    });
         }
 
+        var company =
+            HttpContext.Session.GetString("company");
+
+        if (request.ProductInfo != null)
+        {
+            request.ProductInfo.ProductCompany = company;
+        }
+
+        var result =
+            await crmService.PostCampain(request);
+
+        if (!result.Success)
+        {
+            return Ok(new
+            {
+                status = "error",
+                message =
+                    $"API responded with status code: {result.StatusCode}",
+                detail = result.Response
+            });
+        }
+
+        await ActivityLogger.SendAsync(
+            HttpContext,
+            action: "Post Campaign",
+            targetId: "",
+            targetType: "Campaign",
+            message: "Post campaign successfully",
+            module: "postNewProduct"
+        );
+
+        return Ok(new
+        {
+            status = "success"
+        });
+    }
+    catch (Exception ex)
+    {
+        return Ok(new
+        {
+            status = "error",
+            message = ex.Message
+        });
+    }
+}
         public async Task<List<Branch>> getBranchListForCRM()
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getBranchListForCRM");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string data = await response.Content.ReadAsStringAsync();
-                        var apiResponse = System.Text.Json.JsonSerializer.Deserialize<List<Branch>>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        var result = apiResponse;
-
-                        return result ?? new List<Branch>();
-                    }
-                    else
-                    {
-                        // Handle non-success status codes (like 404) gracefully
-                        Console.WriteLine($"API Error: {response.StatusCode}");
-                        return new List<Branch>();
-                    }
-                }
-
+                return await crmService.GetBranchListForCRM();
             }
-            catch (System.Exception ex)
-            {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return new List<Branch>();
-            }
-        }
+    catch (Exception ex)
+    {
+        ViewBag.ErrorMessage =
+            "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
 
+        return new List<Branch>();
+    }
+}
         public async Task<List<MasterFilter>> GetMasterFilter(string? company = null)
         {
-
             try
             {
-                var handler = new HttpClientHandler
+                var comp =
+                    !string.IsNullOrWhiteSpace(company)
+                        ? company
+                        : HttpContext.Session.GetString("company")
+                    ?? "MICRO";
+
+                if (string.IsNullOrWhiteSpace(comp))
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var comp = !string.IsNullOrWhiteSpace(company) ? company : (HttpContext.Session.GetString("company") ?? "MICRO");
-                    if (string.IsNullOrWhiteSpace(comp)) comp = "MICRO";
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getMasterFilter/{comp}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string data = await response.Content.ReadAsStringAsync();
-                        List<MasterFilter>? list = null;
-                        try
-                        {
-                            using var doc = JsonDocument.Parse(data);
-                            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                            {
-                                list = JsonSerializer.Deserialize<List<MasterFilter>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                            }
-                            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                            {
-                                if (doc.RootElement.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array)
-                                {
-                                    list = JsonSerializer.Deserialize<List<MasterFilter>>(dataProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                                }
-                                else if (doc.RootElement.TryGetProperty("result", out var resultProp) && resultProp.ValueKind == JsonValueKind.Array)
-                                {
-                                    list = JsonSerializer.Deserialize<List<MasterFilter>>(resultProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                                }
-                            }
-                        }
-                        catch (Exception parseEx)
-                        {
-                            Console.WriteLine($"Error parsing GetMasterFilter: {parseEx.Message}");
-                        }
-
-                        var result = list?
-                            .Where(x => !string.IsNullOrWhiteSpace(x.FCode))
-                            .GroupBy(x => x.FCode!.Trim(), StringComparer.OrdinalIgnoreCase)
-                            .Select(g => g.First())
-                            .ToList();
-
-                        return result ?? new List<MasterFilter>();
-                    }
-                    else
-                    {
-                        Console.WriteLine($"API Error: {response.StatusCode}");
-                        return new List<MasterFilter>();
-                    }
+                    comp = "MICRO";
                 }
 
+                return await crmService.GetMasterFilter(comp);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
                 return new List<MasterFilter>();
             }
-
         }
 
         [HttpPost]
-        public async Task<IActionResult> InsertFilter([FromBody] List<PostFilter> request)
+        public async Task<IActionResult> InsertFilter([FromBody] List<PostFilter>? request)
         {
             try
             {
-                var handler = new HttpClientHandler
+                if (request == null)
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                var comp = HttpContext.Session.GetString("company") ?? "MICRO";
-                if (string.IsNullOrWhiteSpace(comp)) comp = "MICRO";
-                if (request != null)
-                {
-                    foreach (var item in request)
+                    return Ok(new
                     {
-                        if (string.IsNullOrWhiteSpace(item.fcompany))
-                        {
-                            item.fcompany = comp;
-                        }
+                        status = "error",
+                        message = "ไม่พบข้อมูล Filter"
+                    });
+                }
+
+                var comp =
+                    HttpContext.Session.GetString("company")
+                    ?? "MICRO";
+
+                if (string.IsNullOrWhiteSpace(comp))
+                {
+                    comp = "MICRO";
+                }
+
+                foreach (var item in request)
+                {
+                    if (string.IsNullOrWhiteSpace(item.fcompany))
+                    {
+                        item.fcompany = comp;
                     }
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService.InsertFilter(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p2/postNewProductFilter",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: {result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
-                string json = await response.Content.ReadAsStringAsync();
-
-                return Ok(new { status = "success" });
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
-
         }
-
+        
         [HttpGet]
         public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid, string? company = null)
         {
             try
             {
-                var handler = new HttpClientHandler
+                var comp =
+                    !string.IsNullOrWhiteSpace(company)
+                        ? company
+                        : HttpContext.Session.GetString("company")
+                            ?? "MICRO";
+
+                if (string.IsNullOrWhiteSpace(comp))
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var comp = !string.IsNullOrWhiteSpace(company) ? company : (HttpContext.Session.GetString("company") ?? "MICRO");
-                    if (string.IsNullOrWhiteSpace(comp)) comp = "MICRO";
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProductFilterByGuid/{fguid}/{comp}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string data = await response.Content.ReadAsStringAsync();
-                        List<GetFilterByGuid>? list = null;
-                        try
-                        {
-                            using var doc = JsonDocument.Parse(data);
-                            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                            {
-                                list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                            }
-                            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                            {
-                                if (doc.RootElement.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array)
-                                {
-                                    list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(dataProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                                }
-                                else if (doc.RootElement.TryGetProperty("result", out var resultProp) && resultProp.ValueKind == JsonValueKind.Array)
-                                {
-                                    list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(resultProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                                }
-                                else if (doc.RootElement.TryGetProperty("filters", out var filtersProp) && filtersProp.ValueKind == JsonValueKind.Array)
-                                {
-                                    list = JsonSerializer.Deserialize<List<GetFilterByGuid>>(filtersProp.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                                }
-                            }
-                        }
-                        catch (Exception parseEx)
-                        {
-                            Console.WriteLine($"Error parsing GetFilterByGuid: {parseEx.Message}");
-                        }
-
-                        var result = list?
-                            .Where(x => !string.IsNullOrWhiteSpace(x.fcode))
-                            .GroupBy(x => x.fcode!.Trim(), StringComparer.OrdinalIgnoreCase)
-                            .Select(g => g.First())
-                            .ToList();
-
-                        return result ?? new List<GetFilterByGuid>();
-                    }
-                    else
-                    {
-                        Console.WriteLine($"API Error: {response.StatusCode}");
-                        return new List<GetFilterByGuid>();
-                    }
+                    comp = "MICRO";
                 }
 
+                return await crmService.GetFilterByGuid(
+                    fguid,
+                    comp);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
                 return new List<GetFilterByGuid>();
             }
         }
-
+        
         [HttpPut]
         public async Task<IActionResult> UpdateCampaign([FromBody] PostCampaign request)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.PutAsync($"{domain}/crm/api/v1/p2/putProductsPhase3",
-                        new StringContent(
-                            JsonSerializer.Serialize(request),
-                            Encoding.UTF8,
-                            "application/json"));
+                var result =
+                    await crmService.UpdateCampaign(request);
 
-                    string json = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                if (!result.Success)
+                {
+                    return Ok(new
                     {
-                        return Ok(new
-                        {
-                            status = "error",
-                            message = $"API responded with status code: {response.StatusCode}",
-                            detail = json
-                        });
-                    }
-
-                    await ActivityLogger.SendAsync(
-                        HttpContext,
-                        action: "Update Campaign",
-                        targetId: request.ProductInfo?.Id ?? "",
-                        targetType: "Campaign",
-                        message: "Update campaign successfully",
-                        module: "putProductsPhase3"
-                    );
-
-                    return Ok(new { status = "success", data = json });
+                        status = "error",
+                        message =
+                            $"API responded with status code: {result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "Update Campaign",
+                    targetId: request.ProductInfo?.Id ?? "",
+                    targetType: "Campaign",
+                    message: "Update campaign successfully",
+                    module: "putProductsPhase3"
+                );
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result.Response
+                });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
-
+        
         [HttpGet]
         public async Task<IActionResult> GetProspect(int page = 1, int pageSize = 10)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getProspect_phase3/{page}/{pageSize}");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    return Content(data, "application/json");
-                }
-            }
-            catch (System.Exception ex)
-            {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"page\": " + page + ", \"pageSize\": " + pageSize + ", \"count\": 0, \"data\": []}", "application/json");
-            }
-        }
+                var data =
+            await crmService.GetProspect(
+                page,
+                pageSize);
+
+        return Content(
+            data,
+            "application/json");
+    }
+    catch (Exception ex)
+    {
+        ViewBag.ErrorMessage =
+            "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
+        return Content(
+            $"{{\"page\": {page}, \"pageSize\": {pageSize}, \"count\": 0, \"data\": []}}",
+            "application/json");
+    }
+}
 
         public async Task<string> GetCheckProductNo()
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getCheckProductNo");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    return data;
-                }
+                return await crmService.GetCheckProductNo();
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
                 return "";
             }
         }
@@ -497,27 +357,21 @@ namespace webCRM.Controllers
         [HttpGet]
         public async Task<IActionResult> getMasterObjective()
         {
-
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getMasterObjective");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    return Content(data, "application/json");
-                }
-            }
-            catch (System.Exception ex)
-            {
-                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
-            }
+                var data =
+            await crmService.GetMasterObjective();
 
+                return Content(
+                    data,
+            "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Content(
+                    $"\"เกิดข้อผิดพลาดในการโหลดข้อมูล: {ex.Message}\"",
+                    "application/json");
+            }
         }
 
         [HttpPost]
@@ -525,138 +379,149 @@ namespace webCRM.Controllers
         {
             try
             {
-                var handler = new HttpClientHandler
+                request.created_by =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
+
+                var result =
+                    await crmService.PostFile(request);
+
+                if (!result.Success)
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.created_by = HttpContext.Session.GetString("personalId") ?? "";
-                var jsonOptions = new JsonSerializerOptions
-                {
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                };
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request, jsonOptions),
-                    Encoding.UTF8,
-                    "application/json");
-
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/postFile",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
-                }
-
-                string json = await response.Content.ReadAsStringAsync();
-
-                long fileId = 0;
-                try
-                {
-                    using var doc = JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("Id", out var idProp) || root.TryGetProperty("id", out idProp))
+                    return Ok(new
                     {
-                        if (idProp.ValueKind == JsonValueKind.Number)
-                        {
-                            fileId = idProp.GetInt64();
-                        }
-                        else if (idProp.ValueKind == JsonValueKind.String && long.TryParse(idProp.GetString(), out long parsedId))
-                        {
-                            fileId = parsedId;
-                        }
-                    }
+                        status = "error",
+                        message =
+                            $"API responded with status code: {result.StatusCode}"
+                    });
                 }
-                catch
+
+                return Ok(new
                 {
-                }
-
-                return Ok(new { status = "success", id = fileId, data = json });
+                    status = "success",
+                    id = result.FileId,
+                    data = result.Response
+                });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
-
         }
 
         [HttpGet]
         public async Task<IActionResult> getFile(long Id)
         {
-
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getFile?Id={Id}");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    return Content(data, "application/json");
-                }
-            }
-            catch (System.Exception ex)
-            {
-                return Content("\"เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message + "\"", "application/json");
-            }
+                var data =
+                    await crmService.GetFile(Id);
 
+                return Content(
+                    data,
+                    "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Content(
+                    $"\"เกิดข้อผิดพลาดในการโหลดข้อมูล: {ex.Message}\"",
+                    "application/json");
+            }
         }
 
         [HttpPost]
-        public async Task<IActionResult> UploadCampaignFile(IFormFile file, string campaignCode)
+        public async Task<IActionResult> UploadCampaignFile(
+            IFormFile file,
+            string campaignCode)
         {
             try
             {
                 if (file == null || file.Length == 0)
                 {
-                    return Ok(new { status = "error", message = "กรุณาเลือกไฟล์" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = "กรุณาเลือกไฟล์"
+                    });
                 }
 
                 if (string.IsNullOrWhiteSpace(campaignCode))
                 {
-                    return Ok(new { status = "error", message = "ไม่พบรหัสแคมเปญ กรุณาเลือกหรือสร้างแคมเปญก่อนแนบเอกสาร" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            "ไม่พบรหัสแคมเปญ กรุณาเลือกหรือสร้างแคมเปญก่อนแนบเอกสาร"
+                    });
                 }
 
-                string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
-                string folderPath = Path.Combine(contentRootPath, "campaignFile", campaignCode);
+                string contentRootPath =
+                    webHostEnvironment.ContentRootPath
+                    ?? Directory.GetCurrentDirectory();
 
-                if (!Directory.Exists(folderPath))
-                {
-                    Directory.CreateDirectory(folderPath);
-                }
+                string folderPath =
+                    Path.Combine(
+                        contentRootPath,
+                        "campaignFile",
+                        campaignCode);
 
-                string originalFileName = Path.GetFileName(file.FileName);
-                string extension = Path.GetExtension(originalFileName);
+                Directory.CreateDirectory(folderPath);
+
+                string originalFileName =
+                    Path.GetFileName(file.FileName);
+
+                string extension =
+                    Path.GetExtension(originalFileName);
 
                 var now = DateTime.Now;
-                int thaiYear = now.Year > 2400 ? now.Year : now.Year + 543;
-                string timeStamp = $"{now.Day:D2}{now.Month:D2}{thaiYear}{now:HHmmss}";
-                string cleanCampaignCode = campaignCode.Replace("-", "").Trim();
 
-                string fileName = $"{cleanCampaignCode}{timeStamp}{extension}";
-                string filePath = Path.Combine(folderPath, fileName);
+                int thaiYear =
+                    now.Year > 2400
+                        ? now.Year
+                        : now.Year + 543;
+
+                string timeStamp =
+                    $"{now.Day:D2}{now.Month:D2}{thaiYear}{now:HHmmss}";
+
+                string cleanCampaignCode =
+                    campaignCode.Replace("-", "").Trim();
+
+                string fileName =
+                    $"{cleanCampaignCode}{timeStamp}{extension}";
+
+                string filePath =
+                    Path.Combine(folderPath, fileName);
+
                 int index = 1;
 
                 while (System.IO.File.Exists(filePath))
                 {
-                    fileName = $"{cleanCampaignCode}{timeStamp}_{index}{extension}";
-                    filePath = Path.Combine(folderPath, fileName);
+                    fileName =
+                        $"{cleanCampaignCode}{timeStamp}_{index}{extension}";
+
+                    filePath =
+                        Path.Combine(folderPath, fileName);
+
                     index++;
                 }
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                await using (var stream = new FileStream(
+                    filePath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    81920,
+                    useAsync: true))
                 {
                     await file.CopyToAsync(stream);
                 }
 
-                string relativePath = $"campaignFile/{campaignCode}/{fileName}";
+                string relativePath =
+                    $"campaignFile/{campaignCode}/{fileName}";
 
                 var postFileRequest = new PostFile
                 {
@@ -666,14 +531,20 @@ namespace webCRM.Controllers
 
                 return await PostFile(postFileRequest);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
 
         [HttpGet]
-        public IActionResult DownloadFile(string filePath, string? fileName = null)
+        public IActionResult DownloadFile(
+            string filePath,
+            string? fileName = null)
         {
             try
             {
@@ -682,56 +553,137 @@ namespace webCRM.Controllers
                     return NotFound("File path is empty.");
                 }
 
-                string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
-                string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
+                string contentRootPath =
+                    webHostEnvironment.ContentRootPath
+                    ?? Directory.GetCurrentDirectory();
 
-                string cleanedRelativePath = filePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
-                string fullPath = Path.GetFullPath(Path.Combine(contentRootPath, cleanedRelativePath));
+                string rootPath =
+                    Path.GetFullPath(
+                        Path.Combine(contentRootPath, ".."));
 
-                string fullRootPath = Path.GetFullPath(rootPath);
-                string fullContentRootPath = Path.GetFullPath(contentRootPath);
+                string cleanedRelativePath =
+                    filePath
+                        .TrimStart('/', '\\')
+                        .Replace(
+                            '/',
+                            Path.DirectorySeparatorChar);
 
-                if (!fullPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) &&
-                    !fullPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase))
+                string fullPath =
+                    Path.GetFullPath(
+                        Path.Combine(
+                            contentRootPath,
+                            cleanedRelativePath));
+
+                string fullRootPath =
+                    Path.GetFullPath(rootPath);
+
+                string fullContentRootPath =
+                    Path.GetFullPath(contentRootPath);
+
+                if (!fullPath.StartsWith(
+                        fullRootPath,
+                        StringComparison.OrdinalIgnoreCase)
+                    &&
+                    !fullPath.StartsWith(
+                        fullContentRootPath,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest("Invalid file path.");
                 }
 
                 if (!System.IO.File.Exists(fullPath))
                 {
-                    string altPath = Path.GetFullPath(Path.Combine(rootPath, cleanedRelativePath));
-                    if (System.IO.File.Exists(altPath) &&
-                        (altPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) || altPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase)))
+                    string altPath =
+                        Path.GetFullPath(
+                            Path.Combine(
+                                rootPath,
+                                cleanedRelativePath));
+
+                    if (System.IO.File.Exists(altPath)
+                        &&
+                        (
+                            altPath.StartsWith(
+                                fullRootPath,
+                                StringComparison.OrdinalIgnoreCase)
+                            ||
+                            altPath.StartsWith(
+                                fullContentRootPath,
+                                StringComparison.OrdinalIgnoreCase)
+                        ))
                     {
                         fullPath = altPath;
                     }
                     else
                     {
-                        return NotFound("File not found on server.");
+                        return NotFound(
+                            "File not found on server.");
                     }
                 }
 
-                string downloadFileName = !string.IsNullOrWhiteSpace(fileName) ? fileName : Path.GetFileName(fullPath);
-                string contentType = "application/octet-stream";
-                string ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                string downloadFileName =
+                    !string.IsNullOrWhiteSpace(fileName)
+                        ? fileName
+                        : Path.GetFileName(fullPath);
+
+                string contentType =
+                    "application/octet-stream";
+
+                string ext =
+                    Path.GetExtension(fullPath)
+                        .ToLowerInvariant();
+
                 switch (ext)
                 {
-                    case ".pdf": contentType = "application/pdf"; break;
-                    case ".doc": contentType = "application/msword"; break;
-                    case ".docx": contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; break;
-                    case ".xls": contentType = "application/vnd.ms-excel"; break;
-                    case ".xlsx": contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; break;
-                    case ".png": contentType = "image/png"; break;
-                    case ".jpg": case ".jpeg": contentType = "image/jpeg"; break;
-                    case ".txt": contentType = "text/plain; charset=utf-8"; break;
+                    case ".pdf":
+                        contentType = "application/pdf";
+                        break;
+
+                    case ".doc":
+                        contentType = "application/msword";
+                        break;
+
+                    case ".docx":
+                        contentType =
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                        break;
+
+                    case ".xls":
+                        contentType =
+                            "application/vnd.ms-excel";
+                        break;
+
+                    case ".xlsx":
+                        contentType =
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                        break;
+
+                    case ".png":
+                        contentType = "image/png";
+                        break;
+
+                    case ".jpg":
+                    case ".jpeg":
+                        contentType = "image/jpeg";
+                        break;
+
+                    case ".txt":
+                        contentType =
+                            "text/plain; charset=utf-8";
+                        break;
                 }
 
-                byte[] fileBytes = System.IO.File.ReadAllBytes(fullPath);
-                return File(fileBytes, contentType, downloadFileName);
+                byte[] fileBytes =
+                    System.IO.File.ReadAllBytes(fullPath);
+
+                return File(
+                    fileBytes,
+                    contentType,
+                    downloadFileName);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return BadRequest("Error downloading file: " + ex.Message);
+                return BadRequest(
+                    "Error downloading file: " + ex.Message);
             }
         }
 
@@ -745,56 +697,129 @@ namespace webCRM.Controllers
                     return NotFound("File path is empty.");
                 }
 
-                string contentRootPath = webHostEnvironment.ContentRootPath ?? Directory.GetCurrentDirectory();
-                string rootPath = Path.GetFullPath(Path.Combine(contentRootPath, ".."));
+                string contentRootPath =
+                    webHostEnvironment.ContentRootPath
+                    ?? Directory.GetCurrentDirectory();
 
-                string cleanedRelativePath = filePath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
-                string fullPath = Path.GetFullPath(Path.Combine(contentRootPath, cleanedRelativePath));
+                string rootPath =
+                    Path.GetFullPath(
+                        Path.Combine(contentRootPath, ".."));
 
-                string fullRootPath = Path.GetFullPath(rootPath);
-                string fullContentRootPath = Path.GetFullPath(contentRootPath);
+                string cleanedRelativePath =
+                    filePath
+                        .TrimStart('/', '\\')
+                        .Replace(
+                            '/',
+                            Path.DirectorySeparatorChar);
 
-                if (!fullPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) &&
-                    !fullPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase))
+                string fullPath =
+                    Path.GetFullPath(
+                        Path.Combine(
+                            contentRootPath,
+                            cleanedRelativePath));
+
+                string fullRootPath =
+                    Path.GetFullPath(rootPath);
+
+                string fullContentRootPath =
+                    Path.GetFullPath(contentRootPath);
+
+                if (!fullPath.StartsWith(
+                        fullRootPath,
+                        StringComparison.OrdinalIgnoreCase)
+                    &&
+                    !fullPath.StartsWith(
+                        fullContentRootPath,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest("Invalid file path.");
                 }
 
                 if (!System.IO.File.Exists(fullPath))
                 {
-                    string altPath = Path.GetFullPath(Path.Combine(rootPath, cleanedRelativePath));
-                    if (System.IO.File.Exists(altPath) &&
-                        (altPath.StartsWith(fullRootPath, StringComparison.OrdinalIgnoreCase) || altPath.StartsWith(fullContentRootPath, StringComparison.OrdinalIgnoreCase)))
+                    string altPath =
+                        Path.GetFullPath(
+                            Path.Combine(
+                                rootPath,
+                                cleanedRelativePath));
+
+                    if (System.IO.File.Exists(altPath)
+                        &&
+                        (
+                            altPath.StartsWith(
+                                fullRootPath,
+                                StringComparison.OrdinalIgnoreCase)
+                            ||
+                            altPath.StartsWith(
+                                fullContentRootPath,
+                                StringComparison.OrdinalIgnoreCase)
+                        ))
                     {
                         fullPath = altPath;
                     }
                     else
                     {
-                        return NotFound("File not found on server.");
+                        return NotFound(
+                            "File not found on server.");
                     }
                 }
 
-                string contentType = "application/octet-stream";
-                string ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                string contentType =
+                    "application/octet-stream";
+
+                string ext =
+                    Path.GetExtension(fullPath)
+                        .ToLowerInvariant();
+
                 switch (ext)
                 {
-                    case ".pdf": contentType = "application/pdf"; break;
-                    case ".png": contentType = "image/png"; break;
-                    case ".jpg": case ".jpeg": contentType = "image/jpeg"; break;
-                    case ".gif": contentType = "image/gif"; break;
-                    case ".webp": contentType = "image/webp"; break;
-                    case ".svg": contentType = "image/svg+xml"; break;
-                    case ".txt": contentType = "text/plain; charset=utf-8"; break;
+                    case ".pdf":
+                        contentType = "application/pdf";
+                        break;
+
+                    case ".png":
+                        contentType = "image/png";
+                        break;
+
+                    case ".jpg":
+                    case ".jpeg":
+                        contentType = "image/jpeg";
+                        break;
+
+                    case ".gif":
+                        contentType = "image/gif";
+                        break;
+
+                    case ".webp":
+                        contentType = "image/webp";
+                        break;
+
+                    case ".svg":
+                        contentType = "image/svg+xml";
+                        break;
+
+                    case ".txt":
+                        contentType =
+                            "text/plain; charset=utf-8";
+                        break;
+
                     default:
-                        contentType = "application/octet-stream"; break;
+                        contentType =
+                            "application/octet-stream";
+                        break;
                 }
 
-                byte[] fileBytes = System.IO.File.ReadAllBytes(fullPath);
-                return File(fileBytes, contentType);
+                byte[] fileBytes =
+                    System.IO.File.ReadAllBytes(fullPath);
+
+                return File(
+                    fileBytes,
+                    contentType);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return BadRequest("Error previewing file: " + ex.Message);
+                return BadRequest(
+                    "Error previewing file: " + ex.Message);
             }
         }
 
@@ -803,30 +828,17 @@ namespace webCRM.Controllers
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+                var data =
+                    await crmService.DeleteFile(Id);
 
-                    var response = await client.PutAsync(
-                        $"{domain}/crm/api/v1/p3/updateFile",
-                        new StringContent(
-                            JsonSerializer.Serialize(new { Id = Id, IsActive = false }),
-                            Encoding.UTF8,
-                            "application/json"
-                            )
-                        );
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    return Content(data, "application/json");
-                }
+                return Content(
+                    data,
+                    "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return BadRequest("Error updating file: " + ex.Message);
+                return BadRequest(
+                    "Error updating file: " + ex.Message);
             }
         }
 

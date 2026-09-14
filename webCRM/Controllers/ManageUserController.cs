@@ -1,68 +1,56 @@
-
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http.Headers;
-using Microsoft.AspNetCore.WebUtilities;
-using webCRM.Models;
-using System.Text;
 using System.Text.Json;
+using webCRM.Models;
 using webCRM.Services;
 
 namespace webCRM.Controllers
 {
-    public class ManageUserController(IConfiguration configuration) : Controller
+    public class ManageUserController(
+        CRMService crmService) : Controller
     {
-        string? bearerToken = Environment.GetEnvironmentVariable("ApiSettings__BearerToken") ?? configuration["ApiSettings:BearerToken"];
-        string? domain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") ?? configuration["ApiSettings:APIDomain"];
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
             return View("manageUser");
         }
 
         [HttpGet]
         public async Task<IActionResult> GetpersonalwithRole(
-          int page,
-          int pageSize,
-          string search,
-          string depart_code,
-          string branch_no,
-          string abbreviation
-        )
+            int page,
+            int pageSize,
+            string search,
+            string depart_code,
+            string branch_no,
+            string abbreviation)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var url = $"{domain}/crm/api/v1/p3/getpersonalwithRole";
-                    var queryParams = new Dictionary<string, string?>
-                    {
-                        ["page"] = page.ToString(),
-                        ["pageSize"] = pageSize.ToString(),
-                        ["search"] = search,
-                        ["depart_code"] = depart_code,
-                        ["branch_no"] = branch_no,
-                        ["abbreviation"] = abbreviation
-                    };
-                    url = QueryHelpers.AddQueryString(url, queryParams);
-                    var response = await client.GetAsync(url);
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
+                var data =
+                    await crmService.GetPersonalWithRole(
+                        page,
+                        pageSize,
+                        search,
+                        depart_code,
+                        branch_no,
+                        abbreviation);
 
+                return Content(
+                    data,
+                    "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                    + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        data = Array.Empty<object>()
+                    }),
+                    "application/json");
             }
         }
 
@@ -71,28 +59,27 @@ namespace webCRM.Controllers
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getCRMRoles");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
+                var data =
+                    await crmService.GetCRMRoles();
 
+                return Content(
+                    data,
+                    "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                    + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        data = Array.Empty<object>()
+                    }),
+                    "application/json");
             }
         }
 
@@ -101,64 +88,64 @@ namespace webCRM.Controllers
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getPageSidebar");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
+                var data =
+                    await crmService.GetPageSidebar();
 
+                return Content(
+                    data,
+                    "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                    + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        data = Array.Empty<object>()
+                    }),
+                    "application/json");
             }
         }
 
         [HttpPost]
-        public async Task<IActionResult> PostCRMPersonalRole([FromBody] PostCRMPersonalRoleRequest request)
+        public async Task<IActionResult> PostCRMPersonalRole(
+            [FromBody] PostCRMPersonalRoleRequest request)
         {
-
             try
             {
-                var handler = new HttpClientHandler
+                request.create_by =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
+
+                if (string.IsNullOrWhiteSpace(request.role_id) &&
+                    string.IsNullOrWhiteSpace(request.personnel_code))
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.create_by = HttpContext.Session.GetString("personalId") ?? "";
-
-                if (string.IsNullOrWhiteSpace(request.role_id) && string.IsNullOrWhiteSpace(request.personnel_code))
-                {
-                    return Ok(new { status = "error", message = "Receiver or ReceiverEmail is required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            "Receiver or ReceiverEmail is required."
+                    });
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService.PostCRMPersonalRole(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/postCRMPersonalRole",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
                 await ActivityLogger.SendAsync(
@@ -169,49 +156,56 @@ namespace webCRM.Controllers
                     message: "PostCRMPersonalRole successfully",
                     module: "PostCRMPersonalRole"
                 );
-                        
-                return Ok(new { status = "success" });
+
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
-
         }
 
         [HttpPost]
-        public async Task<IActionResult> PostPageRole([FromBody] PostPageRoleRequest request)
+        public async Task<IActionResult> PostPageRole(
+            [FromBody] PostPageRoleRequest request)
         {
-
             try
             {
-                var handler = new HttpClientHandler
+                request.CreatedBy =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
+
+                if (string.IsNullOrWhiteSpace(request.RoleId) ||
+                    string.IsNullOrWhiteSpace(request.PageId))
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.CreatedBy = HttpContext.Session.GetString("personalId") ?? "";
-
-                if (string.IsNullOrWhiteSpace(request.RoleId) || string.IsNullOrWhiteSpace(request.PageId))
-                {
-                    return Ok(new { status = "error", message = "RoleId and PageId are required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            "RoleId and PageId are required."
+                    });
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService.PostPageRole(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/postPageRole",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
                 await ActivityLogger.SendAsync(
@@ -222,49 +216,54 @@ namespace webCRM.Controllers
                     message: "postPageRole successfully",
                     module: "postPageRole"
                 );
-                
-                return Ok(new { status = "success" });
+
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
-
         }
 
         [HttpPost]
-        public async Task<IActionResult> PostCRMRole([FromBody] PostCRMRoleRequest request)
+        public async Task<IActionResult> PostCRMRole(
+            [FromBody] PostCRMRoleRequest request)
         {
-
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.create_by = HttpContext.Session.GetString("personalId") ?? "";
+                request.create_by =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
 
                 if (string.IsNullOrWhiteSpace(request.role_name))
                 {
-                    return Ok(new { status = "error", message = "Role name is required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = "Role name is required."
+                    });
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService.PostCRMRole(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/postCRMRole",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
                 await ActivityLogger.SendAsync(
@@ -275,48 +274,54 @@ namespace webCRM.Controllers
                     message: "postCRMRole successfully",
                     module: "postCRMRole"
                 );
-                
-                return Ok(new { status = "success" });
+
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
-
         }
 
         [HttpDelete]
-        public async Task<IActionResult> DeleteCRMRole([FromBody] DeleteCRMRoleRequest request)
+        public async Task<IActionResult> DeleteCRMRole(
+            [FromBody] DeleteCRMRoleRequest request)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.update_by = HttpContext.Session.GetString("personalId") ?? "";
+                request.update_by =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
 
                 if (string.IsNullOrWhiteSpace(request.role_id))
                 {
-                    return Ok(new { status = "error", message = "Role ID is required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = "Role ID is required."
+                    });
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService.DeleteCRMRole(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/deleteCRMRole",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
                 await ActivityLogger.SendAsync(
@@ -328,46 +333,58 @@ namespace webCRM.Controllers
                     module: "deleteCRMRole"
                 );
 
-                return Ok(new { status = "success" });
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
 
         [HttpDelete]
-        public async Task<IActionResult> DeleteCRMPersonalRole([FromBody] DeleteCRMPersonalRoleRequest request)
+        public async Task<IActionResult> DeleteCRMPersonalRole(
+            [FromBody] DeleteCRMPersonalRoleRequest request)
         {
             try
             {
-                var handler = new HttpClientHandler
+                request.update_by =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
+
+                if (string.IsNullOrWhiteSpace(
+                        request.personnel_code) ||
+                    string.IsNullOrWhiteSpace(
+                        request.role_id))
                 {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.update_by = HttpContext.Session.GetString("personalId") ?? "";
-
-                if (string.IsNullOrWhiteSpace(request.personnel_code) || string.IsNullOrWhiteSpace(request.role_id))
-                {
-                    return Ok(new { status = "error", message = "personnel_code and role_id are required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            "personnel_code and role_id are required."
+                    });
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService
+                        .DeleteCRMPersonalRole(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/deleteCRMPersonalRole",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
                 await ActivityLogger.SendAsync(
@@ -378,109 +395,122 @@ namespace webCRM.Controllers
                     message: "deleteCRMPersonalRole successfully",
                     module: "deleteCRMPersonalRole"
                 );
-                
-                return Ok(new { status = "success" });
+
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateStatusPersonalRole([FromBody] UpdateStatusPersonalRoleRequest request)
+        public async Task<IActionResult> UpdateStatusPersonalRole(
+            [FromBody] UpdateStatusPersonalRoleRequest request)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    request.status = "unable";
-                    request.user = HttpContext.Session.GetString("personalId") ?? "";
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateStatusPersonalRole",
-                        new StringContent(
-                            JsonSerializer.Serialize(request),
-                            Encoding.UTF8,
-                            "application/json"));
+                request.status = "unable";
 
-                    string json = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                request.user =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
+
+                var result =
+                    await crmService
+                        .UpdateStatusPersonalRole(request);
+
+                if (!result.Success)
+                {
+                    return Ok(new
                     {
-                        return Ok(new
-                        {
-                            status = "error",
-                            message = $"API responded with status code: {response.StatusCode}",
-                            detail = json
-                        });
-                    }
-
-                    await ActivityLogger.SendAsync(
-                        HttpContext,
-                        action: "updateStatusPersonalRole",
-                        targetId: request.user ?? "",
-                        targetType: "USER",
-                        message: "updateStatusPersonalRole successfully",
-                        module: "updateStatusPersonalRole"
-                    );
-                    
-                    return Ok(new { status = "success", data = json });
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "updateStatusPersonalRole",
+                    targetId: request.user ?? "",
+                    targetType: "USER",
+                    message : "updateStatusPersonalRole successfully",
+                    module: "updateStatusPersonalRole"
+                );
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result.Response
+                });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateCRMRole([FromBody] UpdateCRMRoleRequest request)
+        public async Task<IActionResult> UpdateCRMRole(
+            [FromBody] UpdateCRMRoleRequest request)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    request.user = HttpContext.Session.GetString("personalId") ?? "";
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateCRMRole",
-                        new StringContent(
-                            JsonSerializer.Serialize(request),
-                            Encoding.UTF8,
-                            "application/json"));
+                request.user =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
 
-                    string json = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                var result =
+                    await crmService.UpdateCRMRole(request);
+
+                if (!result.Success)
+                {
+                    return Ok(new
                     {
-                        return Ok(new
-                        {
-                            status = "error",
-                            message = $"API responded with status code: {response.StatusCode}",
-                            detail = json
-                        });
-                    }
-
-                    await ActivityLogger.SendAsync(
-                        HttpContext,
-                        action: "UpdateCRMRole",
-                        targetId: request.user ?? "",
-                        targetType: "USER",
-                        message: "updateCRMRole successfully",
-                        module: "updateCRMRole"
-                    );
-
-                    return Ok(new { status = "success", data = json });
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "UpdateCRMRole",
+                    targetId: request.user ?? "",
+                    targetType: "USER",
+                    message : "updateCRMRole successfully",
+                    module: "updateCRMRole"
+                );
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result.Response
+                });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
 
@@ -489,69 +519,71 @@ namespace webCRM.Controllers
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p3/getFunc");
-                    response.EnsureSuccessStatusCode();
-                    string data = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return Content(string.IsNullOrEmpty(data) ? $"{{\"status\": false, \"message\": \"API return error {(int)response.StatusCode}: {response.ReasonPhrase}\", \"data\": []}}" : data, "application/json");
-                    }
-                    return Content(data, "application/json");
-                }
+                var data =
+                    await crmService.GetFunc();
 
+                return Content(
+                    data,
+                    "application/json");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
-                return Content("{\"status\": false, \"message\": \"" + ex.Message + "\", \"data\": []}", "application/json");
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                    + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(new
+                    {
+                        status = false,
+                        message = ex.Message,
+                        data = Array.Empty<object>()
+                    }),
+                    "application/json");
             }
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpsertRoleFunc([FromBody] UpsertRoleFuncRequest request)
+        public async Task<IActionResult> UpsertRoleFunc(
+            [FromBody] UpsertRoleFuncRequest request)
         {
-
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using var client = new HttpClient(handler);
-
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-                request.user = HttpContext.Session.GetString("personalId") ?? "";
+                request.user =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
 
                 if (string.IsNullOrWhiteSpace(request.role_id))
                 {
-                    return Ok(new { status = "error", message = "Role id is required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = "Role id is required."
+                    });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.func_id))
                 {
-                    return Ok(new { status = "error", message = "Function id is required." });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = "Function id is required."
+                    });
                 }
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
+                var result =
+                    await crmService.UpsertRoleFunc(request);
 
-                var response = await client.PostAsync(
-                    $"{domain}/crm/api/v1/p3/UpsertRoleFunc",
-                    content);
-
-                if (!response.IsSuccessStatusCode)
+                if (!result.Success)
                 {
-                    return Ok(new { status = "error", message = $"API responded with status code: {response.StatusCode}" });
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
 
                 await ActivityLogger.SendAsync(
@@ -563,60 +595,68 @@ namespace webCRM.Controllers
                     module: "UpsertRoleFunc"
                 );
 
-                return Ok(new { status = "success" });
+                return Ok(new
+                {
+                    status = "success"
+                });
             }
             catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
-
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateVariableFunc([FromBody] UpdateVariableFuncRequest request)
+        public async Task<IActionResult> UpdateVariableFunc(
+            [FromBody] UpdateVariableFuncRequest request)
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    request.user = HttpContext.Session.GetString("personalId") ?? "";
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.PutAsync($"{domain}/crm/api/v1/p3/updateVariableFunc",
-                        new StringContent(
-                            JsonSerializer.Serialize(request),
-                            Encoding.UTF8,
-                            "application/json"));
+                request.user =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
 
-                    string json = await response.Content.ReadAsStringAsync();
-                    if (!response.IsSuccessStatusCode)
+                var result =
+                    await crmService.UpdateVariableFunc(request);
+
+                if (!result.Success)
+                {
+                    return Ok(new
                     {
-                        return Ok(new
-                        {
-                            status = "error",
-                            message = $"API responded with status code: {response.StatusCode}",
-                            detail = json
-                        });
-                    }
-
-                    await ActivityLogger.SendAsync(
-                        HttpContext,
-                        action: "UpdateVariableFunc",
-                        targetId: request.user ?? "",
-                        targetType: "USER",
-                        message: "UpdateVariableFunc successfully",
-                        module: "UpdateVariableFunc"
-                    );
-
-                    return Ok(new { status = "success", data = json });
+                        status = "error",
+                        message =
+                            $"API responded with status code: " +
+                            $"{result.StatusCode}",
+                        detail = result.Response
+                    });
                 }
+
+                await ActivityLogger.SendAsync(
+                    HttpContext,
+                    action: "UpdateVariableFunc",
+                    targetId: request.user ?? "",
+                    targetType: "USER",
+                    message : "UpdateVariableFunc successfully",
+                    module: "UpdateVariableFunc"
+                );
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result.Response
+                });
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return Ok(new { status = "error", message = ex.Message });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
             }
         }
 
@@ -625,37 +665,16 @@ namespace webCRM.Controllers
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
-                };
-                using (var client = new HttpClient(handler))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-                    var response = await client.GetAsync($"{domain}/crm/api/v1/p2/getBranchListForCRM");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string data = await response.Content.ReadAsStringAsync();
-                        var apiResponse = JsonSerializer.Deserialize<List<Branch>>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        return apiResponse ?? new List<Branch>();
-                    }
-                    else
-                    {
-                        Console.WriteLine($"API Error: {response.StatusCode}");
-                        return new List<Branch>();
-                    }
-                }
+                return await crmService.GetBranchListForCRM();
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
                 return new List<Branch>();
             }
         }
 
     }
 }
-
-
-

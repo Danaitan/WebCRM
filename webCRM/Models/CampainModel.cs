@@ -89,11 +89,9 @@ namespace webCRM.Models
         public string? ProductName { get; set; }
 
         [JsonPropertyName("product_start")]
-        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? ProductStart { get; set; }
 
         [JsonPropertyName("product_end")]
-        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? ProductEnd { get; set; }
 
         [JsonPropertyName("product_remark")]

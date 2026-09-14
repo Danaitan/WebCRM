@@ -91,7 +91,8 @@ async function getCampainList(page = 1, pageSize = 20, searchText) {
             guid:      item.product_guid  || "",
             offcde:    item.offcde || "",
             product_company: item.product_company || "", 
-            file_id:   item.file_id || ""
+            file_id:   item.file_id || "",
+            isActive:  item.isActive || "false"
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -450,7 +451,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 <div class="d-flex justify-content-between align-items-end">
                     <div class="batch-meta">
                         <div>สร้างโดย: ${escapeHtml(item.createdBy || '-')}</div>
-                        <div>${escapeHtml(formatDisplayDate(item.created))}</div>
+                        <div style="white-space: nowrap;"> ${escapeHtml(formatDisplayDate(item.startDate))} - ${escapeHtml(formatDisplayDate(item.endDate))} </div>
                     </div>
                     <div class="text-end">
                         <span class="badge rounded-pill ${badgeClass} mb-1">${escapeHtml(item.status)}</span>
@@ -458,118 +459,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                     </div>
                 </div>
             `;
-            // card.addEventListener('click', async function() {
-            //     dataTableContainer.querySelectorAll('.batch-card').forEach(c => c.classList.remove('active'));
-            //     this.classList.add('active');
-            //     selectedCampaign = item;
-            //     removedBatchCustomerIds.clear();
-            //     manuallySelectedCustomers.clear();
-            //     updateSendForApprovalButtonState();
-            //     displayCampaignFile(item.file_id);
 
-            //     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
-
-            //     try {
-            //         const requestId = ++currentFilterRequestId;
-            //         const dynamicFilterContainer = document.getElementById('dynamicFilter');
-            //         if (dynamicFilterContainer) {
-            //             dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2"><div class="spinner-border spinner-border-sm text-primary me-2"></div>กำลังโหลดตัวกรอง...</div>';
-            //         }
-
-            //         const targetGuid = item.guid || '';
-
-            //         if (targetGuid) {
-            //             try {
-            //                 const filterData = await getProductFilterByGuid(targetGuid);
-
-            //                 if (requestId !== currentFilterRequestId) {
-            //                     return;
-            //                 }
-
-            //                 let rawFilters = filterData;
-            //                 if (typeof rawFilters === 'string') {
-            //                     try { rawFilters = JSON.parse(rawFilters); } catch(e) {}
-            //                 }
-
-            //                 let filters = [];
-            //                 if (Array.isArray(rawFilters)) {
-            //                     filters = rawFilters;
-            //                 } else if (rawFilters && typeof rawFilters === 'object') {
-            //                     if (Array.isArray(rawFilters.data)) filters = rawFilters.data;
-            //                     else if (Array.isArray(rawFilters.result)) filters = rawFilters.result;
-            //                     else if (Array.isArray(rawFilters.filters)) filters = rawFilters.filters;
-            //                 }
-
-            //                 const isImport = Array.isArray(filters) && filters.some(filter => {
-            //                     const name = (typeof filter === 'object' && filter ? (filter.fname || filter.fName || filter.FName || filter.f_name || '') : String(filter)).toLowerCase();
-            //                     return name === 'import';
-            //                 });
-            //                 isCurrentCampaignImport = isImport;
-
-            //                 if (dynamicFilterContainer) {
-            //                     dynamicFilterContainer.innerHTML = '';
-                                
-            //                     if (isImport) {
-            //                         dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-primary py-2" style="font-size:0.85rem;"><i class="bi bi-file-earmark-excel me-1"></i>แคมเปญประเภทนำเข้าข้อมูล (Import Excel)</div>';
-            //                     } else {
-            //                         const option = await fetch (`/ProspectSetup/getFilterDropdown`)
-            //                         const optionData = await option.json();
-                                    
-            //                         if (filters.length > 0) {
-            //                             filters.forEach((filter) => {
-            //                                 // const fCode = typeof filter === 'string' ? filter : (filter.fcode || filter.fCode || filter.code || filter.f_code);
-
-            //                                 const fCode =
-            //                                     typeof filter === 'string'
-            //                                         ? filter
-            //                                         : (
-            //                                             filter.fcode ||
-            //                                             filter.fCode ||
-            //                                             filter.FCode ||
-            //                                             filter.code ||
-            //                                             filter.f_code ||
-            //                                             filter.filterCode ||
-            //                                             filter.filter_code ||
-            //                                             filter.FilterCode ||
-            //                                             ''
-            //                                         );
-
-            //                                 const filterHTML = productFilterHTML(fCode, optionData);
-
-            //                                 if (filterHTML) {
-            //                                     dynamicFilterContainer.insertAdjacentHTML('beforeend', filterHTML);
-            //                                 }
-            //                             });
-            //                         } else {
-            //                             dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
-            //                         }
-            //                     }
-            //                 }
-            //             } catch (err) {
-            //                 console.error("Error calling getProductFilterByGuid:", err);
-            //                 isCurrentCampaignImport = false;
-            //                 if (dynamicFilterContainer && requestId === currentFilterRequestId) {
-            //                     dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-danger py-2" style="font-size:0.85rem;">เกิดข้อผิดพลาดในการโหลดตัวกรอง</div>';
-            //                 }
-            //             }
-            //         } else {
-            //             isCurrentCampaignImport = false;
-            //             if (dynamicFilterContainer) {
-            //                 dynamicFilterContainer.innerHTML = '<div class="col-12 text-center text-muted py-2" style="font-size:0.85rem;">ไม่มีข้อมูลตัวกรองสำหรับรายการนี้</div>';
-            //             }
-            //         }
-
-            //         if (requestId === currentFilterRequestId) {
-            //             await refreshSelectedCampaignCustomers();
-            //             await loadProspectList(1, currentProspectPageSize);
-            //         }
-            //     } catch (err) {
-            //         console.error("Error in card click handler:", err);
-            //     } finally {
-            //         stopLoading();
-            //     }
-            // });
-            
             card.addEventListener('click', async function () {
 
                 // เปลี่ยน Campaign
@@ -834,13 +724,6 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                             .trim()
                                             .toUpperCase();
 
-                                    console.log(
-                                        "Rendering Filter:",
-                                        filter,
-                                        "=>",
-                                        normalizedFCode
-                                    );
-
                                     if (!normalizedFCode) {
 
                                         console.warn(
@@ -890,13 +773,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                         </div>
                                     `;
 
-                                } else {
-
-                                    console.log(
-                                        `Render Filter สำเร็จ ${renderedCount} รายการ`
-                                    );
                                 }
-
                             } else {
 
                                 if (dynamicFilterContainer) {
@@ -916,19 +793,11 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                         }
                     }
 
-                    // =====================================================
-                    // Load Selected Customers
-                    // =====================================================
-
                     if (requestId !== currentFilterRequestId) {
                         return;
                     }
 
                     await refreshSelectedCampaignCustomers();
-
-                    // =====================================================
-                    // Load Prospect
-                    // =====================================================
 
                     if (requestId !== currentFilterRequestId) {
                         return;
@@ -941,7 +810,6 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
 
                 } catch (err) {
 
-                    // Abort ไม่ถือว่าเป็น Error
                     if (err.name === 'AbortError') {
 
                         console.log(
@@ -1179,7 +1047,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     const idno = item.idno || '-';
                     const id = item.id || item.Id || '-';
                     const prospectBatch = item.prospect_batch || item.product_batch || '';
-                    const isActive = item.isActive;
+                    const isActive = selectedCampaign.isActive;
 
                     let matchedBatch = null;
                     if (Array.isArray(currentProductBatches) && currentProductBatches.length > 0) {
@@ -1998,8 +1866,6 @@ async function getProductFilterByGuid(guid, signal = null) {
         }
 
         const data = await response.json();
-
-        console.log("GetProductFilterByGuid response:", data);
 
         return data || [];
 

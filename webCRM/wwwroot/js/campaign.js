@@ -616,7 +616,7 @@ $(document).ready(async function () {
             allowInput: false,
             minDate: 'today',
             disableMobile: true,
-            locale: thLocale,
+            locale: 'default',
             onChange: function (selectedDates, dateStr) {
                 if (fpEndDate) {
                     fpEndDate.set('minDate', dateStr || null);
@@ -634,7 +634,7 @@ $(document).ready(async function () {
             altFormat: 'd/m/Y',
             allowInput: false,
             disableMobile: true,
-            locale: thLocale,
+            locale: 'default',
             onChange: function (selectedDates, dateStr) {
                 if (fpStartDate) {
                     fpStartDate.set('maxDate', dateStr || null);
@@ -650,7 +650,7 @@ $(document).ready(async function () {
             minDate: 'today',
             allowInput: false,
             disableMobile: true,
-            locale: thLocale,
+            locale: 'default',
             onChange: function (selectedDates, dateStr) {
                 if (fpModalEndDate) {
                     fpModalEndDate.set('minDate', dateStr || 'today');
@@ -665,7 +665,7 @@ $(document).ready(async function () {
             minDate: 'today',
             allowInput: false,
             disableMobile: true,
-            locale: thLocale,
+            locale: 'default',
             onChange: function (selectedDates, dateStr) {
             }
         });

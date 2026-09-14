@@ -59,6 +59,14 @@ namespace webCRM.Controllers
                     string data = await response.Content.ReadAsStringAsync();
                     //if (response.IsSuccessStatusCode)
                     {
+                        using var doc = JsonDocument.Parse(data);
+
+                        var firstData = doc.RootElement
+                                           .GetProperty("data")[0];
+
+                        var productStart = firstData
+                                           .GetProperty("product_start")
+                                           .GetString();
                         var apiResponse = System.Text.Json.JsonSerializer.Deserialize<CampainPagedResult>(data, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                         var result = apiResponse;
 

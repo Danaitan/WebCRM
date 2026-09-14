@@ -18,16 +18,40 @@ namespace webCRM.Controllers
             NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString,
             Converters = { new NumberToStringConverter() }
         };
+        
+        // public async Task<IActionResult> Index([FromQuery] string? user)
+        // {
+        //     string personalCode = "100664";
+        //     // string personalCode = "100657";
+        //     if (!string.IsNullOrWhiteSpace(user))
+        //     {
+        //         personalCode = DecodeBase64(user);
+        //     }
+        //     await GetProfileByPersonalCode(personalCode);
+        //     await PostDailyNotiAndEmail(personalCode);
+        //     return RedirectToAction("Index", "Home");
+        // }
+
         public async Task<IActionResult> Index([FromQuery] string? user)
         {
             string personalCode = "100664";
-            // string personalCode = "100657";
             if (!string.IsNullOrWhiteSpace(user))
             {
                 personalCode = DecodeBase64(user);
             }
             await GetProfileByPersonalCode(personalCode);
-            await PostDailyNotiAndEmail(personalCode);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await PostDailyNotiAndEmail(personalCode);
+                }
+                catch (Exception ex)
+                {
+                    // Log error
+                    Console.WriteLine(ex);
+                }
+            });
             return RedirectToAction("Index", "Home");
         }
 

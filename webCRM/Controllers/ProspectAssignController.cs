@@ -40,14 +40,14 @@ namespace webCRM.Controllers
                         "application/json");
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "UpdateProspectCustomer",
-                    targetId: request.assign_to ?? "",
-                    targetType: "USER",
-                    message: "UpdateProspectCustomer successfully",
-                    module: "UpdateProspectCustomer"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "UpdateProspectCustomer",
+                //     targetId: request.assign_to ?? "",
+                //     targetType: "USER",
+                //     message: "UpdateProspectCustomer successfully",
+                //     module: "UpdateProspectCustomer"
+                // );
 
                 return Content(data, "application/json");
             }

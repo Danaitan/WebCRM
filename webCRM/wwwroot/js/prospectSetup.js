@@ -431,9 +431,11 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
             const normalizedStatus = statusStr.replace(/_/g, ' ');
             let badgeClass = 'bg-secondary';
 
-            if (normalizedStatus === 'reject' || normalizedStatus === 'return' ) {
+            if (normalizedStatus === 'return' ) {
                 badgeClass = 'bg-orange text-white';
-            } else if (normalizedStatus === 'approved' || normalizedStatus === 'approve') {
+            } else if (normalizedStatus === 'reject') {
+                badgeClass = 'bg-danger text-white';
+            }else if (normalizedStatus === 'approved' || normalizedStatus === 'approve') {
                 badgeClass = 'bg-success text-white';
             } else if (normalizedStatus === 'waiting prospect') {
                 badgeClass = 'bg-warning text-dark';
@@ -954,7 +956,7 @@ async function getProspect(page = 1, pageSize = 10) {
         if (isCurrentCampaignImport && selectedCampaign && selectedCampaign.code) {
             const response = await getCampaignDataForETL(selectedCampaign.code);
             let rawData = [];
-            const etlResult = response.IsBatch
+            const etlResult = response.IsNotBatch
             if (etlResult) {
                 if (Array.isArray(etlResult.data)) rawData = etlResult.data;
                 else if (Array.isArray(etlResult.result)) rawData = etlResult.result;
@@ -1902,7 +1904,7 @@ async function refreshSelectedCampaignCustomers() {
 
         if (isCurrentCampaignImport) {
             const response = await getCampaignDataForETL(selectedCampaign.code);
-            const etlResult = response ? (response.IsNotBatch || response.isNotBatch || response.is_not_batch) : null;
+            const etlResult = response ? (response.IsBatch) : null;
             currentBatchCustomers = extractCustomers(etlResult);
             currentProductBatches = [];
             updateSelectedList();

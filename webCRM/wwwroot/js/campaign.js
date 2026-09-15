@@ -17,6 +17,33 @@ const STATUS_CAN_EDIT = [
     "return"
 ];
 
+async function getProductStatus() { 
+    try {
+        const response = await fetch('/Campain/getProductStatus');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data || []; 
+    } catch (error) {
+        console.error('Error getting product status:', error);
+        return [];
+    }
+}
+
+async function loadProductStatus() { 
+    const select = document.getElementById('campaignStatusFilter'); 
+    const statuses = await getProductStatus(); 
+    select.innerHTML = '<option value="">ทั้งหมด</option>'; 
+    console.log("statuses",statuses);
+    statuses.forEach(status => { 
+        const option = document.createElement('option'); 
+        option.value = status.name;
+        option.textContent = status.name; 
+        select.appendChild(option); 
+    }); 
+}
+
 function isCurrentCampaignEditable(campaignObj) {
     if (!selectedCampaignCode) return false;
     const campaign = campaignObj || (Array.isArray(campaigns) ? campaigns.find(c => c.code === selectedCampaignCode) : null);
@@ -79,8 +106,12 @@ function getCampaignStatusBadgeClass(status) {
     if (!status) return 'badge-status-normal';
     const s = String(status).trim().toLowerCase();
     const normalized = s.replace(/_/g, ' ');
-    if (normalized === 'cancel' || normalized === 'return') {
-        return 'badge-status-cancel';
+
+    if (normalized === 'return') {
+        return 'badge-status-return';
+    }
+    if (normalized === 'reject') {
+        return 'badge-status-reject';
     }
     if (normalized === 'waiting prospect') {
         return 'badge-status-waiting-prospect';
@@ -89,9 +120,10 @@ function getCampaignStatusBadgeClass(status) {
         return 'badge-status-waiting-approve';
     }
     if (normalized === 'approved') {
-        return 'badge-status-normal';
+        return 'badge-status-approved';
     }
-    return 'badge-status-normal';
+
+    return 'badge-status-approved';
 }
 
 async function renderMasterObjectives() {
@@ -572,7 +604,7 @@ $(document).ready(async function () {
             return false;
         });
     }
-
+    loadProductStatus()
     // Fetch Branches Data
     let branchesData = [];
     let masterBranchesData = [];

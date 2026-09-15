@@ -186,14 +186,14 @@ namespace webCRM.Controllers
                 // Activity Log
                 // =========================================================
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "Login",
-                    targetId: pCode,
-                    targetType: "USER",
-                    message: "Login successfully",
-                    module: "Login"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "Login",
+                //     targetId: pCode,
+                //     targetType: "USER",
+                //     message: "Login successfully",
+                //     module: "Login"
+                // );
 
                 return Content(
                     rootNode?.ToJsonString() ?? "{}",

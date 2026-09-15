@@ -214,10 +214,11 @@ body {
 
 .status-blue, .pa-status-badge.status-blue { background-color: #eaf1fb !important; color: var(--pa-blue) !important; border-color: rgba(30, 93, 209, 0.2) !important; }
 .status-green, .pa-status-badge.status-green { background-color: #e6f6ee !important; color: var(--pa-green) !important; border-color: rgba(21, 183, 91, 0.2) !important; }
-.status-yellow, .pa-status-badge.status-yellow { background-color: #fef5e5 !important; color: #d97706 !important; border-color: rgba(245, 176, 38, 0.2) !important; }
+.status-yellow, .pa-status-badge.status-yellow { background-color: #fef5e5 !important; color: #d2d906 !important; border-color: rgba(245, 176, 38, 0.2) !important; }
 .status-purple, .pa-status-badge.status-purple { background-color: #f3eef9 !important; color: var(--pa-purple) !important; border-color: rgba(121, 82, 179, 0.2) !important; }
 .status-red, .pa-status-badge.status-red { background-color: #fde8e8 !important; color: var(--pa-red) !important; border-color: rgba(220, 53, 69, 0.2) !important; }
 .status-gray, .pa-status-badge.status-gray { background-color: #f1f5f9 !important; color: #64748b !important; border-color: rgba(100, 116, 139, 0.2) !important; }
+.status-orange, .pa-status-badge.status-orange { background-color: #fff1d4 !important; color: #ffa601 !important; border-color: rgba(100, 116, 139, 0.2) !important; }
 
 .pa-card-name {
     font-size: 0.92rem;

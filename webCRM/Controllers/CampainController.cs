@@ -58,14 +58,14 @@ namespace webCRM.Controllers
 
                 if (result.Success)
                 {
-                    await ActivityLogger.SendAsync(
-                        HttpContext,
-                        action: "Remove Campaign",
-                        targetId: productId,
-                        targetType: "Campaign",
-                        message: "Remove campaign successfully",
-                        module: "putProductRemove"
-                    );
+                    // await ActivityLogger.SendAsync(
+                    //     HttpContext,
+                    //     action: "Remove Campaign",
+                    //     targetId: productId,
+                    //     targetType: "Campaign",
+                    //     message: "Remove campaign successfully",
+                    //     module: "putProductRemove"
+                    // );
 
                     return "Remove Success";
                 }
@@ -94,67 +94,67 @@ namespace webCRM.Controllers
                         status = "error",
                         message = "ไม่พบข้อมูล Campaign"
                     });
-        }
+                }
 
-        var company =
-            HttpContext.Session.GetString("company");
+                var company =
+                    HttpContext.Session.GetString("company");
 
-        if (request.ProductInfo != null)
-        {
-            request.ProductInfo.ProductCompany = company;
-        }
+                if (request.ProductInfo != null)
+                {
+                    request.ProductInfo.ProductCompany = company;
+                }
 
-        var result =
-            await crmService.PostCampain(request);
+                var result =
+                    await crmService.PostCampain(request);
 
-        if (!result.Success)
-        {
-            return Ok(new
+                if (!result.Success)
+                {
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: {result.StatusCode}",
+                        detail = result.Response
+                    });
+                }
+
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "Post Campaign",
+                //     targetId: "",
+                //     targetType: "Campaign",
+                //     message: "Post campaign successfully",
+                //     module: "postNewProduct"
+                // );
+
+                return Ok(new
+                {
+                    status = "success"
+                });
+            }
+            catch (Exception ex)
             {
-                status = "error",
-                message =
-                    $"API responded with status code: {result.StatusCode}",
-                detail = result.Response
-            });
+                return Ok(new
+                {
+                    status = "error",
+                    message = ex.Message
+                });
+            }
         }
-
-        await ActivityLogger.SendAsync(
-            HttpContext,
-            action: "Post Campaign",
-            targetId: "",
-            targetType: "Campaign",
-            message: "Post campaign successfully",
-            module: "postNewProduct"
-        );
-
-        return Ok(new
-        {
-            status = "success"
-        });
-    }
-    catch (Exception ex)
-    {
-        return Ok(new
-        {
-            status = "error",
-            message = ex.Message
-        });
-    }
-}
         public async Task<List<Branch>> getBranchListForCRM()
         {
             try
             {
                 return await crmService.GetBranchListForCRM();
             }
-    catch (Exception ex)
-    {
-        ViewBag.ErrorMessage =
-            "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+            catch (Exception ex)
+            {
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
 
-        return new List<Branch>();
-    }
-}
+                return new List<Branch>();
+            }
+        }
         public async Task<List<MasterFilter>> GetMasterFilter(string? company = null)
         {
             try
@@ -240,7 +240,7 @@ namespace webCRM.Controllers
                 });
             }
         }
-        
+
         [HttpGet]
         public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid, string? company = null)
         {
@@ -269,7 +269,7 @@ namespace webCRM.Controllers
                 return new List<GetFilterByGuid>();
             }
         }
-        
+
         [HttpPut]
         public async Task<IActionResult> UpdateCampaign([FromBody] PostCampaign request)
         {
@@ -289,14 +289,14 @@ namespace webCRM.Controllers
                     });
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "Update Campaign",
-                    targetId: request.ProductInfo?.Id ?? "",
-                    targetType: "Campaign",
-                    message: "Update campaign successfully",
-                    module: "putProductsPhase3"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "Update Campaign",
+                //     targetId: request.ProductInfo?.Id ?? "",
+                //     targetType: "Campaign",
+                //     message: "Update campaign successfully",
+                //     module: "putProductsPhase3"
+                // );
 
                 return Ok(new
                 {
@@ -313,31 +313,30 @@ namespace webCRM.Controllers
                 });
             }
         }
-        
+
         [HttpGet]
         public async Task<IActionResult> GetProspect(int page = 1, int pageSize = 10)
         {
             try
             {
-                var data =
-            await crmService.GetProspect(
+var data = await crmService.GetProspect(
                 page,
                 pageSize);
 
-        return Content(
-            data,
-            "application/json");
-    }
-    catch (Exception ex)
-    {
-        ViewBag.ErrorMessage =
-            "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+                return Content(
+                    data,
+                    "application/json");
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
 
-        return Content(
-            $"{{\"page\": {page}, \"pageSize\": {pageSize}, \"count\": 0, \"data\": []}}",
-            "application/json");
-    }
-}
+                return Content(
+                    $"{{\"page\": {page}, \"pageSize\": {pageSize}, \"count\": 0, \"data\": []}}",
+                    "application/json");
+            }
+        }
 
         public async Task<string> GetCheckProductNo()
         {
@@ -359,8 +358,7 @@ namespace webCRM.Controllers
         {
             try
             {
-                var data =
-            await crmService.GetMasterObjective();
+var data = await crmService.GetMasterObjective();
 
                 return Content(
                     data,
@@ -839,6 +837,23 @@ namespace webCRM.Controllers
             {
                 return BadRequest(
                     "Error updating file: " + ex.Message);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> getProductStatus()
+        {
+            try
+            {
+                var data = await crmService.GetProductStatus();
+                var results = Content(data, "application/json");
+                return results;
+            }
+            catch (Exception ex)
+            {
+                return Content(
+                    $"\"เกิดข้อผิดพลาดในการโหลดข้อมูล: {ex.Message}\"",
+                    "application/json");
             }
         }
 

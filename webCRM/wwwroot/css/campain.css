@@ -237,13 +237,18 @@ select.form-select option[value=""] {
     gap: 0.25rem;
 }
 
-.badge-status-normal, .badge-status-approved, .badge-status-active {
+.badge-status-approved{
     color: #16a34a;
     font-weight: 600;
 }
 
-.badge-status-warning, .badge-status-waiting-prospect {
-    color: #d97706;
+.badge-status-return {
+    color: #f97316;
+    font-weight: 600;
+}
+
+.badge-status-waiting-prospect {
+    color: #d9ce06;
     font-weight: 600;
 }
 
@@ -252,8 +257,8 @@ select.form-select option[value=""] {
     font-weight: 600;
 }
 
-.badge-status-cancel, .badge-status-reject {
-    color: #dc2626;
+.badge-status-reject {
+    color: #ff0000;
     font-weight: 600;
 }
 

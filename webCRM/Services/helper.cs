@@ -572,6 +572,22 @@ namespace webCRM.Services
             }
         }
 
+        public async Task<string> GetProductStatus()
+        {
+            try
+            {
+                return await GetStringAsync("p3/getProductStatus") ?? "[]";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading master objective");
+
+                throw;
+            }
+        }
+
         #endregion
 
         #region LoginController
@@ -618,12 +634,8 @@ namespace webCRM.Services
 
         #endregion
 
-        // =========================================================
-        // Customer Detail
-        // =========================================================
-
-        public async Task<List<ResponseCustomerDetail>> GetCustomerList(
-            string idno)
+        #region CustomerDetail
+        public async Task<List<ResponseCustomerDetail>> GetCustomerList(string idno)
         {
             var data =
                 await GetStringAsync(
@@ -638,9 +650,7 @@ namespace webCRM.Services
                 ?? new List<ResponseCustomerDetail>();
         }
 
-
-        public async Task<ResponseContactList> GetContact(
-            string idno)
+        public async Task<ResponseContactList> GetContact(string idno)
         {
             var result =
                 new ResponseContactList();
@@ -690,12 +700,7 @@ namespace webCRM.Services
             return result;
         }
 
-
-        public async Task<ResponseContactInfo<TContractInfo>?>
-            GetContactInfo<TContractInfo>(
-                string idno,
-                string company)
-            where TContractInfo : ContractInfo
+        public async Task<ResponseContactInfo<TContractInfo>?> GetContactInfo<TContractInfo>(string idno, string company) where TContractInfo : ContractInfo
         {
             var data =
                 await GetStringAsync(
@@ -709,10 +714,7 @@ namespace webCRM.Services
                     _jsonOptions);
         }
 
-
-        public async Task<string> GetReceiveList(
-            string contno,
-            string company)
+        public async Task<string> GetReceiveList(string contno, string company)
         {
             return await GetStringAsync(
                 $"receiveInfo/" +
@@ -720,9 +722,7 @@ namespace webCRM.Services
                 $"{Uri.EscapeDataString(company)}");
         }
 
-
-        public async Task<List<ResponseClaim>> GetClaimList(
-            string tracking)
+        public async Task<List<ResponseClaim>> GetClaimList(string tracking)
         {
             var data =
                 await GetStringAsync(
@@ -734,26 +734,19 @@ namespace webCRM.Services
                 ?? new List<ResponseClaim>();
         }
 
-
-        public async Task<string> GetPDPA(
-            string company)
+        public async Task<string> GetPDPA(string company)
         {
-            return await GetStringAsync(
-                $"p3/getpdpa?company={Uri.EscapeDataString(company)}");
+            return await GetStringAsync($"p3/getpdpa?company={Uri.EscapeDataString(company)}");
         }
 
-
-        public async Task<string> GetCheckPDPA(
-            string idno)
+        public async Task<string> GetCheckPDPA(string idno)
         {
-            return await GetStringAsync(
-                $"p3/getCheckPDPA?idno={Uri.EscapeDataString(idno)}");
+            return await GetStringAsync($"p3/getCheckPDPA?idno={Uri.EscapeDataString(idno)}");
         }
 
-        // =========================================================
-        // Dashboard Prospect Call
-        // =========================================================
+        #endregion
 
+        #region Dashboard Prospect Call
         public async Task<string> GetCallDashboard(
             string? startdate,
             string? enddate,
@@ -823,8 +816,7 @@ namespace webCRM.Services
             return await GetStringAsync(endpoint);
         }
 
-        public async Task<string> GetEmployeeList(
-            string branch)
+        public async Task<string> GetEmployeeList(string branch)
         {
             var queryParams =
                 new Dictionary<string, string?>();
@@ -952,10 +944,9 @@ namespace webCRM.Services
             return await GetStringAsync(endpoint);
         }
 
-        // =========================================================
-        // Dashboard Suggestion
-        // =========================================================
+        #endregion
 
+        #region Dashboard Suggestion
         public async Task<string> GetSuggestionDashboard(
             string? startdate,
             string? enddate,
@@ -1007,8 +998,7 @@ namespace webCRM.Services
 
         public async Task<string> GetPersonalAndGroup()
         {
-            return await GetStringAsync(
-                "p3/getPersonalAndGroup");
+            return await GetStringAsync("p3/getPersonalAndGroup");
         }
 
         public async Task<string> GetSuggestionDashboardExcel(
@@ -1060,19 +1050,13 @@ namespace webCRM.Services
             return await GetStringAsync(endpoint);
         }
 
-        // =========================================================
-        // Home Dashboard
-        // =========================================================
+        #endregion
 
+        #region Home Dashboard
         public async Task<MasterData> GetMaster()
         {
-            var data =
-                await GetStringAsync("master");
-
-            return JsonSerializer.Deserialize<MasterData>(
-                       data,
-                       _jsonOptions)
-                   ?? new MasterData();
+            var data = await GetStringAsync("master");
+            return JsonSerializer.Deserialize<MasterData>(data, _jsonOptions) ?? new MasterData();
         }
 
         public async Task<string> GetCustommerDashboard(
@@ -1118,8 +1102,7 @@ namespace webCRM.Services
             return await GetStringAsync(endpoint);
         }
 
-        public async Task<string> GetCustommerDashboardDropdown(
-            string company)
+        public async Task<string> GetCustommerDashboardDropdown(string company)
         {
             var queryParams =
                 new Dictionary<string, string?>();
@@ -1137,21 +1120,18 @@ namespace webCRM.Services
             return await GetStringAsync(endpoint);
         }
 
-        public async Task<string> GetNotification(
-            string queryString)
+        public async Task<string> GetNotification(string queryString)
         {
-            var endpoint =
-                "p3/getNotification" + queryString;
+            var endpoint = "p3/getNotification" + queryString;
 
             return await GetStringAsync(endpoint);
         }
 
-        // =========================================================
-        // Layout / Notification
-        // =========================================================
+        #endregion
 
-        public async Task<string> UpdateNotification(
-            UpdateNotificationRequest request)
+        #region Layout / Notification
+
+        public async Task<string> UpdateNotification(UpdateNotificationRequest request)
         {
             var response =
                 await _httpClient.PutAsJsonAsync(
@@ -1167,8 +1147,7 @@ namespace webCRM.Services
             return data;
         }
 
-        public async Task<string> DeleteNotification(
-            DeleteNotificationRequest request)
+        public async Task<string> DeleteNotification(DeleteNotificationRequest request)
         {
             var response =
                 await _httpClient.PutAsJsonAsync(
@@ -1184,9 +1163,7 @@ namespace webCRM.Services
             return data;
         }
 
-        // =========================================================
-        // Manage User
-        // =========================================================
+        #endregion
 
         public async Task<string> GetPersonalWithRole(
             int page,
@@ -1543,8 +1520,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<string> PostHistoryCall(
-            JsonElement body)
+        public async Task<string> PostHistoryCall(JsonElement body)
         {
             try
             {
@@ -1569,9 +1545,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<string> GetHistoryCall(
-            string prospectBatch,
-            string customerId)
+        public async Task<string> GetHistoryCall(string prospectBatch, string customerId)
         {
             try
             {
@@ -1851,11 +1825,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<List<ResponseSuggestion>> GetSuggestionList(
-            string personalId,
-            string? status = null,
-            string? header = null,
-            string? search = null)
+        public async Task<List<ResponseSuggestion>> GetSuggestionList(string personalId, string? status = null, string? header = null, string? search = null)
         {
             try
             {
@@ -2031,11 +2001,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> AddRequestSuggestions(
-                RequestSuggestionsModel request)
+        public async Task<(bool Success, int StatusCode, string Response)> AddRequestSuggestions(RequestSuggestionsModel request)
         {
             try
             {
@@ -2062,13 +2028,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> UpdateSuggestion(
-                string guid,
-                string reply,
-                string updBy)
+        public async Task<(bool Success, int StatusCode, string Response)> UpdateSuggestion(string guid, string reply, string updBy)
         {
             try
             {
@@ -2103,13 +2063,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> UpdateSuggestionStatusInternal(
-                string guid,
-                string? statusTask,
-                string? sendTo)
+        public async Task<(bool Success, int StatusCode, string Response)> UpdateSuggestionStatusInternal(string guid, string? statusTask, string? sendTo)
         {
             try
             {
@@ -2144,11 +2098,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> PostSuggestion(
-                RequestPostSuggestion request)
+        public async Task<(bool Success, int StatusCode, string Response)> PostSuggestion(RequestPostSuggestion request)
         {
             try
             {
@@ -2175,11 +2125,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> PutSuggestionStatusUpd(
-                string guid)
+        public async Task<(bool Success, int StatusCode, string Response)> PutSuggestionStatusUpd(string guid)
         {
             try
             {
@@ -2207,13 +2153,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> UpdateSuggestionStatus(
-                string guid,
-                string? statusTask = null,
-                string? sendTo = null)
+        public async Task<(bool Success, int StatusCode, string Response)> UpdateSuggestionStatus(string guid, string? statusTask = null, string? sendTo = null)
         {
             try
             {
@@ -2282,11 +2222,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> SendEmail(
-                SendEmailRequest request)
+        public async Task<(bool Success, int StatusCode, string Response)> SendEmail(SendEmailRequest request)
         {
             try
             {
@@ -2313,11 +2249,7 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(
-            bool Success,
-            int StatusCode,
-            string Response)> PostNotification(
-                PostNotiRequest request)
+        public async Task<(bool Success, int StatusCode, string Response)> PostNotification(PostNotiRequest request)
         {
             try
             {

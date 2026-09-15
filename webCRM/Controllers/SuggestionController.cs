@@ -64,14 +64,14 @@ namespace webCRM.Controllers
                     });
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "AddRequestSuggestion",
-                    targetId: request.Guid ?? "",
-                    targetType: "SUGGESTION",
-                    message: "AddRequestSuggestion successfully",
-                    module: "AddRequestSuggestion"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "AddRequestSuggestion",
+                //     targetId: request.Guid ?? "",
+                //     targetType: "SUGGESTION",
+                //     message: "AddRequestSuggestion successfully",
+                //     module: "AddRequestSuggestion"
+                // );
 
                 return Ok(new
                 {
@@ -128,14 +128,14 @@ namespace webCRM.Controllers
                             JsonDocument.Parse(
                                 result.Response);
 
-                        await ActivityLogger.SendAsync(
-                            HttpContext,
-                            action: "ReplySuggestion",
-                            targetId: guid,
-                            targetType: "SUGGESTION",
-                            message: "ReplySuggestion successfully",
-                            module: "UpdateSuggestion"
-                        );
+                        // await ActivityLogger.SendAsync(
+                        //     HttpContext,
+                        //     action: "ReplySuggestion",
+                        //     targetId: guid,
+                        //     targetType: "SUGGESTION",
+                        //     message: "ReplySuggestion successfully",
+                        //     module: "UpdateSuggestion"
+                        // );
 
                         return Content(
                             result.Response,
@@ -147,14 +147,14 @@ namespace webCRM.Controllers
                     }
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "ReplySuggestion",
-                    targetId: guid,
-                    targetType: "SUGGESTION",
-                    message: "ReplySuggestion successfully",
-                    module: "UpdateSuggestion"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "ReplySuggestion",
+                //     targetId: guid,
+                //     targetType: "SUGGESTION",
+                //     message: "ReplySuggestion successfully",
+                //     module: "UpdateSuggestion"
+                // );
 
                 return Ok(new
                 {
@@ -257,14 +257,14 @@ namespace webCRM.Controllers
                     });
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "PostSuggestion",
-                    targetId: request.Guid ?? "",
-                    targetType: "SUGGESTION",
-                    message: "PostSuggestion successfully",
-                    module: "PostSuggestion"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "PostSuggestion",
+                //     targetId: request.Guid ?? "",
+                //     targetType: "SUGGESTION",
+                //     message: "PostSuggestion successfully",
+                //     module: "PostSuggestion"
+                // );
 
                 if (!string.IsNullOrWhiteSpace(
                     result.Response))
@@ -320,14 +320,14 @@ namespace webCRM.Controllers
                     });
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "PutSuggestionStatusUpd",
-                    targetId: guid,
-                    targetType: "SUGGESTION",
-                    message: "PutSuggestionStatusUpd successfully",
-                    module: "PutSuggestionStatusUpd"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "PutSuggestionStatusUpd",
+                //     targetId: guid,
+                //     targetType: "SUGGESTION",
+                //     message: "PutSuggestionStatusUpd successfully",
+                //     module: "PutSuggestionStatusUpd"
+                // );
 
                 return Ok(new
                 {
@@ -368,14 +368,14 @@ namespace webCRM.Controllers
                     });
                 }
 
-                await ActivityLogger.SendAsync(
-                    HttpContext,
-                    action: "UpdateSuggestionStatus",
-                    targetId: guid,
-                    targetType: "SUGGESTION",
-                    message : $"Update status To: {statusTask}",
-                    module: "UpdateSuggestionStatus"
-                );
+                // await ActivityLogger.SendAsync(
+                //     HttpContext,
+                //     action: "UpdateSuggestionStatus",
+                //     targetId: guid,
+                //     targetType: "SUGGESTION",
+                //     message : $"Update status To: {statusTask}",
+                //     module: "UpdateSuggestionStatus"
+                // );
 
                 return Ok(new
                 {

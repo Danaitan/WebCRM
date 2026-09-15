@@ -545,8 +545,11 @@ function statusClass(status) {
     if (!status) return 'status-green';
     var s = String(status).trim().toLowerCase();
     var normalized = s.replace(/_/g, ' ');
-    if (normalized === 'reject' || normalized === 'cancel') {
+    if (normalized === 'reject') {
         return 'status-red';
+    }
+    if (normalized === 'return') {
+        return 'status-orange';
     }
     if (normalized === 'approved') {
         return 'status-green';
@@ -736,7 +739,7 @@ async function getCampainList(page, pageSize) {
         }
 
         const filterStatusEl = document.getElementById('filterStatus');
-        let status = "waiting approve,approved";
+        let status = "waiting approve,approved,return,reject";
         if (filterStatusEl && filterStatusEl.value) {
             status = filterStatusEl.value;
         }
@@ -971,7 +974,6 @@ function filterProspectTable() {
                     <td>${item.contract}</td>
                     <td>${item.carLocation}</td>
                     <td>${dtStr}</td>
-                    <td>${item.createdBy}</td>
                 </tr>
             `;
         });

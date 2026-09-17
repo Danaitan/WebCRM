@@ -29,17 +29,6 @@
                         </div>
                     </div>
                     
-                    <!-- Campaign Status Filter Dropdown -->
-                    @* <div class="mb-3">
-                        <select id="campaignStatusFilter" class="form-select" style="border-radius: 10px; height: 42px; font-size: 0.875rem; border: 1px solid #e2e8f0; background-color: #fff; cursor: pointer;">
-                            <option value="">ทั้งหมด</option>
-                            <option value="waiting prospect">waiting prospect</option>
-                            <option value="waiting approve">waiting approve</option>
-                            <option value="approved">approved</option>
-                            <option value="cancel">cancel</option>
-                            <option value="reject">reject</option>
-                        </select>
-                    </div> *@
                     <div class="mb-3">
                         <select id="campaignStatusFilter"
                                 class="form-select"
@@ -191,7 +180,7 @@
                                         <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
                                     </button>
                                     
-                                    <input type="file" id="fileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    <input type="file" id="fileInput" class="d-none" accept=".pdf,.doc,.docx,.xls,.xlsx">
                                     
                                     <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
                                         <i class="bi bi-file-earmark-text text-primary fs-5"></i>
@@ -375,13 +364,13 @@
                             </div>
 
                             <!-- ปุ่มแนบไฟล์ -->
-                            <div class="col-12" id="modalImportExcelContainer">
+                            <!-- <div class="col-12" id="modalImportExcelContainer">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnModalImportExcel">
                                         <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
                                     </button>
                                     
-                                    <input type="file" id="modalfileInput" class="d-none" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.png,.jpg,.jpeg">
+                                    <input type="file" id="modalfileInput" class="d-none" accept=".pdf,.doc,.docx,.xls,.xlsx">
                                     
                                     <div id="modalSelectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
                                         <i class="bi bi-file-earmark-text text-primary fs-5"></i>
@@ -389,7 +378,7 @@
                                         <i class="bi bi-x-circle-fill text-secondary" id="btnRemoveModalExcelFile" style="cursor: pointer;" title="ลบไฟล์"></i>
                                     </div>
                                 </div>
-                            </div>
+                            </div> -->
 
                             <div class="col-md-6 d-flex align-items-center gap-3">
                                 <div class="form-check m-0">

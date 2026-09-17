@@ -6,7 +6,8 @@ using webCRM.Services;
 namespace webCRM.Controllers
 {
     public class SuggestionsController(
-        CRMService crmService) : Controller
+        CRMService crmService,
+        ILogger<SuggestionsController> _logger) : Controller
     {
         public async Task<IActionResult> Index()
         {
@@ -27,18 +28,30 @@ namespace webCRM.Controllers
         public async Task<IActionResult> GetSuggestions(
             string? status = null,
             string? header = null,
-            string? search = null)
+            string? search = null,
+            bool    isSeeAll = false
+            )
         {
-            var personalId =
-                HttpContext.Session.GetString("personalId")
-                ?? "";
+            string userEmail = "";
+            string groupEmail = "";
+            string personalId = "";
+
+            if (!isSeeAll)
+            {
+                userEmail = HttpContext.Session.GetString("email") ?? "";
+                groupEmail = HttpContext.Session.GetString("groupEmail") ?? "";
+                personalId = HttpContext.Session.GetString("personalId") ?? "";
+            }
 
             var suggestions =
                 await crmService.GetSuggestionList(
                     personalId,
                     status,
                     header,
-                    search);
+                    search,
+                    userEmail,
+                    groupEmail
+                    );
 
             return Json(suggestions);
         }
@@ -360,11 +373,20 @@ namespace webCRM.Controllers
 
                 if (!result.Success)
                 {
+                    _logger.LogError(
+                        "UpdateSuggestionStatus failed. Guid: {Guid}, StatusTask: {StatusTask}, SendTo: {SendTo}, StatusCode: {StatusCode}, Response: {Response}",
+                        guid,
+                        statusTask,
+                        sendTo,
+                        result.StatusCode,
+                        result.Response);
+
                     return Ok(new
                     {
                         status = "error",
                         message =
-                            $"API responded with status code: {result.StatusCode}"
+                            $"API responded with status code: {result.StatusCode}",
+                        detail = result.Response
                     });
                 }
 
@@ -408,8 +430,13 @@ namespace webCRM.Controllers
             {
                 return Content(
                     JsonSerializer.Serialize(
-                        "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                        + ex.Message),
+                        new
+                        {
+                            status = false,
+                            message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                                + ex.Message,
+                            data = Array.Empty<object>()
+                        }),
                     "application/json");
             }
         }
@@ -430,8 +457,13 @@ namespace webCRM.Controllers
             {
                 return Content(
                     JsonSerializer.Serialize(
-                        "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                        + ex.Message),
+                        new
+                        {
+                            status = false,
+                            message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                                + ex.Message,
+                            data = Array.Empty<object>()
+                        }),
                     "application/json");
             }
         }

@@ -11,6 +11,32 @@ let prospectPageSize = 5;
 let prospectTotalCount = 0;
 let rawProspectItems = [];
 
+async function getProductStatus() { 
+    try {
+        const response = await fetch('/Campain/getProductStatus');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data || []; 
+    } catch (error) {
+        console.error('Error getting product status:', error);
+        return [];
+    }
+}
+
+async function loadProductStatus() { 
+    const select = document.getElementById('campaignStatusFilter'); 
+    const statuses = await getProductStatus(); 
+    select.innerHTML = '<option value="">ทั้งหมด</option>'; 
+    statuses.forEach(status => { 
+        const option = document.createElement('option'); 
+        option.value = status.name;
+        option.textContent = status.name; 
+        select.appendChild(option); 
+    }); 
+}
+
 async function getProfileByCode (personalCode){
     try {
         const response = await fetch(`/Login/GetProfile?user=${personalCode}`);
@@ -161,7 +187,7 @@ async function SearchCampaign() {
     } else {
         await loadBatchList(1, currentBatchPageSize, searchText);
     }
-}
+}  
 
 function reloadCampaignComponent() {
     if (typeof campaignTable !== "undefined" && campaignTable) {
@@ -677,12 +703,14 @@ function updateDetailPanel(campaign) {
         updateActionButtons(null);
         return;
     }
+
     const id = campaign.code || '';
     const name = campaign.name || '';
     const start = campaign.startDate || '';
     const end = campaign.endDate || '';
     const status = campaign.status || '';
-    const note = campaign.remark || '-';
+    const remark = campaign.remark || '-';
+    const note = campaign.description || '-';
     const objective = campaign.objective || '';
     selectedCampaignCreatedBy = campaign.createdBy || '';
     const detailId = document.getElementById('detailId');
@@ -702,6 +730,21 @@ function updateDetailPanel(campaign) {
 
     const detailNote = document.getElementById('detailNote');
     if (detailNote) detailNote.value = note;
+
+    const detailRemark = document.getElementById('detailRemark');
+    const detailRemarkGroup = document.getElementById('detailRemarkGroup');
+    if (detailRemark && detailRemarkGroup) {
+        const remarkValue = (remark ?? '').toString().trim();
+
+        if (remarkValue && remarkValue !== '-') {
+            detailRemark.value = remarkValue;
+            detailRemarkGroup.style.display = '';
+        } else {
+            detailRemark.value = '';
+            detailRemarkGroup.style.display = 'none';
+        }
+    }
+
 
     const detailObjective = document.getElementById('detailObjective');
     if (detailObjective) detailObjective.value = objective;
@@ -728,7 +771,7 @@ function updateDetailPanel(campaign) {
 }
 
 // Fetch campaign list from API with page and pageSize
-async function getCampainList(page, pageSize) {
+async function getCampainList(page, pageSize, statusText) {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const queryParams = [];
@@ -740,6 +783,9 @@ async function getCampainList(page, pageSize) {
 
         const filterStatusEl = document.getElementById('filterStatus');
         let status = "waiting approve,approved,return,reject";
+        if (statusText && statusText.trim()) {
+            status = statusText;
+        }
         if (filterStatusEl && filterStatusEl.value) {
             status = filterStatusEl.value;
         }
@@ -790,7 +836,8 @@ async function getCampainList(page, pageSize) {
             objective:     item.Objective_code || item.ObjectiveCode || '',
             file_id:       item.file_id || "",
             IsImport:      item.IsImport || false,
-            isActive:      item.isActive || false
+            isActive:      item.isActive || false,
+            description:   item.product_description || ""
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -829,7 +876,8 @@ function initDataTables() {
             const requestedPage = Math.floor(data.start / data.length) + 1;
             page = requestedPage;
             try {
-                const res = await getCampainList(page, pageSize);
+                const statusText = $("#campaignStatusFilter").val();
+                const res = await getCampainList(page, pageSize, statusText);
                 const rawItems = Array.isArray(res) ? res : (res.data || []);
                 campaigns = rawItems;
                 const totalCount = res.count !== undefined ? res.count : rawItems.length;
@@ -1090,6 +1138,7 @@ function clearAllFilters() {
 $(document).ready(async function () {
     initDatePickers();
     initDataTables();
+    loadProductStatus();
     branch = await getBranchList();
     if (branch) {
         renderBranchOptions(branch);
@@ -1514,3 +1563,19 @@ $(document).ready(async function () {
         });
     });
 });
+
+// $("#campaignStatusFilter").off("change").on("change", function () {
+//     campaignPage = 1;
+//     initDataTables();
+// });
+
+$("#campaignStatusFilter")
+    .off("change")
+    .on("change", function () {
+
+        page = 1;
+
+        if (campaignTable) {
+            campaignTable.page(0).ajax.reload(null, false);
+        }
+    });

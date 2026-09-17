@@ -7,6 +7,7 @@ let allBranch = [];
 let prospectPage = 1;
 let prospectPageSize = 10;
 let campaigns = [];
+let selectedProspectIds = new Set();
 
 async function PostNoti(PostNotiData){
     try {
@@ -85,28 +86,11 @@ async function sendPostNotiForAssign(requestData, actionType) {
 
         const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
         const message =
-            `<div style="line-height: 1.7;">
-                <div>
-                    ท่านได้รับการ <b>${typeName} Prospect</b>
-                    ${campaignLabel ? `จาก Campaign <b>${campaignLabel}</b>` : ''}
-                    จำนวน <b>${count}</b> รายการ
-                </div>
-
-                ${remark ? `
-                <div style="margin-top: 8px;">
-                    <span style="color: #666;">หมายเหตุ:</span>
-                    ${escapeHtml(remark)}
-                </div>
-                ` : ''}
-
-                <div style="margin-top: 16px;">
-                    ขอขอบคุณ
-                </div>
-
-                <div style="font-weight: 600; margin-top: 2px;">
-                    ${fullNameTh}
-                </div>
-            </div>`;
+            `ท่านได้รับการ <b>${typeName} Prospect</b>` +
+            `${campaignLabel ? ` จาก Campaign <b>${campaignLabel}</b>` : ''}` +
+            ` จำนวน <b>${count}</b> รายการ<br><br>` +
+            `ขอขอบคุณ<br>` +
+            `${fullNameTh}`;
 
         const endDate = new Date();
         endDate.setFullYear(endDate.getFullYear() + 10);
@@ -147,13 +131,6 @@ async function sendPostNotiForAssign(requestData, actionType) {
                         </a>
                     </div>
 
-                    ${remark ? `
-                    <div style="margin-top: 8px;">
-                        <span style="color: #666;">หมายเหตุ:</span>
-                        ${escapeHtml(remark)}
-                    </div>
-                    ` : ''}
-
                     <div style="margin-top: 16px;">
                         ขอขอบคุณ
                     </div>
@@ -163,17 +140,30 @@ async function sendPostNotiForAssign(requestData, actionType) {
                     </div>
                 </div>`;
 
-            await sendEmail(
-                receiver_profile.e_mail,
-                null,
-                "CRM : Assign Campaign " + campaignName,
-                emailContent
-            );
+            if (receiver_profile && receiver_profile.e_mail) {
+                await sendEmail(
+                    receiver_profile.e_mail,
+                    null,
+                    "CRM : Assign Campaign " + campaignName,
+                    emailContent
+                );
+            }
 
         }
 
     } catch (err) {
         console.error("Error sending PostNoti for Assign:", err);
+    }
+}
+
+async function getProfileByCode(personalCode) {
+    try {
+        const response = await fetch(`/Login/GetProfile?user=${personalCode}`, { skipLoading: true });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error in getProfileByCode:", error);
+        return null;
     }
 }
 
@@ -640,17 +630,22 @@ async function UpdateProspectCustomer(overrideParams = {}){
         const assignStatus = overrideParams.assign_status || 'assigned';
         const isReassign = assignStatus === 'reassign' || btnText === 'ReAssign';
 
-        let selectedCheckboxes = Array.from(document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked'));
-        if (isReassign && !overrideParams.id) {
-            selectedCheckboxes = selectedCheckboxes.filter(cb => {
+        let ids;
+        if (overrideParams.id) {
+            ids = overrideParams.id;
+        } else if (isReassign) {
+            // ReAssign ต้องกรองตามสถานะจากแถวที่แสดงอยู่
+            const selectedCheckboxes = Array.from(document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked')).filter(cb => {
                 const st = (cb.getAttribute('data-status') || '').toLowerCase().trim();
                 const row = cb.closest('tr');
                 const statusText = row ? (row.querySelector('.status-text')?.textContent || '').toLowerCase().trim() : '';
                 return st === 'assigned' || st === 'reassign' || (statusText.includes('assign') && !statusText.includes('wait'));
             });
+            ids = selectedCheckboxes.map(cb => cb.getAttribute('data-id')).filter(Boolean);
+        } else {
+            // ใช้ selection set เพื่อรองรับการเลือกข้ามหน้า
+            ids = Array.from(selectedProspectIds);
         }
-
-        const ids = overrideParams.id || selectedCheckboxes.map(cb => cb.getAttribute('data-id')).filter(Boolean);
 
         if (!ids || ids.length === 0) {
             if (typeof showAlert === 'function') {
@@ -786,14 +781,9 @@ function extractProspectCustomers(data) {
     let items = [];
     let totalCount = 0;
     if (raw && typeof raw === 'object') {
-        const customerNode = raw;
-
-        if (customerNode) {
-            totalCount = customerNode.length;
-            if (Array.isArray(customerNode)) items = customerNode;
-            else if (Array.isArray(raw.data)) items = raw.data;
-            else if (Array.isArray(raw.items)) items = raw.items;
-        }
+        if (Array.isArray(raw)) totalCount = raw.length;
+        else if (Array.isArray(raw.data)) totalCount = raw.data.length;
+        else if (Array.isArray(raw.items)) totalCount = raw.items.length;
     }
 
     const checkAndPush = (item) => {
@@ -846,10 +836,11 @@ function extractProspectCustomers(data) {
             item.prospects.forEach(c => checkAndPush(c));
             return;
         }
-
+console.log("item",item)
         if (typeof item === 'object') {
             const idno = item.idno || '';
-            const id = item.id || '';
+            const id = item.id || item.Id || '';
+            const prospectID = item.prospectID || item.prospectId || item.ProspectID || item.ProspectId || item.prospect_id || '';
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
             const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
@@ -862,9 +853,10 @@ function extractProspectCustomers(data) {
             const status = item.assign_status || '-';
             const isActive = item.isActive || false;
 
-            if (id || idno || (name && name !== '-')) {
+            if (id || prospectID || idno || (name && name !== '-')) {
                 items.push({
                     id: String(id || '').trim(),
+                    prospectID: String(prospectID || '').trim(),
                     idno: String(idno || '').trim(),
                     branch: String(branch).trim(),
                     name: String(name).trim(),
@@ -951,7 +943,8 @@ async function getCampainList(page, pageSize) {
             created:   item.created        ? item.created.substring(0, 10)       : '',
             offcde:    item.offcde         || '',
             file_id:   item.file_id        || item.FileId || item.fileId || "",
-            IsImport:  item.IsImport || false
+            IsImport:  item.IsImport || false,
+            isActive:  item.isActive || false
         }));
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -968,6 +961,8 @@ async function getCampainList(page, pageSize) {
 }
 
 async function loadProspectAssignData(productCode) {
+    // เริ่มโหลด campaign ใหม่ ล้างรายการที่เลือกไว้เดิม
+    selectedProspectIds.clear();
     if (!productCode) {
         rawProspectItems = [];
         prospectTotalCount = 0;
@@ -990,7 +985,7 @@ async function loadProspectAssignData(productCode) {
     let res = null;
     if (isImport) {
         const etlRes = await getCampaignDataForETL(productCode);
-        res = etlRes ? (etlRes.IsBatch || etlRes.isBatch || etlRes.is_batch || etlRes) : null;
+        res = etlRes ? (etlRes.IsBatch) : null;
     } else {
         res = await getProductBatchByProductCode(productCode);
     }
@@ -1000,7 +995,7 @@ async function loadProspectAssignData(productCode) {
     rawProspectItems = items;
     prospectTotalCount = totalCount;
     updateSummaryCardCounts(items, totalCount);
-    filterAndRenderProspectTable();
+    filterAndRenderProspectTable(currentCampaign);
 }
 
 function updateSummaryCardCounts(items, totalCount) {
@@ -1029,7 +1024,7 @@ function updateSummaryCardCounts(items, totalCount) {
     if (cardWait) cardWait.textContent = waitCount.toLocaleString();
 }
 
-function filterAndRenderProspectTable() {
+function filterAndRenderProspectTable(currentCampaign) {
     const tbody = document.getElementById('prospectAssignTableBody');
     if (!tbody) return;
 
@@ -1050,6 +1045,18 @@ function filterAndRenderProspectTable() {
 
     const displayTotal = filteredItems.length;
 
+    const campaign = currentCampaign || (typeof campaigns !== 'undefined' && Array.isArray(campaigns) ? campaigns.find(c => c.code === selectedCampaignCode) : null);
+    const isActive = campaign ? Boolean(campaign.isActive) : (currentCampaign ? Boolean(currentCampaign.isActive) : false);
+    const isImport = campaign ? (campaign.IsImport === true || campaign.IsImport === 'true' || campaign.IsImport === 1 || campaign.IsImport === '1') : false;
+
+    const selectAllCheckbox = document.getElementById('selectAllProspects');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.disabled = !isActive || filteredItems.length === 0;
+        if (!isActive || filteredItems.length === 0) {
+            selectAllCheckbox.checked = false;
+        }
+    }
+
     if (filteredItems.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบข้อมูล</td></tr>`;
     } else {
@@ -1064,7 +1071,11 @@ function filterAndRenderProspectTable() {
         pageItems.forEach(item => {
             const dotClass = getStatusDotClass(item.status, item.assignee);
             const statusText = getStatusLabel(item.status, item.assignee);
-            const isActive = item.isActive;
+            // Campaign แบบ ETL/import ให้ใช้ prospectID เป็นตัวระบุ (แทนคอลัมน์ Id)
+            // Campaign ปกติใช้ id ถ้าไม่มีให้ fallback เป็น idno
+            const selectKey = isImport
+                ? String(item.prospectID || item.id || '').trim()
+                : String(item.id || '').trim();
 
             html += `
                 <tr>
@@ -1072,9 +1083,10 @@ function filterAndRenderProspectTable() {
                         <input 
                             type="checkbox" 
                             class="form-check-input prospect-checkbox" 
-                            data-id="${escapeHtml(item.id)}" 
+                            data-id="${escapeHtml(selectKey)}" 
                             data-contract="${escapeHtml(item.contract)}" 
-                            -status="${escapeHtml(item.status)}"
+                            data-status="${escapeHtml(item.status)}"
+                            ${selectedProspectIds.has(selectKey) ? 'checked' : ''}
                             ${isActive ? '' : 'disabled'}
                         >
                     </td>
@@ -1101,7 +1113,17 @@ function filterAndRenderProspectTable() {
     // Attach event listeners for checkboxes in tbody
     const checkboxes = tbody.querySelectorAll('.prospect-checkbox');
     checkboxes.forEach(cb => {
-        cb.addEventListener('change', updateSelectedCount);
+        cb.addEventListener('change', function () {
+            const id = String(this.getAttribute('data-id') || '').trim();
+            if (id) {
+                if (this.checked) {
+                    selectedProspectIds.add(id);
+                } else {
+                    selectedProspectIds.delete(id);
+                }
+            }
+            updateSelectedCount();
+        });
     });
 
     updateSelectedCount();
@@ -1123,8 +1145,9 @@ function updateAssignButtonDisabledState() {
     const checkedProspects = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
     const hasCheckedProspects = checkedProspects.length > 0;
 
+    // Assign button requires selected prospects and at most 1 assignee (use Auto Assign for multiple)
     if (assignBtn) {
-        if (assigneeTags.length === 0 || !hasCheckedProspects) {
+        if (!hasCheckedProspects || assigneeTags.length > 1) {
             assignBtn.disabled = true;
         } else {
             assignBtn.disabled = false;
@@ -1148,13 +1171,16 @@ function updateSelectedCount() {
     const selectAllCheckbox = document.getElementById('selectAllProspects');
     const assignBtn = document.getElementById('assignBtn');
 
-    const checkedCount = checkedBoxes.length;
+    // Count is based on the persisted selection set so it survives pagination/re-render
+    const checkedCount = selectedProspectIds.size;
     if (countDisplay) {
         countDisplay.textContent = `Selected: ${checkedCount} รายการ`;
     }
 
     if (selectAllCheckbox) {
-        selectAllCheckbox.checked = (checkboxes.length > 0 && checkedCount === checkboxes.length);
+        const enabledCheckboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:not(:disabled)');
+        const visibleCheckedCount = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked').length;
+        selectAllCheckbox.checked = (enabledCheckboxes.length > 0 && visibleCheckedCount === enabledCheckboxes.length);
     }
 
     let hasAssigned = false;
@@ -1278,9 +1304,20 @@ function buildPageRange(current, total) {
     const selectAllCheckbox = document.getElementById('selectAllProspects');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function () {
+            if (this.disabled) return;
             const isChecked = this.checked;
-            const checkboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox');
-            checkboxes.forEach(cb => cb.checked = isChecked);
+            const checkboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:not(:disabled)');
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                const id = String(cb.getAttribute('data-id') || '').trim();
+                if (id) {
+                    if (isChecked) {
+                        selectedProspectIds.add(id);
+                    } else {
+                        selectedProspectIds.delete(id);
+                    }
+                }
+            });
             updateSelectedCount();
         });
     }
@@ -1448,9 +1485,9 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
             const isSelected = idx === selectedIndex;
             const statusClass = getStatusClass(item.status);
             const displayCode = item.code || item.name || 'N/A';
-            const rawDate = item.created || item.startDate || '';
-            const displayDate = formatDate(rawDate);
-            const displayName = item.name || item.remark || '';
+            const startDate = formatDate(item.startDate);
+            const endDate = formatDate(item.endDate);
+            const displayName = item.name || '';
 
             html += `
                 <div class="batch-item ${isSelected ? 'active' : ''}" data-batch-index="${idx}">
@@ -1458,9 +1495,14 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
                         <span class="${isSelected ? 'text-primary' : ''}">${displayCode}</span>
                         <span class="batch-status ${statusClass}">${item.status}</span>
                     </div>
-                    <div class="batch-item-details">
-                        <span>${displayDate}</span>
+                    <div class="batch-item-name" title="${displayName}">
                         <span>${displayName}</span>
+                    </div>
+                    <div class="batch-item-details">
+                        <span>${startDate}</span>
+                        <span> - </span>
+                        <span>${endDate}</span>
+                        
                     </div>
                 </div>
             `;
@@ -1852,8 +1894,8 @@ init();
             if (this.disabled) return;
             e.preventDefault();
 
-            const filterBranchSelect = document.getElementById('filterBranchSelect');
-            if (!filterBranchSelect || !filterBranchSelect.value) {
+            const selectedBranches = getSelectedBranchCodes();
+            if (!selectedBranches || selectedBranches.length === 0) {
                 if (typeof showAlert === 'function') {
                     showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกสาขาก่อนทำ Auto Assign');
                 } else {
@@ -1862,24 +1904,29 @@ init();
                 return;
             }
 
-            const { totalOptions } = selectAllResponsibleStaff();
-            if (totalOptions === 0) {
+            // 1) ต้องเลือกรายการ Prospect ที่ต้องการ Assign ก่อน (ใช้จาก selection set เพื่อรองรับการเลือกข้ามหน้า)
+            if (selectedProspectIds.size === 0) {
                 if (typeof showAlert === 'function') {
-                    showAlert('warning', 'แจ้งเตือน', 'ไม่พบข้อมูลพนักงานในสาขาที่เลือก');
+                    showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
                 } else {
-                    alert('ไม่พบข้อมูลพนักงานในสาขาที่เลือก');
+                    alert('กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
                 }
                 return;
             }
 
-            const checkedBoxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked');
-            if (checkedBoxes.length === 0) {
-                if (typeof showAlert === 'function') {
-                    showAlert('warning', 'แจ้งเตือน', 'เลือกพนักงานทั้งหมดในสาขาเรียบร้อยแล้ว กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
-                } else {
-                    alert('เลือกพนักงานทั้งหมดในสาขาเรียบร้อยแล้ว กรุณาเลือกรายการ Prospect ที่ต้องการ Assign');
+            // 2) ถ้าผู้ใช้เลือกผู้รับผิดชอบไว้แล้ว ให้ใช้เฉพาะที่เลือก
+            //    ถ้ายังไม่ได้เลือก ให้เลือกพนักงานทั้งหมดในสาขามาทำ Auto Assign
+            const existingAssigneeTags = document.querySelectorAll('#responsibleSelectBox .branch-tag');
+            if (existingAssigneeTags.length === 0) {
+                const { totalOptions } = selectAllResponsibleStaff();
+                if (totalOptions === 0) {
+                    if (typeof showAlert === 'function') {
+                        showAlert('warning', 'แจ้งเตือน', 'ไม่พบข้อมูลพนักงานในสาขาที่เลือก');
+                    } else {
+                        alert('ไม่พบข้อมูลพนักงานในสาขาที่เลือก');
+                    }
+                    return;
                 }
-                return;
             }
 
             if (typeof startLoading === 'function') {

@@ -70,6 +70,14 @@
                 <div class="badge-count" id="campaignCount">0</div>
             </div>
 
+            <div class="mb-3">
+                <select id="campaignStatusFilter"
+                        class="form-select"
+                        style="border-radius: 10px; height: 42px; font-size: 0.875rem; border: 1px solid #e2e8f0; background-color: #fff; cursor: pointer;">
+                    <option value="">ทั้งหมด</option>
+                </select>
+            </div>
+                    
             <div class="campaign-table-wrapper flex-grow-1 overflow-hidden d-flex flex-column">
                 <table id="campaignsTable" class="table table-borderless" style="width:100%;">
                     <thead>
@@ -128,8 +136,18 @@
                             </div>
 
                             <div class="col-12 pa-form-group mb-0">
-                                <label>หมายเหตุ</label>
+                                <label>รายละเอียดแคมเปญ</label>
                                 <textarea id="detailNote" class="pa-form-control" rows="2" readonly placeholder="-" style="resize: none;"></textarea>
+                            </div>
+
+                            <div id="detailRemarkGroup" class="col-12 pa-form-group mb-0">
+                                <label>หมายเหตุ</label>
+                                <textarea id="detailRemark"
+                                        class="pa-form-control"
+                                        rows="2"
+                                        readonly
+                                        placeholder="-"
+                                        style="resize: none;"></textarea>
                             </div>
 
                             <div class="col-12 mt-2">

@@ -624,8 +624,12 @@ function initAgeChart(data) {
     });
 }
 
-async function getDashboardCustomerInfo() {
+async function getDashboardCustomerInfo(options = {}) {
+    // inline = โหลดในหน้าแบบไม่บล็อก (ไม่แสดง overlay เต็มจอ) ผู้ใช้ยังไปหน้าอื่นได้
+    const inline = options && options.inline === true;
     try {
+        if (inline) setDashboardLoadingState();
+
         const company = document.getElementById('dashboardCompany')?.value || '';
         const branch = document.getElementById('dashboardBranch')?.value || '';
         const cusType = document.getElementById('dashboardCustomerType')?.value || '';
@@ -642,7 +646,8 @@ async function getDashboardCustomerInfo() {
         const queryString = params.toString();
         const url = '/Home/GetCustommerDashboard' + (queryString ? `?${queryString}` : '');
 
-        const response = await fetch(url);
+        // เมื่อโหลดแบบ inline จะข้าม overlay เต็มจอ (fetch interceptor) เพื่อไม่บล็อกหน้า
+        const response = await fetch(url, inline ? { skipLoading: true } : undefined);
         if (!response.ok) {
             console.error("HTTP error fetching dashboard customer info:", response.status);
             renderEmptyDashboard();
@@ -666,6 +671,7 @@ async function getDashboardCustomerInfo() {
         } else {
             setDataDashboardCustomer({ companyCus: [] });
         }
+        clearDashboardLoadingState();
         if (data.graph) {
             if (data.graph.product) initProductChart(data.graph.product);
             if (data.graph.occupation) initOccupationChart(data.graph.occupation);
@@ -675,6 +681,8 @@ async function getDashboardCustomerInfo() {
     } catch (error) {
         console.error("Error fetching dashboard customer info:", error);
         renderEmptyDashboard();
+    } finally {
+        clearDashboardLoadingState();
     }
 }
 
@@ -863,7 +871,39 @@ async function setFilterContractStatus(data) {
     }
 }
 
+// แสดงสถานะกำลังโหลดแบบ inline ในหน้า (ไม่บล็อกทั้งหน้า) เพื่อให้ผู้ใช้ยังไปหน้าอื่นได้
+function setDashboardLoadingState() {
+    const statTotalEl = document.getElementById('statTotalCount');
+    if (statTotalEl) statTotalEl.innerText = '…';
+
+    const customerCardContainer = document.getElementById('customerCard');
+    if (customerCardContainer) {
+        customerCardContainer.innerHTML = `
+            <div class="dashboard-inline-loading">
+                <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
+                <span>กำลังโหลดข้อมูล...</span>
+            </div>`;
+    }
+
+    // แสดง overlay โหลดเล็ก ๆ ในกล่องกราฟแต่ละอัน
+    document.querySelectorAll('.customer-graph .chart-container').forEach(container => {
+        if (!container.querySelector('.chart-loading-overlay')) {
+            const loader = document.createElement('div');
+            loader.className = 'chart-loading-overlay';
+            loader.innerHTML = `
+                <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
+                <span>กำลังโหลด...</span>`;
+            container.appendChild(loader);
+        }
+    });
+}
+
+function clearDashboardLoadingState() {
+    document.querySelectorAll('.customer-graph .chart-loading-overlay').forEach(el => el.remove());
+}
+
 function renderEmptyDashboard() {
+    clearDashboardLoadingState();
     const statTotalEl = document.getElementById('statTotalCount');
     if (statTotalEl) statTotalEl.innerText = '0';
     const customerCardContainer = document.getElementById('customerCard');
@@ -1093,15 +1133,15 @@ $(document).ready(async function () {
 
     updateDependentDropdownsState();
 
-    startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
-    try {
-        await loadDashboardDropdowns();
-        await getDashboardCustomerInfo();
-    } catch (error) {
-        console.error("Error in document ready:", error);
-    } finally {
-        stopLoading();
-    }
+    // โหลดข้อมูลครั้งแรกแบบ inline (ไม่บล็อกทั้งหน้า) ผู้ใช้สามารถไปหน้าอื่นได้ทันทีโดยไม่ต้องรอโหลดเสร็จ
+    (async function loadInitialDashboard() {
+        try {
+            await loadDashboardDropdowns();
+            await getDashboardCustomerInfo({ inline: true });
+        } catch (error) {
+            console.error("Error in document ready:", error);
+        }
+    })();
 
     $('#dashboardSearch').on('click', async function () {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');

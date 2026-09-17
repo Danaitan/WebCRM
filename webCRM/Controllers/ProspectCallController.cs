@@ -28,8 +28,13 @@ namespace webCRM.Controllers
             {
                 return Content(
                     JsonSerializer.Serialize(
-                        "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                        + ex.Message),
+                        new
+                        {
+                            status = false,
+                            message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                                + ex.Message,
+                            data = Array.Empty<object>()
+                        }),
                     "application/json");
             }
         }
@@ -78,8 +83,13 @@ namespace webCRM.Controllers
             {
                 return Content(
                     JsonSerializer.Serialize(
-                        "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                        + ex.Message),
+                        new
+                        {
+                            status = false,
+                            message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                                + ex.Message,
+                            data = Array.Empty<object>()
+                        }),
                     "application/json");
             }
         }
@@ -112,8 +122,13 @@ namespace webCRM.Controllers
             {
                 return Content(
                     JsonSerializer.Serialize(
-                        "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                        + ex.Message),
+                        new
+                        {
+                            status = false,
+                            message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                                + ex.Message,
+                            data = Array.Empty<object>()
+                        }),
                     "application/json");
             }
         }

@@ -174,8 +174,11 @@ namespace webCRM.Models
         [JsonPropertyName("custyp")]
         public string? Custyp { get; set; }
 
+        //[JsonPropertyName("contnoOld")]
+        //public string? ContnoOld { get; set; }
+
         [JsonPropertyName("contnoOld")]
-        public string? ContnoOld { get; set; }
+        public long? ContnoOld { get; set; }
 
         [JsonPropertyName("applno")]
         public string? Applno { get; set; }
@@ -354,8 +357,14 @@ namespace webCRM.Models
         [JsonPropertyName("custyp")]
         public string? Custyp { get; set; }
 
+        //[JsonPropertyName("contnoOld")]
+        //public string? ContnoOld { get; set; }
+
+        //[JsonPropertyName("contnoOld")]
+        //public string? ContnoOld { get; set; }
+
         [JsonPropertyName("contnoOld")]
-        public string? ContnoOld { get; set; }
+        public long? ContnoOld { get; set; }
 
         [JsonPropertyName("applno")]
         public string? Applno { get; set; }

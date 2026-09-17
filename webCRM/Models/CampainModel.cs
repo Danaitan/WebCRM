@@ -257,6 +257,15 @@ namespace webCRM.Models
         public string? created_by { get; set; }
     }
 
+    public class UpdateFileRequest
+    {
+        [JsonPropertyName("Id")]
+        public long Id { get; set; }
+
+        [JsonPropertyName("IsActive")]
+        public bool IsActive { get; set; }
+    }
+
     public class FlexibleStringConverter : JsonConverter<string>
     {
         public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

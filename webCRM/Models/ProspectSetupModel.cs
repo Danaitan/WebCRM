@@ -42,6 +42,12 @@ namespace webCRM.Models
         public string? user { get; set; }
     }
 
+    public class PostNotiToApproverRequest
+    {
+        public string? title { get; set; }
+        public string? message { get; set; }
+    }
+
     public class UpdateProductBatchStatusRequest
     {
         public string? product_code { get; set; }

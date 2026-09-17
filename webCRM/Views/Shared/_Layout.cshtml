@@ -175,9 +175,56 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                    <div class="user-company text-end d-none d-md-block">
-                        <div class="text-muted" style="font-size: 0.85rem;">ยินดีต้อนรับ <span class="fw-bold text-primary">@(Context.Session.GetString("profile_welcome") ?? "")</span></div>
-                    </div>
+                
+<div class="d-flex align-items-center gap-3">
+    <div class="user-company text-end d-none d-md-block">
+
+        <div class="text-muted" style="font-size: 0.85rem;">
+            ยินดีต้อนรับ
+            <span class="fw-bold text-primary">
+                @(Context.Session.GetString("profile_welcome") ?? "")
+            </span>
+        </div>
+
+        <div>
+            @foreach (var func in (Context.Session.GetString("func_name") ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                <span class="fw-bold text-primary">[@func.Trim()]</span>
+            }
+        </div>
+
+        @{
+            var branches = (Context.Session.GetString("variable_func") ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .ToList();
+        }
+
+        <div class="dropdown">
+            <button class="btn btn-link p-0 text-decoration-none"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                รหัสสาขาที่มีสิทธิ์
+                <i class="bi bi-chevron-down ms-1"></i>
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end">
+                @foreach (var branch in branches)
+                {
+                    <li>
+                        <a class="dropdown-item" href="#">
+                            [@branch]
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+
+    </div>
+</div>
+
                     <div class="dropdown me-2">
                         <div class="position-relative d-flex align-items-center justify-content-center" style="cursor: pointer; width: 40px; height: 40px;" id="bellNotification" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
                             <i class="bi bi-bell fs-5 text-secondary hover-ring d-inline-block"></i>

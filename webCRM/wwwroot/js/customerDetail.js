@@ -1118,7 +1118,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             // Another request was started or tab was changed, do not update UI
             return;
         }
-
+console.log("data",data)
         const contract = data.contractInfo?.[0] || {};
 
          // Update UI with actual data
@@ -1146,7 +1146,6 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             //#region ข้อมูลสัญญา
             
             if (company == "Micro"){
-
                 document.getElementById("contract-detail-contno").innerText = contract.contno || '-';
                 document.getElementById("contract-detail-loantype").innerText = contract.loantype || '-';
                 document.getElementById("contract-detail-company").innerText = contract.companyCde || '-';

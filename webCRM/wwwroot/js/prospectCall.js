@@ -137,7 +137,10 @@ async function getCampainList(page = 1, pageSize = 10) {
 
 async function getCampaignDataForETL(productCode) {
     try {
-        const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`);
+        
+        let url = `/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`;
+        url += `&assignTo=${encodeURIComponent(window.CURRENT_USER_ID)}`;
+        const response = await fetch(url);
         if (!response.ok) {
             console.error("getCampaignDataForETL HTTP error:", response.status, response.statusText);
             return null;
@@ -991,30 +994,56 @@ function formatDateTh(dateStr) {
     return dateStr;
 }
 
-// Format datetime string to DD/MM/YYYY HH:mm (CE / ค.ศ. in 24-hour format)
+// Format datetime string to DD/MM/YYYY HH:mm
+// function formatDateCE(dateStr) {
+//     if (!dateStr || dateStr === '-') return '-';
+//     let str = String(dateStr).trim();
+//     if (!str || str === '-') return '-';
+
+//     // If ISO string with UTC or timezone offset, parse in Thai timezone (UTC+7) in 24-hour format
+//     if (str.endsWith('Z') || (str.includes('T') && str.length > 19)) {
+//         try {
+//             const d = new Date(str);
+//             if (!isNaN(d.getTime())) {
+//                 const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
+//                 const thaiTime = new Date(utcTime + (7 * 3600000));
+//                 const day = String(thaiTime.getDate()).padStart(2, '0');
+//                 const month = String(thaiTime.getMonth() + 1).padStart(2, '0');
+//                 const year = normalizeYearToCE(thaiTime.getFullYear());
+//                 const hours = String(thaiTime.getHours()).padStart(2, '0');
+//                 const mins = String(thaiTime.getMinutes()).padStart(2, '0');
+//                 return `${day}/${month}/${year} ${hours}:${mins}`;
+//             }
+//         } catch (e) { }
+//     }
+
+//     let timePart = '';
+//     if (str.includes('T')) {
+//         const parts = str.split('T');
+//         str = parts[0];
+//         timePart = parts[1] ? parts[1].substring(0, 5) : '';
+//     } else if (str.includes(' ')) {
+//         const parts = str.split(' ');
+//         str = parts[0];
+//         timePart = parts[1] ? parts[1].substring(0, 5) : '';
+//     }
+
+//     const dateOnly = formatDateTh(str);
+//     if (dateOnly && dateOnly !== '-') {
+//         return timePart ? `${dateOnly} ${timePart}` : dateOnly;
+//     }
+
+//     return dateStr;
+// }
+
 function formatDateCE(dateStr) {
     if (!dateStr || dateStr === '-') return '-';
+
     let str = String(dateStr).trim();
     if (!str || str === '-') return '-';
 
-    // If ISO string with UTC or timezone offset, parse in Thai timezone (UTC+7) in 24-hour format
-    if (str.endsWith('Z') || (str.includes('T') && str.length > 19)) {
-        try {
-            const d = new Date(str);
-            if (!isNaN(d.getTime())) {
-                const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
-                const thaiTime = new Date(utcTime + (7 * 3600000));
-                const day = String(thaiTime.getDate()).padStart(2, '0');
-                const month = String(thaiTime.getMonth() + 1).padStart(2, '0');
-                const year = normalizeYearToCE(thaiTime.getFullYear());
-                const hours = String(thaiTime.getHours()).padStart(2, '0');
-                const mins = String(thaiTime.getMinutes()).padStart(2, '0');
-                return `${day}/${month}/${year} ${hours}:${mins}`;
-            }
-        } catch (e) { }
-    }
-
     let timePart = '';
+
     if (str.includes('T')) {
         const parts = str.split('T');
         str = parts[0];
@@ -1026,6 +1055,7 @@ function formatDateCE(dateStr) {
     }
 
     const dateOnly = formatDateTh(str);
+
     if (dateOnly && dateOnly !== '-') {
         return timePart ? `${dateOnly} ${timePart}` : dateOnly;
     }
@@ -1097,7 +1127,7 @@ function filterProspectTable() {
     const branch = $('#filterBranch').val() || '';
     const status = $('#filterStatus').val() || '';
     const statusLead = ($('#filterStatusLead').val() || $('#filterBy').val() || '').trim().toLowerCase();
-
+console.log("rawProspectItems",rawProspectItems)
     const filtered = rawProspectItems.filter(item => {
         const itemBranch = (item.branch || '').toLowerCase();
         const itemName = (item.name || '').toLowerCase();

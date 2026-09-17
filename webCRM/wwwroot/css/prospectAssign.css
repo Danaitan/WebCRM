@@ -310,12 +310,29 @@ body {
 .batch-status.rejected { background: #fef2f2; color: #dc2626; }
 .batch-status.draft { background: #f1f5f9; color: #64748b; }
 
+.batch-item-name {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.4;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.batch-item.active .batch-item-name {
+    color: var(--bs-primary);
+}
+
 .batch-item-details {
     display: flex;
-    justify-content: space-between;
+    justify-content: start;
     align-items: center;
     font-size: 0.75rem;
     color: var(--text-gray);
+    gap:1px;
 }
 
 /* Table Custom */

@@ -207,7 +207,7 @@ async function setDashboard() {
     if (startDate) params.append('startdate', startDate);
     if (endDate) params.append('enddate', endDate);
     if (callType) params.append('call_type', callType);
-    if (branch) params.append('branch', branch);
+    if (branch && branch !== "99") params.append('branch', branch);
     if (callBy) params.append('call_by', callBy);
     if (callResult) params.append('call_result', callResult);
     if (campaignName) params.append('campaign_name', campaignName);
@@ -928,7 +928,7 @@ async function setFilterBranch(branchData) {
         data.forEach(item => {
             if (item && isBranchInVariableFunc(item, variableFunc)) {
                 const code = String(item.offcde || '').trim();
-                const name = item.branch_name;
+                const name = code === "99" ? "ทั้งหมด" : item.branch_name;
                 optionsHtml += `<option value="${code}">${name}</option>`;
             }
         });
@@ -1175,7 +1175,7 @@ async function exportCallExcel() {
         if (startDate) params.append('startdate', startDate);
         if (endDate) params.append('enddate', endDate);
         if (callType) params.append('call_type', callType);
-        if (branch) params.append('branch', branch);
+        if (branch && branch !== "99") params.append('branch', branch);
         if (callBy) params.append('call_by', callBy);
         if (callResult) params.append('call_result', callResult);
         if (campaignName) params.append('campaign_name', campaignName);

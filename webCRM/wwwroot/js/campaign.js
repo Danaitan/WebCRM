@@ -7,10 +7,58 @@ let selectedCampaignGuid = "";
 let selectedCampaignId = 0;
 let selectedCampaignFileId = "";
 let fileIdToDelete = "";
+// promise ของการสร้างรหัสแคมเปญในโมดัล ใช้ให้การอัปโหลดไฟล์รอจนได้รหัสจริงก่อน
+let modalCampaignCodePromise = null;
+// ข้อความ placeholder ระหว่างรอสร้างรหัส (ไม่ใช่รหัสจริง)
+const CAMPAIGN_CODE_PLACEHOLDER = "กำลังสร้างรหัส...";
 const pageSize = 5;
 let page = 1;
 let rawMasterFilters = [];
 let campaignTable;
+
+// ดึง file id จาก response ของการอัปโหลดแบบยืดหยุ่น
+// รองรับ id ระดับบนสุด, การห่อด้วย data/result และรูปแบบ array/ตัวพิมพ์ต่างกัน
+function extractUploadedFileId(uploadRes) {
+    if (!uploadRes) return "";
+
+    const scan = (val) => {
+        if (val === null || val === undefined) return "";
+        if (typeof val === 'string') {
+            const s = val.trim();
+            if (/^\d+$/.test(s) && s !== "0") return s;
+            try { return scan(JSON.parse(s)); } catch (e) { return ""; }
+        }
+        if (typeof val === 'number') {
+            return val > 0 ? String(val) : "";
+        }
+        if (Array.isArray(val)) {
+            for (const item of val) {
+                const found = scan(item);
+                if (found) return found;
+            }
+            return "";
+        }
+        if (typeof val === 'object') {
+            for (const key of ['id', 'Id', 'file_id', 'fileId', 'FileId']) {
+                if (val[key] !== undefined && val[key] !== null) {
+                    const found = scan(val[key]);
+                    if (found) return found;
+                }
+            }
+            for (const wrapper of ['data', 'Data', 'result', 'Result', 'response', 'Response']) {
+                if (val[wrapper] !== undefined && val[wrapper] !== null) {
+                    const found = scan(val[wrapper]);
+                    if (found) return found;
+                }
+            }
+        }
+        return "";
+    };
+
+    const topId = scan(uploadRes.id);
+    if (topId) return topId;
+    return scan(uploadRes.data);
+}
 
 const STATUS_CAN_EDIT = [
     "waiting prospect",
@@ -35,7 +83,6 @@ async function loadProductStatus() {
     const select = document.getElementById('campaignStatusFilter'); 
     const statuses = await getProductStatus(); 
     select.innerHTML = '<option value="">ทั้งหมด</option>'; 
-    console.log("statuses",statuses);
     statuses.forEach(status => { 
         const option = document.createElement('option'); 
         option.value = status.name;
@@ -81,7 +128,7 @@ async function SearchCampaign() {
     } else {
         const searchText = $("#campaignSearchInput").val();
         const statusText = $("#campaignStatusFilter").val();
-        const response = await getCampainList(page, pageSize, searchText, statusText);
+        await getCampainList(page, pageSize, searchText, statusText);
     }
 }   
 
@@ -531,6 +578,7 @@ async function getCampainList(page, pageSize, searchText, statusText) {
         if (statusText !== undefined && statusText !== null && statusText !== '') {
             queryStr += `&status=${encodeURIComponent(statusText)}`;
         }
+        queryStr += `&isFiltercompany=${encodeURIComponent(true)}`;
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();
@@ -1108,9 +1156,8 @@ $(document).ready(async function () {
 
     async function loadCampaignToForm(code) {
         const campaign = campaigns.find(c => c.code === code);
-        console.log("campaign",campaign);
         if (!campaign) return;
-        
+
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
         try {
             selectedCampaignCode = code;
@@ -1208,7 +1255,7 @@ $(document).ready(async function () {
                         const fileData = await fileRes.json();
                         const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
                         const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
-  
+
                         if (fileName) {
                             $("#selectedFileNameText")
                                 .text(fileName)
@@ -1579,24 +1626,10 @@ $(document).ready(async function () {
 async function getCheckProductNo() {
     try {
         const response = await fetch('/Campain/GetCheckProductNo');
+        console.log("response",response)
         if (!response.ok) return '';
-        const resText = await response.text();
-        if (!resText) return '';
-
-        let data = resText;
-        if (typeof resText === 'string') {
-            try {
-                data = JSON.parse(resText);
-            } catch (e) {
-                return resText;
-            }
-        }
-        if (typeof data === 'string') {
-            try {
-                data = JSON.parse(data);
-            } catch (e) {}
-        }
-
+        const data = await response.json();
+        console.log("data",data)
         if (Array.isArray(data) && data.length > 0) {
             return data[0].newCode || data[0].NewCode || data[0].code || data[0].Code || '';
         } else if (data && typeof data === 'object') {
@@ -1610,7 +1643,7 @@ async function getCheckProductNo() {
 }
 
     $("#newActionBtn").on("click", function () {
-        $("#modalCampaignCode").val("กำลังสร้างรหัส...");
+        $("#modalCampaignCode").val(CAMPAIGN_CODE_PLACEHOLDER);
         $("#modalCampaignName").val("");
 
         const today = new Date();
@@ -1638,9 +1671,17 @@ async function getCheckProductNo() {
         $("#modalfileInput").val("");
         $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
 
-        getCheckProductNo().then(newCode => {
-            $("#modalCampaignCode").val(newCode);
-            $("#campaignCode").val(newCode);
+        // เก็บ promise ไว้ให้ uploadCampaignFile รอจนได้รหัสจริง กันแนบเอกสารพลาดเพราะรหัสยังไม่มา
+        modalCampaignCodePromise = getCheckProductNo().then(newCode => {
+            const resolvedCode = (newCode || "").trim();
+            $("#modalCampaignCode").val(resolvedCode);
+            $("#campaignCode").val(resolvedCode);
+            return resolvedCode;
+        }).catch(err => {
+            console.error("Error generating campaign code:", err);
+            $("#modalCampaignCode").val("");
+            $("#campaignCode").val("");
+            return "";
         });
 
         var myModal = new bootstrap.Modal(document.getElementById('createCampaignModal'));
@@ -1744,17 +1785,7 @@ async function getCheckProductNo() {
                     if (modalFileInput && modalFileInput.files && modalFileInput.files.length > 0) {
                         const uploadRes = await uploadCampaignFile(modalFileInput, true, false);
                         if (uploadRes && uploadRes.status === "success") {
-                            if (uploadRes.id) {
-                                modalFileId = String(uploadRes.id);
-                            } else if (uploadRes.data) {
-                                let rawData = uploadRes.data;
-                                if (typeof rawData === 'string') {
-                                    try { rawData = JSON.parse(rawData); } catch(e){}
-                                }
-                                if (rawData && rawData.Id) {
-                                    modalFileId = String(rawData.Id);
-                                }
-                            }
+                            modalFileId = extractUploadedFileId(uploadRes);
                         }
                     }
 
@@ -1964,6 +1995,9 @@ async function getCheckProductNo() {
                 if (result.isConfirmed) {
                     startLoading("กำลังบันทึกข้อมูล...", "ระบบกำลังบันทึกข้อมูลแคมเปญและ Filter...");
                     try {
+                        // จำไว้ว่ามีการลบไฟล์เดิมหรือไม่ ก่อนที่จะเคลียร์ fileIdToDelete
+                        const hadFileDeleted = !!fileIdToDelete;
+
                         if (fileIdToDelete) {
                             try {
                                 const delRes = await fetch(`/Campain/DeleteFile?Id=${fileIdToDelete}`, {
@@ -1971,6 +2005,11 @@ async function getCheckProductNo() {
                                 });
                                 if (!delRes.ok) {
                                     console.error("DeleteFile failed:", await delRes.text());
+                                } else {
+                                    const delJson = await delRes.json().catch(() => null);
+                                    if (delJson && delJson.status === "error") {
+                                        console.error("DeleteFile failed:", delJson.message, delJson.detail || "");
+                                    }
                                 }
                             } catch (deleteErr) {
                                 console.error("Error calling DeleteFile:", deleteErr);
@@ -1978,21 +2017,16 @@ async function getCheckProductNo() {
                             fileIdToDelete = "";
                         }
 
-                        let fileIdToSave = selectedCampaignFileId || "";
+                        // ถ้าเคยมีไฟล์แล้วผู้ใช้ลบทิ้ง ต้องส่ง "0" เพื่อให้ backend ล้างค่า
+                        // (การส่ง "" จะถูก backend มองข้าม ทำให้ค่าเดิมไม่ถูกอัปเดต)
+                        let fileIdToSave = selectedCampaignFileId || (hadFileDeleted ? "0" : "");
                         const mainFileInput = document.getElementById("fileInput");
                         if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
                             const uploadRes = await uploadCampaignFile(mainFileInput, false, false);
                             if (uploadRes && uploadRes.status === "success") {
-                                if (uploadRes.id) {
-                                    fileIdToSave = String(uploadRes.id);
-                                } else if (uploadRes.data) {
-                                    let rawData = uploadRes.data;
-                                    if (typeof rawData === 'string') {
-                                        try { rawData = JSON.parse(rawData); } catch(e){}
-                                    }
-                                    if (rawData && rawData.Id) {
-                                        fileIdToSave = String(rawData.Id);
-                                    }
+                                const uploadedId = extractUploadedFileId(uploadRes);
+                                if (uploadedId) {
+                                    fileIdToSave = uploadedId;
                                 }
                                 selectedCampaignFileId = fileIdToSave;
                             }
@@ -2054,7 +2088,10 @@ async function getCheckProductNo() {
                         }
 
                         if (filterRes && (filterRes.status === "success" || filterRes.status === "warning")) {
-                            campaignData.file_id = fileIdToSave;
+                            // "0" หมายถึงไม่มีไฟล์ เก็บเป็นค่าว่างในสถานะฝั่ง client
+                            const normalizedFileId = (fileIdToSave && fileIdToSave !== "0") ? fileIdToSave : "";
+                            selectedCampaignFileId = normalizedFileId;
+                            campaignData.file_id = normalizedFileId;
                             campaignData.remarks = campaigns[existingIdx]?.remarks || "";
                             campaigns[existingIdx] = campaignData;
 
@@ -2096,17 +2133,7 @@ async function getCheckProductNo() {
                         if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
                             const uploadRes = await uploadCampaignFile(mainFileInput, false, false);
                             if (uploadRes && uploadRes.status === "success") {
-                                if (uploadRes.id) {
-                                    mainFileId = String(uploadRes.id);
-                                } else if (uploadRes.data) {
-                                    let rawData = uploadRes.data;
-                                    if (typeof rawData === 'string') {
-                                        try { rawData = JSON.parse(rawData); } catch(e){}
-                                    }
-                                    if (rawData && rawData.Id) {
-                                        mainFileId = String(rawData.Id);
-                                    }
-                                }
+                                mainFileId = extractUploadedFileId(uploadRes);
                             }
                         }
 
@@ -2373,9 +2400,19 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
     const file = fileInputEl.files && fileInputEl.files[0];
     if (!file) return { status: "success" };
 
-    const campaignCode = isModal
+    // ในโหมดสร้างใหม่ รหัสถูก generate แบบ async รอให้เสร็จก่อนเพื่อกันแนบเอกสารพลาด
+    if (isModal && modalCampaignCodePromise) {
+        try { await modalCampaignCodePromise; } catch (e) { /* จัดการต่อด้านล่าง */ }
+    }
+
+    let campaignCode = isModal
         ? ($("#modalCampaignCode").val() || "").trim()
         : (selectedCampaignCode || $("#campaignCode").val() || "").trim();
+
+    // กันกรณีค่าที่ได้ยังเป็น placeholder ระหว่างรอสร้างรหัส
+    if (campaignCode === CAMPAIGN_CODE_PLACEHOLDER) {
+        campaignCode = "";
+    }
 
     if (!campaignCode) {
         if (showSwal) {
@@ -2403,15 +2440,15 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
         const data = await response.json();
 
         if (data.status === "success") {
-            let returnedFileName = file.name;
-            let returnedPath = "";
-            if (data.data) {
+            let returnedFileName = data.name || file.name;
+            let returnedPath = data.path || "";
+            if (!returnedPath && data.data) {
                 let rawData = data.data;
                 if (typeof rawData === 'string') {
                     try { rawData = JSON.parse(rawData); } catch (e) { }
                 }
                 if (rawData) {
-                    if (rawData.Name || rawData.name) {
+                    if (!data.name && (rawData.Name || rawData.name)) {
                         returnedFileName = rawData.Name || rawData.name;
                     }
                     if (rawData.Path || rawData.path) {

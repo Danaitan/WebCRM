@@ -215,9 +215,10 @@ async function getNotiDetail(id) {
     if (!id || id === 'null' || id === 'undefined' || String(id).startsWith('noti_')) return {};
     try {
         const params = new URLSearchParams({ overall: 'false', Id: id, id: id });
-        const response = await fetch(`/Layout/GetNotification?${params.toString()}`);
+        const response = await fetch(`/Home/GetNotification?${params.toString()}`);
         if (!response.ok) return {};
         const data = await response.json();
+
         return data || {};
     } catch (err) {
         console.error("Error in getNotiDetail:", err);
@@ -380,6 +381,7 @@ async function openNotiDetailModal(id, element) {
         }
 
         const responseData = await getNotiDetail(id);
+
         const data = extractNotiData(responseData, id);
 
         renderNotiPopupDetailContent(data, modalBody);
@@ -660,35 +662,6 @@ function renderNotiPopupDetailContent(data, container) {
                         <div class="text-muted small">ผู้ส่ง (Sender)</div>
                         <div class="fw-semibold text-dark small">${sender}</div>
                     </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">ผู้รับ (Receiver)</div>
-                        <div class="fw-semibold text-dark small">${receiver}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">ผู้สร้าง (Create By)</div>
-                        <div class="fw-semibold text-dark small">${createBy}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Date Information Card -->
-            <div class="card border-0 bg-light rounded-3 p-3" style="background-color: #f8fafc !important;">
-                <h6 class="fw-semibold text-secondary mb-2 small text-uppercase" style="letter-spacing: 0.5px;">
-                    <i class="bi bi-calendar3 me-1"></i> ข้อมูลวันที่และเวลา
-                </h6>
-                <div class="row g-2">
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่ส่ง</div>
-                        <div class="fw-medium text-dark small">${startDateFormatted || '-'}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่สิ้นสุด</div>
-                        <div class="fw-medium text-dark small">${endDateFormatted || '-'}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่สร้าง</div>
-                        <div class="fw-medium text-dark small">${createDateFormatted || '-'}</div>
-                    </div>
                 </div>
             </div>
 
@@ -773,21 +746,21 @@ function renderNotiDetailContent(data) {
         return;
     }
 
-    const header = formatNotiValue(data.header || data.Header || data.topic || data.Topic) || 'การแจ้งเตือน';
-    const title = formatNotiValue(data.title || data.Title || data.subject || data.Subject) || '-';
-    const message = formatNotiValue(data.message || data.Message || data.detail || data.Detail || data.content || data.Content) || '-';
+    const header = formatNotiValue(data.header) || 'การแจ้งเตือน';
+    const title = formatNotiValue(data.title) || '-';
+    const message = formatNotiValue(data.message) || '-';
     const notiId = data.Id !== undefined ? data.Id : (data.id !== undefined ? data.id : '-');
-    const sender = data.sender !== null && data.sender !== undefined ? formatNotiValue(data.sender) : (data.Sender ? formatNotiValue(data.Sender) : '-');
-    const receiver = data.receiver !== null && data.receiver !== undefined ? formatNotiValue(data.receiver) : (data.Receiver ? formatNotiValue(data.Receiver) : '-');
-    const createBy = data.create_by !== null && data.create_by !== undefined ? formatNotiValue(data.create_by) : (data.createBy ? formatNotiValue(data.createBy) : (data.CreateBy ? formatNotiValue(data.CreateBy) : '-'));
+    const sender = data.sender !== null && data.sender !== undefined ? formatNotiValue(data.sender) : '-';
+    const receiver = data.receiver !== null && data.receiver !== undefined ? formatNotiValue(data.receiver) : '-';
+    const createBy = data.create_by !== null && data.create_by !== undefined ? formatNotiValue(data.create_by) : '-';
 
-    const startDateFormatted = formatNotiDate(data.start_date || data.startDate || data.StartDate);
-    const endDateFormatted = formatNotiDate(data.end_date || data.endDate || data.EndDate);
-    const createDateFormatted = formatNotiDate(data.create_date || data.createDate || data.CreateDate);
+    const startDateFormatted = formatNotiDate(data.start_date);
+    const endDateFormatted = formatNotiDate(data.end_date);
+    const createDateFormatted = formatNotiDate(data.create_date);
 
-    const isSuggestionOrComplaint = header.includes('ข้อเสนอแนะ') || header.includes('ร้องเรียน') || header.toLowerCase().includes('suggestion') || header.toLowerCase().includes('complaint');
-    const itemGuid = data.guid || data.Guid || data.ref_id || data.reference_id || data.Id || data.id || '';
-    const senderEmail = data.sender_email || data.senderEmail || data.SenderEmail || data.sender || '';
+    const isSuggestionOrComplaint = header.includes('ข้อเสนอแนะ') || header.includes('ร้องเรียน');
+    const itemGuid = data.Id || data.id || '';
+    const senderEmail = data.senderEmail || '';
 
     let replyBlockHtml = '';
     if (isSuggestionOrComplaint) {
@@ -829,41 +802,12 @@ function renderNotiDetailContent(data) {
             <!-- Metadata Info Grid -->
             <div class="card border-0 bg-light rounded-3 p-3 mb-3">
                 <h6 class="fw-semibold text-secondary mb-3 small text-uppercase" style="letter-spacing: 0.5px;">
-                    <i class="bi bi-info-circle me-1"></i> ข้อมูลผู้ส่งและผู้รับ
+                    <i class="bi bi-info-circle me-1"></i> ข้อมูลผู้ส่ง
                 </h6>
                 <div class="row g-3">
                     <div class="col-12 col-sm-4">
                         <div class="text-muted small">ผู้ส่ง (Sender)</div>
                         <div class="fw-semibold text-dark">${sender}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">ผู้รับ (Receiver)</div>
-                        <div class="fw-semibold text-dark">${receiver}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">ผู้สร้าง (Create By)</div>
-                        <div class="fw-semibold text-dark">${createBy}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Date Timeline Grid -->
-            <div class="card border-0 bg-light rounded-3 p-3">
-                <h6 class="fw-semibold text-secondary mb-3 small text-uppercase" style="letter-spacing: 0.5px;">
-                    <i class="bi bi-calendar3 me-1"></i> ข้อมูลวันที่และเวลา
-                </h6>
-                <div class="row g-3">
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่ส่ง (Send Date)</div>
-                        <div class="fw-medium text-dark small">${startDateFormatted || '-'}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่สิ้นสุด (End Date)</div>
-                        <div class="fw-medium text-dark small">${endDateFormatted || '-'}</div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="text-muted small">วันที่สร้าง (Create Date)</div>
-                        <div class="fw-medium text-dark small">${createDateFormatted || '-'}</div>
                     </div>
                 </div>
             </div>
@@ -932,7 +876,6 @@ function renderNotifications(data) {
         if (Array.isArray(item.title)) {
             normalizedGroups.push(item);
         } else {
-            console.log("item",item);
             const h = item.header || item.Header || item.topic || item.Topic || 'การแจ้งเตือน';
             if (!headerMap.has(h)) {
                 const newGroup = {

@@ -1,5 +1,6 @@
 let currentBatchPage = 1;
 let currentBatchPageSize = 5;
+let currentSortCreateDate = "";
 
 let currentProspectPage = 1;
 let currentProspectPageSize = 10;
@@ -16,6 +17,32 @@ let manuallySelectedCustomers = new Map();
 let isCurrentCampaignImport = false;
 
 let filterAbortController = null;
+
+async function getProductStatus() { 
+    try {
+        const response = await fetch('/Campain/getProductStatus');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data || []; 
+    } catch (error) {
+        console.error('Error getting product status:', error);
+        return [];
+    }
+}
+
+async function loadProductStatus() { 
+    const select = document.getElementById('campaignStatusFilter'); 
+    const statuses = await getProductStatus(); 
+    select.innerHTML = '<option value="">ทั้งหมด</option>'; 
+    statuses.forEach(status => { 
+        const option = document.createElement('option'); 
+        option.value = status.name;
+        option.textContent = status.name; 
+        select.appendChild(option); 
+    }); 
+}
 
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -45,17 +72,96 @@ $(".panel-left .search-box i").off("click").on("click", function () {
     SearchCampaign();
 });
 
+$("#sortCampaignBtn").off("click").on("click", function () {
+    toggleSortCampaign();
+});
+
+function updateSortCampaignIcon() {
+    const $icon = $("#sortCampaignBtn");
+    if (!$icon.length) return;
+
+    $icon.removeClass("bi-arrow-down-up bi-sort-up bi-sort-down text-secondary text-primary");
+
+    if (currentSortCreateDate === "asc") {
+        $icon.addClass("bi-sort-up text-primary").attr("title", "เรียงตามวันที่สร้าง: เก่าสุด -> ใหม่สุด (ASC)");
+    } else if (currentSortCreateDate === "desc") {
+        $icon.addClass("bi-sort-down text-primary").attr("title", "เรียงตามวันที่สร้าง: ใหม่สุด -> เก่าสุด (DESC)");
+    } else {
+        $icon.addClass("bi-arrow-down-up text-secondary").attr("title", "เรียงตามค่าเริ่มต้น");
+    }
+}
+
+async function toggleSortCampaign() {
+    if (currentSortCreateDate === "") {
+        currentSortCreateDate = "asc";
+    } else if (currentSortCreateDate === "asc") {
+        currentSortCreateDate = "desc";
+    } else {
+        currentSortCreateDate = "";
+    }
+
+    updateSortCampaignIcon();
+    await loadBatchList(1, currentBatchPageSize);
+}
+
 const $prospectSearchInput = $("#prospectSearchInput");
 
-$prospectSearchInput.off("keyup").on("keyup", function (e) {
+// ค้นหาชื่อลูกค้าแบบ client-side: กรองจากตารางที่โหลดไว้แล้ว
+// ไม่ fetch ข้อมูลใหม่ และไม่ต้องกดปุ่มค้นหา/กด Enter
+$prospectSearchInput.off("keyup input").on("input", function () {
+    filterProspectRows($(this).val());
+});
+
+// ป้องกันการ submit/รีเฟรชเมื่อกด Enter ในช่องค้นหา
+$prospectSearchInput.off("keydown").on("keydown", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {
-        loadProspectList(1, currentProspectPageSize);
+        e.preventDefault();
     }
 });
 
+// ปุ่ม/ไอคอนค้นหา ก็ใช้การกรอง client-side เช่นกัน
 $("#prospectSearchIcon, #btnSearchProspect").off("click").on("click", function () {
-    loadProspectList(1, currentProspectPageSize);
+    filterProspectRows($("#prospectSearchInput").val());
 });
+
+// ช่องกรอกแบบช่วงตัวเลข (เช่น 40 หรือ 40-60): อนุญาตเฉพาะตัวเลขและ "-" เดียว
+$(document).off("input", ".range-number-input").on("input", ".range-number-input", function () {
+    let v = $(this).val();
+    // เก็บเฉพาะตัวเลขและเครื่องหมาย -
+    v = v.replace(/[^\d-]/g, "");
+    // อนุญาตให้มี - ได้เพียงตัวเดียว และห้ามขึ้นต้นด้วย -
+    v = v.replace(/^-+/, "");
+    const firstDash = v.indexOf("-");
+    if (firstDash !== -1) {
+        v = v.slice(0, firstDash + 1) + v.slice(firstDash + 1).replace(/-/g, "");
+    }
+    $(this).val(v);
+});
+
+// กรองแถวในตารางลูกค้าเป้าหมายจากชื่อ (client-side)
+function filterProspectRows(searchText) {
+    const term = (searchText || "").trim().toLowerCase();
+    const tbody = document.getElementById('dataTableBody');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        // ข้ามแถวข้อความว่าง (colspan)
+        if (row.querySelector('td[colspan]')) return;
+
+        const nameCell = row.querySelector('td:nth-child(2)');
+        const name = nameCell ? nameCell.textContent.trim().toLowerCase() : '';
+
+        const isMatch = term === '' || name.includes(term);
+        row.style.display = isMatch ? '' : 'none';
+        if (isMatch) visibleCount++;
+    });
+
+    const totalFoundEl = document.getElementById('totalFound');
+    if (totalFoundEl) totalFoundEl.textContent = visibleCount;
+}
 
 async function SearchCampaign() {
     page = 1;
@@ -67,45 +173,92 @@ async function SearchCampaign() {
     }
 }   
 
-async function getCampainList(page = 1, pageSize = 20, searchText) {
+async function getCampainList(
+    page = 1,
+    pageSize = 20,
+    searchText,
+    sortCreateDate = currentSortCreateDate,
+    statusText
+) {
     try {
         startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
-        let queryStr = (page !== undefined && pageSize !== undefined) 
+
+        let queryStr = (page !== undefined && pageSize !== undefined)
             ? `?page=${page}&pageSize=${pageSize}`
             : '';
+
         if (searchText !== undefined && searchText !== null && searchText !== '') {
-            queryStr += `&search=${searchText}`;
+            queryStr += `&search=${encodeURIComponent(searchText)}`;
         }
-        const response = await fetch(`/Campain/GetCampainList${queryStr}`);
+
+        if (sortCreateDate !== undefined &&
+            sortCreateDate !== null &&
+            sortCreateDate !== '') {
+
+            queryStr += `&sortCreateDate=${encodeURIComponent(sortCreateDate)}`;
+        }
+
+        if (statusText !== undefined &&
+            statusText !== null &&
+            statusText !== '') {
+
+            queryStr += `&status=${encodeURIComponent(statusText)}`;
+        }
+
+        console.log("statusText =", statusText);
+        console.log("queryStr =", queryStr);
+
+        const response = await fetch(
+            `/Campain/GetCampainList${queryStr}`
+        );
+
         const jsonResult = await response.json();
-        const items = jsonResult && Array.isArray(jsonResult.data) ? jsonResult.data : (Array.isArray(jsonResult) ? jsonResult : []);
+
+        const items =
+            jsonResult && Array.isArray(jsonResult.data)
+                ? jsonResult.data
+                : (Array.isArray(jsonResult) ? jsonResult : []);
+
         const mapped = items.map(item => ({
-            code:      item.product_code  || "",
-            name:      item.product_name  || "",
-            status:    item.product_status || "",
-            startDate: item.product_start ? item.product_start.substring(0, 10) : "",
-            endDate:   item.product_end   ? item.product_end.substring(0, 10)   : "",
-            remark:    item.product_remark || "",
-            createdBy: item.createrd_by   || item.created_by || "",
-            created:   item.created       ? item.created.substring(0, 10)       : "",
-            guid:      item.product_guid  || "",
-            offcde:    item.offcde || "",
-            product_company: item.product_company || "", 
-            file_id:   item.file_id || "",
-            isActive:  item.isActive || "false"
+            code: item.product_code || "",
+            name: item.product_name || "",
+            status: item.product_status || "",
+            startDate: item.product_start
+                ? item.product_start.substring(0, 10)
+                : "",
+            endDate: item.product_end
+                ? item.product_end.substring(0, 10)
+                : "",
+            remark: item.product_remark || "",
+            createdBy: item.createrd_by || item.created_by || "",
+            created: item.created
+                ? item.created.substring(0, 10)
+                : "",
+            guid: item.product_guid || "",
+            offcde: item.offcde || "",
+            product_company: item.product_company || "",
+            file_id: item.file_id || "",
+            isActive: item.isActive || "false"
         }));
+
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
             pageSize: jsonResult.pageSize ?? (pageSize ? parseInt(pageSize) : mapped.length),
             count: jsonResult.count ?? mapped.length,
             data: mapped
         };
-    }
-    catch(error){
+
+    } catch (error) {
         console.error("Error in getCampainList:", error);
-        return { page: 1, pageSize: 5, count: 0, data: [] };
-    }
-    finally {
+
+        return {
+            page: 1,
+            pageSize: 5,
+            count: 0,
+            data: []
+        };
+
+    } finally {
         stopLoading();
     }
 }
@@ -196,7 +349,8 @@ function productFilterHTML(filtercode, dropdownData = {}) {
         const HTML = `
             <div class="col-xxl-4 col-xl-6 col-md-6">
                 <label class="form-label-custom">${labelName}</label>
-                <input type="number" class="form-control form-select-custom prospect-filter-input" data-field="${fieldName}">
+                <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}" placeholder="เช่น 40 หรือ 40-60" pattern="^\\d+(-\\d+)?$" title="กรอกตัวเลขเดี่ยว เช่น 40 หรือช่วงตัวเลข เช่น 40-60">
+                <small class="text-muted">ตัวอย่าง: 40 หรือ 40-60</small>
             </div>
         `;
         return HTML;
@@ -390,7 +544,8 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
         searchText = $("#campaignSearchInput").val() ? $("#campaignSearchInput").val().trim() : "";
     }
 
-    const res = await getCampainList(page, pageSize, searchText);
+    const statusText = $("#campaignStatusFilter").val();
+    const res = await getCampainList(page, pageSize, searchText, currentSortCreateDate, statusText);
     const campainData = res.data;
 
     const foundCountEl = document.getElementById('batchFoundCount');
@@ -446,18 +601,27 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
             }
 
             card.innerHTML = `
-                <div class="d-flex justify-content-between">
-                    <div class="batch-id color-${color}">${escapeHtml(item.code || `BATCH-${String(i+1).padStart(3,'0')}`)}</div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="batch-id color-${color}">
+                        ${escapeHtml(item.code || `BATCH-${String(i+1).padStart(3,'0')}`)}
+                    </div>
+
+                    <span class="badge rounded-pill ${badgeClass}">
+                        ${escapeHtml(item.status)}
+                    </span>
                 </div>
-                <div class="batch-title">${escapeHtml(item.name || '(ไม่มีชื่อ)')}</div>
+
+                <div class="batch-title">
+                    ${escapeHtml(item.name || '(ไม่มีชื่อ)')}
+                </div>
+
                 <div class="d-flex justify-content-between align-items-end">
                     <div class="batch-meta">
                         <div>สร้างโดย: ${escapeHtml(item.createdBy || '-')}</div>
-                        <div style="white-space: nowrap;"> ${escapeHtml(formatDisplayDate(item.startDate))} - ${escapeHtml(formatDisplayDate(item.endDate))} </div>
-                    </div>
-                    <div class="text-end">
-                        <span class="badge rounded-pill ${badgeClass} mb-1">${escapeHtml(item.status)}</span>
-                        <div class="text-secondary mt-1"><i class="bi bi-file-earmark-text"></i></div>
+                        <div style="white-space: nowrap;">
+                            ${escapeHtml(formatDisplayDate(item.startDate))} -
+                            ${escapeHtml(formatDisplayDate(item.endDate))}
+                        </div>
                     </div>
                 </div>
             `;
@@ -901,16 +1065,22 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
     });
     paginationEl.appendChild(prevLi);
 
-    for (let p = 1; p <= totalPages; p++) {
+    const pages = buildPageRange(currentPage, totalPages);
+    pages.forEach(p => {
         const li = document.createElement('li');
-        li.className = `page-item ${p === currentPage ? 'active' : ''}`;
-        li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
-        li.addEventListener('click', (e) => {
-            e.preventDefault();
-            loadBatchList(p, pageSize, searchText);
-        });
+        if (p === '...') {
+            li.className = 'page-item disabled';
+            li.innerHTML = `<span class="page-link bg-transparent text-muted">...</span>`;
+        } else {
+            li.className = `page-item ${p === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
+            li.addEventListener('click', (e) => {
+                e.preventDefault();
+                loadBatchList(p, pageSize, searchText);
+            });
+        }
         paginationEl.appendChild(li);
-    }
+    });
 
     const nextLi = document.createElement('li');
     nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
@@ -946,12 +1116,11 @@ async function getCampaignDataForETL(productCode) {
     }
 }
 
-async function getProspect(page = 1, pageSize = 10) {
+async function getProspect() {
     try {
-        currentProspectPage = page;
-        currentProspectPageSize = pageSize;
 
-        const searchVal = $("#prospectSearchInput").val() ? $("#prospectSearchInput").val().trim() : "";
+        // หมายเหตุ: การค้นหาชื่อลูกค้าทำแบบ client-side (filterProspectRows)
+        // จึงไม่ส่งค่า search ไปยัง server เพื่อให้โหลดรายการทั้งหมดมากรองในหน้า
 
         if (isCurrentCampaignImport && selectedCampaign && selectedCampaign.code) {
             const response = await getCampaignDataForETL(selectedCampaign.code);
@@ -963,35 +1132,16 @@ async function getProspect(page = 1, pageSize = 10) {
                 else if (Array.isArray(etlResult)) rawData = etlResult;
             }
 
-            if (searchVal) {
-                const s = searchVal.toLowerCase();
-                rawData = rawData.filter(item => {
-                    const name = (item.nameCus || item.name || '').toLowerCase();
-                    const phone = (item.mobile || item.phone || '').toLowerCase();
-                    const branch = (item.branchName || item.ชื่อสาขาเดิม || '').toLowerCase();
-                    return name.includes(s) || phone.includes(s) || branch.includes(s);
-                });
-            }
-
             const total = rawData.length;
-            const start = (page - 1) * pageSize;
-            const pagedData = rawData.slice(start, start + pageSize);
 
             return {
-                page: page,
-                pageSize: pageSize,
                 total: total,
                 count: total,
-                data: pagedData
+                data: rawData
             };
         }
 
         const filterParams = getFilterParams();
-        filterParams.set('page', page);
-        filterParams.set('pageSize', pageSize);
-        if (searchVal) {
-            filterParams.set('search', searchVal);
-        }
 
         const response = await fetch(`/ProspectSetup/GetProspect?${filterParams.toString()}`);
         const jsonResult = await response.json();
@@ -999,7 +1149,7 @@ async function getProspect(page = 1, pageSize = 10) {
     }
     catch(error){
         console.error("Error in getProspect:", error);
-        return { page: page, pageSize: pageSize, count: 0, data: [] };
+        return { count: 0, data: [] };
     }
 }
 
@@ -1014,7 +1164,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
         }
 
         bindTableCheckboxEvents();
-        renderProspectPaginationControls(1, pageSize, 0);
+        renderProspectPaginationControls(1, 0, 0);
         const goToInput = document.getElementById('goToPageInput');
         if (goToInput) goToInput.value = '1';
         return;
@@ -1023,14 +1173,9 @@ async function loadProspectList(page = 1, pageSize = 10) {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
     try {
-        currentProspectPage = page;
-        currentProspectPageSize = pageSize;
-
-        const res = await getProspect(page, pageSize);
+        const res = await getProspect();
         const rawData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
-        const count = res.total ?? res.count ?? 0;
-        const currentPage = res && typeof res.page === 'number' ? res.page : page;
-        const currentPageSize = res && typeof res.pageSize === 'number' ? res.pageSize : pageSize;
+        const count = res.total ?? res.count ?? rawData.length;
 
         const totalFoundEl = document.getElementById('totalFound');
         if (totalFoundEl) totalFoundEl.textContent = count;
@@ -1123,9 +1268,15 @@ async function loadProspectList(page = 1, pageSize = 10) {
         }
 
         bindTableCheckboxEvents();
-        renderProspectPaginationControls(currentPage, currentPageSize, count);
+        renderProspectPaginationControls(1, count, count);
         const goToInput = document.getElementById('goToPageInput');
-        if (goToInput) goToInput.value = currentPage;
+        if (goToInput) goToInput.value = '1';
+
+        // คงการกรองชื่อลูกค้าที่ผู้ใช้พิมพ์ไว้ หลังจากโหลด/เรนเดอร์ตารางใหม่
+        const currentSearch = document.getElementById('prospectSearchInput');
+        if (currentSearch && currentSearch.value.trim() !== '') {
+            filterProspectRows(currentSearch.value);
+        }
 
     } catch (err) {
         console.error("Error in loadProspectList:", err);
@@ -1551,11 +1702,13 @@ function bindTableCheckboxEvents() {
 document.addEventListener('DOMContentLoaded', async function () {
     const btnClearSelection = document.getElementById('btnClearSelection');
 
+    loadProductStatus();
+
     //Load Campaign (Batch) List ---
     await loadBatchList(currentBatchPage, currentBatchPageSize);
 
     //Load Prospect List ---
-    await loadProspectList(currentProspectPage, currentProspectPageSize);
+    await loadProspectList(currentProspectPage, currentBatchPageSize);
 
     updateSendForApprovalButtonState();
 
@@ -1815,14 +1968,32 @@ document.addEventListener('DOMContentLoaded', async function () {
                     } catch (e) {
                         console.error("Error parsing response json:", e);
                     }
-                    if (!response.ok || (data && data.status === false)) {
+                    console.log(response)
+                    if (!response.ok) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งอนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
                         stopLoading(true);
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: errorMsg, icon: "error" });
                     } else {
                         stopLoading(true);
                         await Swal.fire({ title: "บันทึกสำเร็จ", icon: "success", confirmButtonText: "ตกลง" });
+
+                        var request = {
+                            title: "Campaign Waiting Approve",
+                            message: `Campaign ${selectedCampaign.code} (${selectedCampaign.product_name}) ถูกส่งอนุมัติโดย ${typeof userFullNameTh !== 'undefined' ? userFullNameTh : ''}`,
+                            sender: userId,
+                        };
+
+                        fetch(`/ProspectSetup/postNotiToApprover`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(request),
+                            keepalive: true
+                        });
+
                         window.location.reload();
+                        
                     }
 
                 } catch (err) {
@@ -1835,19 +2006,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
         });
     });
-
-// async function getProductFilterByGuid(guid) {
-//     if (!guid) return [];
-//     try {
-//         const response = await fetch(`/ProspectSetup/GetProductFilterByGuid?guid=${encodeURIComponent(guid)}`);
-//         if (!response.ok) return [];
-//         const data = await response.json();
-//         return data || [];
-//     } catch (err) {
-//         console.error("Error in getProductFilterByGuid:", err);
-//         return [];
-//     }
-// }
 
 async function getProductFilterByGuid(guid, signal = null) {
     if (!guid) return [];
@@ -2064,3 +2222,7 @@ function extractCustomers(data) {
     return list;
 }
     
+$("#campaignStatusFilter").off("change").on("change", function () {
+    currentBatchPage = 1;
+    loadBatchList();
+});

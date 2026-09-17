@@ -14,37 +14,6 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<CampainPagedResult> GetCampainList(
-            string page = "1",
-            string pageSize = "20")
-        {
-            try
-            {
-                var reqPage =
-                    string.IsNullOrEmpty(page)
-                        ? "1"
-                        : page;
-
-                var reqPageSize =
-                    string.IsNullOrEmpty(pageSize)
-                        ? "20"
-                        : pageSize;
-
-                return await crmService.GetProductsPhase3(
-                    reqPage,
-                    reqPageSize);
-            }
-            catch (Exception ex)
-            {
-                ViewBag.ErrorMessage =
-                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                    + ex.Message;
-
-                return new CampainPagedResult();
-            }
-        }
-
-        [HttpGet]
         public async Task<IActionResult> GetBatchList(
             string productCode)
         {
@@ -79,18 +48,16 @@ namespace webCRM.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProspect(
             GetProspectRequest request,
-            int page = 1,
-            int pageSize = 10,
-            string search = "")
+            string search = ""
+            )
         {
             try
             {
                 var data =
                     await crmService.GetProspectPhase3(
                         request,
-                        page,
-                        pageSize,
-                        search);
+                        search
+                        );
 
                 return Content(
                     data,
@@ -106,8 +73,6 @@ namespace webCRM.Controllers
                     JsonSerializer.Serialize(
                         new
                         {
-                            page,
-                            pageSize,
                             count = 0,
                             data = Array.Empty<object>()
                         }),
@@ -318,13 +283,13 @@ namespace webCRM.Controllers
 
         [HttpGet]
         public async Task<IActionResult> getCampaignDataForETL(
-            string? productCode)
+            string? productCode, string? assignTo)
         {
             try
             {
                 var data =
                     await crmService.GetCampaignDataForETL(
-                        productCode);
+                        productCode, assignTo);
 
                 return Content(
                     data,
@@ -417,7 +382,54 @@ namespace webCRM.Controllers
             }
         }
             
-    
+        [HttpPost]
+        public async Task<IActionResult> postNotiToApprover(
+            [FromBody] PostNotiToApproverRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return Content(
+                        JsonSerializer.Serialize(
+                            new
+                            {
+                                status = false,
+                                message = "ไม่พบข้อมูล request",
+                                data = Array.Empty<object>()
+                            }),
+                        "application/json");
+                }
+
+                var personalId =
+                    HttpContext.Session.GetString("personalId")
+                    ?? "";
+
+                long sender = long.TryParse(personalId, out var parsed)
+                    ? parsed
+                    : 0;
+
+                await crmService.PostNotiToApprover(
+                    request.title ?? "",
+                    request.message ?? "",
+                    sender);
+
+                return Ok(new { status = true });
+            }
+            catch (Exception ex)
+            {
+                return Content(
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            status = false,
+                            message = ex.Message,
+                            data = Array.Empty<object>()
+                        }),
+                    "application/json");
+            }
+        }
+           
     
     }
 }

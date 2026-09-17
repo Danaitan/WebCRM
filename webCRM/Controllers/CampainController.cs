@@ -27,10 +27,24 @@ namespace webCRM.Controllers
             string startDate = "",
             string endDate = "",
             string branch = "",
-            string search = "")
+            string search = "",
+            string sortCreateDate = "",
+            bool isFilteroffCde = false,
+            bool isFiltercompany = false
+            )
         {
             try
             {
+                string offCde = "";
+                string company = "";
+
+                if (isFilteroffCde){
+                    offCde = HttpContext.Session.GetString("variable_func") ?? "";
+                }
+                if (isFiltercompany){
+                    company = HttpContext.Session.GetString("company");
+                }
+
                 return await crmService.GetCampainList(
                     page,
                     pageSize,
@@ -38,7 +52,11 @@ namespace webCRM.Controllers
                     startDate,
                     endDate,
                     branch,
-                    search);
+                    search,
+                    sortCreateDate,
+                    offCde,
+                    company
+                    );
             }
             catch (Exception ex)
             {
@@ -358,11 +376,11 @@ var data = await crmService.GetProspect(
         {
             try
             {
-var data = await crmService.GetMasterObjective();
+                var data = await crmService.GetMasterObjective();
 
                 return Content(
                     data,
-            "application/json");
+                    "application/json");
             }
             catch (Exception ex)
             {
@@ -524,10 +542,30 @@ var data = await crmService.GetMasterObjective();
                 var postFileRequest = new PostFile
                 {
                     name = originalFileName,
-                    path = relativePath
+                    path = relativePath,
+                    created_by = HttpContext.Session.GetString("personalId") ?? ""
                 };
 
-                return await PostFile(postFileRequest);
+                // บันทึก file record ก่อน เพื่อดึง id กลับมาใช้ผูกกับ campaign
+                var fileResult = await crmService.PostFile(postFileRequest);
+
+                if (!fileResult.Success)
+                {
+                    return Ok(new
+                    {
+                        status = "error",
+                        message = $"บันทึกไฟล์ไม่สำเร็จ (API status {fileResult.StatusCode})"
+                    });
+                }
+
+                return Ok(new
+                {
+                    status = "success",
+                    id = fileResult.FileId,
+                    name = originalFileName,
+                    path = relativePath,
+                    data = fileResult.Response
+                });
             }
             catch (Exception ex)
             {
@@ -826,17 +864,33 @@ var data = await crmService.GetMasterObjective();
         {
             try
             {
-                var data =
+                var result =
                     await crmService.DeleteFile(Id);
 
-                return Content(
-                    data,
-                    "application/json");
+                if (!result.Success)
+                {
+                    return Ok(new
+                    {
+                        status = "error",
+                        message =
+                            $"API responded with status code: {result.StatusCode}",
+                        detail = result.Response
+                    });
+                }
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result.Response
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(
-                    "Error updating file: " + ex.Message);
+                return Ok(new
+                {
+                    status = "error",
+                    message = "Error updating file: " + ex.Message
+                });
             }
         }
 

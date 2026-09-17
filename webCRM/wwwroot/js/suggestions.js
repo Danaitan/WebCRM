@@ -1,6 +1,121 @@
 
 let table;
 
+// เก็บชุดอีเมลของ "กลุ่ม" (group + personalAbb) เพื่อใช้ตัดสินสิทธิ์การตอบกลับ
+window.groupEmailSet = window.groupEmailSet || new Set();
+
+// ดึงค่าอีเมลออกจาก object ของ group / personalAbb / personal
+function extractEmailFromItem(item) {
+    if (!item) return '';
+    const raw = item.e_mail
+        || item.email
+        || item.Email
+        || item.sendToGroupFull
+        || item.sendToPersonAbb
+        || item.sendToGroupAbb
+        || item.sendToPerson
+        || '';
+    return String(raw).trim().toLowerCase();
+}
+
+// โหลดและ cache รายการอีเมลของกลุ่ม (group + personalAbb) ครั้งเดียวตอนเปิดหน้า
+async function loadGroupEmailSet() {
+    try {
+        const data = await GetPersonalAndGroup();
+        const set = new Set();
+
+        if (data) {
+            const group = Array.isArray(data.group) ? data.group : [];
+            const personalAbb = Array.isArray(data.personalAbb) ? data.personalAbb : [];
+
+            [...group, ...personalAbb].forEach(item => {
+                const email = extractEmailFromItem(item);
+                if (email) set.add(email);
+            });
+        }
+
+        window.groupEmailSet = set;
+    } catch (error) {
+        console.error("Error in loadGroupEmailSet:", error);
+    }
+    return window.groupEmailSet;
+}
+
+// current sendTo เป็นอีเมลของกลุ่มหรือไม่
+function isGroupSendTo(sendTo) {
+    const value = String(sendTo || '').trim().toLowerCase();
+    if (!value || value === '-') return false;
+    return window.groupEmailSet && window.groupEmailSet.has(value);
+}
+
+// หา "ผู้ที่ตอบกลับคนแรก" (updBy ของ reply ที่เก่าที่สุด) จากรายการตอบกลับ
+function getFirstReplierEmail(replyDetails) {
+    if (!Array.isArray(replyDetails) || replyDetails.length === 0) return '';
+
+    const withReply = replyDetails.filter(item => {
+        const r = String(item?.reply ?? '').trim().toLowerCase();
+        return r !== '' && r !== '-' && r !== 'null' && r !== 'undefined';
+    });
+
+    if (withReply.length === 0) return '';
+
+    // เรียงจากเก่าไปใหม่ แล้วเอา updBy ของรายการแรก
+    const sorted = [...withReply].sort((a, b) => {
+        return parseDateForSort(a.upDate) - parseDateForSort(b.upDate);
+    });
+
+    return String(sorted[0].updBy || '').trim().toLowerCase();
+}
+
+// นับจำนวนการตอบกลับที่มีข้อความจริง
+function countValidReplies(replyDetails) {
+    if (!Array.isArray(replyDetails)) return 0;
+    return replyDetails.filter(item => {
+        const r = String(item?.reply ?? '').trim().toLowerCase();
+        return r !== '' && r !== '-' && r !== 'null' && r !== 'undefined';
+    }).length;
+}
+
+// ตัดสินว่า user ปัจจุบันตอบกลับได้หรือไม่
+// - ถ้า sendTo เป็นอีเมลกลุ่ม และมีการตอบกลับ > 0 => ตอบได้เฉพาะคนที่ตอบกลับคนแรก
+// - ถ้า sendTo เป็นอีเมลบุคคล => ตอบได้เฉพาะคนที่ email ตรงกับ sendTo
+function evaluateReplyPermission(sendTo, replyDetails) {
+    // ถ้าเป็นผู้มีสิทธิ์แก้ไข (window.isEdit === true) ให้ตอบกลับได้แบบไม่มีเงื่อนไข
+    if (window.isEdit === true) {
+        return { allowed: true, reason: '' };
+    }
+
+    const currentEmail = (typeof currentUserEmail !== 'undefined' ? currentUserEmail : '')
+        .trim()
+        .toLowerCase();
+    const target = String(sendTo || '').trim().toLowerCase();
+
+    if (isGroupSendTo(target)) {
+        const replyCount = countValidReplies(replyDetails);
+        if (replyCount > 0) {
+            const firstReplier = getFirstReplierEmail(replyDetails);
+            const allowed = !!firstReplier && currentEmail === firstReplier;
+            return {
+                allowed,
+                reason: allowed
+                    ? ''
+                    : 'เคสนี้ถูกตอบกลับแล้ว สามารถตอบกลับได้เฉพาะผู้ที่ตอบกลับคนแรกเท่านั้น'
+            };
+        }
+        // ยังไม่มีการตอบกลับ: ใครในกลุ่มก็ตอบกลับได้ (คนแรก)
+        return { allowed: true, reason: '' };
+    }
+
+    // sendTo เป็นอีเมลบุคคล: ตอบได้เฉพาะเจ้าของอีเมลนั้น
+    const allowed = !!target && currentEmail === target;
+    return {
+        allowed,
+        reason: allowed
+            ? ''
+            : 'เคสนี้มอบหมายให้ผู้รับผิดชอบเฉพาะราย คุณไม่มีสิทธิ์ตอบกลับ'
+    };
+}
+
 async function getProfileByEmail(email) {
     try {
         const response = await fetch(`/Login/GetProfileByEmail?email=${email}`);
@@ -90,8 +205,10 @@ async function searchSuggestion(selectedGuidToPreserve = null, showLoadingSpinne
         if (showLoadingSpinner) {
             startLoading('กำลังค้นหาข้อมูล...', 'กรุณารอสักครู่');
         }
-
-        const url = `/Suggestions/GetSuggestions?status=${encodeURIComponent(statusVal)}&header=${encodeURIComponent(topicVal)}&search=${encodeURIComponent(keyword)}`;
+        const isSeeAll = window.isEdit;
+        console.log("isSeeAll",isSeeAll)
+        console.log("window.isEdit",window.isEdit)
+        const url = `/Suggestions/GetSuggestions?status=${encodeURIComponent(statusVal)}&header=${encodeURIComponent(topicVal)}&search=${encodeURIComponent(keyword)}&isSeeAll=${encodeURIComponent(isSeeAll)}`;
         const response = await fetch(url, { skipLoading: true });
         if (!response.ok) {
             throw new Error('HTTP error ' + response.status);
@@ -124,6 +241,15 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
 
     table.clear();
 
+    // เรียงข้อมูลตาม "วันที่สร้าง" (createdDate) จากใหม่ไปเก่าก่อนเพิ่มลงตาราง
+    if (Array.isArray(data)) {
+        data.sort((a, b) => {
+            const aCreated = getValidDateStr(a.createdDate || a.CreatedDate);
+            const bCreated = getValidDateStr(b.createdDate || b.CreatedDate);
+            return parseDateForSort(bCreated) - parseDateForSort(aCreated);
+        });
+    }
+
     if (Array.isArray(data) && data.length > 0) {
         data.forEach(item => {
             let rawCreated = getValidDateStr(item.createdDate || item.CreatedDate);
@@ -141,14 +267,15 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
             }
 
             const createdDateStr = formatDateDisplay(displayCreatedDate);
-            const createdDateOrder = parseDateForSort(displayCreatedDate);
+            // เรียงตาม "วันที่สร้าง" เท่านั้น: ใช้ค่า createdDate จริงเป็นตัวจัดลำดับ
+            // ถ้าไม่มีค่อย fallback ไปใช้ค่าที่แสดง (displayCreatedDate)
+            const rawCreatedForSort = getValidDateStr(item.createdDate || item.CreatedDate) || displayCreatedDate;
+            const createdDateOrder = parseDateForSort(rawCreatedForSort);
 
             const rawUpDate = getValidDateStr(item.upDate || item.UpDate);
             const upDateStr = formatDateDisplay(rawUpDate);
-            const upDateOrder = parseDateForSort(rawUpDate);
 
             let timeDiffText = '-';
-            let daysOrder = 999999;
             const createdDt = parseDateToLocalObject(displayCreatedDate);
             if (createdDt) {
                 const today = new Date();
@@ -157,7 +284,6 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                 const diffTime = today.getTime() - createdDateOnly.getTime();
                 let days = Math.round(diffTime / (1000 * 60 * 60 * 24));
                 if (days < 0) days = 0;
-                daysOrder = days;
                 timeDiffText = `${days} วัน`;
             }
 
@@ -196,8 +322,8 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(title)}</div></td>
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(nameProvider)}</div></td>
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(statusLower)}</div></td>
-                    <td class="text-center py-2" data-order="${upDateOrder}"><div class="fw-medium text-dark">${escapeHtml(upDateStr)}</div></td>
-                    <td class="text-center py-2" data-order="${daysOrder}"><div class="fw-medium text-dark">${escapeHtml(timeDiffText)}</div></td>
+                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(upDateStr)}</div></td>
+                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(timeDiffText)}</div></td>
                 </tr>
             `);
 
@@ -224,7 +350,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
         });
     }
 
-    table.order([[0, 'desc']]).draw();
+    table.draw();
 
     let targetRow = null;
     if (selectedGuidToPreserve) {
@@ -359,6 +485,9 @@ function clearDetails() {
     $('#detail-reply-list').html('<tr><td colspan="3" class="text-center text-muted py-3">ไม่มีข้อมูลการตอบกลับ</td></tr>');
     $('#replyHistoryTotalBadge').text('ทั้งหมด 0 รายการ');
 
+    $('#replyPermissionDenied').remove();
+    window.currentReplyPermission = null;
+
     updateActionButtonsState('');
 }
 
@@ -391,7 +520,9 @@ $(document).ready(function () {
     loadSuggestionStatusOptions();
 
     table = $('#suggestionsTable').DataTable({
-        order: [[0, 'desc']],
+        // ปิดการเรียงของ DataTables ทั้งหมด แล้วใช้ลำดับจาก array ที่เราเรียงเอง
+        // (เรียงตาม "วันที่สร้าง" ใหม่ไปเก่า ใน renderSuggestionsTable)
+        ordering: false,
         searching: true,
         dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
         language: {
@@ -448,8 +579,11 @@ $(document).ready(function () {
     // เริ่มต้นแสดงเวลาแบบ Real-time ในช่องตอบกลับ
     startReplyTimeClock();
 
-    // โหลดข้อมูลเริ่มต้น
-    searchSuggestion();
+    // โหลดชุดอีเมลกลุ่มให้เสร็จก่อน แล้วค่อยโหลดข้อมูลเริ่มต้น
+    // เพื่อให้การตัดสินสิทธิ์การตอบกลับถูกต้องตั้งแต่แสดงผลครั้งแรก
+    loadGroupEmailSet().finally(() => {
+        searchSuggestion();
+    });
 });
 
 async function loadDepartmentOptions() {
@@ -458,7 +592,8 @@ async function loadDepartmentOptions() {
             fetch('/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
             GetPersonalAndGroup().catch(() => null)
         ]);
-
+console.log("masterRes",masterRes)
+console.log("personalData",personalData)
         const data = masterRes;
         const currentCompany = (typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")).trim().toUpperCase();
 
@@ -494,7 +629,10 @@ async function loadDepartmentOptions() {
         const sendToSelect = document.getElementById('post-send-to');
         const ccDropdownMenu = document.getElementById('cc-dropdown-menu');
 
+        // อีเมลสำหรับ Send To ตอนสร้าง + CC (รวมทั้ง groupEmail จาก GetMaster และ personal)
         const uniqueEmails = [];
+        // อีเมลสำหรับ "ส่งต่อ" (เฉพาะข้อมูลอีเมลของ personalData.personal เท่านั้น)
+        const personalEmails = [];
 
         if (data && Array.isArray(data.email)) {
             const filteredEmails = data.email.filter(item => {
@@ -514,12 +652,20 @@ async function loadDepartmentOptions() {
 
         if (personalData && Array.isArray(personalData.personal)) {
             personalData.personal.forEach(item => {
-                const emailVal = (item.e_mail || item.e_Mail || item.email || '').trim();
-                if (emailVal !== '' && !uniqueEmails.includes(emailVal)) {
-                    uniqueEmails.push(emailVal);
+                const emailVal = (item.e_mail || '').trim();
+                if (emailVal !== '') {
+                    if (!uniqueEmails.includes(emailVal)) {
+                        uniqueEmails.push(emailVal);
+                    }
+                    if (!personalEmails.includes(emailVal)) {
+                        personalEmails.push(emailVal);
+                    }
                 }
             });
         }
+
+        // เก็บอีเมลเฉพาะบุคคลไว้ใช้ตอน "ส่งต่อ" (ForwardSuggestion)
+        window.forwardSendToEmails = personalEmails;
 
         if (sendToSelect) {
             sendToSelect.innerHTML = '<option value="" selected>เลือกผู้รับผิดชอบ</option>';
@@ -861,51 +1007,135 @@ function showDetails(row) {
         detailsData = [];
     }
 
-    if (detailsData.length === 0 && replyVal && replyVal !== '-') {
-        const mainUpdBy = getVal('updby') !== '-' ? getVal('updby') : getVal('recordedby');
+    if (detailsData.length === 0 && !isEmptyValue(replyVal)) {
+        const mainUpdBy = getVal('updby') !== '-'
+            ? getVal('updby')
+            : getVal('recordedby');
+
         const mainDate = getVal('date');
-        detailsData.push({
-            reply: replyVal,
-            updByName: mainUpdBy,
-            updBy: mainUpdBy,
-            upDate: mainDate
-        });
+        if (
+            !isEmptyValue(replyVal) ||
+            !isEmptyValue(mainUpdBy) ||
+            !isEmptyValue(mainDate)
+        ) {
+            detailsData.push({
+                reply: replyVal,
+                updByName: mainUpdBy,
+                updBy: mainUpdBy,
+                upDate: mainDate
+            });
+        }
     }
 
     const $tbody = $('#detail-reply-list');
     $tbody.empty();
 
-    if (detailsData.length > 0) {
-        // เรียงลำดับจากล่าสุดขึ้นก่อน
-        detailsData.sort((a, b) => {
+    const isEmptyValue = value => {
+        const val = String(value ?? '').trim().toLowerCase();
+
+        return val === '' ||
+            val === '-' ||
+            val === 'null' ||
+            val === 'undefined';
+    };
+
+    const validDetailsData = detailsData.filter(item => {
+        return !isEmptyValue(item.reply);
+    });
+
+    if (validDetailsData.length > 0) {
+
+        validDetailsData.sort((a, b) => {
             const timeA = parseDateForSort(a.upDate);
             const timeB = parseDateForSort(b.upDate);
             return timeB - timeA;
         });
 
-        detailsData.forEach(item => {
-            const replyMsg = item.reply || '-';
-            const updByPerson = item.updByName || '-';
-            const rawDate = item.upDate || '-';
+        validDetailsData.forEach(item => {
+
+            const replyMsg = isEmptyValue(item.reply)
+                ? '-'
+                : String(item.reply).trim();
+
+            const updByPerson = isEmptyValue(item.updByName)
+                ? '-'
+                : String(item.updByName).trim();
+
+            const rawDate = isEmptyValue(item.upDate)
+                ? '-'
+                : String(item.upDate).trim();
+
             const formattedDate = formatDateDisplay(rawDate);
 
             const $tr = $('<tr>');
+
             $tr.html(`
-                <td class="text-center py-2 text-dark font-monospace" style="font-size: 0.85rem; white-space: nowrap;">${escapeHtml(formattedDate)}</td>
-                <td class="py-2 text-dark text-break" style="word-break: break-word; overflow-wrap: break-word;">${escapeHtml(updByPerson)}</td>
-                <td class="py-2 text-dark text-break" style="word-break: break-word; overflow-wrap: break-word;">${escapeHtml(replyMsg)}</td>
+                <td class="text-center py-2 text-dark font-monospace"
+                    style="font-size: 0.85rem; white-space: nowrap;">
+                    ${escapeHtml(formattedDate)}
+                </td>
+
+                <td class="py-2 text-dark text-break"
+                    style="word-break: break-word; overflow-wrap: break-word;">
+                    ${escapeHtml(updByPerson)}
+                </td>
+
+                <td class="py-2 text-dark text-break"
+                    style="word-break: break-word; overflow-wrap: break-word;">
+                    ${escapeHtml(replyMsg)}
+                </td>
             `);
+
             $tbody.append($tr);
         });
+
     } else {
+
         $tbody.html(`
             <tr>
-                <td colspan="3" class="text-center text-muted py-3">ไม่มีข้อมูลการตอบกลับ</td>
+                <td colspan="3" class="text-center text-muted py-3">
+                    ไม่มีข้อมูลการตอบกลับ
+                </td>
             </tr>
         `);
     }
 
-    $('#replyHistoryTotalBadge').text('ทั้งหมด ' + detailsData.length + ' รายการ');
+    $('#replyHistoryTotalBadge').text(
+        'ทั้งหมด ' + validDetailsData.length + ' รายการ'
+    );
+
+    // ===== ตัดสินสิทธิ์การตอบกลับตาม sendTo (กลุ่ม/บุคคล) =====
+    const sendToVal = getVal('sendto');
+    const permission = evaluateReplyPermission(sendToVal, validDetailsData);
+
+    // เก็บผลไว้ให้ UpdateSuggestion ใช้ตอนกดบันทึก
+    window.currentReplyPermission = permission;
+
+    // แสดง/ซ่อนกล่องตอบกลับ:
+    // - ต้องไม่ปิดงาน (canShowReplyBox) และมีสิทธิ์ตอบกลับ
+    const $replyBox = $('#replyBoxSection');
+    const $replyDeniedMsg = $('#replyPermissionDenied');
+
+    if (canShowReplyBox(rawStatus) && permission.allowed) {
+        $replyBox.show();
+        $replyDeniedMsg.remove();
+    } else {
+        $replyBox.hide();
+
+        // แสดงข้อความเหตุผลเมื่อถูกปิดกั้นเพราะสิทธิ์ (ไม่ใช่เพราะปิดงาน)
+        if (canShowReplyBox(rawStatus) && !permission.allowed && permission.reason) {
+            if ($replyDeniedMsg.length) {
+                $replyDeniedMsg.text(permission.reason);
+            } else {
+                $replyBox.after(
+                    `<div id="replyPermissionDenied" class="alert alert-warning py-2 px-3 mt-2" style="font-size: 0.9rem;">${permission.reason}</div>`
+                );
+            }
+        } else {
+            $replyDeniedMsg.remove();
+        }
+    }
+
 }
 
 async function UpdateSuggestion() {
@@ -930,9 +1160,25 @@ async function UpdateSuggestion() {
         return;
     }
 
+    // ตรวจสอบสิทธิ์การตอบกลับตาม sendTo (กลุ่ม/บุคคล) อีกครั้งก่อนบันทึก
+    var permission = window.currentReplyPermission;
+    if (!permission) {
+        var sendToVal = $activeRow.length ? ($activeRow.attr('data-sendto') || '') : '';
+        var replyDetails = $activeRow.length ? $activeRow.data('details') : [];
+        if (typeof replyDetails === 'string') {
+            try { replyDetails = JSON.parse(replyDetails); } catch (e) { replyDetails = []; }
+        }
+        permission = evaluateReplyPermission(sendToVal, Array.isArray(replyDetails) ? replyDetails : []);
+    }
+    if (!permission.allowed) {
+        showAlert('warning', 'แจ้งเตือน', permission.reason || 'คุณไม่มีสิทธิ์ตอบกลับเคสนี้');
+        return;
+    }
+
     try {
         startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
         var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`, {
+            method: 'POST',
             skipLoading: true
         });
         if (!response.ok) {
@@ -1332,7 +1578,14 @@ async function ForwardSuggestion() {
     }
 
     var currentSendTo = $("#detail-sendTo").text().trim();
-    var optionsHtml = $('#post-send-to').html();
+
+    // "ส่งต่อ" แสดงเฉพาะอีเมลของบุคคล (personalData.personal) เท่านั้น
+    var forwardEmails = Array.isArray(window.forwardSendToEmails) ? window.forwardSendToEmails : [];
+    var optionsHtml = '<option value="" selected>เลือกผู้รับผิดชอบ</option>';
+    forwardEmails.forEach(function (emailVal) {
+        var safeVal = String(emailVal).replace(/"/g, '&quot;');
+        optionsHtml += `<option value="${safeVal}">${safeVal}</option>`;
+    });
 
     var selectHtml = `
         <div class="text-start mt-2">
@@ -1392,6 +1645,8 @@ async function ForwardSuggestion() {
             const contactDateTime = $('#detail-contact-back').text().trim();
 
             var response = await fetch(`/Suggestions/UpdateSuggestionStatus?guid=${encodeURIComponent(guid)}&statusTask=Forward&sendTo=${encodeURIComponent(sendToVal)}`, {
+                method: "PUT",
+                headers: { "Accept": "application/json" },
                 skipLoading: true
             });
             if (!response.ok) {

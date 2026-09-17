@@ -15,18 +15,6 @@ namespace webCRM.Controllers
 
         public async Task<IActionResult> Index([FromQuery] string? user)
         {
-            await GetProfileByPersonalCode(user);
-            return RedirectToAction("Index", "Home");
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
-
-        public async Task<IActionResult> GetProfileByPersonalCode([FromQuery] string? user)
-        {
             try
             {
                 string personalCode = "100664";
@@ -36,7 +24,6 @@ namespace webCRM.Controllers
                     personalCode = DecodeBase64(user);
                 }
 
-                // เรียกผ่าน CRMService
                 var rootNode =
                     await crmService.GetProfileByPersonalCode(personalCode);
 
@@ -77,6 +64,10 @@ namespace webCRM.Controllers
                     profile["e_mail"]?.ToString()
                     ?? "";
 
+                string groupEmail =
+                    profile["groupEmail"]?.ToString()
+                    ?? "";
+
                 string roleId =
                     profile["role_id"]?.ToString()
                     ?? "";
@@ -97,7 +88,18 @@ namespace webCRM.Controllers
                     profile["variable_func"]?.ToString()
                     ?? "";
 
-                // ไม่มี Role = ไม่มีสิทธิ์
+                string func_name =
+                    profile["func_name"]?.ToString()
+                    ?? "";
+
+                string roleName =
+                    profile["role_name"]?.ToString()
+                    ?? "";
+
+                string company =
+                    profile["companyCode"]?.ToString()
+                    ?? "";
+
                 if (string.IsNullOrWhiteSpace(roleId))
                 {
                     HttpContext.Session.Clear();
@@ -106,38 +108,13 @@ namespace webCRM.Controllers
                         "ไม่มีสิทธิ์การใช้งานระบบ");
                 }
 
-                // =========================================================
-                // Company
-                // =========================================================
-
-                string company = "";
-
-                if (email.Contains(
-                    "microleasingplc",
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    company = "MICRO";
-                }
-                else if (email.Contains(
-                    "microinsurebroker",
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    company = "MIB";
-                }
-                else if (email.Contains(
-                    "mfin",
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    company = "MFIN";
-                }
-
-                // =========================================================
-                // Session
-                // =========================================================
+                // =========================
+                // Set Session
+                // =========================
 
                 HttpContext.Session.SetString(
                     "profile_welcome",
-                    $"[{pCode}] ({pNameTh} {pLastTh})");
+                    $"[{pCode}] ({pNameTh} {pLastTh}) [{roleName}]");
 
                 HttpContext.Session.SetString(
                     "fullNameEn",
@@ -150,6 +127,10 @@ namespace webCRM.Controllers
                 HttpContext.Session.SetString(
                     "email",
                     email);
+
+                HttpContext.Session.SetString(
+                    "groupEmail",
+                    groupEmail);
 
                 HttpContext.Session.SetString(
                     "company",
@@ -171,10 +152,12 @@ namespace webCRM.Controllers
                     "variable_func",
                     variableFunc);
 
+                HttpContext.Session.SetString(
+                    "func_name",
+                    func_name);
+
                 string formattedBranchNo =
-                    int.TryParse(
-                        branchNo,
-                        out int bNo)
+                    int.TryParse(branchNo, out int bNo)
                         ? bNo.ToString("00")
                         : branchNo;
 
@@ -182,55 +165,40 @@ namespace webCRM.Controllers
                     "branchName",
                     $"{formattedBranchNo}-{branch}");
 
-                // =========================================================
-                // Activity Log
-                // =========================================================
+                // =========================
+                // DEBUG
+                // =========================
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "Login",
-                //     targetId: pCode,
-                //     targetType: "USER",
-                //     message: "Login successfully",
-                //     module: "Login"
-                // );
+                Console.WriteLine(
+                    $"LOGIN SUCCESS: {pCode}");
 
-                return Content(
-                    rootNode?.ToJsonString() ?? "{}",
-                    "application/json");
-            }
-            catch (JsonException)
-            {
-                return Unauthorized(new
-                {
-                    message =
-                        "Login failed: Invalid API Response format"
-                });
-            }
-            catch (HttpRequestException ex)
-            {
-                return Unauthorized(new
-                {
-                    message =
-                        $"API connection failed: {ex.Message}"
-                });
-            }
-            catch (TaskCanceledException)
-            {
-                return Unauthorized(new
-                {
-                    message =
-                        "API request timeout."
-                });
+                Console.WriteLine(
+                    $"roleId: {HttpContext.Session.GetString("roleId")}");
+
+                Console.WriteLine(
+                    $"personalId: {HttpContext.Session.GetString("personalId")}");
+
+                // =========================
+                // Redirect
+                // =========================
+
+                return RedirectToAction("Index", "Home");
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex);
+
                 return Unauthorized(new
                 {
-                    message =
-                        $"Login failed: {ex.Message}"
+                    message = $"Login failed: {ex.Message}"
                 });
             }
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
         private IActionResult NoPermissionResult(string message = "ไม่มีสิทธิ์การใช้งานระบบ")
@@ -422,7 +390,8 @@ namespace webCRM.Controllers
             });
         }
     }
-        public async Task<IActionResult> GetProfileByEmail([FromBody] string email)
+        [HttpGet]
+        public async Task<IActionResult> GetProfileByEmail([FromQuery] string email)
         {
             try
             {

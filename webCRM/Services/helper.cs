@@ -116,7 +116,11 @@ namespace webCRM.Services
             string startDate = "",
             string endDate = "",
             string branch = "",
-            string search = "")
+            string search = "",
+            string sortCreateDate = "",
+            string offCde = "",
+            string company = ""
+            )
         {
             string reqPage =
                 string.IsNullOrEmpty(page) ? "1" : page;
@@ -157,6 +161,24 @@ namespace webCRM.Services
             {
                 queryParams.Add(
                     $"search={Uri.EscapeDataString(search)}");
+            }
+
+            if (!string.IsNullOrEmpty(sortCreateDate))
+            {
+                queryParams.Add(
+                    $"sortCreateDate={Uri.EscapeDataString(sortCreateDate)}");
+            }
+
+            if (!string.IsNullOrEmpty(offCde))
+            {
+                queryParams.Add(
+                    $"offCde={Uri.EscapeDataString(offCde)}");
+            }
+
+            if (!string.IsNullOrEmpty(company))
+            {
+                queryParams.Add(
+                    $"company={Uri.EscapeDataString(company)}");
             }
 
             if (queryParams.Count > 0)
@@ -430,9 +452,7 @@ namespace webCRM.Services
         {
             try
             {
-                return await GetAsync<string>(
-                    "p2/getCheckProductNo")
-                    ?? "";
+                return await GetStringAsync("p2/getCheckProductNo")??"[]";
             }
             catch (Exception ex)
             {
@@ -447,9 +467,7 @@ namespace webCRM.Services
         {
             try
             {
-                return await GetAsync<string>(
-                    "p3/getMasterObjective")
-                    ?? "";
+                return await GetStringAsync("p3/getMasterObjective") ?? "[]";
             }
             catch (Exception ex)
             {
@@ -471,6 +489,11 @@ namespace webCRM.Services
                 string json =
                     await response.Content.ReadAsStringAsync();
 
+                _logger.LogInformation(
+                    "PostFile response: StatusCode={StatusCode}, Body={Body}",
+                    (int)response.StatusCode,
+                    json);
+
                 long fileId = 0;
 
                 if (response.IsSuccessStatusCode)
@@ -480,26 +503,9 @@ namespace webCRM.Services
                         using var doc =
                             JsonDocument.Parse(json);
 
-                        var root = doc.RootElement;
-
-                        if (root.TryGetProperty("Id", out var idProp) ||
-                            root.TryGetProperty("id", out idProp))
-                        {
-                            if (idProp.ValueKind ==
-                                JsonValueKind.Number)
-                            {
-                                fileId = idProp.GetInt64();
-                            }
-                            else if (
-                                idProp.ValueKind ==
-                                JsonValueKind.String &&
-                                long.TryParse(
-                                    idProp.GetString(),
-                                    out long parsedId))
-                            {
-                                fileId = parsedId;
-                            }
-                        }
+                        // ค้นหา Id แบบยืดหยุ่น รองรับทั้ง object ระดับบนสุด,
+                        // array และการห่อด้วย data/Data/result เป็นต้น
+                        fileId = ExtractFileId(doc.RootElement);
                     }
                     catch
                     {
@@ -524,13 +530,68 @@ namespace webCRM.Services
             }
         }
 
+        // ค้นหาค่า file id จาก JSON response แบบยืดหยุ่น
+        // รองรับ property ชื่อ Id/id/file_id/fileId ทั้งที่เป็น object,
+        // array หรือถูกห่อด้วย data/Data/result/Result
+        private static long ExtractFileId(JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (var propName in new[] { "Id", "id", "file_id", "fileId", "FileId" })
+                    {
+                        if (element.TryGetProperty(propName, out var idProp))
+                        {
+                            if (idProp.ValueKind == JsonValueKind.Number &&
+                                idProp.TryGetInt64(out var numId) && numId > 0)
+                            {
+                                return numId;
+                            }
+                            if (idProp.ValueKind == JsonValueKind.String &&
+                                long.TryParse(idProp.GetString(), out var parsedId) && parsedId > 0)
+                            {
+                                return parsedId;
+                            }
+                        }
+                    }
+
+                    // ค้นหาในตัวห่อที่พบบ่อย
+                    foreach (var wrapper in new[] { "data", "Data", "result", "Result", "response", "Response" })
+                    {
+                        if (element.TryGetProperty(wrapper, out var wrapped))
+                        {
+                            var found = ExtractFileId(wrapped);
+                            if (found > 0) return found;
+                        }
+                    }
+                    return 0;
+
+                case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
+                    {
+                        var found = ExtractFileId(item);
+                        if (found > 0) return found;
+                    }
+                    return 0;
+
+                case JsonValueKind.Number:
+                    return element.TryGetInt64(out var directId) ? directId : 0;
+
+                case JsonValueKind.String:
+                    return long.TryParse(element.GetString(), out var directParsed) ? directParsed : 0;
+
+                default:
+                    return 0;
+            }
+        }
+
         public async Task<string> GetFile(long id)
         {
             try
             {
-                return await GetAsync<string>(
+                return await GetStringAsync(
                     $"p3/getFile?Id={id}")
-                    ?? "";
+                    ?? "[]";
             }
             catch (Exception ex)
             {
@@ -543,11 +604,13 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<string> DeleteFile(long id)
+        public async Task<(bool Success, int StatusCode, string Response)> DeleteFile(long id)
         {
             try
             {
-                var request = new
+                // ส่ง property เป็น PascalCase อย่างชัดเจน เพื่อให้ตรงกับที่ backend คาดหวัง
+                // (backend ฝั่ง getFile ใช้ query string ชื่อ "Id" แบบ PascalCase)
+                var request = new UpdateFileRequest
                 {
                     Id = id,
                     IsActive = false
@@ -557,9 +620,21 @@ namespace webCRM.Services
                     "p3/updateFile",
                     request);
 
-                response.EnsureSuccessStatusCode();
+                var body = await response.Content.ReadAsStringAsync();
 
-                return await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError(
+                        "updateFile failed. Id={Id}, StatusCode={StatusCode}, Body={Body}",
+                        id,
+                        (int)response.StatusCode,
+                        body);
+                }
+
+                return (
+                    response.IsSuccessStatusCode,
+                    (int)response.StatusCode,
+                    body);
             }
             catch (Exception ex)
             {
@@ -1617,17 +1692,14 @@ namespace webCRM.Services
 
         public async Task<string> GetProspectPhase3(
             GetProspectRequest request,
-            int page,
-            int pageSize,
-            string search)
+            string search
+            )
         {
             try
             {
                 var queryParams =
                     new Dictionary<string, string?>
                     {
-                        ["page"] = page.ToString(),
-                        ["pageSize"] = pageSize.ToString(),
                         ["isNotAssign"] = "true",
                         ["search"] = search ?? ""
                     };
@@ -1781,7 +1853,7 @@ namespace webCRM.Services
         }
 
         public async Task<string> GetCampaignDataForETL(
-            string? productCode)
+            string? productCode, string? assignTo)
         {
             try
             {
@@ -1790,7 +1862,8 @@ namespace webCRM.Services
                         "p3/getCampaignDataForETL",
                         new Dictionary<string, string?>
                         {
-                            ["product_code"] = productCode
+                            ["product_code"] = productCode,
+                            ["assignTo"] = assignTo
                         });
 
                 return await GetStringAsync(endpoint);
@@ -1825,7 +1898,14 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<List<ResponseSuggestion>> GetSuggestionList(string personalId, string? status = null, string? header = null, string? search = null)
+        public async Task<List<ResponseSuggestion>> GetSuggestionList(
+            string personalId, 
+            string? status = null, 
+            string? header = null, 
+            string? search = null,
+            string? userEmail = null,
+            string? groupEmail = null
+            )
         {
             try
             {
@@ -1853,6 +1933,16 @@ namespace webCRM.Services
                 {
                     queryParams["search"] =
                         search.Trim();
+                }
+
+                if (!string.IsNullOrWhiteSpace(userEmail))
+                {
+                    queryParams["userEmail"] = userEmail.Trim();
+                }
+
+                if (!string.IsNullOrWhiteSpace(groupEmail))
+                {
+                    queryParams["groupEmail"] = groupEmail.Trim();
                 }
 
                 var endpoint =
@@ -2271,6 +2361,34 @@ namespace webCRM.Services
                 _logger.LogError(
                     ex,
                     "Error posting Notification");
+
+                throw;
+            }
+        }
+
+        public Task PostNotiToApprover(
+            string title,
+            string message,
+            long sender)
+        {
+            try
+            {
+                var request = new
+                {
+                    title,
+                    message,
+                    sender
+                };
+
+                return PostAsync(
+                    "p3/postNotiToApprover",
+                    request);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error posting NotiToApprover");
 
                 throw;
             }

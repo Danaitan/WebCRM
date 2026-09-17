@@ -362,3 +362,28 @@ body.crm-body {
         height: 320px;
     }
 }
+
+/* ===== Inline loading (โหลดข้อมูลในหน้าแบบไม่บล็อกทั้งจอ) ===== */
+.dashboard-inline-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1.25rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.chart-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.7);
+    color: #64748b;
+    font-size: 0.9rem;
+    border-radius: 0.5rem;
+    z-index: 5;
+    backdrop-filter: blur(1px);
+}

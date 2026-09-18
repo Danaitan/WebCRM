@@ -562,5 +562,22 @@ namespace webCRM.Controllers
                 });
             }
         }
+    
+            [HttpGet]
+        public async Task<IActionResult> GetpersonalInGroup(
+            string? groupEmail= null
+            )
+        {
+
+            var suggestions =
+                await crmService.GetpersonalInGroup(
+                    groupEmail
+                    );
+
+            return Json(suggestions);
+        }
+    
+    
+    
     }
 }

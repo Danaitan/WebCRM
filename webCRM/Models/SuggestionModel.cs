@@ -189,6 +189,72 @@ namespace webCRM.Models
         public List<string>? Attachments { get; set; }
     }
 
+    public class GroupPersonnel
+    {
+        [JsonPropertyName("rid")]
+        public int? Rid { get; set; }
+
+        [JsonPropertyName("company")]
+        public string? Company { get; set; }
+
+        [JsonPropertyName("groupName")]
+        public string? GroupName { get; set; }
+
+        [JsonPropertyName("groupAlias")]
+        public string? GroupAlias { get; set; }
+
+        [JsonPropertyName("groupEmail")]
+        public string? GroupEmail { get; set; }
+
+        [JsonPropertyName("sectionCde")]
+        public string? SectionCde { get; set; }
+
+        [JsonPropertyName("personnel_id")]
+        public long? PersonnelId { get; set; }
+
+        [JsonPropertyName("personnel_code")]
+        public string? PersonnelCode { get; set; }
+
+        [JsonPropertyName("personnel_nickname")]
+        public string? PersonnelNickname { get; set; }
+
+        [JsonPropertyName("thname")]
+        public string? ThName { get; set; }
+
+        [JsonPropertyName("enname")]
+        public string? EnName { get; set; }
+
+        [JsonPropertyName("personnel_name_TH")]
+        public string? PersonnelNameTH { get; set; }
+
+        [JsonPropertyName("personnel_name_EN")]
+        public string? PersonnelNameEN { get; set; }
+
+        [JsonPropertyName("personnel_last_TH")]
+        public string? PersonnelLastTH { get; set; }
+
+        [JsonPropertyName("personnel_last_EN")]
+        public string? PersonnelLastEN { get; set; }
+
+        [JsonPropertyName("personnel_status")]
+        public int? PersonnelStatus { get; set; }
+
+        [JsonPropertyName("e_mail")]
+        public string? Email { get; set; }
+
+        [JsonPropertyName("department")]
+        public string? Department { get; set; }
+
+        [JsonPropertyName("depart_code")]
+        public string? DepartCode { get; set; }
+
+        [JsonPropertyName("position")]
+        public string? Position { get; set; }
+
+        [JsonPropertyName("branch")]
+        public string? Branch { get; set; }
+    }
+
     public class PostNotiRequest
     {
         [JsonPropertyName("header")]

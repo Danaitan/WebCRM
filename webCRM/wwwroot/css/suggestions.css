@@ -117,3 +117,17 @@ body.crm-body {
 select option {
     color: #000000 !important;
 }
+
+/* แสดงเฉพาะตัวเลขของเวลา โดยซ่อนลูกศร dropdown */
+.contact-time-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none !important;
+    padding-right: 0.5rem !important;
+}
+
+.contact-time-select:disabled {
+    background-color: #e9ecef;
+    opacity: 0.65;
+}

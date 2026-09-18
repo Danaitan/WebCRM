@@ -354,6 +354,120 @@ body {
     vertical-align: middle;
 }
 
+/* การ์ดล่าง (รายการแคมเปญ + Prospect ทั้งหมด) ความสูงคงที่เท่ากัน ไม่ยืดตามจำนวนรายการ
+   ความสูงถูกกำหนดให้พอดีกับรายการแคมเปญ 6 อัน (1 อัน ≈ 92px) รวม header + footer */
+.prospect-bottom-card {
+    /* 6 รายการ x 92px = 552px + header(~62px) + footer(~70px) = 684px */
+    height: 632px;
+    max-height: 632px;
+    overflow: hidden;
+}
+
+/* พื้นที่ scroll ของทั้งสองการ์ด: เติมพื้นที่ที่เหลือระหว่าง header/footer แล้ว scroll แทนการยืด */
+.prospect-table-scroll,
+.batch-list-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.batch-list-scroll {
+    height: 500px;
+}
+
+/* ตรึงหัวตารางไว้ด้านบนขณะเลื่อน scroll */
+.prospect-table-scroll .table-custom thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc;
+}
+
+/* ---- Footer แบ่งหน้าของรายการแคมเปญ: จัดกึ่งกลาง เรียงบน-ล่างให้อ่านง่ายในคอลัมน์แคบ ---- */
+.batch-pagination-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+
+.batch-page-info {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.batch-pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* ปุ่มลูกศรนำทาง (หน้าแรก/ก่อน/ถัดไป) */
+.batch-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-gray);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.batch-nav-btn:hover {
+    background-color: #f1f5f9;
+    color: var(--primary-blue);
+}
+
+.batch-page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ปุ่มเลขหน้า: ทรงสี่เหลี่ยมขนาดเท่ากัน ดูเป็นระเบียบ */
+.batch-page-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    user-select: none;
+    background-color: #f1f5f9;
+    color: var(--text-dark);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.batch-page-number:hover {
+    background-color: #e2e8f0;
+}
+
+.batch-page-number.active {
+    background-color: var(--primary-blue);
+    color: #fff;
+    font-weight: 600;
+}
+
+.batch-page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 26px;
+    font-size: 0.8rem;
+    color: var(--text-gray);
+    user-select: none;
+}
+
 .table-custom td {
     font-size: 0.825rem;
     color: var(--text-dark);

@@ -12,6 +12,7 @@ namespace webCRM.Controllers
         public IActionResult Index(
             [FromQuery] string? user = null)
         {
+            // มี user มาใน query -> ส่งต่อให้ Login ตั้ง cookie และล็อกอิน
             if (!string.IsNullOrWhiteSpace(user))
             {
                 return RedirectToAction(
@@ -29,6 +30,8 @@ namespace webCRM.Controllers
             }
             else
             {
+                // ยังไม่มี session (เช่น เข้าจากลิงก์ในอีเมลแบบ /Home เปล่า ๆ)
+                // ส่งต่อไป Login โดยไม่ส่ง user เพื่อให้ Login ไปเช็ค cookie "userCde" แทน
                 return RedirectToAction("Index", "Login");
             }
 

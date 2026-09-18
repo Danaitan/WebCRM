@@ -23,6 +23,14 @@ body {
   font-family: 'Prompt', sans-serif;
 }
 
+/* CRM shell: lock the viewport so only the content area scrolls,
+   keeping the sidebar and header fixed (no full-page scrollbar). */
+body.crm-body {
+  margin-bottom: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
   color: var(--bs-secondary-color);
   text-align: end;
@@ -369,4 +377,4 @@ table.table-dark thead th {
 .popover-consent-content p {
   text-align: justify;
 }
-
+

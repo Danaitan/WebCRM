@@ -30,21 +30,26 @@ namespace webCRM.Controllers
             string search = "",
             string sortCreateDate = "",
             bool isFilteroffCde = false,
-            bool isFiltercompany = false
+            bool isFiltercompany = false,
+            bool isOnlyAssigned = false
             )
         {
             try
             {
                 string offCde = "";
                 string company = "";
+                string assingUser = "";
 
                 if (isFilteroffCde){
                     offCde = HttpContext.Session.GetString("variable_func") ?? "";
                 }
                 if (isFiltercompany){
-                    company = HttpContext.Session.GetString("company");
+                    company = HttpContext.Session.GetString("company") ?? "";
                 }
 
+                if (isOnlyAssigned){
+                    assingUser = HttpContext.Session.GetString("personalId") ?? "";
+                }
                 return await crmService.GetCampainList(
                     page,
                     pageSize,
@@ -55,7 +60,8 @@ namespace webCRM.Controllers
                     search,
                     sortCreateDate,
                     offCde,
-                    company
+                    company,
+                    assingUser
                     );
             }
             catch (Exception ex)

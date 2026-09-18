@@ -35,56 +35,6 @@ async function SearchCampaign() {
     loadCampaignData(1, campaignPageSize);
 }
 
-function isUserAllowedForCampaign(campaign) {
-    if (!campaign) return true;
-    const campaignOffcde = String(campaign.offcde || '').trim();
-    if (!campaignOffcde || campaignOffcde === '99' || campaignOffcde === 'ทุกสาขา') {
-        return true;
-    }
-
-    const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-    const userBranch = (typeof window.USER_BRANCH_NAME === 'string') ? window.USER_BRANCH_NAME.trim() : '';
-
-    if (!variableFunc && !userBranch) {
-        return true;
-    }
-
-    const campaignBranches = campaignOffcde.split(',').map(s => s.trim()).filter(Boolean);
-    if (campaignBranches.length === 0) return true;
-
-    if (variableFunc) {
-        const userAllowed = variableFunc.split(',').map(s => s.trim()).filter(Boolean);
-        const match = campaignBranches.some(cBranch => {
-            const cClean = cBranch.replace(/^0+/, '');
-            const cPad = cBranch.padStart(2, '0');
-            return userAllowed.some(uBranch => {
-                const uClean = uBranch.replace(/^0+/, '');
-                const uPad = uBranch.padStart(2, '0');
-                return cBranch === uBranch || cPad === uPad || (cClean && uClean && cClean === uClean);
-            });
-        });
-        if (match) return true;
-    }
-
-    if (userBranch) {
-        const parts = userBranch.split('-');
-        const userBranchNo = parts[0].trim();
-        const userBranchNoClean = userBranchNo.replace(/^0+/, '');
-        const userBranchNoPad = userBranchNo.padStart(2, '0');
-        const userBranchName = parts.length > 1 ? parts.slice(1).join('-').trim() : userBranch;
-
-        const match = campaignBranches.some(cBranch => {
-            const cClean = cBranch.replace(/^0+/, '');
-            const cPad = cBranch.padStart(2, '0');
-            return cBranch === userBranchNo || cPad === userBranchNoPad || (cClean && userBranchNoClean && cClean === userBranchNoClean) ||
-                   userBranch.includes(cBranch) || (userBranchName && userBranchName.includes(cBranch));
-        });
-        if (match) return true;
-    }
-
-    return false;
-}
-
 // Fetch campaign list from API with page and pageSize
 async function getCampainList(page = 1, pageSize = 10) {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
@@ -97,6 +47,7 @@ async function getCampainList(page = 1, pageSize = 10) {
         if (searchText !== undefined && searchText !== null && searchText !== '') {
             queryStr += `&search=${searchText}`;
         }
+        queryStr += `&isOnlyAssigned=${true}`;
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
 
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
@@ -119,7 +70,8 @@ async function getCampainList(page = 1, pageSize = 10) {
             isActive:      item.isActive || false
         }));
 
-        const filteredMapped = mapped.filter(item => isUserAllowedForCampaign(item));
+        // แสดงทุกแคมเปญไม่ว่าสาขาใด (ไม่กรองตามสิทธิ์สาขา)
+        const filteredMapped = mapped;
 
         return {
             page: jsonResult.page ?? (page ? parseInt(page) : 1),
@@ -1516,16 +1468,6 @@ async function openRecordResultModal(trElement) {
     currentModalCustomer = customer;
 
     const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
-    if (activeCampaign && !isUserAllowedForCampaign(activeCampaign)) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'ไม่มีสิทธิ์บันทึกข้อมูล',
-            text: 'แคมเปญนี้ถูกกำหนดให้ใช้เฉพาะสาขาที่เลือก คุณไม่มีสิทธิ์บันทึกผลการติดต่อสำหรับแคมเปญนี้',
-            confirmButtonColor: '#3085d6',
-            confirmButtonText: 'ตกลง'
-        });
-        return;
-    }
     const campaignObjectiveCode = (customer && (customer.objective || customer.Objective_code)) || (activeCampaign ? (activeCampaign.Objective_code || '') : (selectedCampaignObjective || ''));
     const objBadge = getObjectiveBadge(campaignObjectiveCode);
 
@@ -1597,18 +1539,6 @@ async function openRecordResultModal(trElement) {
 
 // Save Record Result
 function saveRecordResult() {
-    const activeCampaign = campaignsData.find(c => c.code === selectedCampaignCode);
-    if (activeCampaign && !isUserAllowedForCampaign(activeCampaign)) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'ไม่มีสิทธิ์บันทึกข้อมูล',
-            text: 'แคมเปญนี้ถูกกำหนดให้ใช้เฉพาะสาขาที่เลือก คุณไม่มีสิทธิ์บันทึกผลการติดต่อสำหรับแคมเปญนี้',
-            confirmButtonColor: '#3085d6',
-            confirmButtonText: 'ตกลง'
-        });
-        return;
-    }
-
     const resultVal = $('#modalContactResult').val();
     const statusLeadVal = $('#modalStatusLead').val();
     const reportVal = $('#modalContactReport').val();

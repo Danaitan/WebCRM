@@ -2,6 +2,9 @@
     ViewData["Title"] = "Prospect Setup";
     ViewData["HeaderTitle"] = "Prospect Setup";
     ViewData["HeaderSubtitle"] = "จัดการและตั้งค่าชุดข้อมูลลูกค้าเป้าหมาย (Prospect)";
+
+    var funcId = Context.Session.GetString("func_id") ?? "";
+    var isCampaignCreate = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM004");
 }
 
 @section Styles {
@@ -116,7 +119,7 @@
                         </table>
                     </div>
                     
-                    <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
+                    <!-- <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
                         <div class="d-flex align-items-center gap-2">
                             <span class="text-muted" style="font-size: 0.85rem;">แสดง</span>
                             <select class="form-select form-select-sm" id="rowsPerPage" style="width: 70px; border-radius: 6px;">
@@ -138,7 +141,7 @@
                                 <span class="text-muted" style="font-size: 0.85rem;">หน้า</span>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
             </div>
 
         </div> 
@@ -149,22 +152,23 @@
             
         <!-- Action Buttons -->
         <div>
-            
-            <button class="action-btn btn-primary-green disabled" id="saveDraftBtn" disabled>
-                <i class="bi bi-file-earmark-text"></i>
-                <div>
-                    <span class="action-btn-title">บันทึกชุดข้อมูล</span>
-                    <span class="action-btn-sub">บันทึกชุดข้อมูลนี้</span>
-                </div>
-            </button>
-            
-            <button class="action-btn btn-primary-purple disabled" id="sendForApprovalBtn" disabled>
-                <i class="bi bi-send"></i>
-                <div>
-                    <span class="action-btn-title">ส่งอนุมัติ</span>
-                    <span class="action-btn-sub">ส่งชุดข้อมูลเพื่อขออนุมัติ</span>
-                </div>
-            </button>
+            @if(isCampaignCreate){
+                <button class="action-btn btn-primary-green disabled" id="saveDraftBtn" disabled>
+                    <i class="bi bi-file-earmark-text"></i>
+                    <div>
+                        <span class="action-btn-title">บันทึกชุดข้อมูล</span>
+                        <span class="action-btn-sub">บันทึกชุดข้อมูลนี้</span>
+                    </div>
+                </button>
+                
+                <button class="action-btn btn-primary-purple disabled" id="sendForApprovalBtn" disabled>
+                    <i class="bi bi-send"></i>
+                    <div>
+                        <span class="action-btn-title">ส่งอนุมัติ</span>
+                        <span class="action-btn-sub">ส่งชุดข้อมูลเพื่อขออนุมัติ</span>
+                    </div>
+                </button>
+            }
         </div>
         
         <!-- Selected Items -->
@@ -219,6 +223,7 @@
 @section Scripts {
     <script>
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "MICRO")';
+        window.isCampaignCreate = @(isCampaignCreate.ToString().ToLower());
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>

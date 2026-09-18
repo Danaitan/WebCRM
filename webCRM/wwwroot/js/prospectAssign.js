@@ -8,6 +8,21 @@ let prospectPage = 1;
 let prospectPageSize = 10;
 let campaigns = [];
 let selectedProspectIds = new Set();
+// เก็บรายการ prospect ที่ผ่านการกรองปัจจุบันไว้ทั้งหมด (ทุกหน้า) เพื่อใช้กับ "เลือกทั้งหมด"
+let currentFilteredProspectItems = [];
+
+// แปลง selection key (row key ที่เลือกไว้) กลับเป็น id จริงสำหรับส่งไป assign
+function resolveSelectedAssignIds() {
+    const map = new Map(
+        (currentFilteredProspectItems || []).map(x => [x.selectKey, x.assignId])
+    );
+    const ids = [];
+    selectedProspectIds.forEach(selectKey => {
+        const assignId = map.has(selectKey) ? map.get(selectKey) : selectKey;
+        if (assignId) ids.push(assignId);
+    });
+    return ids;
+}
 
 async function PostNoti(PostNotiData){
     try {
@@ -113,9 +128,8 @@ async function sendPostNotiForAssign(requestData, actionType) {
             });
 
             const receiver_profile = await getProfileByCode(receiver);
-            const userIdBase64 = btoa(receiver);
             const fullNameTh = userFullNameTh || '';
-            const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+            const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/ProspectCall')}`;
             const emailContent =
                 `<div style="line-height: 1.7;">
                     <div>
@@ -125,8 +139,7 @@ async function sendPostNotiForAssign(requestData, actionType) {
                     </div>
 
                     <div style="margin-top: 12px;">
-                        เข้าสู่ระบบผ่านลิงก์
-                        <a href="${homeUrl}" target="_blank">
+                        <a href="${homeUrl}">
                             คลิกที่นี่เพื่อเข้าสู่ระบบCRM
                         </a>
                     </div>
@@ -247,6 +260,9 @@ function bindBranchCheckboxEvents() {
             const selectedBranches = getSelectedBranchCodes();
 
             loadAndRenderStaffList(selectedBranches);
+
+            // เปลี่ยนสาขา -> แสดง Prospect ตามสาขาที่เลือกใหม่
+            onBranchSelectionChanged();
         });
     });
 }
@@ -307,6 +323,9 @@ function updateBranchSelectedDisplay() {
                 const selectedBranches = getSelectedBranchCodes();
 
                 loadAndRenderStaffList(selectedBranches);
+
+                // เอาสาขาออก -> อัปเดตรายการ Prospect ตามสาขาที่เหลือ
+                onBranchSelectionChanged();
             });
 
         box.appendChild(tag);
@@ -634,17 +653,19 @@ async function UpdateProspectCustomer(overrideParams = {}){
         if (overrideParams.id) {
             ids = overrideParams.id;
         } else if (isReassign) {
-            // ReAssign ต้องกรองตามสถานะจากแถวที่แสดงอยู่
+            // ReAssign ต้องกรองตามสถานะจากแถวที่แสดงอยู่ และใช้ id จริง (data-assign-id) ในการส่ง
             const selectedCheckboxes = Array.from(document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked')).filter(cb => {
                 const st = (cb.getAttribute('data-status') || '').toLowerCase().trim();
                 const row = cb.closest('tr');
                 const statusText = row ? (row.querySelector('.status-text')?.textContent || '').toLowerCase().trim() : '';
                 return st === 'assigned' || st === 'reassign' || (statusText.includes('assign') && !statusText.includes('wait'));
             });
-            ids = selectedCheckboxes.map(cb => cb.getAttribute('data-id')).filter(Boolean);
+            ids = selectedCheckboxes
+                .map(cb => cb.getAttribute('data-assign-id') || cb.getAttribute('data-id'))
+                .filter(Boolean);
         } else {
-            // ใช้ selection set เพื่อรองรับการเลือกข้ามหน้า
-            ids = Array.from(selectedProspectIds);
+            // แปลง selection key (row key) กลับเป็น id จริงเพื่อส่งไป assign รองรับการเลือกข้ามหน้า
+            ids = resolveSelectedAssignIds();
         }
 
         if (!ids || ids.length === 0) {
@@ -844,6 +865,7 @@ console.log("item",item)
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
             const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const branchCode = item.offcde || item.Offcde || item.branch_code || item.branchCode || item.contractoffcde || item.ContractOffCde || item.branch || item.Branch || '';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const createdDate = item.created || item.ImportDate || '-';
             const createdBy = item.created_by || '-';
@@ -859,6 +881,7 @@ console.log("item",item)
                     prospectID: String(prospectID || '').trim(),
                     idno: String(idno || '').trim(),
                     branch: String(branch).trim(),
+                    branchCode: String(branchCode).trim(),
                     name: String(name).trim(),
                     contract: String(contract).trim(),
                     custType: String(custType).trim(),
@@ -992,6 +1015,11 @@ async function loadProspectAssignData(productCode) {
 
     const { items, totalCount } = extractProspectCustomers(res);
 
+    // กำหนด key เฉพาะให้ทุกแถว เพื่อใช้ติดตามการเลือก (กันปัญหา id ว่าง/ซ้ำ ทำให้เลือกได้ไม่ครบ)
+    items.forEach((item, idx) => {
+        item.__rowKey = 'row_' + idx;
+    });
+
     rawProspectItems = items;
     prospectTotalCount = totalCount;
     updateSummaryCardCounts(items, totalCount);
@@ -1024,13 +1052,89 @@ function updateSummaryCardCounts(items, totalCount) {
     if (cardWait) cardWait.textContent = waitCount.toLocaleString();
 }
 
+// คืนค่า set ของ code และชื่อสาขาที่ถูกเลือก (normalize เป็นตัวพิมพ์เล็ก) เพื่อใช้กรอง prospect
+function getSelectedBranchFilterSet() {
+    const selectedCodes = getSelectedBranchCodes(); // อาร์เรย์ของ offcde ที่เลือก
+    const codeSet = new Set();
+    const nameSet = new Set();
+
+    selectedCodes.forEach(code => {
+        const c = String(code || '').trim();
+        if (c) codeSet.add(c.toLowerCase());
+
+        // หา branch object ใน allBranch เพื่อดึงชื่อสาขามาเทียบด้วย
+        const branchObj = (allBranch || []).find(b => getBranchCode(b) === c);
+        if (branchObj) {
+            const name = String(getBranchName(branchObj) || '').trim();
+            if (name) nameSet.add(name.toLowerCase());
+        }
+    });
+
+    return { codeSet, nameSet, count: selectedCodes.length };
+}
+
+function prospectMatchesSelectedBranch(item, filterSet) {
+    const code = String(item.branchCode || '').trim().toLowerCase();
+    const name = String(item.branch || '').trim().toLowerCase();
+    if (code && filterSet.codeSet.has(code)) return true;
+    if (name && filterSet.nameSet.has(name)) return true;
+    return false;
+}
+
+// เรียกเมื่อการเลือกสาขาเปลี่ยน: ล้างการเลือก prospect ที่ไม่อยู่ในสาขาที่เลือกแล้ว และ render ใหม่
+function onBranchSelectionChanged() {
+    const branchFilter = getSelectedBranchFilterSet();
+
+    if (branchFilter.count === 0) {
+        // ไม่เลือกสาขา -> ไม่แสดง prospect และล้างการเลือกทั้งหมด
+        selectedProspectIds.clear();
+    } else {
+        // เก็บเฉพาะ selection ที่ยังอยู่ในสาขาที่เลือก
+        const allowedKeys = new Set();
+        rawProspectItems.forEach(item => {
+            if (prospectMatchesSelectedBranch(item, branchFilter)) {
+                const key = String(item.__rowKey || item.id || item.prospectID || '').trim();
+                if (key) allowedKeys.add(key);
+            }
+        });
+        Array.from(selectedProspectIds).forEach(k => {
+            if (!allowedKeys.has(k)) selectedProspectIds.delete(k);
+        });
+    }
+
+    prospectPage = 1;
+    filterAndRenderProspectTable();
+}
+
 function filterAndRenderProspectTable(currentCampaign) {
     const tbody = document.getElementById('prospectAssignTableBody');
     if (!tbody) return;
 
-    let filteredItems = rawProspectItems;
+    // ต้องเลือกสาขาก่อน ถึงจะแสดง Prospect ตามสาขาที่เลือก
+    const branchFilter = getSelectedBranchFilterSet();
+    if (branchFilter.count === 0) {
+        currentFilteredProspectItems = [];
+        const selectAllCb = document.getElementById('selectAllProspects');
+        if (selectAllCb) {
+            selectAllCb.checked = false;
+            selectAllCb.disabled = true;
+        }
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-funnel me-1"></i> กรุณาเลือกสาขาก่อน เพื่อแสดงรายการ Prospect</td></tr>`;
+
+        const badge = document.getElementById('prospectAssignTotalBadge');
+        if (badge) badge.textContent = 'ทั้งหมด 0 รายการ';
+        const totalRowsInfo = document.getElementById('totalRowsInfo');
+        if (totalRowsInfo) totalRowsInfo.textContent = 0;
+
+        updateSelectedCount();
+        renderProspectPagination(0);
+        return;
+    }
+
+    // กรองตามสาขาที่เลือกก่อน
+    let filteredItems = rawProspectItems.filter(item => prospectMatchesSelectedBranch(item, branchFilter));
     if (activeStatusFilter !== 'all') {
-        filteredItems = rawProspectItems.filter(item => {
+        filteredItems = filteredItems.filter(item => {
             const statusLabel = getStatusLabel(item.status, item.assignee).toLowerCase();
             if (activeStatusFilter === 'assign') {
                 return statusLabel === 'assign';
@@ -1049,6 +1153,21 @@ function filterAndRenderProspectTable(currentCampaign) {
     const isActive = campaign ? Boolean(campaign.isActive) : (currentCampaign ? Boolean(currentCampaign.isActive) : false);
     const isImport = campaign ? (campaign.IsImport === true || campaign.IsImport === 'true' || campaign.IsImport === 1 || campaign.IsImport === '1') : false;
 
+    // id จริงที่ใช้ส่งไป assign (import ใช้ prospectID, ปกติใช้ id)
+    const getAssignId = (item) => isImport
+        ? String(item.prospectID || item.id || '').trim()
+        : String(item.id || '').trim();
+
+    // key เฉพาะสำหรับติดตามการเลือกในหน้าจอ (ทุกแถวไม่ซ้ำ) fallback เป็น id จริงถ้าไม่มี __rowKey
+    const getSelectKey = (item) => String(item.__rowKey || getAssignId(item) || '').trim();
+
+    // เก็บรายการที่ผ่านการกรองปัจจุบันไว้ทั้งหมด (ทุกหน้า) พร้อม selectKey และ assignId
+    currentFilteredProspectItems = filteredItems.map(item => ({
+        item,
+        selectKey: getSelectKey(item),
+        assignId: getAssignId(item)
+    }));
+
     const selectAllCheckbox = document.getElementById('selectAllProspects');
     if (selectAllCheckbox) {
         selectAllCheckbox.disabled = !isActive || filteredItems.length === 0;
@@ -1060,22 +1179,17 @@ function filterAndRenderProspectTable(currentCampaign) {
     if (filteredItems.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบข้อมูล</td></tr>`;
     } else {
-        const totalPages = Math.ceil(filteredItems.length / prospectPageSize) || 1;
-        if (prospectPage > totalPages) prospectPage = totalPages;
-        if (prospectPage < 1) prospectPage = 1;
-
-        const startIndex = (prospectPage - 1) * prospectPageSize;
-        const pageItems = filteredItems.slice(startIndex, startIndex + prospectPageSize);
+        // แสดงรายการทั้งหมด ไม่แบ่งหน้า
+        const pageItems = filteredItems;
 
         let html = '';
         pageItems.forEach(item => {
             const dotClass = getStatusDotClass(item.status, item.assignee);
             const statusText = getStatusLabel(item.status, item.assignee);
-            // Campaign แบบ ETL/import ให้ใช้ prospectID เป็นตัวระบุ (แทนคอลัมน์ Id)
-            // Campaign ปกติใช้ id ถ้าไม่มีให้ fallback เป็น idno
-            const selectKey = isImport
-                ? String(item.prospectID || item.id || '').trim()
-                : String(item.id || '').trim();
+            // selectKey = key เฉพาะสำหรับติดตามการเลือก (ทุกแถวไม่ซ้ำ)
+            // assignId  = id จริงที่ใช้ส่งไป assign (import ใช้ prospectID, ปกติใช้ id)
+            const selectKey = getSelectKey(item);
+            const assignId = getAssignId(item);
 
             html += `
                 <tr>
@@ -1084,6 +1198,7 @@ function filterAndRenderProspectTable(currentCampaign) {
                             type="checkbox" 
                             class="form-check-input prospect-checkbox" 
                             data-id="${escapeHtml(selectKey)}" 
+                            data-assign-id="${escapeHtml(assignId)}" 
                             data-contract="${escapeHtml(item.contract)}" 
                             data-status="${escapeHtml(item.status)}"
                             ${selectedProspectIds.has(selectKey) ? 'checked' : ''}
@@ -1178,9 +1293,13 @@ function updateSelectedCount() {
     }
 
     if (selectAllCheckbox) {
-        const enabledCheckboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:not(:disabled)');
-        const visibleCheckedCount = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:checked').length;
-        selectAllCheckbox.checked = (enabledCheckboxes.length > 0 && visibleCheckedCount === enabledCheckboxes.length);
+        // เทียบกับรายการที่ผ่านการกรองทั้งหมด (ทุกหน้า) ว่าถูกเลือกครบหรือไม่
+        const selectableKeys = (currentFilteredProspectItems || [])
+            .map(x => x.selectKey)
+            .filter(Boolean);
+        const allSelected = selectableKeys.length > 0 &&
+            selectableKeys.every(k => selectedProspectIds.has(k));
+        selectAllCheckbox.checked = allSelected;
     }
 
     let hasAssigned = false;
@@ -1211,7 +1330,10 @@ function renderProspectPagination(total) {
     const paginationEl = document.getElementById('prospectPagination');
     if (!paginationEl) return;
 
+    // แสดงรายการทั้งหมด ไม่ต้องแบ่งหน้า จึงล้าง pagination ทิ้ง
     paginationEl.innerHTML = '';
+    return;
+    // eslint-disable-next-line no-unreachable
     const totalPages = Math.ceil(total / prospectPageSize) || 1;
     if (totalPages <= 0) return;
 
@@ -1306,17 +1428,21 @@ function buildPageRange(current, total) {
         selectAllCheckbox.addEventListener('change', function () {
             if (this.disabled) return;
             const isChecked = this.checked;
+
+            // เลือก/ยกเลิก "ทั้งหมด" จากรายการที่ผ่านการกรอง (ทุกหน้า) ไม่ใช่แค่หน้าปัจจุบัน
+            (currentFilteredProspectItems || []).forEach(({ selectKey }) => {
+                if (!selectKey) return;
+                if (isChecked) {
+                    selectedProspectIds.add(selectKey);
+                } else {
+                    selectedProspectIds.delete(selectKey);
+                }
+            });
+
+            // อัปเดตสถานะ checkbox ที่แสดงอยู่ให้ตรงกับการเลือก
             const checkboxes = document.querySelectorAll('#prospectAssignTableBody .prospect-checkbox:not(:disabled)');
             checkboxes.forEach(cb => {
                 cb.checked = isChecked;
-                const id = String(cb.getAttribute('data-id') || '').trim();
-                if (id) {
-                    if (isChecked) {
-                        selectedProspectIds.add(id);
-                    } else {
-                        selectedProspectIds.delete(id);
-                    }
-                }
             });
             updateSelectedCount();
         });
@@ -1571,20 +1697,13 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
             pages.forEach(p => {
                 if (p === '...') {
                     const span = document.createElement('span');
-                    span.className = 'px-1 text-muted';
-                    span.style.fontSize = '0.8rem';
+                    span.className = 'batch-page-ellipsis';
                     span.textContent = '...';
                     pageNumbersContainer.appendChild(span);
                 } else {
                     const btn = document.createElement('span');
                     const isActive = p === currentPage;
-                    btn.className = `px-2 py-0.5 rounded ${isActive ? 'bg-primary text-white fw-bold' : 'text-dark'}`;
-                    btn.style.cursor = 'pointer';
-                    btn.style.fontSize = '0.8rem';
-                    btn.style.userSelect = 'none';
-                    if (!isActive) {
-                        btn.style.backgroundColor = '#f1f5f9';
-                    }
+                    btn.className = `batch-page-number${isActive ? ' active' : ''}`;
                     btn.textContent = p;
                     btn.addEventListener('click', function () {
                         if (p !== currentPage) {

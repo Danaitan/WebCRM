@@ -20,18 +20,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <style>
 
-        /* @@keyframes bell-ring {
-            0%, 100% { transform: rotate(0); }
-            10%, 30%, 50% { transform: rotate(15deg); }
-            20%, 40%, 60% { transform: rotate(-15deg); }
-            70% { transform: rotate(0); }
-        }
-        .hover-ring:hover {
-            animation: bell-ring 0.8s ease-in-out both;
-            transform-origin: top center;
-        } */
+    <style>
 
            @@keyframes bell-ring {
             0%   { transform: rotate(-15deg); }
@@ -71,7 +61,7 @@
         }
     }
 
-    <div class="d-flex" style="min-height: 100vh;">
+    <div class="d-flex" style="height: 100vh; overflow: hidden;">
         @if (!hideSidebar)
         {
             <!-- Sidebar -->
@@ -157,7 +147,7 @@
         }
 
         <!-- Main Content Area -->
-        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0; background-color: #f8fafc;">
+        <div class="flex-grow-1 d-flex flex-column" style="min-width: 0; min-height: 0; background-color: #f8fafc;">
             @{
                 bool hideHeader = ViewData["HideHeader"] as bool? == true;
             }
@@ -176,54 +166,56 @@
                 </div>
                 <div class="d-flex align-items-center gap-3">
                 
-<div class="d-flex align-items-center gap-3">
-    <div class="user-company text-end d-none d-md-block">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="user-company text-end d-none d-md-block">
 
-        <div class="text-muted" style="font-size: 0.85rem;">
-            ยินดีต้อนรับ
-            <span class="fw-bold text-primary">
-                @(Context.Session.GetString("profile_welcome") ?? "")
-            </span>
-        </div>
+                        <div class="text-muted" style="font-size: 0.85rem;">
+                            ยินดีต้อนรับ
+                            <span class="fw-bold text-primary">
+                                @(Context.Session.GetString("profile_welcome") ?? "")
+                            </span>
+                        </div>
 
-        <div>
-            @foreach (var func in (Context.Session.GetString("func_name") ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries))
-            {
-                <span class="fw-bold text-primary">[@func.Trim()]</span>
-            }
-        </div>
+                        <!-- 
+                        <div>
+                            @foreach (var func in (Context.Session.GetString("func_name") ?? "")
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                <span class="fw-bold text-primary">[@func.Trim()]</span>
+                            }
+                        </div> 
+                        -->
 
-        @{
-            var branches = (Context.Session.GetString("variable_func") ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .ToList();
-        }
+                        @{
+                            var branches = (Context.Session.GetString("variable_func") ?? "")
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                .Select(x => x.Trim())
+                                .ToList();
+                        }
 
-        <div class="dropdown">
-            <button class="btn btn-link p-0 text-decoration-none"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false">
-                รหัสสาขาที่มีสิทธิ์
-                <i class="bi bi-chevron-down ms-1"></i>
-            </button>
+                        <div class="dropdown">
+                            <button class="btn btn-link p-0 text-decoration-none"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false">
+                                รหัสสาขาที่มีสิทธิ์
+                                <i class="bi bi-chevron-down ms-1"></i>
+                            </button>
 
-            <ul class="dropdown-menu dropdown-menu-end">
-                @foreach (var branch in branches)
-                {
-                    <li>
-                        <a class="dropdown-item" href="#">
-                            [@branch]
-                        </a>
-                    </li>
-                }
-            </ul>
-        </div>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                @foreach (var branch in branches)
+                                {
+                                    <li>
+                                        <a class="dropdown-item" href="#">
+                                            [@branch]
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
 
-    </div>
-</div>
+                    </div>
+                </div>
 
                     <div class="dropdown me-2">
                         <div class="position-relative d-flex align-items-center justify-content-center" style="cursor: pointer; width: 40px; height: 40px;" id="bellNotification" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
@@ -245,11 +237,61 @@
                             </div>
                         </div>
                     </div>
+
+                @{
+                    var currentRoleId = Context.Session.GetString("roleId") ?? "";
+                    var currentRoleName = Context.Session.GetString("roleName") ?? "";
+
+                    var personelCanChangRole = new[] { "100664", "690001" };
+                    var userCode = Context.Session.GetString("personalId") ?? "";
+                    var isCanChangRole = personelCanChangRole.Contains(userCode);
+                }
+                @if (isCanChangRole)
+                {
+                    <!-- Switch Own Role -->
+                    <div class="dropdown me-2" id="roleSwitcher"
+                         data-current-role-id="@currentRoleId"
+                         data-current-role-name="@currentRoleName">
+                        <button type="button"
+                                class="btn btn-light border d-flex align-items-center gap-2 rounded-pill px-3 py-1"
+                                id="roleSwitcherToggle"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                title="ปรับบทบาทของตัวเอง">
+                            <i class="bi bi-person-badge fs-6 text-primary"></i>
+                            <span class="d-none d-md-inline small fw-medium text-dark" id="roleSwitcherLabel">
+                                @(string.IsNullOrWhiteSpace(currentRoleName) ? "เปลี่ยนบทบาท" : currentRoleName)
+                            </span>
+                            <i class="bi bi-chevron-down small text-secondary"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0"
+                             aria-labelledby="roleSwitcherToggle"
+                             style="width: 300px; border-radius: 12px; overflow: hidden; margin-top: 10px;">
+                            <div class="p-3 text-white d-flex justify-content-between align-items-center"
+                                 style="background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%);">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2"></i>ปรับบทบาทของตัวเอง</h6>
+                            </div>
+                            <div class="p-2 border-bottom bg-white">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-secondary"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="roleSwitcherSearch" placeholder="ค้นหาบทบาท..." autocomplete="off">
+                                </div>
+                            </div>
+                            <div id="roleSwitcherList" class="overflow-auto bg-white" style="max-height: 320px;">
+                                <div class="p-3 text-center text-muted small">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดบทบาท...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 </div>
             </header>
             }
 
-            <div class="content-wrapper flex-grow-1 overflow-auto">
+            <div class="content-wrapper flex-grow-1 overflow-auto" style="min-height: 0;">
                 @RenderBody()
             </div>
         </div>
@@ -341,6 +383,7 @@
                         ?? Configuration["ApiSettings:WebDomain"]
                         ?? Configuration.GetSection("ApiSettings")["WebDomain"]
                         ?? "";
+        <!-- var mgDomain = Environment.GetEnvironmentVariable("MGDomain") || ""; -->
     }
     <script>
         var userId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(personalId ?? ""));

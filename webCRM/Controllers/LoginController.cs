@@ -10,18 +10,46 @@ using webCRM.Services;
 
 namespace webCRM.Controllers
 {
-    public class LoginController(CRMService crmService) : Controller
+    public class LoginController(
+        CRMService crmService,
+        IConfiguration configuration,
+        IWebHostEnvironment env
+        ) : Controller
     {
 
-        public async Task<IActionResult> Index([FromQuery] string? user)
+        public async Task<IActionResult> Index(
+            [FromQuery] string? user,
+            [FromQuery] string? returnUrl)
         {
             try
             {
+                string switchedRoleId =
+                    HttpContext.Session.GetString("switchedRoleId") ?? "";
+                string switchedRoleName =
+                    HttpContext.Session.GetString("switchedRoleName") ?? "";
+
+                string CookieCde = Request.Cookies["userCde"] ?? "";
                 string personalCode = "100664";
 
-                if (!string.IsNullOrWhiteSpace(user))
+                if (!env.IsDevelopment())
                 {
-                    personalCode = DecodeBase64(user);
+                    if (!string.IsNullOrWhiteSpace(user))
+                    {
+                        Response.Cookies.Append(
+                            "userCde",
+                            user,
+                            new CookieOptions
+                            {
+                                HttpOnly = true,
+                                IsEssential = true,
+                                SameSite = SameSiteMode.Lax
+                            });
+                        personalCode = DecodeBase64(user);
+                    } else if (!string.IsNullOrWhiteSpace(CookieCde)){
+                        personalCode = DecodeBase64(CookieCde);
+                    } else {
+                        return RedirectToMGResult();
+                    }
                 }
 
                 var rootNode =
@@ -100,6 +128,14 @@ namespace webCRM.Controllers
                     profile["companyCode"]?.ToString()
                     ?? "";
 
+                // If the user manually switched their role before this
+                // re-login, keep that role instead of the profile default.
+                if (!string.IsNullOrWhiteSpace(switchedRoleId))
+                {
+                    roleId = switchedRoleId;
+                    roleName = switchedRoleName;
+                }
+
                 if (string.IsNullOrWhiteSpace(roleId))
                 {
                     HttpContext.Session.Clear();
@@ -145,6 +181,10 @@ namespace webCRM.Controllers
                     roleId);
 
                 HttpContext.Session.SetString(
+                    "roleName",
+                    roleName);
+
+                HttpContext.Session.SetString(
                     "func_id",
                     funcId);
 
@@ -178,9 +218,24 @@ namespace webCRM.Controllers
                 Console.WriteLine(
                     $"personalId: {HttpContext.Session.GetString("personalId")}");
 
+                // The switched role has now been applied to the freshly
+                // rebuilt session, so the one-shot marker is no longer
+                // needed. Clearing it lets a future natural login fall
+                // back to the personnel's default role.
+                HttpContext.Session.Remove("switchedRoleId");
+                HttpContext.Session.Remove("switchedRoleName");
+
                 // =========================
                 // Redirect
                 // =========================
+
+                // Return to the page the user was on before re-login,
+                // but only if it is a safe local URL.
+                if (!string.IsNullOrWhiteSpace(returnUrl)
+                    && Url.IsLocalUrl(returnUrl))
+                {
+                    return Redirect(returnUrl);
+                }
 
                 return RedirectToAction("Index", "Home");
             }
@@ -201,8 +256,43 @@ namespace webCRM.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
+        private string GetMGDomain()
+        {
+            return Environment.GetEnvironmentVariable("ApiSettings__MGDomain")
+                ?? Environment.GetEnvironmentVariable("MGDomain")
+                ?? configuration["ApiSettings:MGDomain"]
+                ?? configuration["MGDomain"]
+                ?? "about:blank";
+        }
+
+        private IActionResult RedirectToMGResult()
+        {
+            string mgDomain = GetMGDomain();
+
+            string safeUrl =
+                System.Text.Json.JsonSerializer.Serialize(mgDomain);
+
+            string html = $@"
+                <!DOCTYPE html>
+                <html lang=""th"">
+                <head>
+                    <meta charset=""utf-8"" />
+                    <script>
+                        window.location.replace({safeUrl});
+                    </script>
+                </head>
+                <body></body>
+                </html>";
+
+            return Content(
+                html,
+                "text/html; charset=utf-8");
+        }
+
         private IActionResult NoPermissionResult(string message = "ไม่มีสิทธิ์การใช้งานระบบ")
         {
+            string mgDomain = GetMGDomain();
+
             string html = $@"
                 <!DOCTYPE html>
                 <html lang=""th"">
@@ -260,13 +350,7 @@ namespace webCRM.Controllers
                                 }}).then((result) => {{
 
                                     if (result.isConfirmed) {{
-
-                                        if (window.history.length > 1) {{
-                                            window.history.back();
-                                        }}
-                                        else {{
-                                            window.location.href = 'about:blank';
-                                        }}
+                                        window.location.href = '{mgDomain}';
                                     }}
                                 }});
                             }});

@@ -472,7 +472,6 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
 
         if (senderEmail) {
             try {
-                const userIdBase64 = btoa(userId);
                 const $activeRow = $('#suggestionsTable tbody tr.table-active');
                 const creator = $activeRow.length
                     ? ($activeRow.attr('data-updby') || '')
@@ -480,14 +479,14 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
                 const profile = await getProfileByCode(creator);
                 const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
                 const fullNameTh = userFullNameTh || '';
-                const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Home')}`;
                 const emailContent =
                     `เรียน ${profile.thname}<br><br>` +
                     `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fullNameTh} ` +
                     `ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
                     `โดยมีเนื้อหาดังนี้ ${reply}<br><br>` +
-                    `เข้าสู่ระบบผ่านลิ้งค์ ` +
-                    `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                    ` ` +
+                    `<a href="${homeUrl}">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                     `<br><br>` +
                     `ขอขอบคุณ<br>` +
                     `${fullNameTh}`;
@@ -1442,6 +1441,7 @@ $(document).ready(function () {
 
     loadSidebarMenu();
     fetchNotifications();
+    initRoleSwitcher();
 
     $('#bellNotification').on('click', function () {
         fetchNotifications();
@@ -1487,3 +1487,222 @@ document.addEventListener('visibilitychange', function () {
     }
 });
 
+
+// =====================================================================
+// Role Switcher (ปรับบทบาทของตัวเอง) — ปุ่มด้านขวาของกระดิ่งแจ้งเตือน
+// =====================================================================
+let roleSwitcherRoles = [];
+let roleSwitcherLoaded = false;
+
+function parseRoleSwitcherResponse(response) {
+    if (!response) return [];
+    if (Array.isArray(response)) return response;
+    if (response.data && Array.isArray(response.data)) return response.data;
+    if (response.data && response.data.data && Array.isArray(response.data.data)) return response.data.data;
+    if (response.result && Array.isArray(response.result)) return response.result;
+    return [];
+}
+
+function escapeRoleHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function initRoleSwitcher() {
+    const $switcher = $('#roleSwitcher');
+    if (!$switcher.length) return;
+
+    const toggleEl = document.getElementById('roleSwitcherToggle');
+    if (toggleEl) {
+        toggleEl.addEventListener('shown.bs.dropdown', function () {
+            if (!roleSwitcherLoaded) {
+                loadRoleSwitcherRoles();
+            }
+            const searchInput = document.getElementById('roleSwitcherSearch');
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 100);
+            }
+            renderRoleSwitcherList('');
+        });
+    }
+
+    // ค้นหาบทบาท
+    $('#roleSwitcherSearch').on('input', function () {
+        renderRoleSwitcherList($(this).val() || '');
+    });
+
+    // ไม่ให้ dropdown ปิดเมื่อคลิกในกล่องค้นหา
+    $('#roleSwitcherSearch').on('click', function (e) {
+        e.stopPropagation();
+    });
+
+    // เลือกบทบาท
+    $(document).on('click', '.role-switcher-item', function () {
+        const roleId = $(this).attr('data-role-id') || '';
+        const roleName = $(this).attr('data-role-name') || '';
+        switchOwnRole(roleId, roleName);
+    });
+}
+
+async function loadRoleSwitcherRoles() {
+    const $list = $('#roleSwitcherList');
+    try {
+        const response = await $.ajax({
+            url: '/ManageUser/GetCRMRoles',
+            type: 'GET',
+            dataType: 'json'
+        });
+
+        let roles = parseRoleSwitcherResponse(response) || [];
+
+        // แสดงเฉพาะบทบาทที่เปิดใช้งาน (ถ้ามีสถานะกำกับ)
+        roles = roles.filter(r => {
+            const status = (r.status || r.role_status || '').toString().toLowerCase().trim();
+            return status === '' || status === 'enable' || status === 'active';
+        });
+
+        roleSwitcherRoles = roles.map(r => ({
+            role_id: (r.role_id || r.RoleId || r.roleId || r.id || '').toString(),
+            role_name: (r.role_name || r.RoleName || r.roleName || r.name || '').toString()
+        })).filter(r => r.role_id);
+
+        roleSwitcherLoaded = true;
+        renderRoleSwitcherList($('#roleSwitcherSearch').val() || '');
+    } catch (err) {
+        console.error('Error loading roles for switcher:', err);
+        $list.html(`
+            <div class="p-3 text-center text-danger small">
+                <i class="bi bi-exclamation-triangle me-1"></i> ไม่สามารถโหลดรายการบทบาทได้
+            </div>
+        `);
+    }
+}
+
+function renderRoleSwitcherList(searchTerm) {
+    const $list = $('#roleSwitcherList');
+    if (!$list.length) return;
+
+    if (!roleSwitcherLoaded) {
+        $list.html(`
+            <div class="p-3 text-center text-muted small">
+                <span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดบทบาท...
+            </div>
+        `);
+        return;
+    }
+
+    const currentRoleId = ($('#roleSwitcher').attr('data-current-role-id') || '').toString();
+    const term = (searchTerm || '').toString().toLowerCase().trim();
+
+    const filtered = roleSwitcherRoles.filter(r => {
+        if (!term) return true;
+        return r.role_id.toLowerCase().includes(term)
+            || r.role_name.toLowerCase().includes(term);
+    });
+
+    if (filtered.length === 0) {
+        $list.html(`
+            <div class="p-3 text-center text-muted small">
+                <i class="bi bi-inbox me-1"></i> ไม่พบบทบาทที่ค้นหา
+            </div>
+        `);
+        return;
+    }
+
+    const html = filtered.map(r => {
+        const isCurrent = r.role_id === currentRoleId;
+        return `
+            <button type="button"
+                    class="role-switcher-item btn w-100 text-start d-flex align-items-center justify-content-between px-3 py-2 border-0 rounded-0 ${isCurrent ? 'bg-primary bg-opacity-10' : 'bg-white'}"
+                    data-role-id="${escapeRoleHtml(r.role_id)}"
+                    data-role-name="${escapeRoleHtml(r.role_name)}"
+                    ${isCurrent ? 'disabled' : ''}>
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi ${isCurrent ? 'bi-check-circle-fill text-primary' : 'bi-person-badge text-secondary'}"></i>
+                    <span class="d-flex flex-column">
+                        <span class="fw-medium text-dark small">${escapeRoleHtml(r.role_name || r.role_id)}</span>
+                        <span class="text-muted" style="font-size: 0.72rem;">${escapeRoleHtml(r.role_id)}</span>
+                    </span>
+                </span>
+                ${isCurrent ? '<span class="badge bg-primary rounded-pill" style="font-size: 0.65rem;">ปัจจุบัน</span>' : ''}
+            </button>
+        `;
+    }).join('');
+
+    $list.html(html);
+}
+
+async function switchOwnRole(roleId, roleName) {
+    if (!roleId) return;
+
+    if (typeof Swal !== 'undefined') {
+        const result = await Swal.fire({
+            title: 'ยืนยันการเปลี่ยนบทบาท',
+            html: `ต้องการเปลี่ยนบทบาทของคุณเป็น<br><b>${escapeRoleHtml(roleName || roleId)}</b> ใช่หรือไม่?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'เปลี่ยนบทบาท',
+            cancelButtonText: 'ยกเลิก',
+            customClass: { popup: 'rounded-4 shadow-lg' }
+        });
+        if (!result.isConfirmed) return;
+    }
+
+    try {
+        if (typeof showLoading === 'function') {
+            showLoading('กำลังเปลี่ยนบทบาท', 'ระบบกำลังปรับบทบาทของคุณ กรุณารอสักครู่...');
+        }
+
+        const response = await fetch('/Layout/SwitchRole', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role_id: roleId, role_name: roleName })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data || data.status === false) {
+            throw new Error((data && data.message) || 'ไม่สามารถเปลี่ยนบทบาทได้');
+        }
+
+        // อัปเดตค่าปัจจุบันไว้ก่อน (เผื่อ UI ยังไม่ถูก redirect ทัน)
+        $('#roleSwitcher').attr('data-current-role-id', roleId);
+        $('#roleSwitcher').attr('data-current-role-name', roleName || '');
+
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
+
+        // เข้าสู่ระบบใหม่ (rebuild session ทั้งหมด) โดยคงบทบาทที่เพิ่งเลือกไว้
+        // แล้วกลับมาที่หน้าเดิมด้วย returnUrl
+        const returnUrl = window.location.pathname
+            + window.location.search
+            + window.location.hash;
+        window.location.href = '/Login?returnUrl='
+            + encodeURIComponent(returnUrl);
+    } catch (err) {
+        console.error('Error switching role:', err);
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: err.message || 'ไม่สามารถเปลี่ยนบทบาทได้'
+            });
+        }
+    }
+}

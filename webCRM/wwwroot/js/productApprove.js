@@ -1277,12 +1277,11 @@ $(document).ready(async function () {
                         });
 
                         const profile = await getProfileByCode(creator);
-                        const userIdBase64 = btoa(profile.personnel_code);
-                        const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                        const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Campain')}`;
                         const emailContent =
                             `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ได้รับการอนุมัติเรียบร้อยแล้ว<br><br>` +
-                            `เข้าสู่ระบบผ่านลิ้งค์ ` +
-                            `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                            ` ` +
+                            `<a href="${homeUrl}">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                             `<br><br>` +
                             `ขอขอบคุณ<br>` +
                             `${fullNameTh}`;
@@ -1398,11 +1397,10 @@ $(document).ready(async function () {
                         });
 
                         const profile = await getProfileByCode(creator);
-                        const userIdBase64 = btoa(profile.personnel_code);
-                        const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                        const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Campain')}`;
                         const emailContent =
                             `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ไม่ได้รับการอนุมัติ<br><br>` +
-                            `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                            ` ` +
                             `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                             `<br><br>` +
                             `ขอขอบคุณ<br>` +
@@ -1522,12 +1520,11 @@ $(document).ready(async function () {
                         });
 
                         const profile = await getProfileByCode(creator);
-                        const userIdBase64 = btoa(profile.personnel_code);
-                        const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                        const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Campain')}`;
                         const emailContent =
                             `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Campaign <b>${code} (${name})</b> ได้ถูกส่งกลับให้แก้ไข<br>` +
                             `<b>หมายเหตุการแก้ไข:</b> ${remark}<br><br>` +
-                            `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                            ` ` +
                             `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                             `<br><br>` +
                             `ขอขอบคุณ<br>` +

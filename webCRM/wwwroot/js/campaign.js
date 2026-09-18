@@ -783,9 +783,7 @@ $(document).ready(async function () {
         const name = String(branch.name || "").trim().toUpperCase();
         
         if (code === "MIB" || name.includes("MIB")) return true;
-        
         if (code === "MFIN" || name.includes("MFIN")) return true;
-        
         if (code === "00" || code === "000" || name.includes("สาขาใหญ่") || name.includes("สำนักงานใหญ่") || name.includes("HEAD OFFICE") || name.includes("MAIN BRANCH")) return true;
         
         return false;
@@ -1169,7 +1167,7 @@ $(document).ready(async function () {
             
             //#region setReadonly
             const canEdit = isCurrentCampaignEditable(campaign);
-            const isDisabled = !canEdit;
+            const isDisabled = !canEdit || !window.isCampaignCreate;
             
             $('#submitFormBtn, #btnGotoETL').prop('disabled', isDisabled);
             $('#btnImportFile').prop('disabled', isDisabled);

@@ -119,7 +119,8 @@ namespace webCRM.Services
             string search = "",
             string sortCreateDate = "",
             string offCde = "",
-            string company = ""
+            string company = "",
+            string assingUser = ""
             )
         {
             string reqPage =
@@ -179,6 +180,12 @@ namespace webCRM.Services
             {
                 queryParams.Add(
                     $"company={Uri.EscapeDataString(company)}");
+            }
+
+            if (!string.IsNullOrEmpty(assingUser))
+            {
+                queryParams.Add(
+                    $"assingUser={Uri.EscapeDataString(assingUser)}");
             }
 
             if (queryParams.Count > 0)
@@ -2389,6 +2396,48 @@ namespace webCRM.Services
                 _logger.LogError(
                     ex,
                     "Error posting NotiToApprover");
+
+                throw;
+            }
+        }
+
+        public async Task<List<GroupPersonnel>> GetpersonalInGroup(
+            string? groupEmail = null
+            )
+        {
+            try
+            {
+                var queryParams =
+                    new Dictionary<string, string?>();
+
+                if (!string.IsNullOrWhiteSpace(groupEmail))
+                {
+                    queryParams["groupEmail"] = groupEmail.Trim();
+                }
+
+                var endpoint =
+                    QueryHelpers.AddQueryString(
+                        "p3/getpersonalInGroup",
+                        queryParams);
+
+                var data =
+                    await GetStringAsync(endpoint);
+
+                var list =
+                    JsonSerializer.Deserialize<
+                        List<GroupPersonnel>>(
+                            data,
+                            _jsonOptions)
+                    ?? new List<GroupPersonnel>();
+
+                return list;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading personal in group for GroupEmail: {GroupEmail}",
+                    groupEmail);
 
                 throw;
             }

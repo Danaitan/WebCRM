@@ -575,9 +575,17 @@ async function performSearch() {
                         const licno = cust.licno || '-';
                         const contno = cust.contno || '-';
                         const comCde = cust.companyCde || '-'
-                        
+
+                        const licnoHtml = (() => {
+                            if (!licno || licno === '-') return '-';
+                            const m = licno.trim().match(/^(.+)\s+([^\s]+)$/);
+                            return m
+                                ? `<div>${m[1]}</div><small class="text-muted">${m[2]}</small>`
+                                : licno;
+                        })();
+
                         return `
-                            <tr class="${index === 0 ? 'active-row cursor-pointer border-bottom' : 'cursor-pointer border-bottom hover-row'}" data-index="${index}">
+                            <tr class="${index === 0 ? 'active-row cursor-pointer border-0' : 'cursor-pointer border-0 hover-row'}" data-index="${index}">
                                 <td class="py-3 d-flex align-items-center gap-2">
                                     <div class="avatar-sm ${index === 0 ? 'bg-blue-light text-primary' : 'bg-light text-muted'} rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
                                         <i class="bi bi-person-fill"></i>
@@ -593,27 +601,34 @@ async function performSearch() {
                                     </div>
                                 </td>
                                 <td class="py-3 text-muted text-center text-nowrap">
-                                    ${(() => {
-                                        if (!licno || licno === '-') return '-';
-                                        const match = licno.trim().match(/^(.+)\s+([^\s]+)$/);
-                                        return match
-                                            ? `<div>${match[1]}</div><small class="text-muted">${match[2]}</small>`
-                                            : licno;
-                                    })()}
+                                    ${licnoHtml}
                                 </td>
                                 <td class="py-3 text-muted text-center text-nowrap">${comCde}</td>
                                 <td class="py-3 text-muted text-center text-nowrap">${contno}</td>
+                            </tr>
+                            <tr class="customer-contract-card-row border-bottom" data-card-index="${index}">
+                                <td colspan="4" class="p-0">
+                                    ${buildCustomerContractCard(cust)}
+                                </td>
                             </tr>
                         `;
                     }).join('');
 
                     tbody.onclick = async function(e) {
-                        const clickedRow = e.target.closest('tr');
-                        if (!clickedRow || !clickedRow.dataset.index) return;
+                        // A click on the contract card row should select its owning customer.
+                        let clickedRow = e.target.closest('tr[data-index]');
+                        if (!clickedRow) {
+                            const cardRow = e.target.closest('tr.customer-contract-card-row');
+                            if (cardRow) {
+                                const cardIdx = cardRow.dataset.cardIndex;
+                                clickedRow = tbody.querySelector(`tr[data-index="${cardIdx}"]`);
+                            }
+                        }
+                        if (!clickedRow || clickedRow.dataset.index == null) return;
                         if (clickedRow.classList.contains('active-row')) return;
-                        
+
                         // Handle row selection visually
-                        const allRows = tbody.querySelectorAll('tr');
+                        const allRows = tbody.querySelectorAll('tr[data-index]');
                         allRows.forEach(r => {
                             r.classList.remove('active-row');
                             r.classList.add('hover-row');
@@ -625,7 +640,7 @@ async function performSearch() {
                             const nameSpan = r.querySelector('.name-span');
                             if (nameSpan) nameSpan.classList.remove('fw-medium');
                         });
-                        
+
                         clickedRow.classList.add('active-row');
                         clickedRow.classList.remove('hover-row');
                         const avatar = clickedRow.querySelector('.avatar-sm');
@@ -640,20 +655,28 @@ async function performSearch() {
                         const selectedCust = data[idx];
                         if (selectedCust) {
                             setContractTabEnabled(false);
-                            startLoading('กำลังโหลดข้อมูลลูกค้า...', 'ระบบกำลังดึงข้อมูลรายละเอียดและสัญญาของลูกค้า กรุณารอสักครู่...');
+                            showContractDetailLoading(true);
+                            setContractCardLoading(idx, selectedCust);
                             try {
                                 await displayCustomerDetails(selectedCust);
                                 const idno = selectedCust.idno || selectedCust.Idno;
-                                if (idno) await getContact(idno);
+                                if (idno) await getContact(idno, selectedCust, data);
+                                // Fill the card with the full contract columns now that data is loaded.
+                                updateContractCard(idx, selectedCust, currentContactData);
                             } finally {
-                                stopLoading();
+                                showContractDetailLoading(false);
                             }
                         }
                     };
 
                     displayCustomerDetails(data[0]);
                     const firstIdno = data[0].idno || data[0].Idno;
-                    if (firstIdno) getContact(firstIdno);
+                    if (firstIdno) {
+                        setContractCardLoading(0, data[0]);
+                        getContact(firstIdno, data[0], data).then(() => {
+                            updateContractCard(0, data[0], currentContactData);
+                        });
+                    }
 
                 } else {
                     document.getElementById("customerCount").innerText = "0";
@@ -955,7 +978,249 @@ document.addEventListener('click', function(e) {
             }
     });
 
-async function getContact(idno) {
+// Show or hide an in-place loading state inside the contract detail area,
+// instead of a blocking full-screen overlay, so it does not break the flow.
+function showContractDetailLoading(show) {
+    const loadingInd = document.getElementById("contract-loading-indicator");
+    const detailsCont = document.getElementById("contract-details-container");
+    if (loadingInd) loadingInd.classList.toggle("d-none", !show);
+    if (detailsCont) detailsCont.classList.toggle("d-none", show);
+}
+
+// Build a simple contract/policy card shown under each customer row.
+// Plain and easy to read: a white bordered card with the full set of contract
+// columns (label/value pairs), no heavy colours.
+// `match` comes from findMatchingContract() and carries the full contract fields
+// loaded from the contact API. When it is not available yet, a loading/placeholder
+// state is shown.
+function buildCustomerContractCard(customer, match) {
+    const rawCompany = (customer.companyCde || customer.CompanyCde || '').toString().trim();
+    const companyUpper = rawCompany.toUpperCase();
+    const itemLabel = (companyUpper === 'MIB') ? 'กรมธรรม์' : 'สัญญา';
+
+    const val = (v) => (v == null || v === '' || v === '-') ? '-' : v;
+
+    // Not loaded yet for this customer (contract data is fetched on selection).
+    if (match === undefined) {
+        return `
+            <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white text-muted small d-flex align-items-center gap-2">
+                <i class="bi bi-cursor"></i> คลิกเพื่อดูข้อมูล${itemLabel}
+            </div>`;
+    }
+
+    // Currently loading contract data for this customer.
+    if (match === 'loading') {
+        return `
+            <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white text-muted small d-flex align-items-center gap-2">
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                กำลังโหลดข้อมูล${itemLabel}...
+            </div>`;
+    }
+
+    // Loaded but no matching contract found.
+    if (!match) {
+        return `
+            <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white text-muted small">
+                ไม่มีข้อมูล${itemLabel}
+            </div>`;
+    }
+
+    const { contract, company } = match;
+    const companyLabel = (company === 'MIB') ? 'กรมธรรม์' : 'สัญญา';
+
+    // Full set of columns matching the contract list table headers.
+    let fields;
+    if (company === 'MIB') {
+        fields = [
+            { label: 'สถานะกรมธรรม์', value: val(contract.contsts) },
+            { label: 'เลขที่กรมธรรม์', value: val(contract.contno) },
+            { label: 'เลขที่ใบคำขอ', value: val(contract.applno) },
+            { label: 'ประเภทผลิตภัณฑ์', value: val(contract.loantype) },
+            { label: 'เลขที่รับแจ้ง', value: val(contract.trackingMIB) }
+        ];
+    } else {
+        fields = [
+            { label: 'สถานะสัญญา', value: val(contract.contsts) },
+            { label: 'สัญญาเลขที่', value: val(contract.contno) },
+            { label: 'เลขที่ใบคำขอ', value: val(contract.applno) },
+            { label: 'ประเภทสินเชื่อ', value: val(contract.loantype) },
+            { label: 'ประเภทสัญญา', value: val(contract.conttype) }
+        ];
+    }
+
+    const rows = fields.map(f => `
+        <div class="d-flex align-items-center justify-content-between py-1">
+            <span class="text-muted small">${f.label}</span>
+            <span class="text-dark fw-medium text-end">${f.value}</span>
+        </div>`).join('');
+
+    return `
+        <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white">
+            <div class="fw-medium text-dark mb-2">
+                <i class="bi bi-file-earmark-text me-1"></i>ข้อมูล${companyLabel}
+            </div>
+            ${rows}
+        </div>`;
+}
+
+// Show a loading state inside a customer's contract card while its data is fetched.
+function setContractCardLoading(customerIndex, customer) {
+    const cardRow = document.querySelector(`#searchResultBody tr.customer-contract-card-row[data-card-index="${customerIndex}"]`);
+    if (!cardRow) return;
+    const cell = cardRow.querySelector('td');
+    if (!cell) return;
+    cell.innerHTML = buildCustomerContractCard(customer, 'loading');
+}
+
+// Re-render the contract card for a specific customer row once contract data
+// has been loaded, filling in the full set of contract columns.
+function updateContractCard(customerIndex, customer, contactData) {
+    const cardRow = document.querySelector(`#searchResultBody tr.customer-contract-card-row[data-card-index="${customerIndex}"]`);
+    if (!cardRow) return;
+    const cell = cardRow.querySelector('td');
+    if (!cell) return;
+
+    const match = findMatchingContract(customer, contactData) || null;
+    cell.innerHTML = buildCustomerContractCard(customer, match);
+}
+
+// Fill the contract cards for every customer row that can be matched against the
+// loaded contact data. Cards that have no match in this dataset are left as-is.
+function fillAllContractCards(customers, contactData) {
+    if (!Array.isArray(customers) || !contactData) return;
+    customers.forEach((cust, index) => {
+        const match = findMatchingContract(cust, contactData);
+        if (match) {
+            updateContractCard(index, cust, contactData);
+        }
+    });
+}
+
+// Find the contract/policy that matches the selected customer.
+// Mapping rules:
+//   MICRO -> match by contno (สัญญาเลขที่)
+//   MFIN  -> match by contno (สัญญาเลขที่)
+//   MIB   -> match by applno (เลขที่ใบคำขอ)
+function findMatchingContract(customer, contactData) {
+    if (!customer || !contactData) return null;
+
+    const rawCompany = (customer.companyCde || customer.CompanyCde || '').toString().trim();
+    const companyUpper = rawCompany.toUpperCase();
+
+    // Normalise a value for comparison: string, trimmed, upper-cased.
+    const norm = (v) => (v == null ? '' : v.toString().trim().toUpperCase());
+    // Numeric-only form (drops leading zeros / non-digits) as a fallback compare.
+    const digits = (v) => norm(v).replace(/\D/g, '').replace(/^0+/, '');
+
+    const custContno = norm(customer.contno || customer.Contno);
+    const custApplno = norm(customer.applno || customer.Applno);
+
+    let list = [];
+    let company = '';
+    // Preferred key per company; fall back to the other keys if needed so a
+    // matching contract number is still found even when it lives in a different field.
+    let preferredKey = 'contno';
+
+    if (companyUpper === 'MICRO') {
+        list = contactData.contactMicro || [];
+        company = 'Micro';
+        preferredKey = 'contno';
+    } else if (companyUpper === 'MFIN') {
+        list = contactData.contactMFIN || [];
+        company = 'MFIN';
+        preferredKey = 'contno';
+    } else if (companyUpper === 'MIB') {
+        list = contactData.contactMIB || [];
+        company = 'MIB';
+        preferredKey = 'applno';
+    } else {
+        return null;
+    }
+
+    list = list || [];
+    if (list.length === 0) return null;
+
+    // Candidate values from the customer to match against (the customer usually
+    // only carries contno, but applno is checked too when present).
+    const custValues = [custContno, custApplno].filter(Boolean);
+    if (custValues.length === 0) return null;
+
+    // Keys on a contract that could hold the number, preferred key first.
+    const contractKeys = [preferredKey, 'contno', 'applno', 'trackingMIB'];
+
+    const matchesContract = (item, comparator) => {
+        // Pre-compute normalised customer values once.
+        const custComparable = custValues.map(comparator).filter(Boolean);
+        if (custComparable.length === 0) return false;
+
+        for (const ck of contractKeys) {
+            const ckVal = item[ck];
+            if (ckVal == null || ckVal === '') continue;
+            const ckComparable = comparator(ckVal);
+            if (!ckComparable) continue;
+            if (custComparable.includes(ckComparable)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // 1) Exact (normalised) match first.
+    let contract = list.find(item => matchesContract(item, norm));
+
+    // 2) Fall back to digit-only comparison (handles leading zeros / formatting).
+    if (!contract) {
+        contract = list.find(item => matchesContract(item, digits));
+    }
+
+    if (!contract) return null;
+
+    return { contract, company };
+}
+
+// Auto-select and display the contract row that maps to the selected customer.
+function autoSelectMatchingContract(customer, contactData) {
+    const match = findMatchingContract(customer, contactData);
+    if (!match) return;
+
+    const { contract, company } = match;
+
+    // The DataTable renders each row with an onclick that calls getContactInfo.
+    // Locate the rendered row so we reuse the exact same target/highlight behaviour.
+    const tableId = company === 'Micro'
+        ? '#dt-contact-Micro'
+        : (company === 'MFIN' ? '#dt-contact-MFIN' : '#dt-contact-MIB');
+
+    // target key differs per company (MIB uses trackingMIB, others use contno)
+    const targetKey = company === 'MIB' ? (contract.trackingMIB || '') : (contract.contno || '');
+
+    if (window.jQuery && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable(tableId)) {
+        const dt = $(tableId).DataTable();
+        let matchedNode = null;
+        dt.rows().every(function () {
+            const rowData = this.data();
+            if (!rowData) return;
+            const rowMatch = company === 'MIB'
+                ? ((rowData.applno || '').toString().trim() === (contract.applno || '').toString().trim())
+                : ((rowData.contno || '').toString().trim() === (contract.contno || '').toString().trim());
+            if (rowMatch && !matchedNode) {
+                matchedNode = this.node();
+            }
+        });
+
+        if (matchedNode) {
+            const encoded = encodeURIComponent(JSON.stringify(contract));
+            getContactInfo(targetKey, company, encoded, matchedNode);
+            return;
+        }
+    }
+
+    // Fallback: call directly if the row node could not be located.
+    const encoded = encodeURIComponent(JSON.stringify(contract));
+    getContactInfo(targetKey, company, encoded, null);
+}
+
+async function getContact(idno, selectedCustomer, allCustomers) {
     const requestId = ++currentContactRequestId;
     try {
         renderProductSummary(currentContactData, true);
@@ -1055,6 +1320,20 @@ async function getContact(idno) {
             loadDataTable('#dt-contact-Micro', data.contactMicro, 'Micro', idno);
             loadDataTable('#dt-contact-MFIN', data.contactMFIN, 'MFIN', idno);
             loadDataTable('#dt-contact-MIB', data.contactMIB, 'MIB', idno);
+
+            // The contract lists (contactMicro/MFIN/MIB) just loaded here already
+            // carry every field the cards need. Fill the contract cards for all
+            // customer rows using this same data, at the same time the contract
+            // tables are rendered.
+            if (Array.isArray(allCustomers)) {
+                fillAllContractCards(allCustomers, data);
+            }
+
+            // Map the selected customer to its matching contract/policy and
+            // show that contract's detail under the selected customer.
+            if (selectedCustomer) {
+                autoSelectMatchingContract(selectedCustomer, data);
+            }
         }
 
     } catch (error) {
@@ -1080,8 +1359,9 @@ const formatValues = (value) => {
 async function getContactInfo(idno, company, encodedC, clickedRow) {
     if (clickedRow && clickedRow.classList.contains('active-row')) return;
     const requestId = ++currentContactInfoRequestId;
-    const itemTypeLabel = (company === "MIB") ? "กรมธรรม์" : "สัญญา";
-    startLoading(`กำลังโหลดข้อมูล${itemTypeLabel}...`, `ระบบกำลังดึงข้อมูลรายละเอียด${itemTypeLabel} การชำระเงิน และรายการเคลม กรุณารอสักครู่...`);
+    // Show an in-place loading state inside the contract detail area instead of
+    // a blocking full-screen overlay, so it does not interrupt the user.
+    showContractDetailLoading(true);
     try {
         // Apply highlight to the clicked row
         if (clickedRow) {
@@ -1118,7 +1398,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             // Another request was started or tab was changed, do not update UI
             return;
         }
-console.log("data",data)
+
         const contract = data.contractInfo?.[0] || {};
 
          // Update UI with actual data
@@ -1433,7 +1713,7 @@ console.log("data",data)
         document.getElementById("contract-loading-indicator").classList.add("d-none");
         document.getElementById("contract-details-container").classList.remove("d-none");
     } finally {
-        stopLoading();
+        showContractDetailLoading(false);
     }
 }
 

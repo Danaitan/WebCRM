@@ -1,6 +1,9 @@
 @{
     ViewData["Title"] = "Campaign Approve";
     ViewData["HeaderTitle"] = "Campaign Approve";
+
+    var funcId = Context.Session.GetString("func_id") ?? "";
+    var isApprover = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM005");
 }
 
 @section Styles {
@@ -212,14 +215,14 @@
                 </div>
                 
             </div>
-
-            <!-- Action Footer -->
-            <div class="pa-action-bar">
-                <button type="button" class="btn-pa btn-pa-approve" id="btnApprove" disabled><i class="bi bi-check2"></i> อนุมัติ</button>
-                <button type="button" class="btn-pa btn-pa-reject" id="btnReject" disabled><i class="bi bi-x-lg"></i> ไม่อนุมัติ</button>
-                <button type="button" class="btn-pa btn-pa-return" id="btnReturn" disabled>ส่งกลับแก้ไข</button>
-            </div>
-
+            @if (isApprover){
+                <!-- Action Footer -->
+                <div class="pa-action-bar">
+                    <button type="button" class="btn-pa btn-pa-approve" id="btnApprove" disabled><i class="bi bi-check2"></i> อนุมัติ</button>
+                    <button type="button" class="btn-pa btn-pa-reject" id="btnReject" disabled><i class="bi bi-x-lg"></i> ไม่อนุมัติ</button>
+                    <button type="button" class="btn-pa btn-pa-return" id="btnReturn" disabled>ส่งกลับแก้ไข</button>
+                </div>
+            }
         </div>
     </div>
 </div>

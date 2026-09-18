@@ -2,6 +2,9 @@
     ViewData["Title"] = "Campaign Create";
     ViewData["HeaderTitle"] = "Campaign Create";
     ViewData["HeaderSubtitle"] = "สร้างและจัดการ Campaign สำหรับใช้งานในระบบ CRM";
+
+    var funcId = Context.Session.GetString("func_id") ?? "";
+    var isCampaignCreate = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM004");
 }
 
 @section Styles {
@@ -68,12 +71,17 @@
                     <a class="btn-action-text btn-prospect" id="prospectActionBtn" href="/ProspectSetup">
                         <i class="bi bi-people-fill"></i> Prospect
                     </a>
-                    <button class="btn-action-text btn-new-campaign" id="newActionBtn">
-                        <i class="bi bi-plus-lg"></i> New
-                    </button>
-                    <button class="btn-action-text btn-delete-campaign" id="deleteActionBtn">
-                        <i class="bi bi-trash"></i> ลบ
-                    </button>
+
+                    @if (isCampaignCreate)
+                    {
+                        <button class="btn-action-text btn-new-campaign" id="newActionBtn">
+                            <i class="bi bi-plus-lg"></i> New
+                        </button>
+                        <button class="btn-action-text btn-delete-campaign" id="deleteActionBtn">
+                            <i class="bi bi-trash"></i> ลบ
+                        </button>
+                    }
+
                 </div>
                 
                 <!-- Main Form Card -->
@@ -176,10 +184,12 @@
                             <!-- ปุ่มแนบไฟล์ -->
                             <div class="col-12" id="importExcelContainer">
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportFile">
-                                        <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
-                                    </button>
-                                    
+                                @if (isCampaignCreate)
+                                    {
+                                        <button type="button" class="btn btn-primary btn-sm px-3 text-nowrap" id="btnImportFile">
+                                            <i class="bi bi-paperclip me-1"></i> แนบเอกสาร
+                                        </button>
+                                    }
                                     <input type="file" id="fileInput" class="d-none" accept=".pdf,.doc,.docx,.xls,.xlsx">
                                     
                                     <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
@@ -206,6 +216,8 @@
                 
                 <div class="row g-4 mb-4" id="filterSelectedRow">
                     <!-- Filter Name Panel -->
+                @if (isCampaignCreate)
+                {
                     <div class="col-12 col-md-8">
                         <div class="sub-panel-card">
                             <div class="sub-panel-header">
@@ -234,7 +246,7 @@
                             </div>
                         </div>
                     </div>
-                    
+                }
                     <!-- Selected Panel -->
                     <div class="col-12 col-md-4">
                         <div class="sub-panel-card">
@@ -262,13 +274,21 @@
                 </div>
                 
                 <div class="mt-3 mb-3">
+                @if (isCampaignCreate)
+                {
                     <button class="btn btn-success w-100" type="button" id="btnGotoETL" disabled>
                         ไปยังระบบ Data ETL 
                     </button>
+                }
                 </div>
                 <!-- Bottom Action Buttons -->
                 <div class="bottom-actions-row">
+
+                @if (isCampaignCreate)
+                {
                     <button type="button" class="btn-submit" id="submitFormBtn" disabled>บันทึก</button>
+                }
+
                 </div>
                 </div>
             </div>
@@ -410,6 +430,8 @@
         window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "MICRO")';
         window.CURRENT_USER_ID = '@(Context.Session.GetString("personalId") ?? "system")';
         window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
+
+        window.isCampaignCreate = @(isCampaignCreate.ToString().ToLower());
     </script>
     <script src="~/js/campaign.js" asp-append-version="true"></script>
 }

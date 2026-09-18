@@ -205,9 +205,6 @@ async function getCampainList(
             queryStr += `&status=${encodeURIComponent(statusText)}`;
         }
 
-        console.log("statusText =", statusText);
-        console.log("queryStr =", queryStr);
-
         const response = await fetch(
             `/Campain/GetCampainList${queryStr}`
         );
@@ -1105,6 +1102,40 @@ function getFilterParams() {
     return params;
 }
 
+// ตรวจว่าแถวลูกค้า (row) อยู่ในสาขาของ Campaign (offcde) หรือไม่ — กรองที่ frontend
+// campaignOffcde เช่น "11,08" (คั่นด้วย ,) และ row.branchName เช่น "07-ขอนแก่น"
+// ถ้า Campaign เป็นทุกสาขา ("", "99", "ทุกสาขา") ให้ผ่านทั้งหมด
+function isRowInCampaignBranch(item, campaignOffcde) {
+    const offcde = String(campaignOffcde || '').trim();
+    if (!offcde || offcde === '99' || offcde === 'ทุกสาขา') {
+        return true;
+    }
+
+    const campaignBranches = offcde.split(',').map(s => s.trim()).filter(Boolean);
+    if (campaignBranches.length === 0) return true;
+    // ดึงรหัสสาขาจากข้อมูลแถว — รองรับหลายรูปแบบ field และรูปแบบ "07-ชื่อสาขา"
+    const rawBranch = String(
+        item.branchName || item.ชื่อสาขาเดิม || ''
+    ).trim();
+
+    if (!rawBranch) return false;
+
+    // แยกเอาเฉพาะรหัสนำหน้า (ก่อน "-") เช่น "07-ขอนแก่น" -> "07"
+    const rowCode = rawBranch.split('-')[0].trim();
+    if (!rowCode) return false;
+
+    const rowClean = rowCode.replace(/^0+/, '');
+    const rowPad = rowCode.padStart(2, '0');
+
+    return campaignBranches.some(cBranch => {
+        const cClean = cBranch.replace(/^0+/, '');
+        const cPad = cBranch.padStart(2, '0');
+        return cBranch === rowCode ||
+               cPad === rowPad ||
+               (cClean && rowClean && cClean === rowClean);
+    });
+}
+
 async function getCampaignDataForETL(productCode) {
     try {
         const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${encodeURIComponent(productCode)}`);
@@ -1174,13 +1205,19 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
     try {
         const res = await getProspect();
-        const rawData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
-        const count = res.total ?? res.count ?? rawData.length;
+        const allData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+
+        // กรองที่ frontend: เอาเฉพาะลูกค้าที่อยู่ในสาขาของ Campaign ที่เลือก (offcde เช่น "11,08")
+        const campaignOffcde = selectedCampaign ? selectedCampaign.offcde : '';
+        const rawData = allData.filter(item => isRowInCampaignBranch(item, campaignOffcde));
+
+        const count = rawData.length;
 
         const totalFoundEl = document.getElementById('totalFound');
         if (totalFoundEl) totalFoundEl.textContent = count;
 
         const tbody = document.getElementById('dataTableBody');
+
         if (tbody) {
             tbody.innerHTML = '';
             if (rawData.length === 0) {
@@ -1476,6 +1513,7 @@ function updateSelectedList() {
 }
 
 function isProspectSelectionAllowed() {
+    if (!window.isCampaignCreate) return false;
     if (!selectedCampaign) return false;
     const rawStatus = String(selectedCampaign.status || selectedCampaign.product_status || '').trim().toLowerCase();
     const normalizedStatus = rawStatus.replace(/_/g, ' ');
@@ -1968,7 +2006,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     } catch (e) {
                         console.error("Error parsing response json:", e);
                     }
-                    console.log(response)
+
                     if (!response.ok) {
                         const errorMsg = (data && data.message) ? data.message : `ไม่สามารถส่งอนุมัติข้อมูลได้ (${response.status} ${response.statusText})`;
                         stopLoading(true);

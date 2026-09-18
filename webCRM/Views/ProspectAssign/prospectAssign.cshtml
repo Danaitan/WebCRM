@@ -174,7 +174,7 @@
         
         <!-- Left: Batch List -->
         <div class="col-xl-3 col-lg-4 d-flex flex-column h-100">
-            <div class="card-custom d-flex flex-column h-100">
+            <div class="card-custom d-flex flex-column h-100 prospect-bottom-card">
                 
                 <div class="p-3 border-bottom">
                     <div class="position-relative">
@@ -183,17 +183,17 @@
                     </div>
                 </div>
                 
-                <div class="flex-grow-1 overflow-auto" id="batchListContainer">
+                <div class="flex-grow-1 overflow-auto batch-list-scroll" id="batchListContainer">
                     <!-- Batch items rendered dynamically -->
                 </div>
                 
-                <div class="p-3 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.8rem;">
-                    <span id="batchPageInfo">แสดง 0 ถึง 0 รายการ</span>
-                    <div class="d-flex align-items-center gap-1">
-                        <i class="bi bi-chevron-double-left" id="batchFirstBtn" style="cursor:pointer;" title="หน้าแรก"></i>
-                        <i class="bi bi-chevron-left" id="batchPrevBtn" style="cursor:pointer;" title="หน้าก่อน"></i>
-                        <div id="batchPageNumbers" class="d-flex align-items-center gap-1 mx-1"></div>
-                        <i class="bi bi-chevron-right" id="batchNextBtn" style="cursor:pointer;" title="หน้าถัดไป"></i>
+                <div class="p-3 border-top batch-pagination-footer text-muted">
+                    <span id="batchPageInfo" class="batch-page-info">แสดง 0 ถึง 0 รายการ</span>
+                    <div class="batch-pagination-controls">
+                        <i class="bi bi-chevron-double-left batch-nav-btn" id="batchFirstBtn" title="หน้าแรก"></i>
+                        <i class="bi bi-chevron-left batch-nav-btn" id="batchPrevBtn" title="หน้าก่อน"></i>
+                        <div id="batchPageNumbers" class="batch-page-numbers"></div>
+                        <i class="bi bi-chevron-right batch-nav-btn" id="batchNextBtn" title="หน้าถัดไป"></i>
                     </div>
                 </div>
             </div>
@@ -201,7 +201,7 @@
         
         <!-- Right: Table -->
         <div class="col-xl-9 col-lg-8 d-flex flex-column h-100">
-            <div class="card-custom d-flex flex-column h-100">
+            <div class="card-custom d-flex flex-column h-100 prospect-bottom-card">
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
                     <div>
                         <span class="fw-medium text-dark" style="font-size: 1rem;">Prospect ทั้งหมด</span>
@@ -209,7 +209,7 @@
                     </div>
                 </div>
                 
-                <div class="flex-grow-1 overflow-auto">
+                <div class="flex-grow-1 overflow-auto prospect-table-scroll">
                     <table class="table table-custom mb-0" id="prospectAssignTable">
                         <thead>
                             <tr>
@@ -237,7 +237,7 @@
                 </div>
                 
                 <!-- Pagination -->
-                <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                <!-- <div class="p-3 border-top d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-2 text-gray" style="font-size: 0.85rem;">
                         <span>แสดง</span>
                         <select id="rowsPerPageSelect" class="form-select form-select-sm border-0 bg-light" style="width: 60px;">
@@ -251,7 +251,7 @@
                     
                     <ul class="pagination pagination-sm pagination-custom mb-0 d-flex align-items-center gap-1" id="prospectPagination">
                     </ul>
-                </div>
+                </div> -->
             </div>
         </div>
         

@@ -206,8 +206,6 @@ async function searchSuggestion(selectedGuidToPreserve = null, showLoadingSpinne
             startLoading('กำลังค้นหาข้อมูล...', 'กรุณารอสักครู่');
         }
         const isSeeAll = window.isEdit;
-        console.log("isSeeAll",isSeeAll)
-        console.log("window.isEdit",window.isEdit)
         const url = `/Suggestions/GetSuggestions?status=${encodeURIComponent(statusVal)}&header=${encodeURIComponent(topicVal)}&search=${encodeURIComponent(keyword)}&isSeeAll=${encodeURIComponent(isSeeAll)}`;
         const response = await fetch(url, { skipLoading: true });
         if (!response.ok) {
@@ -592,8 +590,6 @@ async function loadDepartmentOptions() {
             fetch('/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
             GetPersonalAndGroup().catch(() => null)
         ]);
-console.log("masterRes",masterRes)
-console.log("personalData",personalData)
         const data = masterRes;
         const currentCompany = (typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")).trim().toUpperCase();
 
@@ -1196,16 +1192,17 @@ async function UpdateSuggestion() {
                     ? ($activeRow.attr('data-updby') || '')
                     : '';
                 const profile = await getProfileByCode(creator);
+
                 const userIdBase64 = btoa(profile.personnel_code);
                 const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
                 const fullNameTh = userFullNameTh || '';
-                const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Suggestions')}`;
                 const emailContent =
                     `เรียน ${profile.thname}<br><br>` +
                     `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fullNameTh} ` +
                     `ได้ทำการตอบกลับข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
                     `โดยมีเนื้อหาดังนี้ ${reply}<br><br>` +
-                    `เข้าสู่ระบบผ่านลิ้งค์ ` +
+                    ` ` +
                     `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                     `<br><br>` +
                     `ขอขอบคุณ<br>` +
@@ -1257,27 +1254,39 @@ async function UpdateSuggestion() {
     }
 }
 
+function syncContactTimeState() {
+    const includeTime = $("#post-contact-include-time").is(":checked");
+    const $timeFields = $("#post-contact-hour, #post-contact-minute");
+
+    $timeFields.prop("disabled", !includeTime);
+
+    if (includeTime) {
+        const hour = $("#post-contact-hour").val() || "00";
+        const minute = $("#post-contact-minute").val() || "00";
+        $("#post-contact-time").val(`${hour}:${minute}`);
+    } else {
+        $("#post-contact-time").val("");
+    }
+}
+
 async function AddSuggestion() {
     var selectedCc = [];
     $('#post-cc option:selected').each(function () {
         selectedCc.push($(this).val());
     });
 
-    let timeVal = $("#post-contact-time").val();
-    if (timeVal) {
-        if (timeVal.split(':').length === 2) {
-            timeVal += ":00";
-        }
-    } else {
-        timeVal = null;
-    }
+    const includeContactTime = $("#post-contact-include-time").is(":checked");
+    const contactTime = includeContactTime
+        ? `${$("#post-contact-hour").val() || "00"}:${$("#post-contact-minute").val() || "00"}`
+        : "";
+    const timeVal = includeContactTime ? `${contactTime}:00` : null;
+    $("#post-contact-time").val(contactTime);
 
     const sendToVal = $("#post-send-to").val() ? $("#post-send-to").val().toString() : null;
     const sendToText = $('#post-send-to option:selected').text() || sendToVal || '';
     const topicTitle = $('#post-title option:selected').text() || $('#post-title').val() || '';
     const suggestionDetail = $("#post-reply").val()?.toString() || '';
     const contactDate = $("#post-contact-date").val()?.toString() || '';
-    const contactTime = $("#post-contact-time").val() || '';
     const contactDateTime = contactTime ? `${contactDate} ${contactTime}` : contactDate;
 
     var requestData = {
@@ -1314,7 +1323,7 @@ async function AddSuggestion() {
         return false;
     }
     if (!requestData.dateSugges || requestData.dateSugges.trim() === "") {
-        showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกวันที่และเวลาให้ติดต่อกลับ');
+        showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกวันที่ให้ติดต่อกลับ');
         return false;
     }
 
@@ -1343,50 +1352,93 @@ async function AddSuggestion() {
             }
 
             if (sendToVal) {
-                try {
-                    const profile = await getProfileByEmail(sendToVal);
-                    const userIdBase64 = btoa(profile.personnel_code);
-                    const sendToText = sendToVal;
-                    const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                    const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                (async () => {
 
-                    const emailContent =
-                        `เรียน ${sendToText}<br><br>` +
-                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
-                        `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
-                        `เข้าสู่ระบบผ่านลิ้งค์ ` +
-                        `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
-                        `<br><br>` +
-                        `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
-                        `ขอขอบคุณ<br>` +
-                        `${fullNameTh}`;
+                        const sendToText = sendToVal;
+                        const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
+                        const senderId = typeof userId !== 'undefined' ? userId : '';
+                        const emailSubject = "CRM : การมอบหมายข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle;
+                        const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Suggestions')}`;
+                        const emailContent =
+                            `เรียน ${sendToText}<br><br>` +
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                            `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
+                            ` ` +
+                            `<a href='${homeUrl}'>คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                            `<br><br>` +
+                            `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
 
+                        await sendEmail(
+                            sendToVal,
+                            selectedCc,
+                            emailSubject,
+                            emailContent
+                        );
 
-                    await sendEmail(
-                        sendToVal,
-                        selectedCc,
-                        "CRM : การมอบหมายข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
-                        emailContent
-                    );
-                    const endDate = new Date();
-                    endDate.setFullYear(endDate.getFullYear() + 10);
+                    if (isGroupSendTo(sendToVal)) {
 
-                    const senderId = typeof userId !== 'undefined' ? userId : '';
+                        const url = `/Suggestions/GetpersonalInGroup?groupEmail=${encodeURIComponent(sendToVal)}`;
+                        const response = await fetch(url, { skipLoading: true });
+                        if (!response.ok) {
+                            throw new Error('HTTP error ' + response.status);
+                        }
+                        const data = await response.json();
 
-                    await PostNoti({
-                        header: "ข้อเสนอแนะ/ร้องเรียน",
-                        title: "เรื่อง : " + topicTitle,
-                        message: emailContent,
-                        receiver_email: sendToVal,
-                        sender: senderId,
-                        create_by: senderId,
-                        end_date: endDate,
-                    });
+                        for (const personel of data) {
 
-                } catch (emailErr) {
+                            const notiContent = 
+                                `เรียน ${personel.thname}<br><br>` +
+                                `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                                `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
+                                `<a href="${homeUrl}">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                                `<br><br>` +
+                                `ขอขอบคุณ<br>` +
+                                `${fullNameTh}`;
+
+                            const endDate = new Date();
+                            endDate.setFullYear(endDate.getFullYear() + 10);
+
+                            await PostNoti({
+                                header: "ข้อเสนอแนะ/ร้องเรียน",
+                                title: "เรื่อง : " + topicTitle,
+                                message: notiContent,
+                                receiver_email: personel.e_mail,
+                                sender: senderId,
+                                create_by: senderId,
+                                end_date: endDate,
+                            });
+
+                        }
+
+                    } else {
+
+                        const notiContent =
+                            `เรียน ${sendToText}<br><br>` +
+                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                            `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
+                            `<br><br>` +
+                            `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
+                            `ขอขอบคุณ<br>` +
+                            `${fullNameTh}`;
+
+                        const endDate = new Date();
+                        endDate.setFullYear(endDate.getFullYear() + 10);
+
+                        await PostNoti({
+                            header: "ข้อเสนอแนะ/ร้องเรียน",
+                            title: "เรื่อง : " + topicTitle,
+                            message: notiContent,
+                            receiver_email: sendToVal,
+                            sender: senderId,
+                            create_by: senderId,
+                            end_date: endDate,
+                        });
+                    }
+                })().catch((emailErr) => {
                     console.error("เกิดข้อผิดพลาดในการส่งอีเมล:", emailErr);
-                }
-
+                });
             }
 
             // โหลดข้อมูลล่าสุดก่อนปิด loading
@@ -1404,7 +1456,10 @@ async function AddSuggestion() {
             $("#post-department").val("");
             $("#post-send-to").val("").trigger("change");
             $("#post-contact-date").val("");
-            $("#post-contact-time").val("00:00");
+            $("#post-contact-hour").val("00");
+            $("#post-contact-minute").val("00");
+            $("#post-contact-include-time").prop("checked", true);
+            syncContactTimeState();
             $("#post-additional-contact").val("");
             $("#post-reply").val("");
             $('.cc-option-item').removeClass('active').find('.cc-check-icon').addClass('d-none');
@@ -1660,16 +1715,14 @@ async function ForwardSuggestion() {
 
             if (sendToVal) {
                 try {
-                    const profile = await getProfileByEmail(sendToVal);
-                    const userIdBase64 = btoa(profile.personnel_code);
                     const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
-                    const homeUrl = `${webDomain}/Home?user=${encodeURIComponent(userIdBase64)}`;
+                    const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Suggestions')}`;
                     const emailContent =
                         `เรียน ${sendToText}<br><br>` +
                         `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้ถูกส่งต่อให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
                         `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
-                        `เข้าสู่ระบบผ่านลิ้งค์ ` +
-                        `<a href="${homeUrl}" target="_blank">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
+                        ` ` +
+                        `<a href="${homeUrl}">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                         `<br><br>` +
                         `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
                         `ขอขอบคุณ<br>` +
@@ -1714,6 +1767,12 @@ async function ForwardSuggestion() {
         }
     }
 }
+
+$("#post-contact-include-time, #post-contact-hour, #post-contact-minute").on("change", function () {
+    syncContactTimeState();
+});
+
+syncContactTimeState();
 
 $("#btnSaveSuggestion").click(async function () {
     await AddSuggestion();

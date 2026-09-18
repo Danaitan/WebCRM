@@ -307,11 +307,15 @@
                                 </button>
                             </div>
 
-                            <div id="contract-loading-indicator" class="text-center py-5 d-none">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">กำลังโหลด...</span>
+                            <div id="contract-loading-indicator" class="d-none">
+                                <div class="d-flex flex-column align-items-center justify-content-center text-center py-5 my-3 rounded-3"
+                                     style="background:#f8fafc;border:1px dashed #cbd5e1;min-height:220px;">
+                                    <div class="spinner-border text-primary mb-3" style="width:2.5rem;height:2.5rem;" role="status">
+                                        <span class="visually-hidden">กำลังโหลด...</span>
+                                    </div>
+                                    <div class="fw-medium text-dark">กำลังโหลดรายละเอียดสัญญา</div>
+                                    <div class="small text-muted mt-1">ระบบกำลังดึงข้อมูลสัญญา การชำระเงิน และรายการเคลม</div>
                                 </div>
-                                <div class="mt-2 text-muted">กำลังโหลดข้อมูล...</div>
                             </div>
 
                             <div id="contract-details-container">

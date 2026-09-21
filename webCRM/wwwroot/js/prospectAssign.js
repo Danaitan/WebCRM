@@ -185,7 +185,7 @@ async function getAllBranch() {
         return allBranch;
     }
     try {
-        const branchResponse = await fetch(`/Campain/getBranchListForCRM`);
+        const branchResponse = await fetch(`/ProspectAssign/GetAllowedBranchList`);
         if (!branchResponse.ok) {
             throw new Error('Network response was not ok');
         }
@@ -196,6 +196,20 @@ async function getAllBranch() {
         console.error("Error in getAllBranch:", err);
         return [];
     }
+}
+
+function normalizeBranchCode(code) {
+    const value = String(code ?? '').trim();
+    if (!value || !/^\d+$/.test(value)) return value;
+
+    return value.replace(/^0+/, '') || '0';
+}
+
+function parseBranchCodes(value) {
+    return String(value || '')
+        .split(',')
+        .map(normalizeBranchCode)
+        .filter(Boolean);
 }
 
 function getBranchCode(b) {
@@ -218,10 +232,13 @@ function renderBranchDropdownOptions(allowedOffcdes = null) {
     let branches = allBranch || [];
 
     if (Array.isArray(allowedOffcdes)) {
-        branches = branches.filter(b => {
-            const code = getBranchCode(b);
-            return allowedOffcdes.includes(code);
-        });
+        const allowedBranchCodes = new Set(
+            allowedOffcdes.map(normalizeBranchCode).filter(Boolean)
+        );
+
+        branches = branches.filter(b =>
+            allowedBranchCodes.has(normalizeBranchCode(getBranchCode(b)))
+        );
     }
 
     branches.forEach(b => {
@@ -386,10 +403,8 @@ function initBranchMultiSelect() {
 
 function setSelectedBranches(offcdeString) {
 
-    renderBranchDropdownOptions();
-    document.querySelectorAll('.branch-checkbox').forEach(checkbox => {
-        checkbox.checked = false;
-    });
+    const campaignBranchCodes = parseBranchCodes(offcdeString);
+    renderBranchDropdownOptions(campaignBranchCodes);
 
     updateBranchSelectedDisplay();
     loadAndRenderStaffList([]);
@@ -1764,7 +1779,8 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
 
     async function init() {
         allBranch = await getAllBranch();
-        renderBranchDropdownOptions();
+        // ยังไม่แสดงสาขาจนกว่าจะรู้สาขาที่กำหนดในแคมเปญ
+        renderBranchDropdownOptions([]);
         initBranchMultiSelect();
         updateBranchSelectedDisplay();
         loadAndRenderStaffList([]);

@@ -4,10 +4,19 @@ const clearBtn = document.getElementById("clearBtn");
 
 let masterData = null;
 let currentContactData = null;
+let currentCustomerSearchData = [];
+let currentCustomerCompanyFilter = 'ALL';
 let currentContactInfoRequestId = 0;
 let currentClaimListRequestId = 0;
 let currentReceiveListRequestId = 0;
 let currentContactRequestId = 0;
+let currentCustomerSelectionId = 0;
+let currentSelectedCustomerRow = null;
+let currentContactLoadPromise = Promise.resolve(null);
+
+const contactInfoCache = new Map();
+const receiveListCache = new Map();
+const claimListCache = new Map();
 
 async function getPDPAbg(checkPDPA, company) {
 
@@ -88,54 +97,139 @@ function updateContactTabLabel(compName) {
     }
 }
 
-function renderCompanyTabs(contactData = currentContactData) {
+function normalizeCompanyName(value) {
+    return (value == null ? '' : String(value)).trim().toUpperCase();
+}
+
+function waitForBrowserPaint() {
+    return new Promise(resolve => {
+        requestAnimationFrame(() => setTimeout(resolve, 0));
+    });
+}
+
+function showContractCompanyPane(company) {
+    const normalizedCompany = normalizeCompanyName(company);
+    if (!normalizedCompany || normalizedCompany === 'ALL') return;
+
+    const paneByCompany = {
+        MICRO: 'contact-Micro',
+        MIB: 'contact-MIB',
+        MFIN: 'contact-MFIN'
+    };
+    const targetId = paneByCompany[normalizedCompany];
+    if (!targetId) return;
+
+    Object.values(paneByCompany).forEach(id => {
+        const pane = document.getElementById(id);
+        if (!pane) return;
+        const isTarget = id === targetId;
+        pane.classList.toggle('d-none', !isTarget);
+        pane.classList.toggle('show', isTarget);
+        pane.classList.toggle('active', isTarget);
+    });
+
+    updateContactTabLabel(normalizedCompany);
+    setTimeout(() => {
+        const tableId = `#dt-${targetId}`;
+        if (window.jQuery && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable(tableId)) {
+            $(tableId).DataTable().columns.adjust();
+        }
+    }, 50);
+}
+
+async function applyCustomerCompanyFilter(company, selectFirstVisible = true) {
+    const normalizedFilter = normalizeCompanyName(company) || 'ALL';
+    currentCustomerCompanyFilter = normalizedFilter;
+
+    const container = document.getElementById('contact-company-tabs');
+    if (container) {
+        container.querySelectorAll('[data-company-filter]').forEach(button => {
+            button.classList.toggle('active', normalizeCompanyName(button.dataset.companyFilter) === normalizedFilter);
+        });
+    }
+
+    const tbody = document.getElementById('searchResultBody');
+    let visibleCount = 0;
+
+    if (tbody) {
+        tbody.querySelectorAll('tr[data-index]').forEach(customerRow => {
+            const index = Number(customerRow.dataset.index);
+            const customer = currentCustomerSearchData[index];
+            const customerCompany = normalizeCompanyName(customer?.companyCde || customer?.CompanyCde);
+            const visible = normalizedFilter === 'ALL' || customerCompany === normalizedFilter;
+            const contractCardRow = customerRow.nextElementSibling?.classList.contains('customer-contract-card-row')
+                ? customerRow.nextElementSibling
+                : null;
+
+            customerRow.classList.toggle('d-none', !visible);
+            if (contractCardRow) {
+                const isExpanded = contractCardRow.dataset.expanded === 'true';
+                contractCardRow.classList.toggle('d-none', !visible || !isExpanded);
+            }
+            if (visible) visibleCount++;
+        });
+    }
+
+    const countElement = document.getElementById('customerCount');
+    if (countElement) countElement.innerText = visibleCount;
+
+    if (selectFirstVisible && tbody) {
+        const activeRow = tbody.querySelector('tr[data-index].active-row:not(.d-none)');
+        if (!activeRow) {
+            const firstVisibleRow = tbody.querySelector('tr[data-index]:not(.d-none)');
+            const index = Number(firstVisibleRow?.dataset.index);
+            const selectedCustomer = currentCustomerSearchData[index];
+
+            if (firstVisibleRow && selectedCustomer) {
+                setActiveCustomerRow(tbody, firstVisibleRow);
+                await loadCustomerSelection(selectedCustomer, index);
+            }
+        }
+    }
+
+    return visibleCount;
+}
+
+function renderCompanyTabs(customers = currentCustomerSearchData) {
     const container = document.getElementById("contact-company-tabs");
     if (!container || !masterData || !Array.isArray(masterData.company)) return;
 
-    const currentActiveBtn = container.querySelector('.button-tab-contact.active');
-    const currentActiveTarget = currentActiveBtn ? currentActiveBtn.getAttribute('data-target') : null;
+    const customerList = Array.isArray(customers) ? customers : [];
+    const availableCompanies = new Set(customerList.map(customer =>
+        normalizeCompanyName(customer.companyCde || customer.CompanyCde)
+    ).filter(Boolean));
+
+    if (currentCustomerCompanyFilter !== 'ALL' && !availableCompanies.has(currentCustomerCompanyFilter)) {
+        currentCustomerCompanyFilter = 'ALL';
+    }
 
     container.innerHTML = "";
+    container.classList.toggle('d-none', customerList.length === 0);
+    if (customerList.length === 0) return;
 
-    const companyOrder = { 'micro': 1, 'mib': 2, 'mfin': 3 };
-    const sortedCompanies = [...masterData.company].sort((a, b) => {
-        const nameA = (a.company || "").toLowerCase().trim();
-        const nameB = (b.company || "").toLowerCase().trim();
-        const orderA = companyOrder[nameA] !== undefined ? companyOrder[nameA] : 999;
-        const orderB = companyOrder[nameB] !== undefined ? companyOrder[nameB] : 999;
-        if (orderA !== orderB) {
-            return orderA - orderB;
-        }
-        return nameA.localeCompare(nameB);
-    });
+    const companyOrder = { 'MICRO': 1, 'MIB': 2, 'MFIN': 3 };
+    const companyNames = [...new Set(masterData.company
+        .map(comp => normalizeCompanyName(comp.company))
+        .filter(Boolean))]
+        .sort((a, b) => (companyOrder[a] ?? 999) - (companyOrder[b] ?? 999) || a.localeCompare(b));
 
-    sortedCompanies.forEach((comp, index) => {
-        const compName = comp.company || "";
-        if (!compName) return;
-
-        let targetId = `contact-${compName}`;
-        if (!document.getElementById(targetId)) {
-            const existing = Array.from(document.querySelectorAll('[id^="contact-"]'))
-                .find(el => el.id.toLowerCase() === targetId.toLowerCase());
-            if (existing) {
-                targetId = existing.id;
-            }
-        }
-
-        const countText = getCompanyCountText(compName, contactData);
+    const filters = ['ALL', ...companyNames];
+    filters.forEach(companyName => {
+        const count = companyName === 'ALL'
+            ? customerList.length
+            : customerList.filter(customer => normalizeCompanyName(customer.companyCde || customer.CompanyCde) === companyName).length;
 
         const button = document.createElement("button");
-        const isActive = currentActiveTarget ? (currentActiveTarget.toLowerCase() === targetId.toLowerCase()) : (index === 0);
-        button.className = `button-tab-contact${isActive ? " active" : ""}`;
+        button.type = 'button';
+        button.className = `button-tab-contact${currentCustomerCompanyFilter === companyName ? " active" : ""}`;
         button.style.padding = "0.3rem 1rem";
         button.style.fontSize = "0.85rem";
-        button.setAttribute("data-target", targetId);
-        button.textContent = `${compName}(${countText})`;
-
+        button.setAttribute("data-company-filter", companyName);
+        button.textContent = companyName === 'ALL' ? `ทั้งหมด(${count})` : `${companyName}(${count})`;
         container.appendChild(button);
     });
 
-    updateContactTabLabel();
+    applyCustomerCompanyFilter(currentCustomerCompanyFilter, false);
 }
 
 function renderProductSummary(contactData = currentContactData, isLoading = false) {
@@ -358,7 +452,7 @@ function clearCustomerDetails() {
     }
 }
 
-async function displayCustomerDetails(customer) {
+async function displayCustomerDetails(customer, selectionId) {
     clearContractDetails();
     clearCustomerDetails();
     const companyCode = customer.companyCde || '';
@@ -389,10 +483,12 @@ async function displayCustomerDetails(customer) {
         console.error("Error fetching PDPA data:", e);
     }
 
+    if (selectionId !== currentCustomerSelectionId) return false;
+
     const pdpaCheckEl = document.getElementById("detail-pdpaCheck");
     if (pdpaCheckEl) pdpaCheckEl.innerText = customer.pdpaCheck || '-';
     const detailIdnoEl = document.getElementById("detail-idno");
-    if (detailIdnoEl) detailIdnoEl.innerText = customer.idno || '-';
+    if (detailIdnoEl) detailIdnoEl.innerText = " "+customer.idno || '-';
     const detailNameEl = document.getElementById("detail-name");
     if (detailNameEl) detailNameEl.innerText = customer.nameCus || '-';
     
@@ -508,6 +604,8 @@ async function displayCustomerDetails(customer) {
         }
     }
     const bgColor = await getPDPAbg(checkPDPAData,companyCode)
+    if (selectionId !== currentCustomerSelectionId) return false;
+
     const panelBg = document.getElementById("customer-detail-panel-bg");
     if (panelBg) {
         panelBg.classList.remove("bg-danger-light", "bg-warning-light", "bg-success-light");
@@ -533,6 +631,104 @@ async function displayCustomerDetails(customer) {
     if (crossSellEl) crossSellEl.innerHTML = allowCard(customer.crossSellConsent || customer.CrossSellConsent);
 
     document.querySelectorAll(".cus-name-consent").forEach(el => { el.innerText = customer.nameCus || ""; });
+    return true;
+}
+
+async function loadCustomerSelection(selectedCustomer, customerIndex) {
+    const selectionId = ++currentCustomerSelectionId;
+
+    setContractTabEnabled(false);
+    showContractDetailLoading(true);
+    setContractCardLoading(customerIndex, selectedCustomer);
+
+    try {
+        // Contract data belongs to the search, not an individual row click.
+        // Every selection waits for and reuses the same search-level request.
+        const [, contactData] = await Promise.all([
+            displayCustomerDetails(selectedCustomer, selectionId),
+            currentContactLoadPromise
+        ]);
+
+        if (selectionId !== currentCustomerSelectionId) return;
+
+        if (!contactData) {
+            currentContactData = null;
+            clearContactTables();
+            renderProductSummary(null);
+            fillAllContractCards(currentCustomerSearchData, {});
+        }
+
+        const selectedCompany = selectedCustomer.companyCde || selectedCustomer.CompanyCde;
+        if (selectedCompany) {
+            showContractCompanyPane(selectedCompany);
+        }
+
+        // A null response is still a completed load. Render an empty card so
+        // the selected row never remains stuck in its loading state.
+        updateContractCard(customerIndex, selectedCustomer, contactData || {});
+    } finally {
+        if (selectionId === currentCustomerSelectionId) {
+            showContractDetailLoading(false);
+        }
+    }
+}
+
+function setActiveCustomerRow(tbody, customerRow) {
+    if (!tbody || !customerRow) return;
+
+    // A selection change only needs to update the previously selected row.
+    // Avoid walking every customer row: with 2,000 results that made each
+    // click perform thousands of DOM lookups and could freeze the page.
+    const previousRow = currentSelectedCustomerRow?.isConnected
+        ? currentSelectedCustomerRow
+        : tbody.querySelector('tr[data-index].active-row, tr[data-index].selected-contract-row');
+
+    if (previousRow && previousRow !== customerRow) {
+        const row = previousRow;
+        row.classList.remove('active-row', 'selected-contract-row', 'contract-expanded');
+        row.classList.add('hover-row');
+
+        const cardRow = row.nextElementSibling?.classList.contains('customer-contract-card-row')
+            ? row.nextElementSibling
+            : null;
+        const toggle = row.querySelector('.customer-contract-inline-toggle');
+
+        if (cardRow) {
+            cardRow.dataset.expanded = 'false';
+            cardRow.classList.add('d-none');
+        }
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', 'false');
+            const chevron = toggle.querySelector('.customer-contract-inline-chevron');
+            if (chevron) {
+                chevron.classList.add('bi-chevron-down');
+                chevron.classList.remove('bi-chevron-up');
+            }
+        }
+
+        const avatar = row.querySelector('.avatar-sm');
+        if (avatar) {
+            avatar.classList.remove('bg-blue-light', 'text-primary');
+            avatar.classList.add('bg-light', 'text-muted');
+        }
+
+        const nameSpan = row.querySelector('.name-span');
+        if (nameSpan) nameSpan.classList.remove('fw-medium');
+    }
+
+    customerRow.classList.add('active-row', 'selected-contract-row');
+    customerRow.classList.remove('hover-row');
+
+    const avatar = customerRow.querySelector('.avatar-sm');
+    if (avatar) {
+        avatar.classList.remove('bg-light', 'text-muted');
+        avatar.classList.add('bg-blue-light', 'text-primary');
+    }
+
+    const nameSpan = customerRow.querySelector('.name-span');
+    if (nameSpan) nameSpan.classList.add('fw-medium');
+
+    currentSelectedCustomerRow = customerRow;
 }
 
 function clearContactTables() {
@@ -554,18 +750,25 @@ function clearContactTables() {
 }
 
 async function performSearch() {
-    const val = searchInput.value;
-    if (val) {
+    const searchValue = searchInput.value.trim();
+    if (searchValue) {
+        // A new search owns a new contract-list request. Invalidate any result
+        // still returning from the previous search before replacing the rows.
+        currentContactRequestId++;
+        currentContactLoadPromise = Promise.resolve(null);
+
         try {
             startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้า กรุณารอสักครู่...');
             const originalText = searchBtn.innerHTML;
             searchBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
-            const response = await fetch('/CustomerDetail/GetCustomerList?idno=' + encodeURIComponent(val.trim()));
+            const response = await fetch('/CustomerDetail/GetCustomerList?idno=' + encodeURIComponent(searchValue));
 
             if (response.ok) {
                 const data = await response.json();
 
                 if (data && data.length > 0) {
+                    currentCustomerSearchData = data;
+                    currentCustomerCompanyFilter = 'ALL';
                     document.getElementById("customerCount").innerText = data.length;
                     const tbody = document.getElementById("searchResultBody");
                     
@@ -585,11 +788,9 @@ async function performSearch() {
                         })();
 
                         return `
-                            <tr class="${index === 0 ? 'active-row cursor-pointer border-0' : 'cursor-pointer border-0 hover-row'}" data-index="${index}">
-                                <td class="py-3 d-flex align-items-center gap-2">
-                                    <div class="avatar-sm ${index === 0 ? 'bg-blue-light text-primary' : 'bg-light text-muted'} rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
-                                        <i class="bi bi-person-fill"></i>
-                                    </div>
+                            <tr class="${index === 0 ? 'active-row selected-contract-row cursor-pointer' : 'cursor-pointer hover-row'}" data-index="${index}" data-active-status="unknown">
+                                <td class="py-3 text-center text-nowrap customer-active-status text-muted" title="กำลังตรวจสอบสถานะ">-</td>
+                                <td class="py-3 align-middle">
 
                                     <div class="d-flex flex-column">
                                         <span class="${index === 0 ? 'fw-medium ' : ''}text-dark text-nowrap name-span">
@@ -604,18 +805,33 @@ async function performSearch() {
                                     ${licnoHtml}
                                 </td>
                                 <td class="py-3 text-muted text-center text-nowrap">${comCde}</td>
-                                <td class="py-3 text-muted text-center text-nowrap">${contno}</td>
+                                <td class="py-3 text-muted text-center text-nowrap">
+                                    <span>${contno}</span>
+                                    <button type="button"
+                                            class="btn btn-sm p-0 border-0 bg-transparent ms-2 customer-contract-inline-toggle"
+                                            data-card-index="${index}"
+                                            aria-expanded="false"
+                                            title="ขยายเพื่อดูข้อมูลสัญญา">
+                                        <i class="bi bi-chevron-down customer-contract-inline-chevron"></i>
+                                    </button>
+                                </td>
                             </tr>
-                            <tr class="customer-contract-card-row border-bottom" data-card-index="${index}">
-                                <td colspan="4" class="p-0">
+                            <tr class="customer-contract-card-row border-bottom d-none" data-card-index="${index}" data-expanded="false">
+                                <td colspan="5" class="p-0">
                                     ${buildCustomerContractCard(cust)}
                                 </td>
                             </tr>
                         `;
                     }).join('');
+                    currentSelectedCustomerRow = tbody.querySelector('tr[data-index].active-row');
+
+                    renderCompanyTabs(currentCustomerSearchData);
+                    currentContactLoadPromise = getContact(searchValue);
 
                     tbody.onclick = async function(e) {
-                        // A click on the contract card row should select its owning customer.
+                        // The inline contract toggle has its own delegated handler.
+                        if (e.target.closest('.customer-contract-inline-toggle')) return;
+                        
                         let clickedRow = e.target.closest('tr[data-index]');
                         if (!clickedRow) {
                             const cardRow = e.target.closest('tr.customer-contract-card-row');
@@ -627,70 +843,40 @@ async function performSearch() {
                         if (!clickedRow || clickedRow.dataset.index == null) return;
                         if (clickedRow.classList.contains('active-row')) return;
 
-                        // Handle row selection visually
-                        const allRows = tbody.querySelectorAll('tr[data-index]');
-                        allRows.forEach(r => {
-                            r.classList.remove('active-row');
-                            r.classList.add('hover-row');
-                            const avatar = r.querySelector('.avatar-sm');
-                            if (avatar) {
-                                avatar.classList.remove('bg-blue-light', 'text-primary');
-                                avatar.classList.add('bg-light', 'text-muted');
-                            }
-                            const nameSpan = r.querySelector('.name-span');
-                            if (nameSpan) nameSpan.classList.remove('fw-medium');
-                        });
-
-                        clickedRow.classList.add('active-row');
-                        clickedRow.classList.remove('hover-row');
-                        const avatar = clickedRow.querySelector('.avatar-sm');
-                        if (avatar) {
-                            avatar.classList.remove('bg-light', 'text-muted');
-                            avatar.classList.add('bg-blue-light', 'text-primary');
-                        }
-                        const nameSpan = clickedRow.querySelector('.name-span');
-                        if (nameSpan) nameSpan.classList.add('fw-medium');
+                        setActiveCustomerRow(tbody, clickedRow);
 
                         const idx = parseInt(clickedRow.dataset.index);
                         const selectedCust = data[idx];
                         if (selectedCust) {
-                            setContractTabEnabled(false);
-                            showContractDetailLoading(true);
-                            setContractCardLoading(idx, selectedCust);
-                            try {
-                                await displayCustomerDetails(selectedCust);
-                                const idno = selectedCust.idno || selectedCust.Idno;
-                                if (idno) await getContact(idno, selectedCust, data);
-                                // Fill the card with the full contract columns now that data is loaded.
-                                updateContractCard(idx, selectedCust, currentContactData);
-                            } finally {
-                                showContractDetailLoading(false);
-                            }
+                            await loadCustomerSelection(selectedCust, idx);
                         }
                     };
 
-                    displayCustomerDetails(data[0]);
-                    const firstIdno = data[0].idno || data[0].Idno;
-                    if (firstIdno) {
-                        setContractCardLoading(0, data[0]);
-                        getContact(firstIdno, data[0], data).then(() => {
-                            updateContractCard(0, data[0], currentContactData);
-                        });
-                    }
+                    showLoading(
+                        'กำลังประมวลผลข้อมูล...',
+                        `พบข้อมูล ${data.length.toLocaleString('th-TH')} รายการ ระบบกำลังจัดเตรียมรายละเอียด กรุณารอสักครู่...`
+                    );
+                    // Keep the page-level loading screen visible until the
+                    // contact lists, contract matching, and first customer
+                    // details have all finished rendering.
+                    await waitForBrowserPaint();
+                    await loadCustomerSelection(data[0], 0);
 
                 } else {
+                    currentCustomerSearchData = [];
+                    currentCustomerCompanyFilter = 'ALL';
                     document.getElementById("customerCount").innerText = "0";
-                    document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">ไม่พบรายการ</td></tr>';
+                    document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">ไม่พบรายการ</td></tr>';
                     currentContactData = null;
                     renderProductSummary(null);
-                    renderCompanyTabs(null);
+                    renderCompanyTabs();
                     clearContactTables();
                     clearContractDetails();
                     clearCustomerDetails();
                 }
             } else {
                 console.error("Error fetching data:", response.status);
-                document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>';
+                document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>';
             }
             
             searchBtn.innerHTML = originalText;
@@ -722,16 +908,22 @@ if (searchBtn) {
 if (clearBtn) {
     clearBtn.addEventListener("click", function(e) {
         e.preventDefault();
+        currentCustomerSelectionId++;
+        currentContactRequestId++;
+        currentContactLoadPromise = Promise.resolve(null);
         searchInput.value = '';
         clearContractDetails();
         clearCustomerDetails();
         clearContactTables();
+        showContractDetailLoading(false);
         document.getElementById("customerCount").innerText = "0";
-        document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">ไม่พบรายการ</td></tr>';
+        document.getElementById("searchResultBody").innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">ไม่พบรายการ</td></tr>';
 
         currentContactData = null;
+        currentCustomerSearchData = [];
+        currentCustomerCompanyFilter = 'ALL';
         renderProductSummary(null);
-        renderCompanyTabs(null);
+        renderCompanyTabs();
 
         const personTabBtn = document.querySelector('.button-tab-contact[data-target="tab-table-person"]');
         if (personTabBtn && !personTabBtn.classList.contains('active')) {
@@ -744,7 +936,12 @@ const getContactBtn = document.getElementById("getContactBtn");
 if (getContactBtn) {
     getContactBtn.addEventListener("click", function(e) {
         e.preventDefault();
-        getContact();
+        const activeRow = document.querySelector('#searchResultBody tr[data-index].active-row');
+        const customerIndex = activeRow ? Number(activeRow.dataset.index) : -1;
+        const selectedCustomer = currentCustomerSearchData[customerIndex];
+        if (selectedCustomer) {
+            loadCustomerSelection(selectedCustomer, customerIndex);
+        }
     });
 }
 
@@ -799,9 +996,40 @@ tabLinks.forEach(link => {
 });
 
 // Sub-tab selection logic for contract section (Event Delegation)
-document.addEventListener('click', function(e) {
+document.addEventListener('click', async function(e) {
     const btn = e.target.closest('.button-tab-contact');
     if (!btn) return;
+
+    // Company buttons are customer filters. Handle them before the generic tab
+    // logic because they intentionally do not have a data-target attribute.
+    if (btn.closest('#contact-company-tabs') && btn.hasAttribute('data-company-filter')) {
+        e.preventDefault();
+        const company = btn.getAttribute('data-company-filter') || 'ALL';
+        const companyLabel = company === 'ALL' ? 'ทุกบริษัท' : company;
+
+        startLoading(
+            'กำลังกรองข้อมูลบริษัท...',
+            `ระบบกำลังจัดเตรียมข้อมูล ${companyLabel} กรุณารอสักครู่...`
+        );
+
+        try {
+            // Yield after showing the overlay so it is painted before filtering
+            // a large number of customer and contract rows.
+            await waitForBrowserPaint();
+            const visibleCount = await applyCustomerCompanyFilter(company);
+            showContractCompanyPane(company);
+            showLoading(
+                'กำลังแสดงข้อมูลบริษัท...',
+                `พบข้อมูล ${visibleCount.toLocaleString('th-TH')} รายการ กำลังจัดเตรียมหน้าจอ...`
+            );
+            await waitForBrowserPaint();
+        } catch (error) {
+            console.error('Error applying company filter:', error);
+        } finally {
+            stopLoading();
+        }
+        return;
+    }
 
     e.preventDefault();
     if (btn.classList.contains('active')) return;
@@ -894,7 +1122,7 @@ document.addEventListener('click', function(e) {
             } else if (targetId === "tab-table-person") {
                 setContractTabEnabled(false);
                 const tabs = document.getElementById("contact-company-tabs");
-                if (tabs) tabs.classList.add("d-none");
+                if (tabs) tabs.classList.toggle("d-none", currentCustomerSearchData.length === 0);
             }
 
             // Abort pending requests and clear UI when switching company tabs
@@ -978,8 +1206,6 @@ document.addEventListener('click', function(e) {
             }
     });
 
-// Show or hide an in-place loading state inside the contract detail area,
-// instead of a blocking full-screen overlay, so it does not break the flow.
 function showContractDetailLoading(show) {
     const loadingInd = document.getElementById("contract-loading-indicator");
     const detailsCont = document.getElementById("contract-details-container");
@@ -987,12 +1213,6 @@ function showContractDetailLoading(show) {
     if (detailsCont) detailsCont.classList.toggle("d-none", show);
 }
 
-// Build a simple contract/policy card shown under each customer row.
-// Plain and easy to read: a white bordered card with the full set of contract
-// columns (label/value pairs), no heavy colours.
-// `match` comes from findMatchingContract() and carries the full contract fields
-// loaded from the contact API. When it is not available yet, a loading/placeholder
-// state is shown.
 function buildCustomerContractCard(customer, match) {
     const rawCompany = (customer.companyCde || customer.CompanyCde || '').toString().trim();
     const companyUpper = rawCompany.toUpperCase();
@@ -1000,7 +1220,6 @@ function buildCustomerContractCard(customer, match) {
 
     const val = (v) => (v == null || v === '' || v === '-') ? '-' : v;
 
-    // Not loaded yet for this customer (contract data is fetched on selection).
     if (match === undefined) {
         return `
             <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white text-muted small d-flex align-items-center gap-2">
@@ -1055,7 +1274,7 @@ function buildCustomerContractCard(customer, match) {
         </div>`).join('');
 
     return `
-        <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white">
+        <div class="mx-3 mb-3 mt-1 p-3 rounded-3 border bg-white contract-card-detail">
             <div class="fw-medium text-dark mb-2">
                 <i class="bi bi-file-earmark-text me-1"></i>ข้อมูล${companyLabel}
             </div>
@@ -1072,28 +1291,142 @@ function setContractCardLoading(customerIndex, customer) {
     cell.innerHTML = buildCustomerContractCard(customer, 'loading');
 }
 
+function getContractActiveState(contract) {
+    if (!contract) return null;
+
+    const rawValue = contract.IsActive ?? contract.isActive ?? contract.active;
+    if (rawValue == null || rawValue === '') return null;
+
+    if (rawValue === true || rawValue === 1) return true;
+    if (rawValue === false || rawValue === 0) return false;
+
+    const normalized = String(rawValue).trim().toUpperCase();
+    if (['1', 'TRUE', 'A', 'ACTIVE', 'Y', 'YES'].includes(normalized)) return true;
+    if (['0', 'FALSE', '', 'INACTIVE', 'N', 'NO'].includes(normalized)) return false;
+
+    return null;
+}
+
+function updateCustomerActiveStatus(customerIndex, customer, contract) {
+    const customerRow = document.querySelector(`#searchResultBody tr[data-index="${customerIndex}"]`);
+    if (!customerRow) return;
+
+    const rawContractNumber = customer?.contno ?? customer?.Contno;
+    const normalizedContractNumber = rawContractNumber == null
+        ? ''
+        : String(rawContractNumber).trim();
+    const isMissingContractNumber = normalizedContractNumber === '' || normalizedContractNumber === '-';
+    const activeState = getContractActiveState(contract);
+    const isInactive = activeState === false;
+
+    const statusKey = isMissingContractNumber
+        ? 'missing-contract-number'
+        : (activeState === true ? 'true' : (isInactive ? 'false' : 'not-found'));
+
+    customerRow.dataset.activeStatus = statusKey;
+    customerRow.classList.toggle('inactive-customer-row', isInactive);
+
+    const cardRow = document.querySelector(`#searchResultBody tr.customer-contract-card-row[data-card-index="${customerIndex}"]`);
+    if (cardRow) cardRow.classList.toggle('inactive-customer-card', isInactive);
+
+    const statusCell = customerRow.querySelector('.customer-active-status');
+    if (statusCell) {
+        statusCell.textContent = isMissingContractNumber
+            ? 'ไม่พบเลขที่สัญญา'
+            : (activeState === true ? 'A' : (isInactive ? '' : 'ไม่พบ'));
+        statusCell.title = isMissingContractNumber
+            ? 'ไม่พบเลขที่สัญญา'
+            : (activeState === true ? 'Active' : (isInactive ? 'Inactive' : 'ไม่พบข้อมูลสัญญา'));
+        statusCell.classList.toggle('fw-medium', activeState !== null);
+        statusCell.classList.toggle('text-dark', activeState === true);
+        statusCell.classList.toggle('text-muted', activeState !== true);
+    }
+}
+
+function reorderCustomerRowsByActiveStatus() {
+    const tbody = document.getElementById('searchResultBody');
+    if (!tbody) return;
+
+    const customerRows = Array.from(tbody.querySelectorAll('tr[data-index]'));
+    const priority = {
+        true: 0,
+        false: 1,
+        'not-found': 2,
+        unknown: 2,
+        'missing-contract-number': 3
+    };
+    customerRows.sort((a, b) =>
+        (priority[a.dataset.activeStatus || 'unknown'] ?? 3) -
+        (priority[b.dataset.activeStatus || 'unknown'] ?? 3)
+    );
+
+    customerRows.forEach(customerRow => {
+        const index = customerRow.dataset.index;
+        const cardRow = tbody.querySelector(`tr.customer-contract-card-row[data-card-index="${index}"]`);
+        tbody.appendChild(customerRow);
+        if (cardRow) tbody.appendChild(cardRow);
+    });
+}
+
 // Re-render the contract card for a specific customer row once contract data
 // has been loaded, filling in the full set of contract columns.
 function updateContractCard(customerIndex, customer, contactData) {
     const cardRow = document.querySelector(`#searchResultBody tr.customer-contract-card-row[data-card-index="${customerIndex}"]`);
-    if (!cardRow) return;
-    const cell = cardRow.querySelector('td');
-    if (!cell) return;
+    const customerRow = document.querySelector(`#searchResultBody tr[data-index="${customerIndex}"]`);
+    if (!cardRow || !customerRow) return;
 
+    const cell = cardRow.querySelector('td');
+    const toggle = customerRow.querySelector('.customer-contract-inline-toggle');
+    if (!cell || !toggle) return;
+
+    const wasExpanded = cardRow.dataset.expanded === 'true';
     const match = findMatchingContract(customer, contactData) || null;
     cell.innerHTML = buildCustomerContractCard(customer, match);
+    updateCustomerActiveStatus(customerIndex, customer, match?.contract || null);
+
+    // Preserve an expansion requested while the asynchronous contract data was
+    // loading, and keep the row, button, and chevron state synchronized.
+    cardRow.dataset.expanded = wasExpanded ? 'true' : 'false';
+    cardRow.classList.toggle('d-none', !wasExpanded);
+    customerRow.classList.toggle('contract-expanded', wasExpanded);
+    toggle.setAttribute('aria-expanded', wasExpanded ? 'true' : 'false');
+    const chevron = toggle.querySelector('.customer-contract-inline-chevron');
+    if (chevron) {
+        chevron.classList.toggle('bi-chevron-down', !wasExpanded);
+        chevron.classList.toggle('bi-chevron-up', wasExpanded);
+    }
+
+    // Every customer-list row represents a contract/policy, so always keep the
+    // expand control visible after loading. If matching failed, expanding the
+    // row explains that no matching detail was returned instead of silently
+    // hiding the control.
+    toggle.classList.remove('d-none');
+
+    if (match) {
+        const { contract, company } = match;
+        const targetKey = company === 'MIB'
+            ? (contract.trackingMIB || contract.applno || contract.contno || '')
+            : (contract.contno || contract.applno || '');
+        toggle.setAttribute('data-company', company);
+        toggle.setAttribute('data-target-key', encodeURIComponent(targetKey));
+        toggle.setAttribute('data-contract', encodeURIComponent(JSON.stringify(contract)));
+        toggle.title = company === 'MIB' ? 'เปิดข้อมูลกรมธรรม์' : 'เปิดข้อมูลสัญญา';
+    } else {
+        toggle.removeAttribute('data-company');
+        toggle.removeAttribute('data-target-key');
+        toggle.removeAttribute('data-contract');
+        toggle.title = 'ขยายเพื่อดูผลการค้นหาข้อมูลสัญญา';
+    }
 }
 
-// Fill the contract cards for every customer row that can be matched against the
-// loaded contact data. Cards that have no match in this dataset are left as-is.
+// Fill every row, including rows with no matching contact. This clears stale
+// state and gives unmatched rows an explicit status/card rather than blanks.
 function fillAllContractCards(customers, contactData) {
-    if (!Array.isArray(customers) || !contactData) return;
+    if (!Array.isArray(customers)) return;
     customers.forEach((cust, index) => {
-        const match = findMatchingContract(cust, contactData);
-        if (match) {
-            updateContractCard(index, cust, contactData);
-        }
+        updateContractCard(index, cust, contactData || {});
     });
+    reorderCustomerRowsByActiveStatus();
 }
 
 // Find the contract/policy that matches the selected customer.
@@ -1114,6 +1447,7 @@ function findMatchingContract(customer, contactData) {
 
     const custContno = norm(customer.contno || customer.Contno);
     const custApplno = norm(customer.applno || customer.Applno);
+    const custTrackingMIB = norm(customer.trackingMIB || customer.TrackingMIB);
 
     let list = [];
     let company = '';
@@ -1142,7 +1476,7 @@ function findMatchingContract(customer, contactData) {
 
     // Candidate values from the customer to match against (the customer usually
     // only carries contno, but applno is checked too when present).
-    const custValues = [custContno, custApplno].filter(Boolean);
+    const custValues = [custContno, custApplno, custTrackingMIB].filter(Boolean);
     if (custValues.length === 0) return null;
 
     // Keys on a contract that could hold the number, preferred key first.
@@ -1220,12 +1554,15 @@ function autoSelectMatchingContract(customer, contactData) {
     getContactInfo(targetKey, company, encoded, null);
 }
 
-async function getContact(idno, selectedCustomer, allCustomers) {
+async function getContact(idno) {
     const requestId = ++currentContactRequestId;
     try {
         renderProductSummary(currentContactData, true);
 
-        const response = await fetch(`/CustomerDetail/GetContact?idno=${encodeURIComponent(idno)}`, {
+        const contactUrl = `/CustomerDetail/GetContact?idno=${encodeURIComponent(idno)}`;
+        console.log('Contract list request:', contactUrl);
+
+        const response = await fetch(contactUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -1239,12 +1576,17 @@ async function getContact(idno, selectedCustomer, allCustomers) {
 
         const data = await response.json();
 
-        if (requestId !== currentContactRequestId) return;
+        if (requestId !== currentContactRequestId) {
+            return null;
+        }
+
+        console.log('Contract list response:', data);
 
         if (data) {
             currentContactData = data;
+
             renderProductSummary(data);
-            renderCompanyTabs(data);
+            renderCompanyTabs();
 
             function loadDataTable(tableId, dataList, company, idno) {
                 const sortedDataList = [...(dataList || [])].sort((a, b) => {
@@ -1259,7 +1601,6 @@ async function getContact(idno, selectedCustomer, allCustomers) {
                     data: sortedDataList,
                     destroy: true,
                     columns: [
-                        { data: row => row.IsActive == true ? 'A' : '' },
                         { data: row => row.contno || '-' },
                         { data: row => {
                             if (company === 'MIB') {
@@ -1320,24 +1661,17 @@ async function getContact(idno, selectedCustomer, allCustomers) {
             loadDataTable('#dt-contact-Micro', data.contactMicro, 'Micro', idno);
             loadDataTable('#dt-contact-MFIN', data.contactMFIN, 'MFIN', idno);
             loadDataTable('#dt-contact-MIB', data.contactMIB, 'MIB', idno);
+            fillAllContractCards(currentCustomerSearchData, data);
 
-            // The contract lists (contactMicro/MFIN/MIB) just loaded here already
-            // carry every field the cards need. Fill the contract cards for all
-            // customer rows using this same data, at the same time the contract
-            // tables are rendered.
-            if (Array.isArray(allCustomers)) {
-                fillAllContractCards(allCustomers, data);
-            }
-
-            // Map the selected customer to its matching contract/policy and
-            // show that contract's detail under the selected customer.
-            if (selectedCustomer) {
-                autoSelectMatchingContract(selectedCustomer, data);
-            }
+            return data;
         }
 
+        return null;
     } catch (error) {
-        console.error("Error fetching contact:", error);
+        if (requestId === currentContactRequestId) {
+            console.error("Error fetching contact:", error);
+        }
+        return null;
     }
 }
 
@@ -1359,8 +1693,15 @@ const formatValues = (value) => {
 async function getContactInfo(idno, company, encodedC, clickedRow) {
     if (clickedRow && clickedRow.classList.contains('active-row')) return;
     const requestId = ++currentContactInfoRequestId;
-    // Show an in-place loading state inside the contract detail area instead of
-    // a blocking full-screen overlay, so it does not interrupt the user.
+
+    // Open the contract detail component immediately and render loading inside
+    // that component. This keeps the customer/contract list interactive so the
+    // user can select another item while the current request is still loading.
+    setContractTabEnabled(true);
+    const contractTab = document.querySelector('.crm-tabs .nav-link[data-target="tab-content-contract"]');
+    if (contractTab && !contractTab.classList.contains('active')) {
+        contractTab.click();
+    }
     showContractDetailLoading(true);
     try {
         // Apply highlight to the clicked row
@@ -1386,16 +1727,64 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
         }
 
         const c = JSON.parse(decodeURIComponent(encodedC));
+        const contactInfoUrl = `/CustomerDetail/GetContactInfo?idno=${encodeURIComponent(idno)}&company=${encodeURIComponent(company)}`;
+
+        if (normalizeCompanyName(company) === 'MFIN') {
+            const requestContno = String(idno ?? '');
+            const mfinList = Array.isArray(currentContactData?.contactMFIN) ? currentContactData.contactMFIN : [];
+            const exactMatches = mfinList.filter(item => String(item.contno ?? '').trim() === requestContno.trim());
+            const selectedRowData = clickedRow && window.jQuery && $.fn && $.fn.DataTable
+                ? (() => {
+                    try {
+                        const table = $(clickedRow).closest('table').DataTable();
+                        return table.row(clickedRow).data();
+                    } catch (error) {
+                        return null;
+                    }
+                })()
+                : null;
+        }
         
         // Show loading indicators for the whole box
         document.getElementById("contract-loading-indicator").classList.remove("d-none");
         document.getElementById("contract-details-container").classList.add("d-none");
 
-        const response = await fetch(`/CustomerDetail/GetContactInfo?idno=${idno}&company=${company}`);
-        const data = await response.json();
-        
+        const cacheKey = `${normalizeCompanyName(company)}|${String(idno ?? '').trim()}`;
+        let data = contactInfoCache.get(cacheKey);
+
+        if (!data) {
+            const response = await fetch(contactInfoUrl);
+
+            if (requestId !== currentContactInfoRequestId) {
+                return;
+            }
+
+            if (!response.ok) {
+                const errorBodyText = await response.text();
+                let errorBody = errorBodyText;
+                try {
+                    errorBody = errorBodyText ? JSON.parse(errorBodyText) : null;
+                } catch (parseError) {
+                    // Keep the raw response text when it is not JSON.
+                }
+
+                clearContractDetails();
+                const container = document.getElementById("contract-details-container");
+                if (container) {
+                    container.classList.remove("d-none");
+                    const notice = document.getElementById("contract-detail-error-notice");
+                    if (notice) notice.remove();
+                }
+                document.getElementById("contract-loading-indicator").classList.add("d-none");
+                console.warn(`GetContactInfo returned ${response.status} for ${company} ${idno}`, errorBody);
+                return;
+            }
+
+            data = await response.json();
+            contactInfoCache.set(cacheKey, data);
+        }
+
         if (requestId !== currentContactInfoRequestId) {
-            // Another request was started or tab was changed, do not update UI
             return;
         }
 
@@ -1409,18 +1798,41 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 contractTab.click();
             }
 
+            // Reset every sub-tab pane and button from BOTH groups first, so no
+            // heading/content from the previously viewed company stays behind.
+            const allSubPaneIds = [
+                'tab-content-contact-detail', 'tab-content-contact-loan',
+                'tab-content-contact-guarantor', 'tab-content-contact-payment',
+                'tab-content-contact-MIB-detail', 'tab-content-contact-MIB-insurance',
+                'tab-content-contact-MIB-claim'
+            ];
+            allSubPaneIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.classList.add('d-none'); el.classList.remove('show', 'active'); }
+            });
+            document.querySelectorAll('#tab-buttons-normal .button-tab-contact, #tab-buttons-mib .button-tab-contact')
+                .forEach(b => b.classList.remove('active'));
+
             if (company === "MIB") {
                 document.getElementById("tab-buttons-normal").classList.add("d-none");
                 document.getElementById("tab-buttons-mib").classList.remove("d-none");
                 updateContactTabLabel("MIB");
                 const mibBtn = document.querySelector('#tab-buttons-mib .button-tab-contact[data-target="tab-content-contact-MIB-detail"]');
-                if (mibBtn) mibBtn.click();
+                if (mibBtn) {
+                    mibBtn.classList.add('active');
+                    const firstPane = document.getElementById('tab-content-contact-MIB-detail');
+                    if (firstPane) { firstPane.classList.remove('d-none'); firstPane.classList.add('show', 'active'); }
+                }
             } else {
                 document.getElementById("tab-buttons-normal").classList.remove("d-none");
                 document.getElementById("tab-buttons-mib").classList.add("d-none");
                 updateContactTabLabel(company);
                 const normalBtn = document.querySelector('#tab-buttons-normal .button-tab-contact[data-target="tab-content-contact-detail"]');
-                if (normalBtn) normalBtn.click();
+                if (normalBtn) {
+                    normalBtn.classList.add('active');
+                    const firstPane = document.getElementById('tab-content-contact-detail');
+                    if (firstPane) { firstPane.classList.remove('d-none'); firstPane.classList.add('show', 'active'); }
+                }
             }
 
             //#region ข้อมูลสัญญา
@@ -1695,34 +2107,43 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
 
         }
         
-        // Hide loading indicator
+        if (requestId !== currentContactInfoRequestId) return;
+
+        // The latest request has finished; reveal its detail content.
         document.getElementById("contract-loading-indicator").classList.add("d-none");
         document.getElementById("contract-details-container").classList.remove("d-none");
 
         return data;
     } catch (error) {
+        // Ignore stale requests when the user has already selected another
+        // contract. The latest request owns the detail component state.
+        if (requestId !== currentContactInfoRequestId) return;
+
         console.error("Error fetching contact info:", error);
-        
-        // In case of error, show dash
         document.getElementById("contract-detail-contno").innerText = '-';
         document.getElementById("contract-detail-loantype").innerText = '-';
         document.getElementById("contract-detail-company").innerText = '-';
         document.getElementById("loan-detail-status").innerText = '-';
-        
-        // Hide loading indicator even on error
-        document.getElementById("contract-loading-indicator").classList.add("d-none");
-        document.getElementById("contract-details-container").classList.remove("d-none");
     } finally {
-        showContractDetailLoading(false);
+        // An older request must not hide the loader of a newer selection.
+        if (requestId === currentContactInfoRequestId) {
+            showContractDetailLoading(false);
+        }
     }
 }
 
 async function getReceiveList(contno, company){
     const requestId = ++currentReceiveListRequestId;
     try{
+        const cacheKey = `${normalizeCompanyName(company)}|${String(contno ?? '').trim()}`;
+        let data = receiveListCache.get(cacheKey);
 
-        const response = await fetch(`/CustomerDetail/GetReceiveList?contno=${contno}&company=${company}`);
-        const data = await response.json();
+        if (!data) {
+            const response = await fetch(`/CustomerDetail/GetReceiveList?contno=${encodeURIComponent(contno)}&company=${encodeURIComponent(company)}`);
+            if (!response.ok) throw new Error(`GetReceiveList returned ${response.status}`);
+            data = await response.json();
+            receiveListCache.set(cacheKey, data);
+        }
 
         if (requestId !== currentReceiveListRequestId) return;
         const dtPaymentConfig = {
@@ -1771,9 +2192,15 @@ async function getReceiveList(contno, company){
 async function getClaimList(tracking){
     const requestId = ++currentClaimListRequestId;
     try {
-        
-        const response = await fetch(`/CustomerDetail/GetClaimList?tracking=${tracking}`);
-        const data = await response.json();
+        const cacheKey = String(tracking ?? '').trim();
+        let data = claimListCache.get(cacheKey);
+
+        if (!data) {
+            const response = await fetch(`/CustomerDetail/GetClaimList?tracking=${encodeURIComponent(tracking)}`);
+            if (!response.ok) throw new Error(`GetClaimList returned ${response.status}`);
+            data = await response.json();
+            claimListCache.set(cacheKey, data);
+        }
 
         if (requestId !== currentClaimListRequestId) return;
 
@@ -1847,3 +2274,68 @@ document.addEventListener('DOMContentLoaded', function () {
     startReplyTimeClock();
 });
 
+
+// Expand/collapse contract detail from the inline control in the customer row.
+// When collapsed, the separate detail row is completely hidden, leaving one row.
+document.addEventListener('click', function (e) {
+    const toggle = e.target.closest('.customer-contract-inline-toggle');
+    if (!toggle) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const index = toggle.getAttribute('data-card-index');
+    const cardRow = document.querySelector(`#searchResultBody tr.customer-contract-card-row[data-card-index="${index}"]`);
+    const customerRow = document.querySelector(`#searchResultBody tr[data-index="${index}"]`);
+    if (!cardRow || !customerRow) return;
+
+    const wasActive = customerRow.classList.contains('active-row');
+    setActiveCustomerRow(customerRow.closest('tbody'), customerRow);
+
+    if (!wasActive) {
+        const selectedCustomer = currentCustomerSearchData[Number(index)];
+        if (selectedCustomer) {
+            void loadCustomerSelection(selectedCustomer, Number(index));
+        }
+    }
+
+    const willOpen = cardRow.dataset.expanded !== 'true';
+
+    if (willOpen) {
+        document.querySelectorAll('#searchResultBody tr.customer-contract-card-row[data-expanded="true"]').forEach(otherRow => {
+            otherRow.dataset.expanded = 'false';
+            otherRow.classList.add('d-none');
+            otherRow.previousElementSibling?.classList.remove('contract-expanded');
+            const otherIndex = otherRow.getAttribute('data-card-index');
+            const otherToggle = document.querySelector(`#searchResultBody .customer-contract-inline-toggle[data-card-index="${otherIndex}"]`);
+            if (otherToggle) {
+                otherToggle.setAttribute('aria-expanded', 'false');
+                const otherChevron = otherToggle.querySelector('.customer-contract-inline-chevron');
+                if (otherChevron) {
+                    otherChevron.classList.add('bi-chevron-down');
+                    otherChevron.classList.remove('bi-chevron-up');
+                }
+            }
+        });
+    }
+
+    cardRow.dataset.expanded = willOpen ? 'true' : 'false';
+    cardRow.classList.toggle('d-none', !willOpen);
+    customerRow.classList.toggle('contract-expanded', willOpen);
+    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+
+    const chevron = toggle.querySelector('.customer-contract-inline-chevron');
+    if (chevron) {
+        chevron.classList.toggle('bi-chevron-down', !willOpen);
+        chevron.classList.toggle('bi-chevron-up', willOpen);
+    }
+
+    if (!willOpen) return;
+
+    const company = toggle.getAttribute('data-company') || '';
+    const targetKey = decodeURIComponent(toggle.getAttribute('data-target-key') || '');
+    const encodedContract = toggle.getAttribute('data-contract') || '';
+    if (company && encodedContract && typeof getContactInfo === 'function') {
+        getContactInfo(targetKey, company, encodedContract, null);
+    }
+});

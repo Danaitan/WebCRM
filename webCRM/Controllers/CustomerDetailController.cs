@@ -24,7 +24,7 @@ namespace webCRM.Controllers
         // Index
         // =========================================================
 
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
             var fullNameEn =
                 HttpContext.Session.GetString("fullNameEn");
@@ -34,16 +34,10 @@ namespace webCRM.Controllers
                 ViewData["fullNameEn"] = fullNameEn;
             }
 
-            var result =
-                await GetCustomerList("");
-
-            var viewModel =
-                new CustomerDetailViewModel
-                {
-                    Customers = result
-                };
-
-            return View("customerDetail", viewModel);
+            // The customer list is loaded by performSearch on demand. Loading it
+            // here delays the first page response and prevents the browser from
+            // showing any loading feedback while a large result is fetched.
+            return View("customerDetail");
         }
 
         // =========================================================

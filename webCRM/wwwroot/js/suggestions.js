@@ -311,6 +311,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
             const title = item.suggestion_title || '-';
             const guid = item.guid || '-';
             const updBy = item.updBy || '-';
+            const creator = item.creater || '';
             const sendTo = item.sendTo || '-';
             const detailsJson = (item.detail) ? JSON.stringify(item.detail) : '[]';
 
@@ -340,6 +341,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                 'data-suggestion': suggestion,
                 'data-guid': guid,
                 'data-updby': updBy,
+                'data-creater': creator,
                 'data-sendto': sendTo,
                 'data-details': detailsJson
             });
@@ -1189,11 +1191,10 @@ async function UpdateSuggestion() {
 
                 const $activeRow = $('#suggestionsTable tbody tr.table-active');
                 const creator = $activeRow.length
-                    ? ($activeRow.attr('data-updby') || '')
+                    ? ($activeRow.attr('data-creater') || '')
                     : '';
                 const profile = await getProfileByCode(creator);
 
-                const userIdBase64 = btoa(profile.personnel_code);
                 const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
                 const fullNameTh = userFullNameTh || '';
                 const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Suggestions')}`;
@@ -1207,7 +1208,7 @@ async function UpdateSuggestion() {
                     `<br><br>` +
                     `ขอขอบคุณ<br>` +
                     `${fullNameTh}`;
-
+console.log("profile.e_mail",profile.e_mail)
                 await sendEmail(
                     profile.e_mail,
                     null,

@@ -342,12 +342,22 @@ function productFilterHTML(filtercode, dropdownData = {}) {
         return HTML;
     }
 
-    function RangeNumberHTML(labelName, fieldName = '') {
+    function RangeNumberHTMLAge(labelName, fieldName = '') {
         const HTML = `
             <div class="col-xxl-4 col-xl-6 col-md-6">
                 <label class="form-label-custom">${labelName}</label>
                 <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}" placeholder="เช่น 40 หรือ 40-60" pattern="^\\d+(-\\d+)?$" title="กรอกตัวเลขเดี่ยว เช่น 40 หรือช่วงตัวเลข เช่น 40-60">
                 <small class="text-muted">ตัวอย่าง: 40 หรือ 40-60</small>
+            </div>
+        `;
+        return HTML;
+    }
+
+    function RangeNumberHTML(labelName, fieldName = '') {
+        const HTML = `
+            <div class="col-xxl-4 col-xl-6 col-md-6">
+                <label class="form-label-custom">${labelName}</label>
+                <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}">
             </div>
         `;
         return HTML;
@@ -415,7 +425,7 @@ if (company == "MICRO") {
         case "F002":
             return OptionHTML("เพศ", gender, "gender");
         case "F003":
-            return RangeNumberHTML("อายุ", "age");
+            return RangeNumberHTMLAge("อายุ", "age");
         case "F004":
             return OptionHTML("อาชีพผู้เช่าซื้อ", occupation, "occupation");
         case "F005":
@@ -460,7 +470,7 @@ if (company == "MICRO") {
         case "F002":
             return OptionHTML("เพศ", gender, "gender");
         case "F003":
-            return RangeNumberHTML("อายุ", "age");
+            return RangeNumberHTMLAge("อายุ", "age");
         case "F004":
             return OptionHTML("อาชีพ", occupation, "occupation");
         case "F005":
@@ -504,7 +514,7 @@ if (company == "MICRO") {
         case "F002":
             return OptionHTML("เพศ", gender, "gender");
         case "F003":
-            return RangeNumberHTML("อายุ", "age");
+            return RangeNumberHTMLAge("อายุ", "age");
         case "F004":
             return OptionHTML("อาชีพ", occupation, "occupation");
         case "F005":

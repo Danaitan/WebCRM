@@ -12,6 +12,61 @@ namespace webCRM.Controllers
             return View("prospectAssign");
         }
 
+        [HttpGet]
+        public async Task<List<Branch>> GetAllowedBranchList()
+        {
+            try
+            {
+                var variableFunc =
+                    HttpContext.Session.GetString("variable_func")
+                    ?? "";
+
+                var allowedBranchCodes = variableFunc
+                    .Split(
+                        ',',
+                        StringSplitOptions.RemoveEmptyEntries
+                        | StringSplitOptions.TrimEntries)
+                    .Select(NormalizeBranchCode)
+                    .Where(code => !string.IsNullOrEmpty(code))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (allowedBranchCodes.Count == 0)
+                {
+                    return new List<Branch>();
+                }
+
+                var branches =
+                    await crmService.GetBranchListForCRM();
+
+                return branches
+                    .Where(branch =>
+                        allowedBranchCodes.Contains(
+                            NormalizeBranchCode(branch.Offcde)))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + ex.Message;
+
+                return new List<Branch>();
+            }
+        }
+
+        private static string NormalizeBranchCode(string? code)
+        {
+            var value = code?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(value)
+                || !value.All(char.IsDigit))
+            {
+                return value;
+            }
+
+            var normalized = value.TrimStart('0');
+            return string.IsNullOrEmpty(normalized) ? "0" : normalized;
+        }
+
         [HttpPut]
         public async Task<IActionResult> UpdateProspectCustomer(
             [FromBody] UpdateProspectCustomerRequest request)

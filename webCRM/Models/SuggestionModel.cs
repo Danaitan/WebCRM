@@ -84,6 +84,9 @@ namespace webCRM.Models
         [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? CreatedDate { get; set; }
 
+        [JsonPropertyName("creater")]
+        public string? Creater { get; set; }
+
         [JsonPropertyName("personalName")]
         public string? PersonalName { get; set; }
 

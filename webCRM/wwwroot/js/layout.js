@@ -847,8 +847,10 @@ function renderNotifications(data) {
     }
 
     if (data && typeof data === 'object') {
-        if (typeof data.totalCount === 'number') {
-            totalCount = data.totalCount;
+        const totalCountValue = data.totalCount ?? data.TotalCount ?? data.total_count;
+        const parsedTotalCount = Number(totalCountValue);
+        if (totalCountValue !== null && totalCountValue !== undefined && Number.isFinite(parsedTotalCount)) {
+            totalCount = Math.max(0, Math.trunc(parsedTotalCount));
         }
 
         let rawList = data.response;
@@ -899,6 +901,23 @@ function renderNotifications(data) {
     });
 
     groups = normalizedGroups;
+
+    // หาก API ไม่ได้ส่งยอดรวม หรือส่ง 0 ทั้งที่มีรายการใหม่ ให้คำนวณจากสถานะอ่านของรายการที่แสดงผล
+    const derivedUnreadCount = groups.reduce((groupTotal, group) => {
+        const titles = Array.isArray(group.title)
+            ? group.title
+            : (group.title !== null && group.title !== undefined ? [group.title] : []);
+        const groupIsRead = group.is_read ?? group.isRead;
+
+        return groupTotal + titles.reduce((itemTotal, item) => {
+            const info = getItemInfo(item, groupIsRead, group);
+            return itemTotal + (info.isRead ? 0 : 1);
+        }, 0);
+    }, 0);
+
+    if (totalCount <= 0 && derivedUnreadCount > 0) {
+        totalCount = derivedUnreadCount;
+    }
 
     if (totalCount > 0) {
         notiBadge.text(totalCount > 99 ? '99+' : totalCount).show();

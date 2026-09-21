@@ -1474,11 +1474,11 @@ async function openRecordResultModal(trElement) {
     // Populate modalProduct dropdown based on Objective (CS/RM vs MC/FL)
     populateProductDropdownOptions(masterDropdownData, campaignObjectiveCode);
 
-    if (customer.isActive) {
-        $('#btnSaveResult').show();
-    } else {
-        $('#btnSaveResult').hide();
-    }
+    // if (customer.isActive) {
+    //     $('#btnSaveResult').show();
+    // } else {
+    //     $('#btnSaveResult').hide();
+    // }
     // Set modal title & customer summary info
     $('#modalCustName').text(customer.name).attr('title', customer.name);
     $('#modalCustPhone').text(customer.phone);

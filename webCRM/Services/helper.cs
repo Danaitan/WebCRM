@@ -734,48 +734,52 @@ namespace webCRM.Services
 
         public async Task<ResponseContactList> GetContact(string idno)
         {
-            var result =
-                new ResponseContactList();
-
-            var companyCode =
-                new List<string>
-                {
-            "Micro",
-            "MFIN",
-            "MIB"
-                };
-
-            foreach (string code in companyCode)
+            var result = new ResponseContactList
             {
-                var data =
-                    await GetStringAsync(
-                        $"contactLists/" +
-                        $"{Uri.EscapeDataString(idno)}/" +
-                        $"{Uri.EscapeDataString(code)}");
+                contactMicro = new List<ResponseContact>(),
+                contactMFIN = new List<ResponseContact>(),
+                contactMIB = new List<ResponseContact>()
+            };
 
-                var apiResponse =
-                    JsonSerializer.Deserialize<List<ResponseContact>>(
+            var companyCodes = new[] { "Micro", "MFIN", "MIB" };
+
+            foreach (string code in companyCodes)
+            {
+                try
+                {
+                    var data = await GetStringAsync(
+                        $"contactLists/{Uri.EscapeDataString(idno)}/{Uri.EscapeDataString(code)}");
+
+                    var contacts = JsonSerializer.Deserialize<List<ResponseContact>>(
                         data,
                         _jsonOptions)
-                    ?? new List<ResponseContact>();
+                        ?? new List<ResponseContact>();
 
-                if (code == "Micro")
-                {
-                    result.contactMicro = apiResponse;
-                    result.contactMicroCount =
-                        apiResponse.Count;
+                    if (code == "Micro")
+                    {
+                        result.contactMicro = contacts;
+                        result.contactMicroCount = contacts.Count;
+                    }
+                    else if (code == "MFIN")
+                    {
+                        result.contactMFIN = contacts;
+                        result.contactMFINCount = contacts.Count;
+                    }
+                    else
+                    {
+                        result.contactMIB = contacts;
+                        result.contactMIBCount = contacts.Count;
+                    }
                 }
-                else if (code == "MFIN")
+                catch (Exception ex)
                 {
-                    result.contactMFIN = apiResponse;
-                    result.contactMFINCount =
-                        apiResponse.Count;
-                }
-                else if (code == "MIB")
-                {
-                    result.contactMIB = apiResponse;
-                    result.contactMIBCount =
-                        apiResponse.Count;
+                    // Keep the other companies available when one upstream
+                    // contact list is unavailable or contains malformed data.
+                    _logger.LogError(
+                        ex,
+                        "Error loading contact list for customer {Idno}, company {CompanyCode}",
+                        idno,
+                        code);
                 }
             }
 

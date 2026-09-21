@@ -91,15 +91,21 @@ body.crm-body {
     background-color: #dbeafe !important;
 }
 
-.active-row {
-    background-color: #eff6ff;
-    border-radius: 8px;
+#person-result-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.active-row > td,
+.selected-contract-row > td {
+    background-color: #eff6ff !important;
 }
 
 .active-row td:first-child {
     border-top-left-radius: 8px;
     border-bottom-left-radius: 8px;
 }
+
 .active-row td:last-child {
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
@@ -475,4 +481,75 @@ body.crm-body {
         padding-left: 0.5rem;
         margin-bottom: 0.75rem;
     }
+}
+
+/* Inactive customer/contract rows */
+.inactive-customer-row,
+.inactive-customer-row * {
+    color: #94a3b8 !important;
+}
+
+.inactive-customer-row.active-row > td,
+.inactive-customer-row.selected-contract-row > td {
+    background-color: #f8fafc !important;
+}
+
+.inactive-customer-row .avatar-sm {
+    background-color: #f1f5f9 !important;
+    color: #94a3b8 !important;
+}
+
+.inactive-customer-card .contract-card-detail {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
+.inactive-customer-card .contract-card-detail,
+.inactive-customer-card .contract-card-detail * {
+    color: #94a3b8 !important;
+}
+
+/* Selected contract row */
+.selected-contract-row > td {
+    border-top: 2px solid #3b82f6 !important;
+    border-bottom: 2px solid #3b82f6 !important;
+}
+
+.selected-contract-row > td:first-child {
+    border-left: 2px solid #3b82f6 !important;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.selected-contract-row > td:last-child {
+    border-right: 2px solid #3b82f6 !important;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* When the contract detail is expanded, both rows become one outer card. */
+.selected-contract-row.contract-expanded > td {
+    border-bottom: 0 !important;
+}
+
+.selected-contract-row.contract-expanded > td:first-child {
+    border-bottom-left-radius: 0;
+}
+
+.selected-contract-row.contract-expanded > td:last-child {
+    border-bottom-right-radius: 0;
+}
+
+.selected-contract-row + .customer-contract-card-row:not(.d-none) > td {
+    border-right: 2px solid #3b82f6 !important;
+    border-bottom: 2px solid #3b82f6 !important;
+    border-left: 2px solid #3b82f6 !important;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+/* Remove the inner card frame so customer and contract data share one frame. */
+.selected-contract-row + .customer-contract-card-row:not(.d-none) .contract-card-detail {
+    border: 0 !important;
+    border-radius: 0 !important;
 }

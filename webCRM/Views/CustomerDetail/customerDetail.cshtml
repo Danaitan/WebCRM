@@ -53,16 +53,7 @@
                         <h6 class="fw-bold mb-0 text-dark">ผลการค้นหา (<span id="customerCount">0</span>)</h6>
                     </div>
 
-                    <div class="d-flex flex-md-row flex-column gap-2 mb-2">
-                        <button class="button-tab-contact active" data-target="tab-table-person">
-                            <i class="bi bi-person fs-5"></i> ลูกค้า
-                        </button>
-                        <button class="button-tab-contact" data-target="tab-table-contact" id="tab-btn-table-contact">
-                            <i class="bi bi-file-earmark-text fs-5"></i> สัญญา 
-                        </button>
-                    </div>
-                    
-                    <div id="contact-company-tabs" class="d-flex flex-md-row flex-column gap-2 mb-2 d-none">
+                    <div id="contact-company-tabs" class="d-flex flex-md-row flex-column gap-2 mb-2">
                     </div>
                     
                     <div class="flex-grow-1 position-relative" style="min-height: 150px;">
@@ -74,6 +65,7 @@
                                     <table class="table table-borderless search-result-table mb-0 align-middle" id="person-result-table">
                                     <thead>
                                         <tr class="text-muted border-bottom">
+                                            <th class="fw-medium pb-2 text-center text-nowrap">สถานะ</th>
                                             <th class="fw-medium pb-2 text-center text-nowrap">ชื่อ-นามสกุล</th>
                                             <th class="fw-medium pb-2 text-center text-nowrap">ทะเบียนรถ</th>
                                             <th class="fw-medium pb-2 text-center text-nowrap">บริษัท</th>
@@ -82,7 +74,7 @@
                                     </thead>
                                     <tbody id="searchResultBody">
                                         <tr>
-                                            <td colspan="4" class="text-center py-4 text-muted">ไม่พบรายการ</td>
+                                            <td colspan="5" class="text-center py-4 text-muted">ไม่พบรายการ</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -95,7 +87,6 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-Micro">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
-                                                    <th class="fw-medium pb-2 text-center">สถานะสัญญา</th>
                                                     <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
@@ -110,7 +101,6 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MIB">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
-                                                    <th class="fw-medium pb-2 text-center">สถานะกรมธรรม์</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่กรมธรรม์</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทผลิตภัณฑ์</th>
@@ -125,7 +115,6 @@
                                         <table class="table table-borderless search-result-table mb-0 align-middle w-100" id="dt-contact-MFIN">
                                             <thead>
                                                 <tr class="text-muted border-bottom">
-                                                    <th class="fw-medium pb-2 text-center">สถานะสัญญา</th>
                                                     <th class="fw-medium pb-2 text-center">สัญญาเลขที่</th>
                                                     <th class="fw-medium pb-2 text-center">เลขที่ใบคำขอ</th>
                                                     <th class="fw-medium pb-2 text-center">ประเภทสินเชื่อ</th>
@@ -179,7 +168,7 @@
                                     <i class="bi bi-person-vcard fs-5"></i>
                                     <span>เลขบัตรประชาชน/เลขผู้เสียภาษี</span>
                                 </div>
-                                <div class="detail-value fw-medium text-dark" id="detail-idno">-</div>
+                                <div class="detail-value fw-medium text-dark ms-2" id="detail-idno">-</div>
                             </div>
                             
                             <div class="col-12 d-flex align-items-center">

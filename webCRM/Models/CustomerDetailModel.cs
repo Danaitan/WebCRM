@@ -15,6 +15,14 @@ namespace webCRM.Models
         [JsonPropertyName("contno")]
         public string? Contno { get; set; }
 
+        // MIB customer-list records may identify a policy by application or
+        // tracking number instead of the contract number.
+        [JsonPropertyName("applno")]
+        public string? Applno { get; set; }
+
+        [JsonPropertyName("trackingMIB")]
+        public string? TrackingMIB { get; set; }
+
         [JsonPropertyName("companyCde")]
         public string? CompanyCde { get; set; }
 
@@ -357,14 +365,9 @@ namespace webCRM.Models
         [JsonPropertyName("custyp")]
         public string? Custyp { get; set; }
 
-        //[JsonPropertyName("contnoOld")]
-        //public string? ContnoOld { get; set; }
-
-        //[JsonPropertyName("contnoOld")]
-        //public string? ContnoOld { get; set; }
-
         [JsonPropertyName("contnoOld")]
-        public long? ContnoOld { get; set; }
+        [JsonConverter(typeof(NumberToStringConverter))]
+        public string? ContnoOld { get; set; }
 
         [JsonPropertyName("applno")]
         public string? Applno { get; set; }
@@ -394,18 +397,23 @@ namespace webCRM.Models
         public string? Province { get; set; }
 
         [JsonPropertyName("finamt")]
+        [JsonConverter(typeof(NumberToStringConverter))]
         public string? Finamt { get; set; }
 
         [JsonPropertyName("estimatePrice")]
+        [JsonConverter(typeof(NumberToStringConverter))]
         public string? EstimatePrice { get; set; }
 
         [JsonPropertyName("ltv")]
+        [JsonConverter(typeof(NumberToStringConverter))]
         public string? Ltv { get; set; }
 
         [JsonPropertyName("outsbal")]
+        [JsonConverter(typeof(NumberToStringConverter))]
         public string? Outsbal { get; set; }
 
         [JsonPropertyName("instamt")]
+        [JsonConverter(typeof(NumberToStringConverter))]
         public string? Instamt { get; set; }
 
         [JsonPropertyName("term")]
@@ -421,6 +429,7 @@ namespace webCRM.Models
         public int? DPD { get; set; }
 
         [JsonPropertyName("rateFlat")]
+        [JsonConverter(typeof(NumberToStringConverter))]
         public string? RateFlat { get; set; }
 
         [JsonPropertyName("aging")]

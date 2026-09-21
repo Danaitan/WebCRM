@@ -116,8 +116,22 @@ namespace webCRM.Models
         [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? Created { get; set; }
 
-        [JsonPropertyName("createrd_by")]
+        [JsonPropertyName("created_by")]
         public string? CreatedBy { get; set; }
+
+        // รองรับ API รุ่นเดิมที่สะกดชื่อฟิลด์ผิด โดยไม่ทับค่าจาก created_by
+        [JsonPropertyName("createrd_by")]
+        public string? LegacyCreatedBy
+        {
+            get => CreatedBy;
+            set
+            {
+                if (string.IsNullOrWhiteSpace(CreatedBy))
+                {
+                    CreatedBy = value;
+                }
+            }
+        }
 
         [JsonPropertyName("createrd_by_name")]
         public string? CreaterdByName { get; set; }

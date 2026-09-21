@@ -49,7 +49,7 @@ function isGroupSendTo(sendTo) {
 }
 
 // หา "ผู้ที่ตอบกลับคนแรก" (updBy ของ reply ที่เก่าที่สุด) จากรายการตอบกลับ
-function getFirstReplierEmail(replyDetails) {
+function getFirstReplierIdentity(replyDetails) {
     if (!Array.isArray(replyDetails) || replyDetails.length === 0) return '';
 
     const withReply = replyDetails.filter(item => {
@@ -76,25 +76,80 @@ function countValidReplies(replyDetails) {
     }).length;
 }
 
-// ตัดสินว่า user ปัจจุบันตอบกลับได้หรือไม่
-// - ถ้า sendTo เป็นอีเมลกลุ่ม และมีการตอบกลับ > 0 => ตอบได้เฉพาะคนที่ตอบกลับคนแรก
-// - ถ้า sendTo เป็นอีเมลบุคคล => ตอบได้เฉพาะคนที่ email ตรงกับ sendTo
-function evaluateReplyPermission(sendTo, replyDetails) {
-    // ถ้าเป็นผู้มีสิทธิ์แก้ไข (window.isEdit === true) ให้ตอบกลับได้แบบไม่มีเงื่อนไข
-    if (window.isEdit === true) {
-        return { allowed: true, reason: '' };
+const profileByEmailCache = new Map();
+
+function extractPersonalIdFromProfile(profile) {
+    let value = profile;
+    if (Array.isArray(value)) value = value[0];
+    if (value?.data) value = Array.isArray(value.data) ? value.data[0] : value.data;
+
+    return String(
+        value?.personnel_code
+        || value?.personalId
+        || value?.personal_id
+        || value?.emp_code
+        || ''
+    ).trim().toLowerCase();
+}
+
+// แปลงอีเมลเดิมของผู้ตอบเป็นรหัสพนักงาน เพื่อให้เปลี่ยน Role/อีเมลแล้วระบบยังจำว่าเป็นคนเดิม
+async function getPersonalIdByEmail(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) return '';
+
+    if (!profileByEmailCache.has(normalizedEmail)) {
+        profileByEmailCache.set(normalizedEmail, (async () => {
+            try {
+                const response = await fetch(`/Login/GetProfileByEmail?email=${encodeURIComponent(normalizedEmail)}`, {
+                    skipLoading: true
+                });
+                if (!response.ok) return '';
+                return extractPersonalIdFromProfile(await response.json());
+            } catch (error) {
+                console.error("Error in getPersonalIdByEmail:", error);
+                return '';
+            }
+        })());
     }
 
+    const personalId = await profileByEmailCache.get(normalizedEmail);
+    if (!personalId) {
+        // ไม่ cache ผลล้มเหลว เพื่อให้ request ครั้งถัดไปลองใหม่ได้
+        profileByEmailCache.delete(normalizedEmail);
+    }
+    return personalId;
+}
+
+// ตัดสินว่า user ปัจจุบันตอบกลับได้หรือไม่ โดยยึดตัวบุคคล ไม่ยึด Role
+// - ถ้า sendTo เป็นอีเมลกลุ่มและยังไม่มีคำตอบ => ผู้ใช้ที่มองเห็นเคสตอบเป็นคนแรกได้
+// - หลังมีคำตอบ => เฉพาะบุคคลที่ตอบคนแรกเท่านั้น แม้เปลี่ยน Role หรืออีเมล
+// - ถ้า sendTo เป็นอีเมลบุคคล => ตอบได้เฉพาะเจ้าของอีเมลนั้น
+async function evaluateReplyPermission(sendTo, replyDetails) {
     const currentEmail = (typeof currentUserEmail !== 'undefined' ? currentUserEmail : '')
         .trim()
         .toLowerCase();
+    const currentId = String(
+        typeof currentPersonalId !== 'undefined'
+            ? currentPersonalId
+            : (window.CURRENT_PERSONAL_ID || '')
+    ).trim().toLowerCase();
     const target = String(sendTo || '').trim().toLowerCase();
 
     if (isGroupSendTo(target)) {
         const replyCount = countValidReplies(replyDetails);
         if (replyCount > 0) {
-            const firstReplier = getFirstReplierEmail(replyDetails);
-            const allowed = !!firstReplier && currentEmail === firstReplier;
+            const firstReplier = getFirstReplierIdentity(replyDetails);
+            let allowed = !!firstReplier && (
+                currentEmail === firstReplier
+                || currentId === firstReplier
+            );
+
+            // ข้อมูลเดิมเก็บ updBy เป็นอีเมล จึงแปลงกลับเป็น personalId ก่อนเปรียบเทียบ
+            if (!allowed && currentId) {
+                const firstReplierPersonalId = await getPersonalIdByEmail(firstReplier);
+                allowed = !!firstReplierPersonalId && currentId === firstReplierPersonalId;
+            }
+
             return {
                 allowed,
                 reason: allowed
@@ -102,7 +157,8 @@ function evaluateReplyPermission(sendTo, replyDetails) {
                     : 'เคสนี้ถูกตอบกลับแล้ว สามารถตอบกลับได้เฉพาะผู้ที่ตอบกลับคนแรกเท่านั้น'
             };
         }
-        // ยังไม่มีการตอบกลับ: ใครในกลุ่มก็ตอบกลับได้ (คนแรก)
+
+        // ยังไม่มีการตอบกลับ: ผู้ใช้คนใดที่มองเห็นเคสก็เป็นผู้ตอบคนแรกได้ โดยไม่ผูกกับ Role
         return { allowed: true, reason: '' };
     }
 
@@ -118,7 +174,7 @@ function evaluateReplyPermission(sendTo, replyDetails) {
 
 async function getProfileByEmail(email) {
     try {
-        const response = await fetch(`/Login/GetProfileByEmail?email=${email}`);
+        const response = await fetch(`/Login/GetProfileByEmail?email=${encodeURIComponent(email)}`);
         const data = await response.json();
         return data;
     } catch (error) {
@@ -370,7 +426,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     }
 
     if (targetRow) {
-        showDetails(targetRow);
+        showDetailsSafely(targetRow);
     } else {
         clearDetails();
     }
@@ -573,7 +629,7 @@ $(document).ready(function () {
 
     // Event delegation สำหรับคลิกเลือกรายการในตาราง
     $('#suggestionsTable tbody').on('click', 'tr', function () {
-        showDetails(this);
+        showDetailsSafely(this);
     });
 
     // เริ่มต้นแสดงเวลาแบบ Real-time ในช่องตอบกลับ
@@ -956,11 +1012,21 @@ function startReplyTimeClock() {
     setInterval(updateReplyTime, 1000);
 }
 
-function showDetails(row) {
+function showDetailsSafely(row) {
+    showDetails(row).catch(error => {
+        console.error("Error in showDetails:", error);
+        window.currentReplyPermission = null;
+        $('#replyBoxSection').hide();
+        showAlert('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง');
+    });
+}
+
+async function showDetails(row) {
     const $row = $(row);
     if (!$row.length) return;
     $('#suggestionsTable tbody tr').removeClass('table-active');
     $row.addClass('table-active');
+    window.currentReplyPermission = null;
 
     const getVal = (attr) => {
         const val = $row.attr('data-' + attr);
@@ -1005,6 +1071,15 @@ function showDetails(row) {
         detailsData = [];
     }
 
+    const isEmptyValue = value => {
+        const val = String(value ?? '').trim().toLowerCase();
+
+        return val === '' ||
+            val === '-' ||
+            val === 'null' ||
+            val === 'undefined';
+    };
+
     if (detailsData.length === 0 && !isEmptyValue(replyVal)) {
         const mainUpdBy = getVal('updby') !== '-'
             ? getVal('updby')
@@ -1027,15 +1102,6 @@ function showDetails(row) {
 
     const $tbody = $('#detail-reply-list');
     $tbody.empty();
-
-    const isEmptyValue = value => {
-        const val = String(value ?? '').trim().toLowerCase();
-
-        return val === '' ||
-            val === '-' ||
-            val === 'null' ||
-            val === 'undefined';
-    };
 
     const validDetailsData = detailsData.filter(item => {
         return !isEmptyValue(item.reply);
@@ -1104,7 +1170,10 @@ function showDetails(row) {
 
     // ===== ตัดสินสิทธิ์การตอบกลับตาม sendTo (กลุ่ม/บุคคล) =====
     const sendToVal = getVal('sendto');
-    const permission = evaluateReplyPermission(sendToVal, validDetailsData);
+    const permission = await evaluateReplyPermission(sendToVal, validDetailsData);
+
+    // ผู้ใช้อาจเลือกรายการอื่นระหว่างรอตรวจ profile ของผู้ตอบคนแรก
+    if (!document.body.contains(row) || !$(row).hasClass('table-active')) return;
 
     // เก็บผลไว้ให้ UpdateSuggestion ใช้ตอนกดบันทึก
     window.currentReplyPermission = permission;
@@ -1139,7 +1208,6 @@ function showDetails(row) {
 async function UpdateSuggestion() {
     var guid = $("#detail-guid").text();
     var reply = $("#reply-input").val();
-    var updBy = typeof currentUserEmail !== 'undefined' ? currentUserEmail : '';
 
     if (!guid || guid.trim() === "-" || guid.trim() === "") {
         showAlert('warning', 'แจ้งเตือน', 'กรุณาเลือกรายการที่ต้องการบันทึกข้อความตอบกลับ');
@@ -1166,8 +1234,22 @@ async function UpdateSuggestion() {
         if (typeof replyDetails === 'string') {
             try { replyDetails = JSON.parse(replyDetails); } catch (e) { replyDetails = []; }
         }
-        permission = evaluateReplyPermission(sendToVal, Array.isArray(replyDetails) ? replyDetails : []);
+
+        try {
+            permission = await evaluateReplyPermission(sendToVal, Array.isArray(replyDetails) ? replyDetails : []);
+        } catch (error) {
+            console.error("Error checking reply permission:", error);
+            showAlert('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง');
+            return;
+        }
     }
+
+    // ป้องกันการบันทึกผิดเคส หากผู้ใช้เปลี่ยนรายการระหว่างรอตรวจสอบสิทธิ์
+    if (!$activeRow.hasClass('table-active') || $("#detail-guid").text() !== guid) {
+        showAlert('warning', 'แจ้งเตือน', 'รายการที่เลือกมีการเปลี่ยนแปลง กรุณาตรวจสอบและบันทึกอีกครั้ง');
+        return;
+    }
+
     if (!permission.allowed) {
         showAlert('warning', 'แจ้งเตือน', permission.reason || 'คุณไม่มีสิทธิ์ตอบกลับเคสนี้');
         return;
@@ -1175,7 +1257,7 @@ async function UpdateSuggestion() {
 
     try {
         startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
-        var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`, {
+        var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}`, {
             method: 'POST',
             skipLoading: true
         });

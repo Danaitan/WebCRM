@@ -105,11 +105,21 @@ namespace webCRM.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateSuggestion(
             string guid,
-            string reply,
-            string updBy)
+            string reply)
         {
             try
             {
+                // ใช้ตัวตนจาก session เท่านั้น ไม่รับ updBy จาก client เพื่อป้องกันการสวมสิทธิ์ผู้ตอบ
+                var updBy = HttpContext.Session.GetString("email") ?? "";
+                if (string.IsNullOrWhiteSpace(updBy))
+                {
+                    return Unauthorized(new
+                    {
+                        status = "error",
+                        message = "ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่"
+                    });
+                }
+
                 var result =
                     await crmService.UpdateSuggestion(
                         guid,

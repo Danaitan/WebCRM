@@ -84,34 +84,42 @@ async function getCampaignDataForETL(productCode) {
 }
 
 async function PostNoti(PostNotiData){
-    try {
-        if (!PostNotiData.receiver && !PostNotiData.receiver_email) {
-            console.warn("PostNoti skipped: Both receiver and receiver_email are empty.");
-            return null;
-        }
-        const payload = {
-            header: PostNotiData.header || "",
-            title: PostNotiData.title || "",
-            message: PostNotiData.message || "",
-            receiver: PostNotiData.receiver || "",
-            sender: PostNotiData.sender || "",
-            create_by: PostNotiData.create_by || "",
-            end_date: PostNotiData.end_date,
-            receiver_email: PostNotiData.receiver_email || ""
-        };
-
-        const response = await fetch('/Suggestions/PostNotification', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload),
-            skipLoading: true
-        });
-        return response;
-    } catch (error) {
-        console.error("Error in PostNotification:", error);
+    if (!PostNotiData.receiver && !PostNotiData.receiver_email) {
+        throw new Error("ไม่พบผู้รับการแจ้งเตือน กรุณาตรวจสอบผู้สร้าง Campaign");
     }
+
+    const payload = {
+        header: PostNotiData.header || "",
+        title: PostNotiData.title || "",
+        message: PostNotiData.message || "",
+        receiver: PostNotiData.receiver || "",
+        sender: PostNotiData.sender || "",
+        create_by: PostNotiData.create_by || "",
+        end_date: PostNotiData.end_date,
+        receiver_email: PostNotiData.receiver_email || ""
+    };
+
+    const response = await fetch('/Suggestions/PostNotification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        skipLoading: true
+    });
+
+    let result = null;
+    try {
+        result = await response.json();
+    } catch (error) {
+        throw new Error(`ระบบแจ้งเตือนตอบกลับไม่ถูกต้อง (${response.status})`);
+    }
+
+    if (!response.ok || !result || result.status !== "success") {
+        throw new Error(result?.message || `ส่งการแจ้งเตือนไม่สำเร็จ (${response.status})`);
+    }
+
+    return result;
 }
 
 async function getBranchList(){

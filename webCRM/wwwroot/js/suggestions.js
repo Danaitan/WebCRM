@@ -1,175 +1,19 @@
 
 let table;
 
-// เก็บชุดอีเมลของ "กลุ่ม" (group + personalAbb) เพื่อใช้ตัดสินสิทธิ์การตอบกลับ
-window.groupEmailSet = window.groupEmailSet || new Set();
+// ใช้กฎสิทธิ์กลางร่วมกับหน้าการแจ้งเตือน เพื่อให้แก้เงื่อนไขเพียงจุดเดียว
+const suggestionReplyAuthorization = window.SuggestionReplyAuthorization;
 
-// ดึงค่าอีเมลออกจาก object ของ group / personalAbb / personal
-function extractEmailFromItem(item) {
-    if (!item) return '';
-    const raw = item.e_mail
-        || item.email
-        || item.Email
-        || item.sendToGroupFull
-        || item.sendToPersonAbb
-        || item.sendToGroupAbb
-        || item.sendToPerson
-        || '';
-    return String(raw).trim().toLowerCase();
+async function loadGroupEmailSet(forceReload = false) {
+    return suggestionReplyAuthorization.loadGroupEmailSet(forceReload);
 }
 
-// โหลดและ cache รายการอีเมลของกลุ่ม (group + personalAbb) ครั้งเดียวตอนเปิดหน้า
-async function loadGroupEmailSet() {
-    try {
-        const data = await GetPersonalAndGroup();
-        const set = new Set();
-
-        if (data) {
-            const group = Array.isArray(data.group) ? data.group : [];
-            const personalAbb = Array.isArray(data.personalAbb) ? data.personalAbb : [];
-
-            [...group, ...personalAbb].forEach(item => {
-                const email = extractEmailFromItem(item);
-                if (email) set.add(email);
-            });
-        }
-
-        window.groupEmailSet = set;
-    } catch (error) {
-        console.error("Error in loadGroupEmailSet:", error);
-    }
-    return window.groupEmailSet;
-}
-
-// current sendTo เป็นอีเมลของกลุ่มหรือไม่
 function isGroupSendTo(sendTo) {
-    const value = String(sendTo || '').trim().toLowerCase();
-    if (!value || value === '-') return false;
-    return window.groupEmailSet && window.groupEmailSet.has(value);
+    return suggestionReplyAuthorization.isGroupSendTo(sendTo);
 }
 
-// หา "ผู้ที่ตอบกลับคนแรก" (updBy ของ reply ที่เก่าที่สุด) จากรายการตอบกลับ
-function getFirstReplierIdentity(replyDetails) {
-    if (!Array.isArray(replyDetails) || replyDetails.length === 0) return '';
-
-    const withReply = replyDetails.filter(item => {
-        const r = String(item?.reply ?? '').trim().toLowerCase();
-        return r !== '' && r !== '-' && r !== 'null' && r !== 'undefined';
-    });
-
-    if (withReply.length === 0) return '';
-
-    // เรียงจากเก่าไปใหม่ แล้วเอา updBy ของรายการแรก
-    const sorted = [...withReply].sort((a, b) => {
-        return parseDateForSort(a.upDate) - parseDateForSort(b.upDate);
-    });
-
-    return String(sorted[0].updBy || '').trim().toLowerCase();
-}
-
-// นับจำนวนการตอบกลับที่มีข้อความจริง
-function countValidReplies(replyDetails) {
-    if (!Array.isArray(replyDetails)) return 0;
-    return replyDetails.filter(item => {
-        const r = String(item?.reply ?? '').trim().toLowerCase();
-        return r !== '' && r !== '-' && r !== 'null' && r !== 'undefined';
-    }).length;
-}
-
-const profileByEmailCache = new Map();
-
-function extractPersonalIdFromProfile(profile) {
-    let value = profile;
-    if (Array.isArray(value)) value = value[0];
-    if (value?.data) value = Array.isArray(value.data) ? value.data[0] : value.data;
-
-    return String(
-        value?.personnel_code
-        || value?.personalId
-        || value?.personal_id
-        || value?.emp_code
-        || ''
-    ).trim().toLowerCase();
-}
-
-// แปลงอีเมลเดิมของผู้ตอบเป็นรหัสพนักงาน เพื่อให้เปลี่ยน Role/อีเมลแล้วระบบยังจำว่าเป็นคนเดิม
-async function getPersonalIdByEmail(email) {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes('@')) return '';
-
-    if (!profileByEmailCache.has(normalizedEmail)) {
-        profileByEmailCache.set(normalizedEmail, (async () => {
-            try {
-                const response = await fetch(`/Login/GetProfileByEmail?email=${encodeURIComponent(normalizedEmail)}`, {
-                    skipLoading: true
-                });
-                if (!response.ok) return '';
-                return extractPersonalIdFromProfile(await response.json());
-            } catch (error) {
-                console.error("Error in getPersonalIdByEmail:", error);
-                return '';
-            }
-        })());
-    }
-
-    const personalId = await profileByEmailCache.get(normalizedEmail);
-    if (!personalId) {
-        // ไม่ cache ผลล้มเหลว เพื่อให้ request ครั้งถัดไปลองใหม่ได้
-        profileByEmailCache.delete(normalizedEmail);
-    }
-    return personalId;
-}
-
-// ตัดสินว่า user ปัจจุบันตอบกลับได้หรือไม่ โดยยึดตัวบุคคล ไม่ยึด Role
-// - ถ้า sendTo เป็นอีเมลกลุ่มและยังไม่มีคำตอบ => ผู้ใช้ที่มองเห็นเคสตอบเป็นคนแรกได้
-// - หลังมีคำตอบ => เฉพาะบุคคลที่ตอบคนแรกเท่านั้น แม้เปลี่ยน Role หรืออีเมล
-// - ถ้า sendTo เป็นอีเมลบุคคล => ตอบได้เฉพาะเจ้าของอีเมลนั้น
-async function evaluateReplyPermission(sendTo, replyDetails) {
-    const currentEmail = (typeof currentUserEmail !== 'undefined' ? currentUserEmail : '')
-        .trim()
-        .toLowerCase();
-    const currentId = String(
-        typeof currentPersonalId !== 'undefined'
-            ? currentPersonalId
-            : (window.CURRENT_PERSONAL_ID || '')
-    ).trim().toLowerCase();
-    const target = String(sendTo || '').trim().toLowerCase();
-
-    if (isGroupSendTo(target)) {
-        const replyCount = countValidReplies(replyDetails);
-        if (replyCount > 0) {
-            const firstReplier = getFirstReplierIdentity(replyDetails);
-            let allowed = !!firstReplier && (
-                currentEmail === firstReplier
-                || currentId === firstReplier
-            );
-
-            // ข้อมูลเดิมเก็บ updBy เป็นอีเมล จึงแปลงกลับเป็น personalId ก่อนเปรียบเทียบ
-            if (!allowed && currentId) {
-                const firstReplierPersonalId = await getPersonalIdByEmail(firstReplier);
-                allowed = !!firstReplierPersonalId && currentId === firstReplierPersonalId;
-            }
-
-            return {
-                allowed,
-                reason: allowed
-                    ? ''
-                    : 'เคสนี้ถูกตอบกลับแล้ว สามารถตอบกลับได้เฉพาะผู้ที่ตอบกลับคนแรกเท่านั้น'
-            };
-        }
-
-        // ยังไม่มีการตอบกลับ: ผู้ใช้คนใดที่มองเห็นเคสก็เป็นผู้ตอบคนแรกได้ โดยไม่ผูกกับ Role
-        return { allowed: true, reason: '' };
-    }
-
-    // sendTo เป็นอีเมลบุคคล: ตอบได้เฉพาะเจ้าของอีเมลนั้น
-    const allowed = !!target && currentEmail === target;
-    return {
-        allowed,
-        reason: allowed
-            ? ''
-            : 'เคสนี้มอบหมายให้ผู้รับผิดชอบเฉพาะราย คุณไม่มีสิทธิ์ตอบกลับ'
-    };
+async function evaluateReplyPermission(sendTo, replyDetails, status) {
+    return suggestionReplyAuthorization.evaluate(sendTo, replyDetails, status);
 }
 
 async function getProfileByEmail(email) {
@@ -202,7 +46,8 @@ async function PostNoti(PostNotiData){
             sender: PostNotiData.sender,
             create_by: PostNotiData.create_by,
             end_date: PostNotiData.end_date,
-            receiver_email: PostNotiData.receiver_email
+            receiver_email: PostNotiData.receiver_email,
+            ref_id: PostNotiData.ref_id
         };
 
         const response = await fetch('/Suggestions/PostNotification', {
@@ -440,12 +285,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
 // }
 
 function canShowReplyBox(status) {
-    if (!status) return true;
-    const lowerStatus = String(status).toLowerCase().trim();
-    if (lowerStatus === 'close') {
-        return false;
-    }
-    return true;
+    return suggestionReplyAuthorization.canReplyToStatus(status);
 }
 
 function canShowForwardBtn(status) {
@@ -637,9 +477,11 @@ $(document).ready(function () {
 
     // โหลดชุดอีเมลกลุ่มให้เสร็จก่อน แล้วค่อยโหลดข้อมูลเริ่มต้น
     // เพื่อให้การตัดสินสิทธิ์การตอบกลับถูกต้องตั้งแต่แสดงผลครั้งแรก
-    loadGroupEmailSet().finally(() => {
-        searchSuggestion();
-    });
+    loadGroupEmailSet()
+        .catch(error => console.error("Error in loadGroupEmailSet:", error))
+        .finally(() => {
+            searchSuggestion();
+        });
 });
 
 async function loadDepartmentOptions() {
@@ -1170,7 +1012,7 @@ async function showDetails(row) {
 
     // ===== ตัดสินสิทธิ์การตอบกลับตาม sendTo (กลุ่ม/บุคคล) =====
     const sendToVal = getVal('sendto');
-    const permission = await evaluateReplyPermission(sendToVal, validDetailsData);
+    const permission = await evaluateReplyPermission(sendToVal, validDetailsData, rawStatus);
 
     // ผู้ใช้อาจเลือกรายการอื่นระหว่างรอตรวจ profile ของผู้ตอบคนแรก
     if (!document.body.contains(row) || !$(row).hasClass('table-active')) return;
@@ -1226,22 +1068,20 @@ async function UpdateSuggestion() {
         return;
     }
 
-    // ตรวจสอบสิทธิ์การตอบกลับตาม sendTo (กลุ่ม/บุคคล) อีกครั้งก่อนบันทึก
-    var permission = window.currentReplyPermission;
-    if (!permission) {
-        var sendToVal = $activeRow.length ? ($activeRow.attr('data-sendto') || '') : '';
-        var replyDetails = $activeRow.length ? $activeRow.data('details') : [];
-        if (typeof replyDetails === 'string') {
-            try { replyDetails = JSON.parse(replyDetails); } catch (e) { replyDetails = []; }
-        }
-
-        try {
-            permission = await evaluateReplyPermission(sendToVal, Array.isArray(replyDetails) ? replyDetails : []);
-        } catch (error) {
-            console.error("Error checking reply permission:", error);
-            showAlert('error', 'เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง');
-            return;
-        }
+    // โหลด context ล่าสุดและใช้กฎชุดเดียวกับหน้าแจ้งเตือนก่อนบันทึกทุกครั้ง
+    let permission;
+    try {
+        const context = await getSuggestionReplyContext(guid);
+        const replyDetails = suggestionReplyAuthorization.getReplyDetails(context);
+        permission = await evaluateReplyPermission(
+            context.sendTo,
+            replyDetails,
+            context.statusTask
+        );
+    } catch (error) {
+        console.error("Error checking reply permission:", error);
+        showAlert('error', 'เกิดข้อผิดพลาด', error.message || 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง');
+        return;
     }
 
     // ป้องกันการบันทึกผิดเคส หากผู้ใช้เปลี่ยนรายการระหว่างรอตรวจสอบสิทธิ์
@@ -1290,8 +1130,8 @@ async function UpdateSuggestion() {
                     `<br><br>` +
                     `ขอขอบคุณ<br>` +
                     `${fullNameTh}`;
-console.log("profile.e_mail",profile.e_mail)
-                await sendEmail(
+
+                    await sendEmail(
                     profile.e_mail,
                     null,
                     "CRM : การตอบกลับข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle,
@@ -1317,6 +1157,7 @@ console.log("profile.e_mail",profile.e_mail)
                     sender: senderId,
                     create_by: senderId,
                     end_date: endDate,
+                    ref_id: guid,
                 });
 
             } catch (emailErr) {
@@ -1475,7 +1316,6 @@ async function AddSuggestion() {
                                 `เรียน ${personel.thname}<br><br>` +
                                 `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
                                 `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
-                                `<a href="${homeUrl}">คลิกที่นี่เพื่อเข้าสู่ระบบCRM</a>` +
                                 `<br><br>` +
                                 `ขอขอบคุณ<br>` +
                                 `${fullNameTh}`;
@@ -1491,6 +1331,7 @@ async function AddSuggestion() {
                                 sender: senderId,
                                 create_by: senderId,
                                 end_date: endDate,
+                                ref_id: msg.guid,
                             });
 
                         }
@@ -1517,6 +1358,7 @@ async function AddSuggestion() {
                             sender: senderId,
                             create_by: senderId,
                             end_date: endDate,
+                            ref_id: msg.guid,
                         });
                     }
                 })().catch((emailErr) => {
@@ -1822,14 +1664,25 @@ async function ForwardSuggestion() {
 
                     const senderId = typeof userId !== 'undefined' ? userId : '';
 
+                    const notiContent =
+                        `เรียน ${sendToText}<br><br>` +
+                        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้ถูกส่งต่อให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
+                        `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
+                        ` ` +
+                        `<br><br>` +
+                        `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
+                        `ขอขอบคุณ<br>` +
+                        `${fullNameTh}`;
+
                     await PostNoti({
                         header: "ข้อเสนอแนะ/ร้องเรียน",
                         title: "เรื่อง : " + topicTitle,
-                        message: emailContent,
+                        message: notiContent,
                         receiver_email: sendToVal,
                         sender: senderId,
                         create_by: senderId,
                         end_date: endDate,
+                        ref_id: guid,
                     });
 
                 } catch (emailErr) {

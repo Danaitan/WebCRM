@@ -56,6 +56,57 @@ namespace webCRM.Controllers
             return Json(suggestions);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetReplyContext(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+            {
+                return BadRequest(new
+                {
+                    status = "error",
+                    message = "Suggestion guid is required."
+                });
+            }
+
+            var personalId = HttpContext.Session.GetString("personalId") ?? "";
+            var userEmail = HttpContext.Session.GetString("email") ?? "";
+            var groupEmail = HttpContext.Session.GetString("groupEmail") ?? "";
+            var funcId = HttpContext.Session.GetString("func_id") ?? "";
+            var canSeeAll = funcId
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(value => value.Trim())
+                .Contains("FCRM002", StringComparer.OrdinalIgnoreCase);
+
+            var suggestions = await crmService.GetSuggestionList(
+                canSeeAll ? "" : personalId,
+                userEmail: canSeeAll ? null : userEmail,
+                groupEmail: canSeeAll ? null : groupEmail);
+
+            var suggestion = suggestions.FirstOrDefault(item =>
+                string.Equals(item.Guid, guid, StringComparison.OrdinalIgnoreCase));
+
+            if (suggestion == null)
+            {
+                return NotFound(new
+                {
+                    status = "error",
+                    message = "ไม่พบข้อมูลข้อเสนอแนะ/ร้องเรียน หรือคุณไม่มีสิทธิ์ดูรายการนี้"
+                });
+            }
+
+            return Json(new
+            {
+                guid = suggestion.Guid,
+                sendTo = suggestion.SendTo,
+                statusTask = suggestion.StatusTask,
+                reply = suggestion.Reply,
+                updBy = suggestion.UpdBy,
+                upDate = suggestion.UpDate,
+                personalName = suggestion.PersonalName,
+                detail = suggestion.Detail
+            });
+        }
+
         [HttpPost]
         public async Task<IActionResult> AddRequestSuggestions(
             [FromBody] RequestSuggestionsModel request)
@@ -289,28 +340,10 @@ namespace webCRM.Controllers
                 //     module: "PostSuggestion"
                 // );
 
-                if (!string.IsNullOrWhiteSpace(
-                    result.Response))
-                {
-                    try
-                    {
-                        using var doc =
-                            JsonDocument.Parse(
-                                result.Response);
-
-                        return Content(
-                            result.Response,
-                            "application/json");
-                    }
-                    catch (JsonException)
-                    {
-                        // Response ไม่ใช่ JSON
-                    }
-                }
-
                 return Ok(new
                 {
-                    status = "success"
+                    status = "success",
+                    guid = request.Guid
                 });
             }
             catch (Exception ex)

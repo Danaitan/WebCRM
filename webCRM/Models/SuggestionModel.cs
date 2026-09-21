@@ -276,6 +276,9 @@ namespace webCRM.Models
         public DateTime? EndDate { get; set; }
         [JsonPropertyName("receiver_email")]
         public string? ReceiverEmail { get; set; }
+
+        [JsonPropertyName("ref_id")]
+        public string? RefId { get; set; }
     }
 
 

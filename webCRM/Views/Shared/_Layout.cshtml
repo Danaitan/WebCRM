@@ -393,6 +393,7 @@
         var userFullNameEn = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameEn") ?? ""));
         var userFullNameTh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameTh") ?? ""));
     </script>
+    <script src="~/js/suggestion-reply-authorization.js" asp-append-version="true"></script>
     <script src="~/js/layout.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -272,7 +272,8 @@ function getItemInfo(t, groupIsRead, groupObj) {
     let itemEndDate = grp.end_date || '';
     let itemStartDate = grp.start_date || '';
     let itemSender = grp.sender || '';
-    let itemId = grp.Id;
+    let itemId = grp.Id ?? grp.id;
+    let itemRefId = grp.ref_id || grp.refId || grp.reference_guid || grp.suggestion_guid || '';
     let itemIsRead = (groupIsRead === true || groupIsRead === 'true' || groupIsRead === 1);
     let itemObj = null;
 
@@ -286,6 +287,13 @@ function getItemInfo(t, groupIsRead, groupObj) {
         else if (t.guid !== undefined && t.guid !== null) itemId = t.guid;
         else if (t.Guid !== undefined && t.Guid !== null) itemId = t.Guid;
         else if (t.ref_id !== undefined && t.ref_id !== null) itemId = t.ref_id;
+
+        itemRefId = t.ref_id
+            || t.refId
+            || t.reference_guid
+            || t.suggestion_guid
+            || ((t.guid || t.Guid) !== itemId ? (t.guid || t.Guid) : itemRefId)
+            || '';
         
         if (t.is_read !== undefined) {
             itemIsRead = !(t.is_read === false || t.is_read === 0 || t.is_read === 'false');
@@ -304,7 +312,8 @@ function getItemInfo(t, groupIsRead, groupObj) {
             start_date: itemStartDate,
             end_date: itemEndDate,
             create_date: t.create_date || '',
-            guid: itemId,
+            guid: itemRefId,
+            ref_id: itemRefId,
             is_read: itemIsRead
         });
     } else {
@@ -320,7 +329,8 @@ function getItemInfo(t, groupIsRead, groupObj) {
             start_date: itemStartDate,
             end_date: itemEndDate,
             create_date: grp.create_date || grp.createDate || '',
-            guid: itemId,
+            guid: itemRefId,
+            ref_id: itemRefId,
             is_read: itemIsRead
         };
     }
@@ -384,13 +394,13 @@ async function openNotiDetailModal(id, element) {
 
         const data = extractNotiData(responseData, id);
 
-        renderNotiPopupDetailContent(data, modalBody);
+        await renderNotiPopupDetailContent(data, modalBody);
         fetchNotifications();
     } catch (err) {
         console.error("Error in openNotiDetailModal:", err);
         const fallbackData = notiCacheMap.get(String(id));
         if (fallbackData) {
-            renderNotiPopupDetailContent(fallbackData, modalBody);
+            await renderNotiPopupDetailContent(fallbackData, modalBody);
         } else {
             modalBody.html(`
                 <div class="alert alert-danger border-0 shadow-sm rounded-3 p-3 text-center mb-0">
@@ -410,6 +420,65 @@ function getFormattedNowDate() {
     const mins = String(d.getMinutes()).padStart(2, '0');
     const secs = String(d.getSeconds()).padStart(2, '0');
     return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
+}
+
+function getSuggestionReference(data) {
+    if (!data || typeof data !== 'object') return '';
+
+    const notificationId = data.Id ?? data.id ?? '';
+    const explicitReference = data.ref_id
+        || data.refId
+        || data.reference_guid
+        || data.suggestion_guid
+        || '';
+    if (explicitReference) return String(explicitReference);
+
+    const possibleGuid = data.guid || data.Guid || '';
+    return possibleGuid && String(possibleGuid) !== String(notificationId)
+        ? String(possibleGuid)
+        : '';
+}
+
+async function getSuggestionReplyContext(guid) {
+    const response = await fetch(`/Suggestions/GetReplyContext?guid=${encodeURIComponent(guid)}`, {
+        skipLoading: true
+    });
+    if (!response.ok) {
+        let message = 'ไม่สามารถโหลดข้อมูลสิทธิ์การตอบกลับได้';
+        try {
+            const error = await response.json();
+            if (error?.message) message = error.message;
+        } catch (e) { }
+        throw new Error(message);
+    }
+    return await response.json();
+}
+
+async function getNotificationReplyBlockHtml(data, inputId) {
+    const guid = getSuggestionReference(data);
+    if (!guid) {
+        return '<div class="alert alert-warning py-2 px-3 mt-3 mb-0">การแจ้งเตือนนี้ไม่มีรหัสอ้างอิงข้อเสนอแนะ/ร้องเรียน จึงไม่สามารถตอบกลับจากหน้านี้ได้</div>';
+    }
+
+    try {
+        const context = await getSuggestionReplyContext(guid);
+        const replyDetails = window.SuggestionReplyAuthorization.getReplyDetails(context);
+        const permission = await window.SuggestionReplyAuthorization.evaluate(
+            context.sendTo,
+            replyDetails,
+            context.statusTask
+        );
+
+        if (!permission.allowed) {
+            return `<div class="alert alert-warning py-2 px-3 mt-3 mb-0">${permission.reason || 'คุณไม่มีสิทธิ์ตอบกลับเคสนี้'}</div>`;
+        }
+
+        const senderEmail = data.sender_email || data.senderEmail || '';
+        return getSuggestionReplyBlockHtml(guid, inputId, senderEmail);
+    } catch (error) {
+        console.error('Error checking notification reply permission:', error);
+        return `<div class="alert alert-warning py-2 px-3 mt-3 mb-0">${error.message || 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง'}</div>`;
+    }
 }
 
 async function submitNotificationReply(guid, inputId, senderEmail) {
@@ -440,6 +509,36 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
         return;
     }
 
+    try {
+        const context = await getSuggestionReplyContext(guid);
+        const replyDetails = window.SuggestionReplyAuthorization.getReplyDetails(context);
+        const permission = await window.SuggestionReplyAuthorization.evaluate(
+            context.sendTo,
+            replyDetails,
+            context.statusTask
+        );
+        if (!permission.allowed) {
+            if (typeof Swal !== 'undefined') {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่มีสิทธิ์ตอบกลับ',
+                    text: permission.reason || 'คุณไม่มีสิทธิ์ตอบกลับเคสนี้'
+                });
+            }
+            return;
+        }
+    } catch (error) {
+        console.error('Error rechecking notification reply permission:', error);
+        if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: error.message || 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง'
+            });
+        }
+        return;
+    }
+
     if (typeof Swal !== 'undefined') {
         const result = await Swal.fire({
             title: 'ยืนยันการบันทึก',
@@ -459,8 +558,10 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
             showLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
         }
 
-        const updBy = typeof currentUserEmail !== 'undefined' ? currentUserEmail : '';
-        const response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&updBy=${encodeURIComponent(updBy)}`);
+        const response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}`, {
+            method: 'POST',
+            skipLoading: true
+        });
 
         if (!response.ok) {
             throw new Error("HTTP error " + response.status);
@@ -517,6 +618,7 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
                     sender: senderId,
                     create_by: senderId,
                     end_date: endDate,
+                    ref_id: guid,
                 });
                 
             } catch (emailErr) {
@@ -596,7 +698,7 @@ function getSuggestionReplyBlockHtml(guid, inputId, senderEmail) {
     `;
 }
 
-function renderNotiPopupDetailContent(data, container) {
+async function renderNotiPopupDetailContent(data, container) {
     if (!container || !container.length) return;
 
     if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
@@ -621,12 +723,9 @@ function renderNotiPopupDetailContent(data, container) {
     const createDateFormatted = formatNotiDate(data.create_date);
 
     const isSuggestionOrComplaint = header === "ข้อเสนอแนะ/ร้องเรียน";
-    const itemGuid = data.guid || '';
-    const senderEmail = data.sender_email || '';
-
     let replyBlockHtml = '';
     if (isSuggestionOrComplaint) {
-        replyBlockHtml = getSuggestionReplyBlockHtml(itemGuid, 'notiReplyInput_Popup', senderEmail);
+        replyBlockHtml = await getNotificationReplyBlockHtml(data, 'notiReplyInput_Popup');
     }
 
     const html = `
@@ -712,13 +811,13 @@ async function selectModalNotiItem(element, id) {
         const responseData = await getNotiDetail(id);
         const data = extractNotiData(responseData, id);
 
-        renderNotiDetailContent(data);
+        await renderNotiDetailContent(data);
         fetchNotifications();
     } catch (err) {
         console.error("Error in getNotiDetail:", err);
         const fallbackData = notiCacheMap.get(String(id));
         if (fallbackData) {
-            renderNotiDetailContent(fallbackData);
+            await renderNotiDetailContent(fallbackData);
         } else {
             detailContainer.html(`
                 <div class="h-100 d-flex flex-column align-items-center justify-content-center text-center p-4">
@@ -731,7 +830,7 @@ async function selectModalNotiItem(element, id) {
     }
 }
 
-function renderNotiDetailContent(data) {
+async function renderNotiDetailContent(data) {
     const detailContainer = $('#allNotificationsModalDetail');
     if (!detailContainer.length) return;
 
@@ -758,12 +857,9 @@ function renderNotiDetailContent(data) {
     const createDateFormatted = formatNotiDate(data.create_date);
 
     const isSuggestionOrComplaint = header.includes('ข้อเสนอแนะ') || header.includes('ร้องเรียน');
-    const itemGuid = data.Id || data.id || '';
-    const senderEmail = data.senderEmail || '';
-
     let replyBlockHtml = '';
     if (isSuggestionOrComplaint) {
-        replyBlockHtml = getSuggestionReplyBlockHtml(itemGuid, 'notiReplyInput_Detail', senderEmail);
+        replyBlockHtml = await getNotificationReplyBlockHtml(data, 'notiReplyInput_Detail');
     }
 
     const html = `

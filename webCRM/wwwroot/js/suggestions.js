@@ -37,31 +37,39 @@ async function getProfileByCode (personalCode){
 }
 
 async function PostNoti(PostNotiData){
-    try {
-        const payload = {
-            header: PostNotiData.header,
-            title: PostNotiData.title,
-            message: PostNotiData.message,
-            receiver: PostNotiData.receiver,
-            sender: PostNotiData.sender,
-            create_by: PostNotiData.create_by,
-            end_date: PostNotiData.end_date,
-            receiver_email: PostNotiData.receiver_email,
-            ref_id: PostNotiData.ref_id
-        };
+    const payload = {
+        header: PostNotiData.header,
+        title: PostNotiData.title,
+        message: PostNotiData.message,
+        receiver: PostNotiData.receiver,
+        sender: PostNotiData.sender,
+        create_by: PostNotiData.create_by,
+        end_date: PostNotiData.end_date,
+        receiver_email: PostNotiData.receiver_email,
+        ref_id: PostNotiData.ref_id
+    };
 
-        const response = await fetch('/Suggestions/PostNotification', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload),
-            skipLoading: true
-        });
-        return response;
+    const response = await fetch('/Suggestions/PostNotification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        skipLoading: true
+    });
+
+    let result = null;
+    try {
+        result = await response.json();
     } catch (error) {
-        console.error("Error in PostNotification:", error);
+        throw new Error(`รูปแบบผลลัพธ์การสร้างการแจ้งเตือนไม่ถูกต้อง (HTTP ${response.status})`);
     }
+
+    if (!response.ok || result?.status !== 'success') {
+        throw new Error(result?.message || `ไม่สามารถสร้างการแจ้งเตือนได้ (HTTP ${response.status})`);
+    }
+
+    return result;
 }
 
 async function GetPersonalAndGroup() {
@@ -173,8 +181,11 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
 
             const rawUpDate = getValidDateStr(item.upDate || item.UpDate);
             const upDateStr = formatDateDisplay(rawUpDate);
+            // ค่าตัวเลขสำหรับใช้จัดเรียงคอลัมน์ "วันที่ตอบกลับ" (ถ้าไม่มีให้เป็น 0 เพื่อให้ไปอยู่ท้ายสุดตอนเรียงมากไปน้อย)
+            const upDateOrder = parseDateForSort(rawUpDate) || 0;
 
             let timeDiffText = '-';
+            let daysDiffOrder = -1; // ค่าตัวเลขสำหรับจัดเรียงคอลัมน์ "จำนวนวัน"
             const createdDt = parseDateToLocalObject(displayCreatedDate);
             if (createdDt) {
                 const today = new Date();
@@ -184,6 +195,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                 let days = Math.round(diffTime / (1000 * 60 * 60 * 24));
                 if (days < 0) days = 0;
                 timeDiffText = `${days} วัน`;
+                daysDiffOrder = days;
             }
 
             const phone = item.phoneProvider || item.PhoneProvider || '-';
@@ -213,7 +225,8 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
             const guid = item.guid || '-';
             const updBy = item.updBy || '-';
             const creator = item.creater || '';
-            const sendTo = item.sendTo || '-';
+            const sendTo = item.sendTo || item.SendTo || '-';
+            const ccMail = item.ccMail || item.CcMail || '-';
             const detailsJson = (item.detail) ? JSON.stringify(item.detail) : '[]';
 
             const $tr = $(`
@@ -222,8 +235,8 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(title)}</div></td>
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(nameProvider)}</div></td>
                     <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(statusLower)}</div></td>
-                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(upDateStr)}</div></td>
-                    <td class="text-center py-2"><div class="fw-medium text-dark">${escapeHtml(timeDiffText)}</div></td>
+                    <td class="text-center py-2" data-order="${upDateOrder}"><div class="fw-medium text-dark">${escapeHtml(upDateStr)}</div></td>
+                    <td class="text-center py-2" data-order="${daysDiffOrder}"><div class="fw-medium text-dark">${escapeHtml(timeDiffText)}</div></td>
                 </tr>
             `);
 
@@ -244,6 +257,7 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
                 'data-updby': updBy,
                 'data-creater': creator,
                 'data-sendto': sendTo,
+                'data-cc-mail': ccMail,
                 'data-details': detailsJson
             });
 
@@ -374,6 +388,8 @@ function clearDetails() {
     $('#detail-address').text('-');
     $('#detail-date').text('-');
     $('#detail-suggestion').text('-');
+    $('#detail-sendto').text('-');
+    renderCcMailSummary(null);
     $('#reply-input').val('');
     $('#detail-guid').text('');
     $('#detail-updBy').text('');
@@ -416,10 +432,36 @@ $(document).ready(function () {
     loadSuggestionStatusOptions();
 
     table = $('#suggestionsTable').DataTable({
-        // ปิดการเรียงของ DataTables ทั้งหมด แล้วใช้ลำดับจาก array ที่เราเรียงเอง
-        // (เรียงตาม "วันที่สร้าง" ใหม่ไปเก่า ใน renderSuggestionsTable)
-        ordering: false,
+        ordering: true,
         searching: true,
+        // เริ่มต้นเรียงตามคอลัมน์ "วันที่สร้าง" (index 0) จากใหม่ไปเก่า
+        order: [[0, 'desc']],
+        columnDefs: [
+            {
+                // ตารางถูก initialize ก่อนเพิ่มแถว จึงไม่สามารถพึ่งการ auto-detect data-order ได้
+                // แปลงวันที่ DD/MM/YYYY HH:mm เป็น timestamp โดยตรงเมื่อ DataTables ขอค่า sort
+                targets: [0, 4],
+                type: 'num',
+                render: function (data, type) {
+                    if (type !== 'sort' && type !== 'type') return data;
+
+                    const text = $('<div>').html(data || '').text().trim();
+                    return parseDateForSort(text);
+                }
+            },
+            {
+                // แปลงข้อความ เช่น "25 วัน" เป็นเลข 25 ก่อนจัดเรียง
+                targets: 5,
+                type: 'num',
+                render: function (data, type) {
+                    if (type !== 'sort' && type !== 'type') return data;
+
+                    const text = $('<div>').html(data || '').text().trim();
+                    const match = text.match(/-?\d+/);
+                    return match ? Number(match[0]) : -1;
+                }
+            }
+        ],
         dom: '<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mb-3"l>t<"d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 mt-3"i p>',
         language: {
             emptyTable: "ไม่พบรายการ",
@@ -726,6 +768,69 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+function parseCcMailList(ccMail) {
+    const rawValue = String(ccMail || '').trim();
+    if (!rawValue || rawValue === '-') return [];
+
+    const seen = new Set();
+    return rawValue
+        .split(/[;,]/)
+        .map(email => email.trim())
+        .filter(email => {
+            if (!email) return false;
+
+            const normalizedEmail = email.toLowerCase();
+            if (seen.has(normalizedEmail)) return false;
+
+            seen.add(normalizedEmail);
+            return true;
+        });
+}
+
+function renderCcMailSummary(ccMail) {
+    const $container = $('#detail-EmailCC');
+    const emails = parseCcMailList(ccMail);
+
+    $container.empty();
+    if (emails.length === 0) {
+        $container.text('-');
+        return;
+    }
+
+    const $viewButton = $('<button>', {
+        type: 'button',
+        class: 'btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2',
+        'aria-label': `ดูรายการอีเมล CC ทั้งหมด ${emails.length} รายการ`
+    }).append(
+        $('<i>', { class: 'bi bi-envelope' }),
+        $('<span>').text(`ดูรายการ CC (${emails.length})`)
+    );
+
+    $viewButton.on('click', function () {
+        const emailItemsHtml = emails.map((email, index) => `
+            <div class="list-group-item d-flex align-items-start gap-3 py-3">
+                <span class="badge bg-primary rounded-pill flex-shrink-0">${index + 1}</span>
+                <span class="text-break text-start">${escapeHtml(email)}</span>
+            </div>
+        `).join('');
+
+        Swal.fire({
+            title: 'รายการอีเมล CC',
+            html: `
+                <div class="text-start mb-2 text-muted small">ทั้งหมด ${emails.length} รายการ</div>
+                <div class="list-group border rounded overflow-auto" style="max-height: 360px;">
+                    ${emailItemsHtml}
+                </div>
+            `,
+            width: 650,
+            confirmButtonText: 'ปิด',
+            confirmButtonColor: '#0d6efd'
+        });
+    });
+
+    $container.append($viewButton);
+}
+
 function getValidDateStr(dateVal) {
     if (!dateVal || dateVal === '-' || dateVal === 'null' || dateVal === 'undefined') return null;
     if (typeof dateVal === 'string' && (dateVal.toLowerCase().includes('invalid') || dateVal.startsWith('0001-01-01'))) return null;
@@ -864,15 +969,18 @@ function showDetailsSafely(row) {
 }
 
 async function showDetails(row) {
+
     const $row = $(row);
     if (!$row.length) return;
     $('#suggestionsTable tbody tr').removeClass('table-active');
     $row.addClass('table-active');
     window.currentReplyPermission = null;
-
     const getVal = (attr) => {
         const val = $row.attr('data-' + attr);
-        return (val !== undefined && val !== null && val.trim() !== '') ? val : '-';
+        console.log(`data-${attr}:`, val);
+        return (val !== undefined && val !== null && val.trim() !== '')
+            ? val
+            : '-';
     };
 
     $('#detail-nameprovider').text(getVal('nameprovider'));
@@ -888,6 +996,8 @@ async function showDetails(row) {
     $('#detail-address').text(getVal('address'));
     $('#detail-date').text(getVal('date'));
     $('#detail-suggestion').text(getVal('suggestion'));
+    $('#detail-sendto').text(getVal('sendto'));
+    renderCcMailSummary(getVal('cc-mail'));
 
     const replyVal = getVal('reply');
     $('#reply-input').val('');
@@ -1178,6 +1288,94 @@ async function UpdateSuggestion() {
     }
 }
 
+function formatLocalDateAsIso(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function parseContactDate(contactDate) {
+    const match = String(contactDate || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsedDate = new Date(year, month - 1, day);
+
+    if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month - 1 || parsedDate.getDate() !== day) {
+        return null;
+    }
+
+    return parsedDate;
+}
+
+function formatContactDateForDisplay(contactDate) {
+    const parsedDate = parseContactDate(contactDate);
+    if (!parsedDate) return contactDate;
+
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${pad(parsedDate.getDate())}/${pad(parsedDate.getMonth() + 1)}/${parsedDate.getFullYear()}`;
+}
+
+function refreshContactDateMinimum() {
+    const input = document.getElementById("post-contact-date");
+    if (!input) return;
+
+    const today = formatLocalDateAsIso(new Date());
+    input.setAttribute("min", today);
+    if (input._flatpickr) {
+        input._flatpickr.set("minDate", today);
+    }
+}
+
+function initializeContactDatePicker() {
+    const input = document.getElementById("post-contact-date");
+    if (!input) return;
+
+    refreshContactDateMinimum();
+
+    if (typeof flatpickr === "undefined") return;
+
+    const thLocale = (flatpickr.l10ns && flatpickr.l10ns.th) ? flatpickr.l10ns.th : "default";
+    flatpickr(input, {
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "d/m/Y",
+        allowInput: false,
+        disableMobile: true,
+        locale: thLocale,
+        minDate: formatLocalDateAsIso(new Date()),
+        onOpen: refreshContactDateMinimum
+    });
+}
+
+function validateContactDateTime(contactDate, includeTime, contactTime) {
+    const selectedDate = parseContactDate(contactDate);
+    if (!selectedDate) {
+        return "รูปแบบวันที่ให้ติดต่อกลับไม่ถูกต้อง";
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (selectedDate < today) {
+        return "ไม่สามารถเลือกวันที่ให้ติดต่อกลับย้อนหลังได้";
+    }
+
+    if (includeTime) {
+        const timeMatch = String(contactTime || "").match(/^(\d{2}):(\d{2})$/);
+        if (!timeMatch) {
+            return "รูปแบบเวลาให้ติดต่อกลับไม่ถูกต้อง";
+        }
+
+        selectedDate.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
+        if (selectedDate < now) {
+            return "ไม่สามารถเลือกวันที่และเวลาให้ติดต่อกลับย้อนหลังได้";
+        }
+    }
+
+    return null;
+}
+
 function syncContactTimeState() {
     const includeTime = $("#post-contact-include-time").is(":checked");
     const $timeFields = $("#post-contact-hour, #post-contact-minute");
@@ -1211,7 +1409,8 @@ async function AddSuggestion() {
     const topicTitle = $('#post-title option:selected').text() || $('#post-title').val() || '';
     const suggestionDetail = $("#post-reply").val()?.toString() || '';
     const contactDate = $("#post-contact-date").val()?.toString() || '';
-    const contactDateTime = contactTime ? `${contactDate} ${contactTime}` : contactDate;
+    const contactDateDisplay = formatContactDateForDisplay(contactDate);
+    const contactDateTime = contactTime ? `${contactDateDisplay} ${contactTime}` : contactDateDisplay;
 
     var requestData = {
         suggesCde: $("#post-title").val()?.toString(),
@@ -1251,6 +1450,16 @@ async function AddSuggestion() {
         return false;
     }
 
+    const contactDateTimeError = validateContactDateTime(
+        requestData.dateSugges,
+        includeContactTime,
+        contactTime
+    );
+    if (contactDateTimeError) {
+        showAlert('warning', 'แจ้งเตือน', contactDateTimeError);
+        return false;
+    }
+
     try {
         var result = await AlertComponent.confirmSave('ต้องการบันทึกข้อเสนอแนะ / ร้องเรียนหรือไม่');
         if (result.isConfirmed) {
@@ -1266,13 +1475,9 @@ async function AddSuggestion() {
                 skipLoading: true
             });
 
-            if (!response.ok) {
-                throw new Error("HTTP error " + response.status);
-            }
-
             var msg = await response.json();
-            if (msg && msg.status === "error") {
-                throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+            if (!response.ok || (msg && msg.status === "error")) {
+                throw new Error(msg?.message || `HTTP error ${response.status}`);
             }
 
             if (sendToVal) {
@@ -1380,7 +1585,12 @@ async function AddSuggestion() {
             $("#post-line-id").val("");
             $("#post-department").val("");
             $("#post-send-to").val("").trigger("change");
-            $("#post-contact-date").val("");
+            const contactDateInput = document.getElementById("post-contact-date");
+            if (contactDateInput?._flatpickr) {
+                contactDateInput._flatpickr.clear();
+            } else {
+                $("#post-contact-date").val("");
+            }
             $("#post-contact-hour").val("00");
             $("#post-contact-minute").val("00");
             $("#post-contact-include-time").prop("checked", true);
@@ -1514,6 +1724,7 @@ async function PutSuggestionStatusUpd (){
         if (result.isConfirmed) {
             startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่...');
             var response = await fetch(`/Suggestions/PutSuggestionStatusUpd?guid=${encodeURIComponent(guid)}`, {
+                method: 'PUT',
                 skipLoading: true
             });
             if (!response.ok) {
@@ -1703,6 +1914,12 @@ async function ForwardSuggestion() {
         }
     }
 }
+
+initializeContactDatePicker();
+
+$("#complaintModal").on("show.bs.modal", function () {
+    refreshContactDateMinimum();
+});
 
 $("#post-contact-include-time, #post-contact-hour, #post-contact-minute").on("change", function () {
     syncContactTimeState();

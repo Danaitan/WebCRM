@@ -17,6 +17,98 @@ let manuallySelectedCustomers = new Map();
 let isCurrentCampaignImport = false;
 
 let filterAbortController = null;
+let prospectAbortController = null;
+let currentProspectRequestId = 0;
+let prospectSearchTimer = null;
+let prospectTable = null;
+// จำนวนรวมจริงจาก API (SP) คงที่ต่อการโหลด ใช้แสดง "พบ X รายการ" เมื่อไม่มีการค้นหา
+let prospectAuthoritativeTotal = null;
+// จำนวนที่ถูกซ่อนออกจากรายการลูกค้าเพราะอยู่ในรายการที่เลือก (หักออกจาก total ตอนแสดง)
+let prospectHiddenBySelectionCount = 0;
+
+// แสดงจำนวน "พบ X รายการ" = จำนวนที่แสดงจริง (หัก idno ที่ถูกซ่อนเพราะอยู่ในรายการที่เลือกออกแล้ว)
+function updateProspectTotalFound(recordsDisplay) {
+    const totalFoundEl = document.getElementById('totalFound');
+    if (!totalFoundEl) return;
+
+    // ถ้าไม่ได้ส่ง recordsDisplay มา ให้ดึงจาก DataTables ปัจจุบัน
+    if (recordsDisplay === undefined && prospectTable) {
+        recordsDisplay = prospectTable.page.info().recordsDisplay;
+    }
+
+    const searchText = ($prospectSearchInput.val() || '').trim();
+    let value;
+    if (searchText) {
+        // ระหว่างค้นหา ใช้จำนวนหลังกรองของ DataTables
+        value = recordsDisplay;
+    } else if (Number.isFinite(prospectAuthoritativeTotal)) {
+        // ไม่ค้นหา: ใช้ API total หักด้วยจำนวนที่ถูกซ่อนเพราะอยู่ในรายการที่เลือก
+        value = Math.max(0, prospectAuthoritativeTotal - (prospectHiddenBySelectionCount || 0));
+    } else {
+        value = recordsDisplay;
+    }
+    totalFoundEl.textContent = Number(value || 0).toLocaleString();
+}
+
+// index ของ batch สำหรับตัดสิน matched อย่างรวดเร็ว (สร้างใหม่เมื่อ currentProductBatches/currentBatchCustomers เปลี่ยน)
+let batchMatchIndex = { batchIds: new Set(), batchNames: new Set(), savedIds: new Set() };
+// รายการ idno ของแถวที่ผู้ใช้เลือกได้ (selectable) ในชุดข้อมูลปัจจุบัน คำนวณครั้งเดียวต่อการ render
+let selectableRowIdStrs = [];
+// lookup ข้อมูลลูกค้าดิบจาก "รายการลูกค้า" (idno -> {name, phone, branch}) ใช้เติม field ที่ขาดในรายการที่เลือก
+let prospectCustomerLookup = new Map();
+// จำ signature ล่าสุดที่ใช้คำนวณ selectableRowIdStrs (search term) เพื่อ recompute เฉพาะเมื่อเปลี่ยน
+let selectableRowIdStrsKey = null;
+
+// รีเฟรช selectableRowIdStrs จากแถวที่ตรงตัวกรองปัจจุบัน (recompute เฉพาะเมื่อ search เปลี่ยน)
+function refreshSelectableRowIdStrs(force = false) {
+    if (!prospectTable) {
+        selectableRowIdStrs = [];
+        selectableRowIdStrsKey = null;
+        return;
+    }
+    const searchKey = ($prospectSearchInput.val() || '').trim().toLowerCase();
+    if (!force && searchKey === selectableRowIdStrsKey) return;
+
+    selectableRowIdStrs = prospectTable
+        .rows({ search: 'applied' })
+        .data()
+        .toArray()
+        .map(getProspectRowState)
+        .filter(state => state.idStr && !state.isDisabled)
+        .map(state => state.idStr);
+    selectableRowIdStrsKey = searchKey;
+}
+
+function rebuildBatchMatchIndex() {
+    const batchIds = new Set();
+    const batchNames = new Set();
+    const savedIds = new Set();
+
+    if (Array.isArray(currentProductBatches)) {
+        currentProductBatches.forEach(b => {
+            if (b === null || b === undefined) return;
+            if (typeof b === 'string' || typeof b === 'number') {
+                batchIds.add(String(b).trim());
+                return;
+            }
+            const batch = b.prospect_batch || b.product_batch || '';
+            if (batch) batchNames.add(String(batch).trim());
+            if (b.id) batchIds.add(String(b.id).trim());
+            const ids = Array.isArray(b.id)
+                ? b.id
+                : (Array.isArray(b.ids) ? b.ids : (Array.isArray(b.prospects) ? b.prospects : []));
+            ids.forEach(v => batchIds.add(String(v).trim()));
+        });
+    }
+
+    if (Array.isArray(currentBatchCustomers)) {
+        currentBatchCustomers.forEach(c => {
+            if (c && c.id) savedIds.add(String(c.id).trim());
+        });
+    }
+
+    batchMatchIndex = { batchIds, batchNames, savedIds };
+}
 
 async function getProductStatus() { 
     try {
@@ -106,22 +198,29 @@ async function toggleSortCampaign() {
 
 const $prospectSearchInput = $("#prospectSearchInput");
 
-// ค้นหาชื่อลูกค้าแบบ client-side: กรองจากตารางที่โหลดไว้แล้ว
-// ไม่ fetch ข้อมูลใหม่ และไม่ต้องกดปุ่มค้นหา/กด Enter
+function applyProspectTableSearch() {
+    if (prospectSearchTimer) {
+        clearTimeout(prospectSearchTimer);
+        prospectSearchTimer = null;
+    }
+    filterProspectRows($prospectSearchInput.val());
+}
+
+// DataTables ค้นหาจากข้อมูลทั้งหมดใน browser โดยไม่ยิง API ซ้ำ
 $prospectSearchInput.off("keyup input").on("input", function () {
-    filterProspectRows($(this).val());
+    if (prospectSearchTimer) clearTimeout(prospectSearchTimer);
+    prospectSearchTimer = setTimeout(applyProspectTableSearch, 250);
 });
 
-// ป้องกันการ submit/รีเฟรชเมื่อกด Enter ในช่องค้นหา
 $prospectSearchInput.off("keydown").on("keydown", function (e) {
     if (e.key === "Enter" || e.keyCode === 13) {
         e.preventDefault();
+        applyProspectTableSearch();
     }
 });
 
-// ปุ่ม/ไอคอนค้นหา ก็ใช้การกรอง client-side เช่นกัน
 $("#prospectSearchIcon, #btnSearchProspect").off("click").on("click", function () {
-    filterProspectRows($("#prospectSearchInput").val());
+    applyProspectTableSearch();
 });
 
 // ช่องกรอกแบบช่วงตัวเลข (เช่น 40 หรือ 40-60): อนุญาตเฉพาะตัวเลขและ "-" เดียว
@@ -138,29 +237,10 @@ $(document).off("input", ".range-number-input").on("input", ".range-number-input
     $(this).val(v);
 });
 
-// กรองแถวในตารางลูกค้าเป้าหมายจากชื่อ (client-side)
+// ค้นหาจากทุกคอลัมน์ (global search) จากข้อมูลทั้งหมดที่ DataTables เก็บไว้
 function filterProspectRows(searchText) {
-    const term = (searchText || "").trim().toLowerCase();
-    const tbody = document.getElementById('dataTableBody');
-    if (!tbody) return;
-
-    const rows = tbody.querySelectorAll('tr');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-        // ข้ามแถวข้อความว่าง (colspan)
-        if (row.querySelector('td[colspan]')) return;
-
-        const nameCell = row.querySelector('td:nth-child(2)');
-        const name = nameCell ? nameCell.textContent.trim().toLowerCase() : '';
-
-        const isMatch = term === '' || name.includes(term);
-        row.style.display = isMatch ? '' : 'none';
-        if (isMatch) visibleCount++;
-    });
-
-    const totalFoundEl = document.getElementById('totalFound');
-    if (totalFoundEl) totalFoundEl.textContent = visibleCount;
+    if (!prospectTable) return;
+    prospectTable.search((searchText || '').trim()).draw();
 }
 
 async function SearchCampaign() {
@@ -204,7 +284,7 @@ async function getCampainList(
 
             queryStr += `&status=${encodeURIComponent(statusText)}`;
         }
-
+        queryStr += `&isFiltercompany=${encodeURIComponent(true)}`;
         const response = await fetch(
             `/Campain/GetCampainList${queryStr}`
         );
@@ -260,13 +340,14 @@ async function getCampainList(
     }
 }
 
-async function displayCampaignFile(fileId) {
+async function displayCampaignFile(fileId, signal = null, requestId = currentFilterRequestId) {
     const $fileNameText = $("#selectedFileNameText");
     const $fileNameDisplay = $("#selectedFileNameDisplay");
 
     if (fileId) {
         try {
-            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`);
+            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`, { signal });
+            if (requestId !== currentFilterRequestId) return;
             if (fileRes.ok) {
                 const fileData = await fileRes.json();
                 const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
@@ -283,10 +364,12 @@ async function displayCampaignFile(fileId) {
                 }
             }
         } catch (e) {
+            if (e.name === 'AbortError') return;
             console.error("Error fetching file info:", e);
         }
     }
 
+    if (requestId !== currentFilterRequestId) return;
     $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
     $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
 }
@@ -657,9 +740,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
 
                 updateSendForApprovalButtonState();
 
-                // แสดงไฟล์ Campaign
-                await displayCampaignFile(item.file_id);
-
+                // ยกเลิกงานของ Campaign ก่อนหน้าและสร้าง freshness token ก่อน await แรก
                 if (filterAbortController) {
                     try {
                         filterAbortController.abort();
@@ -667,13 +748,18 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                         console.warn("Cannot abort previous filter request:", e);
                     }
                 }
+                if (prospectAbortController) {
+                    prospectAbortController.abort();
+                }
+                ++currentProspectRequestId;
 
                 filterAbortController = new AbortController();
-
                 const signal = filterAbortController.signal;
-
-                // Request ID สำหรับป้องกัน response เก่าทับ Campaign ใหม่
                 const requestId = ++currentFilterRequestId;
+
+                // แสดงไฟล์เฉพาะเมื่อ Campaign นี้ยังเป็นรายการล่าสุด
+                await displayCampaignFile(item.file_id, signal, requestId);
+                if (requestId !== currentFilterRequestId) return;
 
                 const dynamicFilterContainer =
                     document.getElementById('dynamicFilter');
@@ -1020,7 +1106,9 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                         "======================================"
                     );
 
-                    isCurrentCampaignImport = false;
+                    if (requestId === currentFilterRequestId) {
+                        isCurrentCampaignImport = false;
+                    }
 
                     if (
                         dynamicFilterContainer &&
@@ -1040,11 +1128,8 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                     }
 
                 } finally {
-
-                    // เฉพาะ Campaign ล่าสุดเท่านั้นที่หยุด Loading
-                    if (requestId === currentFilterRequestId) {
-                        stopLoading();
-                    }
+                    // ทุก startLoading ต้องมี stopLoading คู่กัน แม้ request จะถูกยกเลิก
+                    stopLoading();
                 }
             });
 
@@ -1112,8 +1197,73 @@ function getFilterParams() {
     return params;
 }
 
+// มี filter ที่ผู้ใช้เลือกไว้อย่างน้อย 1 อันหรือไม่ (ไม่นับ batch/branch ของแคมเปญ)
+function hasAnyProspectFilter(params) {
+    const p = params || getFilterParams();
+    for (const key of p.keys()) {
+        if (key === 'batch' || key === 'branch') continue;
+        return true;
+    }
+    return false;
+}
+
+// batch ของแคมเปญที่เลือกอยู่ (รองรับหลายรูปแบบ field)
+function getCampaignBatch() {
+    // จาก selectedCampaign ก่อน
+    if (selectedCampaign) {
+        const fromCampaign = String(
+            selectedCampaign.prospect_batch ||
+            selectedCampaign.product_batch ||
+            selectedCampaign.batch ||
+            ''
+        ).trim();
+        if (fromCampaign) return fromCampaign;
+    }
+
+    // fallback: batch ของแคมเปญที่โหลดมากับ currentProductBatches
+    if (Array.isArray(currentProductBatches)) {
+        for (const b of currentProductBatches) {
+            if (b === null || b === undefined) continue;
+            const batch = String(b.prospect_batch || b.product_batch || '').trim();
+            if (batch) return batch;
+        }
+    }
+
+    return '';
+}
+
 // ตรวจว่าแถวลูกค้า (row) อยู่ในสาขาของ Campaign (offcde) หรือไม่ — กรองที่ frontend
-// campaignOffcde เช่น "11,08" (คั่นด้วย ,) และ row.branchName เช่น "07-ขอนแก่น"
+function normalizeIdno(value) {
+    return String(value || '').trim();
+}
+
+function getPersistedSelectedIdnos() {
+    return new Set(
+        currentBatchCustomers
+            .filter(item => {
+                const id = String(item?.id || '').trim();
+                return !id || !removedBatchCustomerIds.has(id);
+            })
+            .map(item => normalizeIdno(item.idno))
+            .filter(Boolean)
+    );
+}
+
+// รวม idno ของ "รายการที่เลือก" ทั้งหมด (batch ที่ save แล้ว + manual ที่เพิ่งติ๊ก)
+// ใช้ตัดออกจาก "รายการลูกค้า" เพื่อไม่ให้แสดงซ้ำ
+function getAllSelectedIdnos() {
+    const idnos = getPersistedSelectedIdnos();
+
+    manuallySelectedCustomers.forEach((item, idKey) => {
+        if (idKey && removedBatchCustomerIds.has(idKey)) return;
+        const idno = normalizeIdno(item?.idno) || normalizeIdno(idKey);
+        if (idno) idnos.add(idno);
+    });
+
+    return idnos;
+}
+
+// campaignOffcde เช่น "11,08" (คั่นด้วย ,) และข้อมูลสาขา เช่น "07-ขอนแก่น"
 // ถ้า Campaign เป็นทุกสาขา ("", "99", "ทุกสาขา") ให้ผ่านทั้งหมด
 function isRowInCampaignBranch(item, campaignOffcde) {
     const offcde = String(campaignOffcde || '').trim();
@@ -1124,9 +1274,7 @@ function isRowInCampaignBranch(item, campaignOffcde) {
     const campaignBranches = offcde.split(',').map(s => s.trim()).filter(Boolean);
     if (campaignBranches.length === 0) return true;
     // ดึงรหัสสาขาจากข้อมูลแถว — รองรับหลายรูปแบบ field และรูปแบบ "07-ชื่อสาขา"
-    const rawBranch = String(
-        item.branchName || item.ชื่อสาขาเดิม || ''
-    ).trim();
+    const rawBranch = String(item?.branchName || item?.ชื่อสาขาเดิม || '').trim();
 
     if (!rawBranch) return false;
 
@@ -1157,12 +1305,8 @@ async function getCampaignDataForETL(productCode) {
     }
 }
 
-async function getProspect() {
+async function getProspect(signal = null) {
     try {
-
-        // หมายเหตุ: การค้นหาชื่อลูกค้าทำแบบ client-side (filterProspectRows)
-        // จึงไม่ส่งค่า search ไปยัง server เพื่อให้โหลดรายการทั้งหมดมากรองในหน้า
-
         if (isCurrentCampaignImport && selectedCampaign && selectedCampaign.code) {
             const response = await getCampaignDataForETL(selectedCampaign.code);
             let rawData = [];
@@ -1184,204 +1328,347 @@ async function getProspect() {
 
         const filterParams = getFilterParams();
 
-        const response = await fetch(`/ProspectSetup/GetProspect?${filterParams.toString()}`);
-        const jsonResult = await response.json();
-        return jsonResult;
+        // แคมเปญที่ไม่ใช่แบบ import ต้องเลือก filter อย่างน้อย 1 อันก่อน
+        // ไม่งั้นไม่ต้อง fetch และแสดงรายการว่าง
+        if (!hasAnyProspectFilter(filterParams)) {
+            return { count: 0, total: 0, data: [] };
+        }
+
+        // batch ของแคมเปญ และ branch (สาขา) ของแคมเปญ
+        const campaignBatch = getCampaignBatch();
+        const campaignBranch = selectedCampaign ? (selectedCampaign.offcde || '') : '';
+        if (campaignBatch) filterParams.append('batch', campaignBatch);
+        if (campaignBranch) filterParams.append('branch', campaignBranch);
+
+        const response = await fetch(
+            `/ProspectSetup/GetProspect?${filterParams.toString()}`,
+            { signal }
+        );
+        if (!response.ok) {
+            throw new Error(`GetProspect HTTP ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
+        return await response.json();
     }
     catch(error){
+        if (error.name === 'AbortError') throw error;
         console.error("Error in getProspect:", error);
         return { count: 0, data: [] };
     }
 }
 
-async function loadProspectList(page = 1, pageSize = 10) {
-    if (!selectedCampaign) {
-        const totalFoundEl = document.getElementById('totalFound');
-        if (totalFoundEl) totalFoundEl.textContent = '0';
+// คำนวณสถานะการเลือกของแถวจาก item เดียว ใช้ร่วมกันทั้งการ render และ select-all
+// ใช้ batchMatchIndex (O(1) lookup) แทนการ find ทั้ง array ต่อแถว เพื่อรองรับข้อมูลจำนวนมาก
+function getProspectRowState(item) {
+    const idno = item.idno || '-';
+    const id = item.id || item.Id || '-';
+    const prospectBatch = item.prospect_batch || item.product_batch || '';
+    const name = item?.nameCus || '-';
+    const phone = item?.mobile || item?.phone || '-';
+    const branch = item?.branchName || item?.ชื่อสาขาเดิม || '-';
+    const contno = item?.contno || '-';
 
-        const tbody = document.getElementById('dataTableBody');
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูล กรุณาเลือก Campaign ทางด้านซ้ายก่อน</td></tr>`;
+    const idStr = id && id !== '-'
+        ? String(id).trim()
+        : (idno && idno !== '-' ? String(idno).trim() : '');
+
+    const { batchIds, batchNames, savedIds } = batchMatchIndex;
+    const matchedInBatchDef =
+        (prospectBatch && batchNames.has(String(prospectBatch).trim())) ||
+        (idStr && batchIds.has(idStr));
+    const isMatchedInBatch = idStr && savedIds.has(idStr);
+
+    const isRemoved = idStr && removedBatchCustomerIds.has(idStr);
+    const isMatched = !isRemoved && (matchedInBatchDef || isMatchedInBatch);
+
+    const batchStatus = item.status || item.assign_status || '';
+    const normalizedStatus = String(batchStatus).trim().toLowerCase();
+    const isDraft = normalizedStatus === 'waiting prospect' || normalizedStatus === 'return';
+    const isChecked = isMatched || (idStr && manuallySelectedCustomers.has(idStr) && !isRemoved);
+    const isDisabled = !isProspectSelectionAllowed() || (isMatched && !isDraft) || !selectedCampaign?.isActive;
+
+    return {
+        idStr,
+        idno: idno !== '-' ? idno : '',
+        name: name !== '-' ? name : '',
+        phone: phone !== '-' ? phone : '',
+        branch: branch !== '-' ? branch : '',
+        contno: contno !== '-' ? contno : '',
+        prospectBatch,
+        isChecked,
+        isDisabled
+    };
+}
+
+// ตรวจว่าคู่ (idno + contno) นี้มีอยู่ใน "รายการที่เลือก" แล้วหรือไม่
+// ใช้กันการติ๊กสัญญาซ้ำที่ idno และ contno ตรงกันแต่คนละ id
+// ถ้าส่ง excludeIdStr มา จะไม่นับแถวที่เป็นตัวเดียวกัน (id เดียวกัน)
+function isIdnoContnoAlreadySelected(idno, contno, excludeIdStr = '') {
+    const targetIdno = normalizeIdno(idno);
+    const targetContno = normalizeIdno(contno);
+    // ต้องมีทั้ง idno และ contno จึงจะถือว่าเป็น "สัญญา" ที่นำมาเทียบซ้ำได้
+    if (!targetIdno || !targetContno) return false;
+
+    const exclude = String(excludeIdStr || '').trim();
+
+    return getSelectedList().some(item => {
+        const itemId = String(item.id || '').trim();
+        if (exclude && itemId === exclude) return false;
+        return normalizeIdno(item.idno) === targetIdno &&
+            normalizeIdno(item.contno) === targetContno;
+    });
+}
+
+// เลือก/ยกเลิกแถวหนึ่งในสถานะ selection (ใช้ร่วมกันระหว่าง select-all และติ๊กรายแถว)
+function applyProspectRowSelection(state, isChecked) {
+    const { idStr, idno, name, phone, branch, contno } = state;
+    if (!idStr) return;
+
+    if (isChecked) {
+        removedBatchCustomerIds.delete(idStr);
+        const isSavedInBatch = Array.isArray(currentBatchCustomers) &&
+            currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === idStr);
+        if (!isSavedInBatch) {
+            manuallySelectedCustomers.set(idStr, {
+                id: idStr,
+                idno: idno,
+                name: name || '-',
+                phone: phone || '-',
+                branch: branch || '-',
+                contno: contno || '-',
+                isDisabled: false,
+                isBatchCustomer: false
+            });
         }
+    } else {
+        manuallySelectedCustomers.delete(idStr);
+        removedBatchCustomerIds.add(idStr);
+        if (Array.isArray(currentBatchCustomers)) {
+            const removeIndex = currentBatchCustomers.findIndex(c => c && c.id && String(c.id).trim() === idStr);
+            if (removeIndex !== -1) {
+                currentBatchCustomers.splice(removeIndex, 1);
+            }
+        }
+    }
+}
 
-        bindTableCheckboxEvents();
-        renderProspectPaginationControls(1, 0, 0);
-        const goToInput = document.getElementById('goToPageInput');
-        if (goToInput) goToInput.value = '1';
+// รวบรวมข้อมูลทุกแถวที่ตรงกับตัวกรองปัจจุบัน (ทุกหน้า ไม่ใช่แค่หน้าที่แสดง)
+function getFilteredProspectItems() {
+    if (!prospectTable) return [];
+    return prospectTable.rows({ search: 'applied' }).data().toArray();
+}
+
+function renderProspectCheckbox(item) {
+    const state = getProspectRowState(item);
+    const { idStr, idno, name, phone, branch, contno, prospectBatch, isChecked, isDisabled } = state;
+
+    return `
+        <div class="form-check d-flex justify-content-center m-0">
+            <input class="form-check-input row-checkbox" type="checkbox"
+                data-id="${escapeHtml(idStr)}"
+                data-idno="${escapeHtml(idno)}"
+                data-name="${escapeHtml(name)}"
+                data-phone="${escapeHtml(phone)}"
+                data-branch="${escapeHtml(branch)}"
+                data-contno="${escapeHtml(contno)}"
+                data-batch="${escapeHtml(prospectBatch)}"
+                ${isChecked ? 'checked' : ''}
+                ${isDisabled ? 'disabled' : ''}>
+        </div>`;
+}
+
+function renderProspectDataTable(data, page = 1, pageSize = 10) {
+    const tableData = Array.isArray(data) ? data : [];
+    const searchText = ($prospectSearchInput.val() || '').trim();
+
+    rebuildBatchMatchIndex();
+    selectableRowIdStrsKey = null;
+
+    if (!prospectTable) {
+        $('#dataTableBody').empty();
+        prospectTable = $('#batchListContainer').DataTable({
+            data: tableData,
+            deferRender: true,
+            processing: true,
+            ordering: false,
+            searching: true,
+            pageLength: pageSize,
+            lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]],
+            autoWidth: false,
+            dom: '<"prospect-table-scroll"t><"prospect-table-footer d-flex align-items-center justify-content-between gap-2"<"prospect-footer-left d-flex flex-column"l<"prospect-info-text"i>>p>',
+            columns: [
+                {
+                    data: null,
+                    searchable: false,
+                    orderable: false,
+                    className: 'text-center',
+                    render: function (_value, type, row) {
+                        return type === 'display' ? renderProspectCheckbox(row) : '';
+                    }
+                },                
+                {
+                    data: null,
+                    render: function (_value, type, row) {
+                        const value = row?.idno || '-';
+                        return type === 'display' ? escapeHtml(value) : value;
+                    }
+                },
+                {
+                    data: null,
+                    render: function (_value, type, row) {
+                        const value = row?.nameCus || '-';
+                        return type === 'display' ? escapeHtml(value) : value;
+                    }
+                },
+                {
+                    data: null,
+                    render: function (_value, type, row) {
+                        const value = row?.mobile || row?.phone || '-';
+                        return type === 'display' ? escapeHtml(value) : value;
+                    }
+                },
+                {
+                    data: null,
+                    render: function (_value, type, row) {
+                        const value = row?.branchName || row?.ชื่อสาขาเดิม || '-';
+                        return type === 'display' ? escapeHtml(value) : value;
+                    }
+                },
+                {
+                    data: null,
+                    render: function (_value, type, row) {
+                        const value = row?.contno || '-';
+                        return type === 'display' ? escapeHtml(value) : value;
+                    }
+                },
+            ],
+            language: {
+                processing: 'กำลังประมวลผล...',
+                emptyTable: 'ไม่พบข้อมูลลูกค้าเป้าหมาย',
+                zeroRecords: 'ไม่พบข้อมูลที่ตรงกับการค้นหา',
+                lengthMenu: 'แสดง _MENU_ รายการ',
+                info: 'แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ',
+                infoEmpty: 'แสดง 0 ถึง 0 จาก 0 รายการ',
+                paginate: {
+                    first: 'หน้าแรก',
+                    last: 'หน้าสุดท้าย',
+                    next: 'ถัดไป',
+                    previous: 'ก่อนหน้า'
+                }
+            },
+            drawCallback: function () {
+                const info = this.api().page.info();
+                currentProspectPage = info.page + 1;
+                currentProspectPageSize = info.length;
+                updateProspectTotalFound(info.recordsDisplay);
+                bindTableCheckboxEvents();
+            }
+        });
+    } else {
+        prospectTable.clear();
+        prospectTable.rows.add(tableData);
+        prospectTable.page.len(pageSize);
+    }
+
+    prospectTable.search(searchText || '');
+    prospectTable.draw();
+
+    const targetPage = Math.max(0, Math.min(page - 1, prospectTable.page.info().pages - 1));
+    if (targetPage !== prospectTable.page.info().page) {
+        prospectTable.page(targetPage).draw('page');
+    }
+}
+
+async function loadProspectList(page = 1, pageSize = 10) {
+    page = Math.max(1, parseInt(page, 10) || 1);
+    pageSize = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 10));
+    currentProspectPage = page;
+    currentProspectPageSize = pageSize;
+
+    if (!selectedCampaign) {
+        if (prospectTable) {
+            prospectTable.clear().draw();
+        } else {
+            const totalFoundEl = document.getElementById('totalFound');
+            if (totalFoundEl) totalFoundEl.textContent = '0';
+
+            const tbody = document.getElementById('dataTableBody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูล กรุณาเลือก Campaign ทางด้านซ้ายก่อน</td></tr>`;
+            }
+            bindTableCheckboxEvents();
+        }
         return;
     }
+
+    if (prospectAbortController) {
+        prospectAbortController.abort();
+    }
+    prospectAbortController = new AbortController();
+    const requestId = ++currentProspectRequestId;
 
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
 
     try {
-        const res = await getProspect();
+        const res = await getProspect(prospectAbortController.signal);
+        if (requestId !== currentProspectRequestId) return;
+
+        // จำนวนรวมจริงจาก API (SP) — คงที่ ไม่แกว่งตาม payload ที่มาไม่ครบ
+        const apiTotal = Number(res?.total ?? res?.count);
+        prospectAuthoritativeTotal = Number.isFinite(apiTotal) ? apiTotal : null;
+
         const allData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
 
-        // กรองที่ frontend: เอาเฉพาะลูกค้าที่อยู่ในสาขาของ Campaign ที่เลือก (offcde เช่น "11,08")
-        const campaignOffcde = selectedCampaign ? selectedCampaign.offcde : '';
-        const rawData = allData.filter(item => isRowInCampaignBranch(item, campaignOffcde));
-
-        const count = rawData.length;
-
-        const totalFoundEl = document.getElementById('totalFound');
-        if (totalFoundEl) totalFoundEl.textContent = count;
-
-        const tbody = document.getElementById('dataTableBody');
-
-        if (tbody) {
-            tbody.innerHTML = '';
-            if (rawData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูลลูกค้าเป้าหมาย</td></tr>`;
-            } else {
-                rawData.forEach(item => {
-                    const name = item.nameCus || '-';
-                    const phone = item.mobile || item.phone || '-';
-                    const branch = item.branchName || item.ชื่อสาขาเดิม || '-';
-
-                    const idno = item.idno || '-';
-                    const id = item.id || item.Id || '-';
-                    const prospectBatch = item.prospect_batch || item.product_batch || '';
-                    const isActive = selectedCampaign.isActive;
-
-                    let matchedBatch = null;
-                    if (Array.isArray(currentProductBatches) && currentProductBatches.length > 0) {
-                        matchedBatch = currentProductBatches.find(b => {
-                            if (!b) return false;
-
-                            if (typeof b === 'string' || typeof b === 'number') {
-                                const strB = String(b).trim();
-                                return (prospectBatch && strB === String(prospectBatch).trim()) ||
-                                       (id && strB === String(id).trim());
-                            }
-
-                            const bBatch = b.prospect_batch || b.product_batch || '';
-                            const bId = b.id || '';
-                            const bIds = Array.isArray(b.id) ? b.id : (Array.isArray(b.ids) ? b.ids : (Array.isArray(b.prospects) ? b.prospects : []));
-
-                            if (prospectBatch && bBatch && String(bBatch).trim() === String(prospectBatch).trim()) {
-                                return true;
-                            }
-
-                            if (id && bId && String(bId).trim() === String(id).trim()) {
-                                return true;
-                            }
-
-                            if (id && bIds.length > 0 && bIds.some(i => String(i).trim() === String(id).trim())) {
-                                return true;
-                            }
-
-                            return false;
-                        });
-                    }
-
-                    const idStr = (id && id !== '-') ? String(id).trim() : (idno && idno !== '-' ? String(idno).trim() : '');
-                    const isRemoved = idStr && removedBatchCustomerIds.has(idStr);
-                    const isMatchedInBatchRes = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c.id && String(c.id).trim() === idStr);
-                    const isMatched = !isRemoved && (!!matchedBatch || isMatchedInBatchRes);
-                    let isDraft = false;
-                    if (isMatched) {
-                        const bStatus = (typeof matchedBatch === 'object' && matchedBatch ? (matchedBatch.status || matchedBatch.assign_status || matchedBatch.product_batch_status || matchedBatch.batch_status) : null) || item.status || item.assign_status || '';
-                        const statusStr = String(bStatus || '').trim().toLowerCase();
-                        isDraft = statusStr === 'waiting prospect' || statusStr === 'return';
-                    }
-
-                    const isManuallySelected = idStr && manuallySelectedCustomers.has(idStr) && !isRemoved;
-                    const isChecked = isMatched || isManuallySelected;
-                    const canSelect = isProspectSelectionAllowed();
-                    const isDisabled = !canSelect || (isMatched && !isDraft) || !isActive;
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="text-center">
-                            <div class="form-check d-flex justify-content-center m-0">
-                                <input class="form-check-input row-checkbox" type="checkbox" 
-                                    data-id="${escapeHtml(idStr)}" 
-                                    data-idno="${escapeHtml(idno !== '-' ? idno : '')}" 
-                                    data-name="${escapeHtml(name !== '-' ? name : '')}" 
-                                    data-phone="${escapeHtml(phone !== '-' ? phone : '')}" 
-                                    data-branch="${escapeHtml(branch !== '-' ? branch : '')}" 
-                                    data-batch="${escapeHtml(prospectBatch)}" 
-                                    ${isChecked ? 'checked' : ''} 
-                                    ${isDisabled ? 'disabled' : ''}>
-                            </div>
-                        </td>
-                        <td>${escapeHtml(name)}</td>
-                        <td>${escapeHtml(phone)}</td>
-                        <td>${escapeHtml(branch)}</td>
-                    `;
-                    tbody.appendChild(tr);
+        // dedup ด้วย idno เพื่อตัดแถวซ้ำที่ SP อาจคืนมาต่างกันแต่ละ request
+        // และเก็บ lookup ข้อมูลดิบ (idno -> name/phone/branch) ไว้เติม field ที่ขาดในรายการที่เลือก
+        const seenIdnos = new Set();
+        const uniqueData = [];
+        prospectCustomerLookup = new Map();
+        for (const item of allData) {
+            const idno = normalizeIdno(item.idno);
+            if (idno && !prospectCustomerLookup.has(idno)) {
+                prospectCustomerLookup.set(idno, {
+                    name: item?.nameCus || '',
+                    phone: item?.mobile || item?.phone || '',
+                    branch: item?.branchName || item?.ชื่อสาขาเดิม || '',
+                    contno: item?.contno || ''
                 });
+            }
+            if (!idno || !seenIdnos.has(idno)) {
+                if (idno) seenIdnos.add(idno);
+                uniqueData.push(item);
             }
         }
 
-        bindTableCheckboxEvents();
-        renderProspectPaginationControls(1, count, count);
-        const goToInput = document.getElementById('goToPageInput');
-        if (goToInput) goToInput.value = '1';
+        // กรองตามสาขาและตัดลูกค้าที่อยู่ในรายการที่เลือกแล้ว (batch + manual) ด้วย idno
+        const campaignOffcde = selectedCampaign ? selectedCampaign.offcde : '';
+        const selectedIdnos = getAllSelectedIdnos();
+        let hiddenBySelectionCount = 0;
 
-        // คงการกรองชื่อลูกค้าที่ผู้ใช้พิมพ์ไว้ หลังจากโหลด/เรนเดอร์ตารางใหม่
-        const currentSearch = document.getElementById('prospectSearchInput');
-        if (currentSearch && currentSearch.value.trim() !== '') {
-            filterProspectRows(currentSearch.value);
-        }
+        const rawData = uniqueData.filter(item => {
+            const idno = normalizeIdno(item.idno);
+            if (!isRowInCampaignBranch(item, campaignOffcde)) return false;
+            if (idno && selectedIdnos.has(idno)) {
+                hiddenBySelectionCount++;
+                return false;
+            }
+            return true;
+        });
 
+        // จำนวนที่ถูกซ่อนเพราะอยู่ในรายการที่เลือก ใช้หักออกจาก API total ตอนแสดง "พบ X รายการ"
+        prospectHiddenBySelectionCount = hiddenBySelectionCount;
+
+        // renderProspectDataTable(rawData, page, pageSize);
+        renderProspectDataTable(allData, page, pageSize);
+        return;
     } catch (err) {
-        console.error("Error in loadProspectList:", err);
+        if (err.name !== 'AbortError') {
+            console.error("Error in loadProspectList:", err);
+        }
     } finally {
+        // ทุก startLoading ต้องมี stopLoading คู่กัน แม้ request จะถูกแทนที่หรือ abort
         stopLoading();
     }
-}
-
-function renderProspectPaginationControls(currentPage, pageSize, totalCount) {
-    const paginationEl = document.getElementById('tablePagination');
-    if (!paginationEl) return;
-    paginationEl.innerHTML = '';
-
-    const totalPages = Math.max(1, Math.ceil(totalCount / (pageSize || 1)));
-
-    // Previous Button
-    const prevLi = document.createElement('li');
-    prevLi.className = `page-item ${currentPage <= 1 ? 'disabled' : ''}`;
-    prevLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-left"></i></a>`;
-    prevLi.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (currentPage > 1) {
-            loadProspectList(currentPage - 1, pageSize);
-        }
-    });
-    paginationEl.appendChild(prevLi);
-
-    // Page Numbers
-    const pages = buildPageRange(currentPage, totalPages);
-    pages.forEach(p => {
-        const li = document.createElement('li');
-        if (p === '...') {
-            li.className = 'page-item disabled';
-            li.innerHTML = `<span class="page-link bg-transparent text-muted">...</span>`;
-        } else {
-            li.className = `page-item ${p === currentPage ? 'active' : ''}`;
-            li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
-            li.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (p !== currentPage) {
-                    loadProspectList(p, pageSize);
-                }
-            });
-        }
-        paginationEl.appendChild(li);
-    });
-
-    // Next Button
-    const nextLi = document.createElement('li');
-    nextLi.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
-    nextLi.innerHTML = `<a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>`;
-    nextLi.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (currentPage < totalPages) {
-            loadProspectList(currentPage + 1, pageSize);
-        }
-    });
-    paginationEl.appendChild(nextLi);
 }
 
 function buildPageRange(current, total) {
@@ -1399,6 +1686,21 @@ function buildPageRange(current, total) {
     return [1, '...', current - 1, current, current + 1, '...', total];
 }
 
+// เติม field ที่ขาด (ว่างหรือ "-") ของรายการที่เลือก จากข้อมูลลูกค้าดิบที่ match ด้วย idno
+function fillMissingFromLookup(entry) {
+    const idno = normalizeIdno(entry.idno);
+    if (!idno) return entry;
+    const src = prospectCustomerLookup.get(idno);
+    if (!src) return entry;
+
+    const isEmpty = v => v === undefined || v === null || v === '' || v === '-';
+    if (isEmpty(entry.name) && src.name) entry.name = src.name;
+    if (isEmpty(entry.phone) && src.phone) entry.phone = src.phone;
+    if (isEmpty(entry.branch) && src.branch) entry.branch = src.branch;
+    if (isEmpty(entry.contno) && src.contno) entry.contno = src.contno;
+    return entry;
+}
+
 function getSelectedList() {
     const combinedList = [];
     const seenIds = new Set();
@@ -1408,22 +1710,24 @@ function getSelectedList() {
             if (!c) return;
             const idKey = c.id ? String(c.id).trim() : null;
             if (idKey && removedBatchCustomerIds.has(idKey)) return;
-
             if (idKey) seenIds.add(idKey);
             const name = c.name || '-';
             const phone = c.phone || '-';
             const branch = c.branch || '-';
+            const contno = c.contno || '-';
             const isDisabled = c.isDisabled !== undefined ? c.isDisabled : true;
 
-            combinedList.push({
+            combinedList.push(fillMissingFromLookup({
                 id: idKey || '',
                 idno: c.idno || (c.raw ? c.raw.idno : ''),
                 name: name,
                 phone: phone,
                 branch: branch,
+                contno: contno,
                 isDisabled: isDisabled,
                 isBatchCustomer: true
-            });
+            }));
+  
         });
     }
 
@@ -1432,15 +1736,16 @@ function getSelectedList() {
         if (idKey && seenIds.has(idKey)) return;
         if (idKey) seenIds.add(idKey);
 
-        combinedList.push({
+        combinedList.push(fillMissingFromLookup({
             id: idKey || '',
             idno: item.idno || '',
             name: item.name || '-',
             phone: item.phone || '-',
             branch: item.branch || '-',
+            contno: item.contno || '-',
             isDisabled: false,
             isBatchCustomer: false
-        });
+        }));
     });
 
     return combinedList;
@@ -1458,15 +1763,18 @@ function updateSelectedList() {
     const selectedCount = combinedList.length;
 
     if (combinedList.length === 0) {
-        selectedTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3" style="font-size: 0.85rem;">ไม่มีรายการที่เลือก</td></tr>`;
+        selectedTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3" style="font-size: 0.85rem;">ไม่มีรายการที่เลือก</td></tr>`;
     } else {
         const canSelect = isProspectSelectionAllowed();
         combinedList.forEach((item) => {
+
             const newRow = document.createElement('tr');
             newRow.innerHTML = `
+                <td>${escapeHtml(item.idno)}</td>
                 <td>${escapeHtml(item.name)}</td>
                 <td class="text-muted">${escapeHtml(item.phone)}</td>
                 <td class="text-muted">${escapeHtml(item.branch)}</td>
+                <td class="text-muted">${escapeHtml(item.contno)}</td>
                 <td class="text-center">${(item.isDisabled || !canSelect) ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-idno="${escapeHtml(item.idno)}" data-id="${escapeHtml(item.id)}"></i>`}</td>
             `;
             selectedTableBody.appendChild(newRow);
@@ -1509,6 +1817,15 @@ function updateSelectedList() {
                 if (removeIndex !== -1) {
                     currentBatchCustomers.splice(removeIndex, 1);
                 }
+            }
+
+            // แถวใน "รายการลูกค้า" ยังคงอยู่แล้ว (ไม่ได้ถูกย้ายออก) จึงไม่ต้องโหลดใหม่
+            // แค่ re-render checkbox หน้าปัจจุบันให้ติ๊กหลุดตาม state ล่าสุด
+            if (prospectTable) {
+                prospectTable
+                    .rows({ page: 'current' })
+                    .invalidate('data')
+                    .draw(false);
             }
 
             updateSelectedList();
@@ -1631,14 +1948,25 @@ function renderSelectedPaginationControls(currentPage, pageSize, totalCount) {
 
 function updateCheckAllStatus() {
     const checkAll = document.getElementById('checkAll');
-    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
     if (!checkAll) return;
     const canSelect = isProspectSelectionAllowed();
     checkAll.disabled = !canSelect;
 
-    const visibleCheckboxes = Array.from(rowCheckboxes);
-    const allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(cb => cb.checked);
-    const someChecked = visibleCheckboxes.some(cb => cb.checked);
+    // รีเฟรช selectable list ให้ตรงกับตัวกรองปัจจุบัน (recompute เฉพาะเมื่อ search เปลี่ยน)
+    refreshSelectableRowIdStrs();
+
+    // ประเมินจากรายการ selectable ที่แคชไว้ (ทุกหน้า) เทียบกับ selection maps โดยตรง (Set lookup)
+    const selectable = selectableRowIdStrs;
+    let checkedCount = 0;
+    for (const idStr of selectable) {
+        const isChecked =
+            (manuallySelectedCustomers.has(idStr) && !removedBatchCustomerIds.has(idStr)) ||
+            (batchMatchIndex.savedIds.has(idStr) && !removedBatchCustomerIds.has(idStr));
+        if (isChecked) checkedCount++;
+    }
+
+    const allChecked = selectable.length > 0 && checkedCount === selectable.length;
+    const someChecked = checkedCount > 0;
 
     checkAll.checked = allChecked;
     checkAll.indeterminate = !allChecked && someChecked;
@@ -1659,44 +1987,40 @@ function bindTableCheckboxEvents() {
                 return;
             }
             const isChecked = this.checked;
-            rowCheckboxes.forEach(checkbox => {
-                if (!checkbox.disabled) {
-                    checkbox.checked = isChecked;
-                    const idStr = checkbox.getAttribute('data-id') ? String(checkbox.getAttribute('data-id')).trim() : '';
-                    const idno = checkbox.getAttribute('data-idno') || '';
-                    const name = checkbox.getAttribute('data-name') || checkbox.closest('tr')?.cells[1]?.textContent.trim() || '-';
-                    const phone = checkbox.getAttribute('data-phone') || checkbox.closest('tr')?.cells[2]?.textContent.trim() || '-';
-                    const branch = checkbox.getAttribute('data-branch') || checkbox.closest('tr')?.cells[3]?.textContent.trim() || '-';
 
-                    if (idStr) {
-                        if (isChecked) {
-                            removedBatchCustomerIds.delete(idStr);
-                            const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === idStr);
-                            if (!isSavedInBatch) {
-                                manuallySelectedCustomers.set(idStr, {
-                                    id: idStr,
-                                    idno: idno,
-                                    name: name,
-                                    phone: phone,
-                                    branch: branch,
-                                    isDisabled: false,
-                                    isBatchCustomer: false
-                                });
-                            }
-                        } else {
-                            manuallySelectedCustomers.delete(idStr);
-                            removedBatchCustomerIds.add(idStr);
-                            if (Array.isArray(currentBatchCustomers)) {
-                                const removeIndex = currentBatchCustomers.findIndex(c => c && c.id && String(c.id).trim() === idStr);
-                                if (removeIndex !== -1) {
-                                    currentBatchCustomers.splice(removeIndex, 1);
-                                }
-                            }
+            startLoading(
+                isChecked ? 'กำลังเลือกทั้งหมด...' : 'กำลังยกเลิกการเลือก...',
+                'กรุณารอสักครู่'
+            );
+
+            // ทำงานหนักแบบ async เพื่อให้ overlay แสดงก่อน แล้วไม่ freeze UI
+            setTimeout(() => {
+                try {
+                    // วนทุกแถวที่ตรงตัวกรอง (ทุกหน้า) จาก DataTables ไม่ใช่แค่ DOM ที่ render อยู่
+                    const allItems = getFilteredProspectItems();
+                    allItems.forEach(item => {
+                        const state = getProspectRowState(item);
+                        if (state.idStr && !state.isDisabled) {
+                            applyProspectRowSelection(state, isChecked);
                         }
+                    });
+
+                    // ไม่ย้ายแถวออกจาก "รายการลูกค้า" — คงแถวไว้ทั้งหมดและแค่ติ๊ก/ยกเลิกติ๊ก
+                    // re-render checkbox หน้าปัจจุบันให้ตรงกับ state ล่าสุด
+                    if (prospectTable) {
+                        prospectTable
+                            .rows({ page: 'current' })
+                            .invalidate('data')
+                            .draw(false);
                     }
+
+                    updateSelectedList();
+                } catch (err) {
+                    console.error('Error in select-all:', err);
+                } finally {
+                    stopLoading(true);
                 }
-            });
-            updateSelectedList();
+            }, 0);
         });
     }
 
@@ -1705,38 +2029,48 @@ function bindTableCheckboxEvents() {
             if (!isProspectSelectionAllowed() || this.disabled) {
                 return;
             }
-            const idStr = this.getAttribute('data-id') ? String(this.getAttribute('data-id')).trim() : '';
-            const idno = this.getAttribute('data-idno') || '';
-            const name = this.getAttribute('data-name') || this.closest('tr')?.cells[1]?.textContent.trim() || '-';
-            const phone = this.getAttribute('data-phone') || this.closest('tr')?.cells[2]?.textContent.trim() || '-';
-            const branch = this.getAttribute('data-branch') || this.closest('tr')?.cells[3]?.textContent.trim() || '-';
 
-            if (idStr) {
-                if (this.checked) {
-                    removedBatchCustomerIds.delete(idStr);
-                    const isSavedInBatch = Array.isArray(currentBatchCustomers) && currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === idStr);
-                    if (!isSavedInBatch) {
-                        manuallySelectedCustomers.set(idStr, {
-                            id: idStr,
-                            idno: idno,
-                            name: name,
-                            phone: phone,
-                            branch: branch,
-                            isDisabled: false,
-                            isBatchCustomer: false
-                        });
-                    }
-                } else {
-                    manuallySelectedCustomers.delete(idStr);
-                    removedBatchCustomerIds.add(idStr);
-                    if (Array.isArray(currentBatchCustomers)) {
-                        const removeIndex = currentBatchCustomers.findIndex(c => c && c.id && String(c.id).trim() === idStr);
-                        if (removeIndex !== -1) {
-                            currentBatchCustomers.splice(removeIndex, 1);
-                        }
-                    }
+            // ดึงข้อมูลแถวจริงจาก DataTables ก่อน (authoritative) เพื่อกัน name/phone/branch เป็น "-"
+            let state = null;
+            if (prospectTable) {
+                const tr = this.closest('tr');
+                const rowData = tr ? prospectTable.row(tr).data() : null;
+                if (rowData) {
+                    state = getProspectRowState(rowData);
                 }
             }
+
+            // fallback อ่านจาก data-* ของ checkbox หากดึง row data ไม่ได้
+            if (!state) {
+                const idStr = this.getAttribute('data-id') ? String(this.getAttribute('data-id')).trim() : '';
+                state = {
+                    idStr,
+                    idno: this.getAttribute('data-idno') || '',
+                    name: this.getAttribute('data-name') || '',
+                    phone: this.getAttribute('data-phone') || '',
+                    branch: this.getAttribute('data-branch') || '',
+                    contno: this.getAttribute('data-contno') || '',
+                };
+            }
+
+            const isChecked = this.checked;
+
+            // ติ๊กสัญญาที่มี idno และ contno ตรงกับรายการที่เลือกอยู่แล้ว -> แจ้งเตือนและยกเลิกการติ๊ก
+            if (isChecked && isIdnoContnoAlreadySelected(state.idno, state.contno, state.idStr)) {
+                this.checked = false;
+                Swal.fire({
+                    icon: "warning",
+                    title: "แจ้งเตือน",
+                    text: "สัญญานี้ได้ถูกบันทึกแล้ว",
+                    confirmButtonText: "ตกลง"
+                });
+                return;
+            }
+
+            applyProspectRowSelection(state, isChecked);
+
+            // ไม่ย้ายแถวออกจาก "รายการลูกค้า" แล้ว — คงแถวไว้และแค่ติ๊กถูกเอาไว้
+            // เพื่อให้ผู้ใช้ยกเลิกได้โดยเอาติ๊กออกได้ทันที ไม่ต้องโหลดใหม่
 
             updateSelectedList();
             updateCheckAllStatus();
@@ -1745,6 +2079,20 @@ function bindTableCheckboxEvents() {
 
     updateCheckAllStatus();
     updateSelectedList();
+}
+
+// ลบแถวที่ถูกเลือกออกจาก DataTables ตาม idno set (ใช้กับ select-all)
+// คืนจำนวนแถวที่ลบจริง
+function removeSelectedRowsFromProspectTable(idnoSet) {
+    if (!prospectTable || !idnoSet || idnoSet.size === 0) return 0;
+    const rows = prospectTable.rows((idx, data) => {
+        const idno = normalizeIdno(data && data.idno);
+        return idno && idnoSet.has(idno);
+    });
+    const removedCount = rows.count();
+    rows.remove();
+    prospectTable.draw(false);
+    return removedCount;
 }
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -1756,7 +2104,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     await loadBatchList(currentBatchPage, currentBatchPageSize);
 
     //Load Prospect List ---
-    await loadProspectList(currentProspectPage, currentBatchPageSize);
+    await loadProspectList(currentProspectPage, currentProspectPageSize);
 
     updateSendForApprovalButtonState();
 
@@ -1837,9 +2185,27 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     if (btnClearSelection) {
         btnClearSelection.addEventListener('click', function () {
-            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-            rowCheckboxes.forEach(checkbox => checkbox.checked = false);
-            bindTableCheckboxEvents();
+            if (!isProspectSelectionAllowed()) return;
+
+            // ยกเลิกการเลือกทุกแถวที่ตรงตัวกรอง (ทุกหน้า) ใน state ให้ตรงกับติ๊กที่หลุด
+            const allItems = getFilteredProspectItems();
+            allItems.forEach(item => {
+                const state = getProspectRowState(item);
+                if (state.idStr && !state.isDisabled) {
+                    applyProspectRowSelection(state, false);
+                }
+            });
+
+            // re-render checkbox หน้าปัจจุบันให้ติ๊กหลุด ไม่ต้องโหลดข้อมูลใหม่
+            if (prospectTable) {
+                prospectTable
+                    .rows({ page: 'current' })
+                    .invalidate('data')
+                    .draw(false);
+            }
+
+            updateSelectedList();
+            updateCheckAllStatus();
         });
     }
 
@@ -1902,8 +2268,12 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังบันทึกข้อมูล...", "");
                 try {
                     const currentSelected = getSelectedList();
-                    const selectedIds = Array.from(new Set(
-                        currentSelected.map(c => c.id).filter(Boolean)
+                    // ใช้ idno เป็น key ในการบันทึก (getProspect_phase3 ไม่มี id ของ tblProspectCustomer)
+                    const selectedIdnos = Array.from(new Set(
+                        currentSelected.map(c => c.idno).filter(Boolean)
+                    ));
+                    const selectedContnos = Array.from(new Set(
+                        currentSelected.map(c => c.contno).filter(Boolean)
                     ));
 
                     let response;
@@ -1911,7 +2281,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                     if (isCurrentCampaignImport) {
                         const upsertRequest = {
-                            Id: selectedIds,
+                            Id: selectedIdnos,
                             productCode: selectedCampaign.code || "",
                             user: ""
                         };
@@ -1925,13 +2295,15 @@ document.addEventListener('DOMContentLoaded', async function () {
                         data = await response.json();
                     } else {
                         var request = {
-                            id: selectedIds,
+                            idno: selectedIdnos,
+                            contno: selectedContnos,
                             product_code: selectedCampaign.code || "",
                             product_offcde: selectedCampaign.offcde || "",
                             product_company: selectedCampaign.product_company || "",
                             product_batch_remark: selectedCampaign.code+":new batch" || "",
                             status: "draft",
                         };
+
                         response = await fetch(`/ProspectSetup/PostNewProspectBatch`, {
                             method: 'POST',
                             headers: {
@@ -2104,18 +2476,28 @@ async function getProductBatchByProductCode(productCode){
     }
 }
 
-async function refreshSelectedCampaignCustomers() {
-    if (selectedCampaign && selectedCampaign.code) {
-        currentSelectedPage = 1;
+async function refreshSelectedCampaignCustomers(
+    campaign = selectedCampaign,
+    requestId = currentFilterRequestId
+) {
+    if (campaign && campaign.code) {
+        const campaignCode = campaign.code;
+        const isImportCampaign = isCurrentCampaignImport;
 
-        if (isCurrentCampaignImport) {
-            const response = await getCampaignDataForETL(selectedCampaign.code);
+        if (isImportCampaign) {
+            const response = await getCampaignDataForETL(campaignCode);
+            if (requestId !== currentFilterRequestId || selectedCampaign?.code !== campaignCode) return;
+
+            currentSelectedPage = 1;
             const etlResult = response ? (response.IsBatch) : null;
             currentBatchCustomers = extractCustomers(etlResult);
             currentProductBatches = [];
             updateSelectedList();
         } else {
-            const batchRes = await getProductBatchByProductCode(selectedCampaign.code);
+            const batchRes = await getProductBatchByProductCode(campaignCode);
+            if (requestId !== currentFilterRequestId || selectedCampaign?.code !== campaignCode) return;
+
+            currentSelectedPage = 1;
             currentBatchCustomers = extractCustomers(batchRes);
             updateSelectedList();
 
@@ -2227,9 +2609,9 @@ function extractCustomers(data) {
         if (typeof item === 'object') {
             const idno = item.idno || '';
             const id = item.id || item.Id || '';
-            const name = item.nameCus || '-';
-            const phone = item.mobile || item.phone || '-';
-            const branch = item.branchName || item.ชื่อสาขาเดิม || '-';
+            const name = item?.nameCus || '-';
+            const phone = item?.mobile || item?.phone || '-';
+            const branch = item?.branchName || item?.ชื่อสาขาเดิม || item?.BranchName ||  '-';
             const statusVal = item.assign_status || item.status || '';
             const statusStr = String(statusVal).trim().toLowerCase();
             const isDraft = statusStr === 'waiting prospect' || statusStr === 'return';

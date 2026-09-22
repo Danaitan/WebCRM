@@ -180,17 +180,36 @@ async function getProfileByCode(personalCode) {
     }
 }
 
+// async function getAllBranch() {
+//     if (allBranch && allBranch.length > 0) {
+//         return allBranch;
+//     }
+//     try {
+//         const branchResponse = await fetch(`/ProspectAssign/GetAllowedBranchList`);
+//         if (!branchResponse.ok) {
+//             throw new Error('Network response was not ok');
+//         }
+//         const branchData = await branchResponse.json();
+//         allBranch = branchData || [];
+//         return allBranch;
+//     } catch (err) {
+//         console.error("Error in getAllBranch:", err);
+//         return [];
+//     }
+// }
+
 async function getAllBranch() {
     if (allBranch && allBranch.length > 0) {
         return allBranch;
     }
     try {
-        const branchResponse = await fetch(`/ProspectAssign/GetAllowedBranchList`);
+        const branchResponse = await fetch('/Campain/getBranchListForCRM');
         if (!branchResponse.ok) {
             throw new Error('Network response was not ok');
         }
         const branchData = await branchResponse.json();
         allBranch = branchData || [];
+
         return allBranch;
     } catch (err) {
         console.error("Error in getAllBranch:", err);
@@ -222,7 +241,7 @@ function getBranchName(b) {
     return b.branch_name || b.branchName || b.BranchName || b.Bname || b.bname || getBranchCode(b);
 }
 
-function renderBranchDropdownOptions(allowedOffcdes = null) {
+function renderBranchDropdownOptions(allowedOffcdes) {
     const container = document.getElementById('branchOptions');
 
     if (!container) return;
@@ -231,17 +250,23 @@ function renderBranchDropdownOptions(allowedOffcdes = null) {
 
     let branches = allBranch || [];
 
-    if (Array.isArray(allowedOffcdes)) {
-        const allowedBranchCodes = new Set(
-            allowedOffcdes.map(normalizeBranchCode).filter(Boolean)
-        );
+    // if (Array.isArray(allowedOffcdes)) {
+    //     const allowedBranchCodes = new Set(
+    //         allowedOffcdes.map(normalizeBranchCode).filter(Boolean)
+    //     );
 
-        branches = branches.filter(b =>
-            allowedBranchCodes.has(normalizeBranchCode(getBranchCode(b)))
-        );
-    }
+    //     branches = branches.filter(b =>
+    //         allowedBranchCodes.has(normalizeBranchCode(getBranchCode(b)))
+    //     );
+    // }
 
-    branches.forEach(b => {
+    const result = allBranch
+        .filter(branch => allowedOffcdes.includes(branch.offcde))
+        .map(branch => {
+            return branch;
+    });
+        
+    result.forEach(b => {
         const code = getBranchCode(b);
         const name = getBranchName(b);
 
@@ -330,15 +355,10 @@ function updateBranchSelectedDisplay() {
 
         tag.querySelector('.remove-branch')
             .addEventListener('click', function (e) {
-
                 e.stopPropagation();
-
                 checkbox.checked = false;
-
                 updateBranchSelectedDisplay();
-
                 const selectedBranches = getSelectedBranchCodes();
-
                 loadAndRenderStaffList(selectedBranches);
 
                 // เอาสาขาออก -> อัปเดตรายการ Prospect ตามสาขาที่เหลือ
@@ -872,7 +892,7 @@ function extractProspectCustomers(data) {
             item.prospects.forEach(c => checkAndPush(c));
             return;
         }
-console.log("item",item)
+
         if (typeof item === 'object') {
             const idno = item.idno || '';
             const id = item.id || item.Id || '';
@@ -963,9 +983,10 @@ async function getCampainList(page, pageSize) {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
         const status = "approved";
-        const queryStr = (page !== undefined && pageSize !== undefined) 
+        let queryStr = (page !== undefined && pageSize !== undefined) 
             ? `?page=${page}&pageSize=${pageSize}&status=${status}`
             : '';
+        queryStr += `&isFiltercompany=${encodeURIComponent(true)}`;
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();

@@ -20,7 +20,8 @@ namespace webCRM.Models
 
     public class PostNewProspectBatchRequest
     {
-        public List<string>? id { get; set; }
+        public List<string>? idno { get; set; }
+        public List<string>? contno { get; set; }
         public string? product_code { get; set; }
         public string? product_offcde { get; set; }
         public string? product_company { get; set; }

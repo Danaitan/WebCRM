@@ -8,6 +8,7 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
     <link rel="stylesheet" href="~/css/suggestions.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
@@ -181,6 +182,16 @@
                                 <div class="d-flex mb-3 align-items-start">
                                     <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">ข้อความเสนอแนะ</div>
                                     <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-suggestion">-</div>
+                                </div>
+
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">อีเมลผู้รับผิดชอบ</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-sendto">-</div>
+                                </div>
+
+                                <div class="d-flex mb-3 align-items-start">
+                                    <div class="text-muted fw-medium" style="min-width: 150px; flex-shrink: 0;">อีเมล CC</div>
+                                    <div class="fw-medium text-dark" style="flex: 1; min-width: 0; word-break: break-word; overflow-wrap: break-word;" id="detail-EmailCC">-</div>
                                 </div>
 
                                 <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
@@ -374,7 +385,7 @@
                                 </div>
                                 <div class="d-flex gap-2 mt-2">
                                     <div class="position-relative flex-grow-1">
-                                        <input type="date" class="form-control bg-white" id="post-contact-date">
+                                        <input type="date" class="form-control bg-white" id="post-contact-date" placeholder="dd/mm/yyyy" aria-label="วันที่ให้ติดต่อกลับ รูปแบบ dd/mm/yyyy" autocomplete="off">
                                     </div>
                                     <div class="d-flex align-items-center gap-1" style="width: 170px;">
                                         <input type="hidden" id="post-contact-time" value="00:00">

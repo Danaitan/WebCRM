@@ -251,6 +251,37 @@ namespace webCRM.Controllers
         {
             try
             {
+                var now = DateTime.Now;
+                var today = DateOnly.FromDateTime(now);
+
+                if (!request.DateSugges.HasValue)
+                {
+                    return BadRequest(new
+                    {
+                        status = "error",
+                        message = "กรุณาเลือกวันที่ให้ติดต่อกลับ"
+                    });
+                }
+
+                if (request.DateSugges.Value < today)
+                {
+                    return BadRequest(new
+                    {
+                        status = "error",
+                        message = "ไม่สามารถเลือกวันที่ให้ติดต่อกลับย้อนหลังได้"
+                    });
+                }
+
+                if (request.TimeSugges.HasValue
+                    && request.DateSugges.Value.ToDateTime(request.TimeSugges.Value) < now)
+                {
+                    return BadRequest(new
+                    {
+                        status = "error",
+                        message = "ไม่สามารถเลือกวันที่และเวลาให้ติดต่อกลับย้อนหลังได้"
+                    });
+                }
+
                 request.Guid =
                     Guid.NewGuid().ToString();
 
@@ -575,6 +606,35 @@ namespace webCRM.Controllers
                         message =
                             "Receiver or ReceiverEmail is required."
                     });
+                }
+
+                var isSuggestionNotification =
+                    string.Equals(
+                        request.Header?.Trim(),
+                        "ข้อเสนอแนะ/ร้องเรียน",
+                        StringComparison.OrdinalIgnoreCase);
+
+                if (isSuggestionNotification)
+                {
+                    if (!Guid.TryParse(request.RefId, out var suggestionGuid))
+                    {
+                        return Ok(new
+                        {
+                            status = "error",
+                            message = "กรุณาระบุรหัสอ้างอิงข้อเสนอแนะ/ร้องเรียนที่ถูกต้อง"
+                        });
+                    }
+
+                    // เก็บ ref_id สำหรับ API รุ่นที่รองรับ และฝังในข้อความเป็น fallback
+                    // สำหรับ API รุ่นเดิมที่ยังไม่คืน ref_id ตอนอ่านการแจ้งเตือน
+                    request.RefId = suggestionGuid.ToString();
+                    if (request.Message?.Contains(
+                            request.RefId,
+                            StringComparison.OrdinalIgnoreCase) != true)
+                    {
+                        request.Message =
+                            $"{request.Message?.TrimEnd()}<br><br>รหัสอ้างอิง: {request.RefId}";
+                    }
                 }
 
                 var result =

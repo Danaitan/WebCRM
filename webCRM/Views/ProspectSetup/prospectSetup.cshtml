@@ -88,14 +88,14 @@
                         <div class="d-flex align-items-center gap-2">
                             <div class="search-box" style="width: 380px; min-width: 280px;">
                                 <i class="bi bi-search" id="prospectSearchIcon" style="cursor: pointer;"></i>
-                                <input id="prospectSearchInput" type="text" class="form-control form-control-custom w-100" placeholder="ค้นหาชื่อลูกค้า...">
+                                <input id="prospectSearchInput" type="text" class="form-control form-control-custom w-100" placeholder="ค้นหา รหัสบัตร / ชื่อ / เบอร์โทร / สาขา / เลขที่สัญญา...">
                             </div>
                             <!-- <button type="button" class="btn btn-primary d-flex align-items-center gap-1" id="btnSearchProspect" style="border-radius: 8px; font-size: 0.875rem; font-weight: 500; height: 38px; white-space: nowrap;">
                                 <i class="bi bi-search"></i> ค้นหา
                             </button> -->
                         </div>
                     </div>
-                    <div class="table-responsive border rounded-3">
+                    <div class="table-responsive border rounded-3 prospect-table-wrap">
                         <table class="table table-hover table-custom mb-0" 
                         id="batchListContainer"
                         >
@@ -106,9 +106,11 @@
                                             <input class="form-check-input" type="checkbox" id="checkAll">
                                         </div>
                                     </th>
+                                    <th>รหัสบัตรประชาชน</th>
                                     <th>ชื่อ-นามสกุล</th>
                                     <th>เบอร์โทรศัพท์</th>
                                     <th>สาขา</th>
+                                    <th>เลขที่สัญญา</th>
                                 </tr>
                             </thead>
                             <tbody id="dataTableBody">
@@ -181,9 +183,11 @@
                 <table class="table table-borderless selected-table mb-0">
                     <thead>
                         <tr>
+                            <th>รหัสบัตรประชาชน</th>
                             <th>ชื่อ-นามสกุล</th>
                             <th>เบอร์โทรศัพท์</th>
                             <th>สาขา</th>
+                            <th>เลขที่สัญญา</th>
                             <th style="width: 30px;"></th>
                         </tr>
                     </thead>

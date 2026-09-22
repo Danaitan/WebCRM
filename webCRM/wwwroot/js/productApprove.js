@@ -514,7 +514,9 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
     // 1. Try getProductBatchByProductCode first
     try {
         const batchRes = await getProductBatchByProductCode(productCode);
+        console.log("batchRes",batchRes)
         const parsedBatch = extractProspectCustomers(batchRes);
+                console.log("parsedBatch",parsedBatch)
         if (parsedBatch.items && parsedBatch.items.length > 0) {
             items = parsedBatch.items;
             totalCount = parsedBatch.totalCount;
@@ -824,8 +826,8 @@ async function getCampainList(page, pageSize, statusText) {
             queryParams.push(`createdBy=${encodeURIComponent(filterByEl.value)}`);
         }
 
+        queryParams.push(`isFiltercompany=${encodeURIComponent(true)}`);
         const queryStr = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
-
         const response = await fetch(`/Campain/GetCampainList${queryStr}`);
         if (!response.ok) throw new Error("Failed to fetch campaigns list");
         const jsonResult = await response.json();

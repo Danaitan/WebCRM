@@ -162,6 +162,12 @@
             };
         }
 
+        // สิทธิ์ FCRM002 (isEdit) = ตอบกลับได้แบบไร้เงื่อนไข
+        // ข้ามการตรวจสอบ กลุ่ม/บุคคล/ผู้ตอบคนแรก ทั้งหมด (ยังคงกันเฉพาะสถานะปิดงานด้านบน)
+        if (window.isEdit === true) {
+            return { allowed: true, reason: '' };
+        }
+
         try {
             await loadGroupEmailSet();
         } catch (error) {

@@ -48,7 +48,9 @@ namespace webCRM.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProspect(
             GetProspectRequest request,
-            string search = ""
+            string search = "",
+            string? batch = null,
+            string branch = ""
             )
         {
             try
@@ -56,7 +58,9 @@ namespace webCRM.Controllers
                 var data =
                     await crmService.GetProspectPhase3(
                         request,
-                        search
+                        search,
+                        batch,
+                        branch
                         );
 
                 return Content(
@@ -430,6 +434,38 @@ namespace webCRM.Controllers
             }
         }
            
+        [HttpGet]
+        public async Task<IActionResult> GetContnoByIdno(
+            string idno = ""
+            )
+        {
+            try
+            {
+                var data =
+                    await crmService.GetContnoByIdno(
+                        idno
+                        );
+
+                return Content(
+                    data,
+                    "application/json");
+            }
+            catch (Exception ex)
+            {
+                ViewBag.ErrorMessage =
+                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                    + ex.Message;
+
+                return Content(
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            count = 0,
+                            data = Array.Empty<object>()
+                        }),
+                    "application/json");
+            }
+        }
     
     }
 }

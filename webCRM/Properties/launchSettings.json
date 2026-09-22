@@ -26,6 +26,7 @@
         "ApiSettings__APILogin": "https://172.16.17.78:7102",
         "ApiSettings__WebDomain": "http://172.16.17.78:5003",
         "MGDomain": "http://172.16.17.73:1442/ml_system/index.php/index",
+        "JWT_SECRET_KEY":"32B92!2#"
       }
     }
   }

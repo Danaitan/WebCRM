@@ -32,6 +32,9 @@ namespace webCRM.Models
         [JsonPropertyName("sendTo")]
         public string? SendTo { get; set; }
 
+        [JsonPropertyName("ccMail")]
+        public string? CcMail { get; set; }
+
         [JsonPropertyName("nameProvider")]
         public string? NameProvider { get; set; }
 

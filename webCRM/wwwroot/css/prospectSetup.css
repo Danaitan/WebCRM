@@ -129,6 +129,52 @@
     .panel-main > .card-custom:last-child .card-body-custom > div:not(.table-responsive) {
         flex-shrink: 0;
     }
+
+    /* DataTables layout: table scrolls, footer (length/info/pagination) ติดล่างสุดไม่เลื่อนตาม */
+    .panel-main > .card-custom:last-child .card-body-custom .table-responsive.prospect-table-wrap {
+        overflow: hidden;               /* ไม่ให้ตัว wrapper scroll เอง */
+    }
+
+    #batchListContainer_wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
+    #batchListContainer_wrapper .prospect-table-scroll {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;               /* ส่วนข้อมูลเลื่อนได้ */
+    }
+
+    #batchListContainer_wrapper .prospect-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #fff;
+    }
+
+    #batchListContainer_wrapper .prospect-table-footer {
+        flex-shrink: 0;                 /* footer ติดล่างสุด ไม่เลื่อน */
+        border-top: 1px solid var(--border-color);
+        padding-top: 10px;
+        margin-top: 4px;
+        background: #fff;
+    }
+
+    /* length (แสดง N รายการ) อยู่บน, info (แสดง x ถึง y) อยู่ใต้ */
+    #batchListContainer_wrapper .prospect-footer-left {
+        gap: 2px;
+    }
+
+    /* info เป็น secondary text */
+    #batchListContainer_wrapper .prospect-info-text,
+    #batchListContainer_wrapper .dataTables_info {
+        font-size: 0.8rem;
+        color: var(--bs-secondary-color, #6c757d);
+        padding-top: 0;
+    }
     
     .panel-right {
         min-width: 150px;
@@ -480,6 +526,19 @@
         .panel-main > .card-custom:last-child .card-body-custom .table-responsive {
             flex: none;
             overflow-y: visible;
+        }
+
+        /* มือถือ: ให้ส่วนข้อมูลมีความสูงจำกัดและ scroll ได้ ส่วน footer อยู่ใต้ตาราง */
+        .panel-main > .card-custom:last-child .card-body-custom .table-responsive.prospect-table-wrap {
+            overflow: hidden;
+        }
+
+        #batchListContainer_wrapper {
+            height: auto;
+        }
+
+        #batchListContainer_wrapper .prospect-table-scroll {
+            max-height: 60vh;
         }
         
         .panel-right {

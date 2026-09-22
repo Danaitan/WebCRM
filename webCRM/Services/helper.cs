@@ -441,7 +441,7 @@ namespace webCRM.Services
             try
             {
                 var endpoint =
-                    $"p2/getProspect_phase3/{page}/{pageSize}";
+                    "p2/getProspect_phase3";
 
                 return await GetAsync<string>(endpoint)
                     ?? "{\"page\":0,\"pageSize\":0,\"count\":0,\"data\":[]}";
@@ -1703,7 +1703,9 @@ namespace webCRM.Services
 
         public async Task<string> GetProspectPhase3(
             GetProspectRequest request,
-            string search
+            string search,
+            string batch,
+            string branch
             )
         {
             try
@@ -1712,8 +1714,14 @@ namespace webCRM.Services
                     new Dictionary<string, string?>
                     {
                         ["isNotAssign"] = "true",
-                        ["search"] = search ?? ""
+                        ["search"] = search ?? "",
+                        ["branch"] = branch ?? ""
                     };
+
+                if (!string.IsNullOrWhiteSpace(batch))
+                {
+                    queryParams["batch"] = batch;
+                }
 
                 if (request != null)
                 {
@@ -2442,6 +2450,29 @@ namespace webCRM.Services
                     ex,
                     "Error loading personal in group for GroupEmail: {GroupEmail}",
                     groupEmail);
+
+                throw;
+            }
+        }
+
+        public async Task<string> GetContnoByIdno(
+            string idno
+            )
+        {
+            try
+            {
+
+
+                var data = await GetStringAsync($"p3/getContnoByIdno?idno={idno}");
+
+                return data;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading getContnoByIdno. idno:",
+                    idno);
 
                 throw;
             }

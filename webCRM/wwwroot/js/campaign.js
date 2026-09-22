@@ -100,12 +100,6 @@ function isCurrentCampaignEditable(campaignObj) {
     return STATUS_CAN_EDIT.some(s => s === rawStatus || s === normalizedStatus);
 }
 
-async function getCampaignDataForETL(productCode) {
-    const response = await fetch(`/ProspectSetup/getCampaignDataForETL?productCode=${productCode}`);
-    const data = await response.json();
-    return data;
-}
-
 function generateUUID() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
@@ -468,7 +462,14 @@ async function renderMasterFilters() {
                     selectedFilterCodes.push(code);
                 }
             } else {
-                selectedFilterCodes = selectedFilterCodes.filter(c => c !== code);
+                // ต้องมี Filter อย่างน้อย 1 อัน หากเลือกไว้แล้ว ห้ามเอาออกจนหมด
+                const remaining = selectedFilterCodes.filter(c => c !== code);
+                if (remaining.length === 0) {
+                    $(this).prop("checked", true);
+                    showFilterMinimumWarning();
+                    return;
+                }
+                selectedFilterCodes = remaining;
             }
             selectedFilterCodes = Array.from(new Set(selectedFilterCodes));
             updateSelectAllFiltersState();
@@ -489,10 +490,18 @@ async function renderMasterFilters() {
             const isChecked = $(this).is(":checked");
             if (isChecked) {
                 selectedFilterCodes = Array.from(new Set(masterFiltersData.map(f => f.fcode)));
+                $(".filter-chk").prop("checked", true);
             } else {
+                // ต้องมี Filter อย่างน้อย 1 อัน ห้ามยกเลิกเลือกทั้งหมด
+                if (selectedFilterCodes.length > 0) {
+                    $(this).prop("checked", true);
+                    showFilterMinimumWarning();
+                    updateSelectAllFiltersState();
+                    return;
+                }
                 selectedFilterCodes = [];
+                $(".filter-chk").prop("checked", false);
             }
-            $(".filter-chk").prop("checked", isChecked);
             updateSelectedFiltersDisplay();
         });
 
@@ -502,6 +511,19 @@ async function renderMasterFilters() {
     } catch (err) {
         console.error("Error rendering master filters:", err);
     }
+}
+
+function showFilterMinimumWarning() {
+    if (typeof Swal === "undefined") return;
+    Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "warning",
+        title: "ต้องเลือก Filter อย่างน้อย 1 รายการ",
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+    });
 }
 
 function updateSelectAllFiltersState() {
@@ -1823,7 +1845,8 @@ async function getCheckProductNo() {
                             guid: newGuid,
                             code: code,
                             name: name,
-                            status: "waiting prospect",
+                            // status: "waiting prospect",
+                            status: "draft",
                             startDate: start,
                             endDate: end,
                             objective: Objective_code,
@@ -2046,6 +2069,11 @@ async function getCheckProductNo() {
                             }
                         }
 
+                        let status = 'draft';
+                        const selectedRowsCount = Array.isArray(selectedFilterCodes) ? selectedFilterCodes.length : 0;
+                        if (selectedRowsCount > 0) {
+                            status = 'waiting prospect';
+                        }
                         const filterRes = await postFilter(selectedCampaignGuid);
                         const company = window.CURRENT_COMPANY || "MICRO";
                         const updatePayload = {
@@ -2061,7 +2089,7 @@ async function getCheckProductNo() {
                                 product_company: company,
                                 offcde: selectedBranches.filter(b => b !== "99").join(","),
                                 Objective_code: Objective_code,
-                                product_status: "waiting prospect",
+                                product_status: status,
                                 file_id: fileIdToSave
                             }
                         };

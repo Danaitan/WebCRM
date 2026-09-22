@@ -422,6 +422,14 @@ function getFormattedNowDate() {
     return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
 }
 
+function extractSuggestionGuidFromText(value) {
+    const text = formatNotiValue(value);
+    if (!text) return '';
+
+    const referenceMatch = text.match(/รหัสอ้างอิง\s*:\s*([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i);
+    return referenceMatch ? referenceMatch[1] : '';
+}
+
 function getSuggestionReference(data) {
     if (!data || typeof data !== 'object') return '';
 
@@ -434,9 +442,14 @@ function getSuggestionReference(data) {
     if (explicitReference) return String(explicitReference);
 
     const possibleGuid = data.guid || data.Guid || '';
-    return possibleGuid && String(possibleGuid) !== String(notificationId)
-        ? String(possibleGuid)
-        : '';
+    if (possibleGuid && String(possibleGuid) !== String(notificationId)) {
+        return String(possibleGuid);
+    }
+
+    // Notification API บางเวอร์ชันไม่ส่ง ref_id กลับมา จึงอ่านรหัสที่ฝังในข้อความเป็น fallback
+    return extractSuggestionGuidFromText(data.message)
+        || extractSuggestionGuidFromText(data.title)
+        || '';
 }
 
 async function getSuggestionReplyContext(guid) {
@@ -474,7 +487,7 @@ async function getNotificationReplyBlockHtml(data, inputId) {
         }
 
         const senderEmail = data.sender_email || data.senderEmail || '';
-        return getSuggestionReplyBlockHtml(guid, inputId, senderEmail);
+        return renderSuggestionReplyFormHtml(guid, inputId, senderEmail);
     } catch (error) {
         console.error('Error checking notification reply permission:', error);
         return `<div class="alert alert-warning py-2 px-3 mt-3 mb-0">${error.message || 'ไม่สามารถตรวจสอบสิทธิ์การตอบกลับได้ กรุณาลองใหม่อีกครั้ง'}</div>`;
@@ -667,7 +680,7 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
     }
 }
 
-function getSuggestionReplyBlockHtml(guid, inputId, senderEmail) {
+function renderSuggestionReplyFormHtml(guid, inputId, senderEmail) {
     const userNameDisplay = typeof userFullNameEn !== 'undefined' && userFullNameEn ? userFullNameEn : '';
     const nowDisplay = getFormattedNowDate();
     const targetGuid = guid || '';

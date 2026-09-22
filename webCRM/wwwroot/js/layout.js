@@ -523,6 +523,10 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
     }
 
     try {
+        // แสดง loading ทันทีที่กดบันทึก เพื่อไม่ให้ดูค้างระหว่างตรวจสอบสิทธิ์การตอบกลับ
+        if (typeof showLoading === 'function') {
+            showLoading('กำลังตรวจสอบสิทธิ์', 'ระบบกำลังตรวจสอบสิทธิ์การตอบกลับ กรุณารอสักครู่...');
+        }
         const context = await getSuggestionReplyContext(guid);
         const replyDetails = window.SuggestionReplyAuthorization.getReplyDetails(context);
         const permission = await window.SuggestionReplyAuthorization.evaluate(
@@ -530,6 +534,12 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
             replyDetails,
             context.statusTask
         );
+        // ปิด loading ก่อนแสดงกล่องยืนยัน/แจ้งเตือน เพื่อไม่ให้ overlay บังกล่องข้อความ
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
         if (!permission.allowed) {
             if (typeof Swal !== 'undefined') {
                 await Swal.fire({
@@ -542,6 +552,11 @@ async function submitNotificationReply(guid, inputId, senderEmail) {
         }
     } catch (error) {
         console.error('Error rechecking notification reply permission:', error);
+        if (typeof stopLoading === 'function') {
+            stopLoading(true);
+        } else if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
         if (typeof Swal !== 'undefined') {
             await Swal.fire({
                 icon: 'error',

@@ -939,6 +939,10 @@ $(document).ready(async function () {
             $("#campaignName").val("");
             if (fpStartDate) {
                 fpStartDate.clear();
+                // Restore the "today" lower bound for new campaigns (it may have been
+                // cleared while viewing an existing campaign with past dates).
+                fpStartDate.set("minDate", "today");
+                fpStartDate.set("maxDate", null);
                 if (fpStartDate.altInput) fpStartDate.altInput.disabled = true;
             } else {
                 $("#startDate").val("");
@@ -946,6 +950,7 @@ $(document).ready(async function () {
             if (fpEndDate) {
                 fpEndDate.clear();
                 fpEndDate.set("minDate", null);
+                fpEndDate.set("maxDate", null);
                 if (fpEndDate.altInput) fpEndDate.altInput.disabled = true;
             } else {
                 $("#endDate").val("").removeAttr("min");
@@ -1220,6 +1225,18 @@ $(document).ready(async function () {
 
             $("#campaignCode").val(campaign.code);
             $("#campaignName").val(campaign.name);
+            // Reset any min/max bounds left over from a previously viewed campaign
+            // before applying this campaign's dates. Flatpickr silently ignores a
+            // setDate() value that falls outside the current min/max range, which is
+            // what caused start/end dates to disappear when switching campaigns.
+            if (fpStartDate) {
+                fpStartDate.set('minDate', null);
+                fpStartDate.set('maxDate', null);
+            }
+            if (fpEndDate) {
+                fpEndDate.set('minDate', null);
+                fpEndDate.set('maxDate', null);
+            }
             if (fpStartDate) {
                 if (campaign.startDate) {
                     fpStartDate.setDate(campaign.startDate, false);

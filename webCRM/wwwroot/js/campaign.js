@@ -1728,7 +1728,7 @@ async function getCheckProductNo() {
 
     $("#modalSubmitBtn").off("click").on("click", function () {
         const name = $("#modalCampaignName").val().trim();
-        const code = $("#modalCampaignCode").val().trim();
+        let code = $("#modalCampaignCode").val().trim();
         const start = $("#modalStartDate").val();
         const end = $("#modalEndDate").val();
         const note = $("#modalRemarks").val().trim();
@@ -1802,6 +1802,31 @@ async function getCheckProductNo() {
                 startLoading("กำลังสร้างแคมเปญใหม่", "ระบบกำลังบันทึกข้อมูล...");
 
                 try {
+                    // รอให้รหัส Campaign ที่ถูก generate แบบ async เสร็จก่อน
+                    // กันกรณีผู้ใช้กดบันทึกเร็วเกินไปจนรหัสยังเป็น placeholder หรือค่าว่าง
+                    // ซึ่งเป็นสาเหตุที่บางครั้งบันทึกแล้วขึ้นข้อผิดพลาด
+                    if (modalCampaignCodePromise) {
+                        try {
+                            const resolvedCode = await modalCampaignCodePromise;
+                            if (resolvedCode) {
+                                code = resolvedCode.trim();
+                            }
+                        } catch (e) {
+                            console.error("Error awaiting campaign code:", e);
+                        }
+                    }
+
+                    // ถ้ารหัสยังไม่พร้อม (ว่างหรือยังเป็น placeholder) ให้หยุดและแจ้งผู้ใช้
+                    if (!code || code === CAMPAIGN_CODE_PLACEHOLDER) {
+                        stopLoading();
+                        Swal.fire({
+                            title: "ยังไม่พร้อมบันทึก",
+                            text: "ระบบกำลังสร้างรหัส Campaign กรุณารอสักครู่แล้วลองใหม่อีกครั้ง",
+                            icon: "warning"
+                        });
+                        return;
+                    }
+
                     const newGuid = generateUUID();
                     const company = window.CURRENT_COMPANY || "MICRO";
                     const isImportFromExcel = $("#modalChkImportExcel").is(":checked");

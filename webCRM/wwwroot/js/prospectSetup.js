@@ -26,7 +26,9 @@ let prospectAuthoritativeTotal = null;
 // จำนวนที่ถูกซ่อนออกจากรายการลูกค้าเพราะอยู่ในรายการที่เลือก (หักออกจาก total ตอนแสดง)
 let prospectHiddenBySelectionCount = 0;
 
-// แสดงจำนวน "พบ X รายการ" = จำนวนที่แสดงจริง (หัก idno ที่ถูกซ่อนเพราะอยู่ในรายการที่เลือกออกแล้ว)
+// แสดงจำนวน "พบ X รายการ" = จำนวนแถวจริงในตารางหลังกรอง (recordsDisplay ของ DataTables)
+// ตารางถูก render ด้วย rawData ที่ dedup + กรองสาขา + ตัดรายการที่เลือกแล้วออกมาแล้ว
+// ดังนั้นจำนวนนี้จึงเท่ากับจำนวนที่ "เลือกทั้งหมด" ทำได้จริงเสมอ
 function updateProspectTotalFound(recordsDisplay) {
     const totalFoundEl = document.getElementById('totalFound');
     if (!totalFoundEl) return;
@@ -36,16 +38,11 @@ function updateProspectTotalFound(recordsDisplay) {
         recordsDisplay = prospectTable.page.info().recordsDisplay;
     }
 
-    const searchText = ($prospectSearchInput.val() || '').trim();
-    let value;
-    if (searchText) {
-        // ระหว่างค้นหา ใช้จำนวนหลังกรองของ DataTables
-        value = recordsDisplay;
-    } else if (Number.isFinite(prospectAuthoritativeTotal)) {
-        // ไม่ค้นหา: ใช้ API total หักด้วยจำนวนที่ถูกซ่อนเพราะอยู่ในรายการที่เลือก
-        value = Math.max(0, prospectAuthoritativeTotal - (prospectHiddenBySelectionCount || 0));
-    } else {
-        value = recordsDisplay;
+    // ระหว่างค้นหาใช้จำนวนหลังกรองของ DataTables, ไม่ค้นหาก็ใช้จำนวนแถวทั้งหมดในตาราง
+    // ทั้งสองกรณีคือ recordsDisplay จึงตรงกับจำนวนแถวที่ผู้ใช้ติ๊กเลือกได้จริง
+    let value = recordsDisplay;
+    if (!Number.isFinite(value)) {
+        value = Number.isFinite(prospectAuthoritativeTotal) ? prospectAuthoritativeTotal : 0;
     }
     totalFoundEl.textContent = Number(value || 0).toLocaleString();
 }
@@ -410,7 +407,7 @@ function productFilterHTML(filtercode, dropdownData = {}) {
     function OptionHTML(labelName, optionData = [], fieldName = '') {
         const list = Array.isArray(optionData) ? optionData : [];
         const HTML = `
-            <div class="col-xxl-4 col-xl-6 col-md-6">
+            <div class="prospect-filter-col">
                 <label class="form-label-custom">${labelName}</label>
                 <select class="form-select form-select-custom prospect-filter-input" data-field="${fieldName}">
                 <option value="">-- ทั้งหมด --</option>
@@ -427,7 +424,7 @@ function productFilterHTML(filtercode, dropdownData = {}) {
 
     function RangeNumberHTMLAge(labelName, fieldName = '') {
         const HTML = `
-            <div class="col-xxl-4 col-xl-6 col-md-6">
+            <div class="prospect-filter-col">
                 <label class="form-label-custom">${labelName}</label>
                 <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}" placeholder="เช่น 40 หรือ 40-60" pattern="^\\d+(-\\d+)?$" title="กรอกตัวเลขเดี่ยว เช่น 40 หรือช่วงตัวเลข เช่น 40-60">
                 <small class="text-muted">ตัวอย่าง: 40 หรือ 40-60</small>
@@ -438,7 +435,7 @@ function productFilterHTML(filtercode, dropdownData = {}) {
 
     function RangeNumberHTML(labelName, fieldName = '') {
         const HTML = `
-            <div class="col-xxl-4 col-xl-6 col-md-6">
+            <div class="prospect-filter-col">
                 <label class="form-label-custom">${labelName}</label>
                 <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}">
             </div>
@@ -448,7 +445,7 @@ function productFilterHTML(filtercode, dropdownData = {}) {
 
     function FreeTextHTML(labelName, fieldName = '') {
         const HTML = `
-            <div class="col-xxl-4 col-xl-6 col-md-6">
+            <div class="prospect-filter-col">
                 <label class="form-label-custom">${labelName}</label>
                 <input type="text" class="form-control form-select-custom prospect-filter-input" data-field="${fieldName}">
             </div>
@@ -1056,6 +1053,9 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                         return;
                     }
 
+                    // เปิดใช้ Select2 ให้ dropdown ตัวเลือก (เช่น อำเภอที่อยู่สถานที่ใช้รถ) ค้นหาได้
+                    initProspectFilterSelects();
+
                     await refreshSelectedCampaignCustomers();
 
                     if (requestId !== currentFilterRequestId) {
@@ -1182,6 +1182,32 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
         if (currentPage < totalPages) loadBatchList(currentPage + 1, pageSize, searchText);
     });
     paginationEl.appendChild(nextLi);
+}
+
+// เปิด Select2 ให้ <select> ในเงื่อนไขคัดเลือก เพื่อให้พิมพ์ค้นหาตัวเลือกได้
+// ความสูงของ dropdown (สูงสุด 7 / ต่ำสุด 3 รายการ) คุมด้วย CSS (.prospect-filter-select2-dropdown)
+function initProspectFilterSelects() {
+    if (typeof $ === 'undefined' || !$.fn || !$.fn.select2) return;
+
+    $('#dynamicFilter select.prospect-filter-input').each(function () {
+        const $sel = $(this);
+        // กัน init ซ้ำ
+        if ($sel.hasClass('select2-hidden-accessible')) {
+            $sel.select2('destroy');
+        }
+        $sel.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: '-- ทั้งหมด --',
+            allowClear: true,
+            // ปล่อยให้ dropdown แนบกับ body (ค่าเริ่มต้น) จะได้ไม่ถูก overflow ของการ์ดเงื่อนไขบัง
+            dropdownCssClass: 'prospect-filter-select2-dropdown',
+            language: {
+                noResults: () => 'ไม่พบตัวเลือก',
+                searching: () => 'กำลังค้นหา...'
+            }
+        });
+    });
 }
 
 function getFilterParams() {
@@ -1492,6 +1518,8 @@ function renderProspectDataTable(data, page = 1, pageSize = 10) {
             processing: true,
             ordering: false,
             searching: true,
+            paging: true,
+            pagingType: 'simple_numbers',
             pageLength: pageSize,
             lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]],
             autoWidth: false,
@@ -1594,7 +1622,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
             const tbody = document.getElementById('dataTableBody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">ไม่พบข้อมูล กรุณาเลือก Campaign ทางด้านซ้ายก่อน</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">ไม่พบข้อมูล กรุณาเลือก Campaign ทางด้านซ้ายก่อน</td></tr>`;
             }
             bindTableCheckboxEvents();
         }
@@ -1658,8 +1686,12 @@ async function loadProspectList(page = 1, pageSize = 10) {
         // จำนวนที่ถูกซ่อนเพราะอยู่ในรายการที่เลือก ใช้หักออกจาก API total ตอนแสดง "พบ X รายการ"
         prospectHiddenBySelectionCount = hiddenBySelectionCount;
 
-        // renderProspectDataTable(rawData, page, pageSize);
-        renderProspectDataTable(allData, page, pageSize);
+        // แสดงเฉพาะข้อมูลที่ผ่านการ dedup (idno) + กรองสาขา + ตัดรายการที่เลือกแล้วออก (rawData)
+        // เพื่อให้จำนวนแถวในตาราง = จำนวนที่ "เลือกทั้งหมด" ทำได้จริง (ไม่มีแถวซ้ำ/แถวที่เลือกไม่ได้)
+        // และให้ "พบ X รายการ" อ้างอิงจากจำนวนแถวจริงในตาราง ไม่ใช่ยอดดิบจาก SP ที่มีแถวซ้ำ
+        prospectAuthoritativeTotal = rawData.length;
+        prospectHiddenBySelectionCount = 0;
+        renderProspectDataTable(rawData, page, pageSize);
         return;
     } catch (err) {
         if (err.name !== 'AbortError') {
@@ -1763,7 +1795,7 @@ function updateSelectedList() {
     const selectedCount = combinedList.length;
 
     if (combinedList.length === 0) {
-        selectedTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3" style="font-size: 0.85rem;">ไม่มีรายการที่เลือก</td></tr>`;
+        selectedTableBody.innerHTML = `<tr class="selected-empty-row"><td colspan="6"><div class="selected-empty-state"><i class="bi bi-inbox"></i><span>ยังไม่มีรายการที่เลือก</span></div></td></tr>`;
     } else {
         const canSelect = isProspectSelectionAllowed();
         combinedList.forEach((item) => {
@@ -2147,7 +2179,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         btnClearFilters.addEventListener('click', function() {
             const dynamicFilterContainer = document.getElementById('dynamicFilter');
             if (dynamicFilterContainer) {
-                dynamicFilterContainer.querySelectorAll('select').forEach(sel => sel.value = '');
+                dynamicFilterContainer.querySelectorAll('select').forEach(sel => {
+                    sel.value = '';
+                    // ถ้าเป็น Select2 ต้อง trigger change เพื่อให้ UI อัปเดตตาม
+                    if (window.jQuery && $(sel).hasClass('select2-hidden-accessible')) {
+                        $(sel).val('').trigger('change');
+                    }
+                });
                 dynamicFilterContainer.querySelectorAll('input').forEach(inp => inp.value = '');
             }
             const prospectSearchInput = document.getElementById('prospectSearchInput');

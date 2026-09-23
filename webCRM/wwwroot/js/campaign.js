@@ -62,7 +62,8 @@ function extractUploadedFileId(uploadRes) {
 
 const STATUS_CAN_EDIT = [
     "waiting prospect",
-    "return"
+    "return",
+    "draft"
 ];
 
 async function getProductStatus() { 

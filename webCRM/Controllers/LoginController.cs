@@ -7,6 +7,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using webCRM.Services;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.IdentityModel.Tokens;
 
 namespace webCRM.Controllers
 {
@@ -23,6 +28,7 @@ namespace webCRM.Controllers
         {
             try
             {
+                var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "";
                 string switchedRoleId =
                     HttpContext.Session.GetString("switchedRoleId") ?? "";
                 string switchedRoleName =
@@ -439,42 +445,43 @@ namespace webCRM.Controllers
         }
 
         public async Task<IActionResult> GetProfile([FromQuery] string? user = null)
-    {
-        try
         {
-            // เรียกผ่าน CRMService
-            string json =
-                await crmService.GetProfile(user ?? "");
+            try
+            {
+                // เรียกผ่าน CRMService
+                string json =
+                    await crmService.GetProfile(user ?? "");
 
-            return Content(
-                json,
-                "application/json");
-        }
-        catch (HttpRequestException ex)
-        {
-            return Unauthorized(new
+                return Content(
+                    json,
+                    "application/json");
+            }
+            catch (HttpRequestException ex)
             {
-                message =
-                    $"API connection failed: {ex.Message}"
-            });
-        }
-        catch (TaskCanceledException)
-        {
-            return Unauthorized(new
+                return Unauthorized(new
+                {
+                    message =
+                        $"API connection failed: {ex.Message}"
+                });
+            }
+            catch (TaskCanceledException)
             {
-                message =
-                    "API request timeout."
-            });
-        }
-        catch (Exception ex)
-        {
-            return Unauthorized(new
+                return Unauthorized(new
+                {
+                    message =
+                        "API request timeout."
+                });
+            }
+            catch (Exception ex)
             {
-                message =
-                    $"Request failed: {ex.Message}"
-            });
+                return Unauthorized(new
+                {
+                    message =
+                        $"Request failed: {ex.Message}"
+                });
+            }
         }
-    }
+
         [HttpGet]
         public async Task<IActionResult> GetProfileByEmail([FromQuery] string email)
         {
@@ -514,69 +521,42 @@ namespace webCRM.Controllers
             }
         }
         
-        // public async Task<IActionResult> PostDailyNotiAndEmail([FromBody] string personalCode)
-        // {
-        //     try
-        //     {
-        //         var handler = new HttpClientHandler
-        //         {
-        //             ServerCertificateCustomValidationCallback =
-        //                 (message, cert, chain, errors) => true
-        //         };
-
-        //         using var client = new HttpClient(handler);
-
-        //         var bearerToken =
-        //             Environment.GetEnvironmentVariable("ApiSettings__BearerToken")
-        //             ?? configuration["ApiSettings:BearerToken"];
-
-        //         string? domain =
-        //             Environment.GetEnvironmentVariable("ApiSettings__APIDomain")
-        //             ?? configuration["ApiSettings:APIDomain"];
-
-        //         if (string.IsNullOrEmpty(domain))
-        //         {
-        //             return Unauthorized(new
-        //             {
-        //                 message = "API Domain is not configured."
-        //             });
-        //         }
-
-        //         client.DefaultRequestHeaders.Authorization =
-        //             new AuthenticationHeaderValue("Bearer", bearerToken);
-
-        //         string url = $"{domain}/crm/api/v1/p3/postDailyNotiAndEmail";
-
-        //         var requestBody = new
-        //         {
-        //             personalCode = personalCode
-        //         };
-
-        //         var response = await client.PostAsJsonAsync(url, requestBody);
-
-        //         string json = await response.Content.ReadAsStringAsync();
-
-        //         if (!response.IsSuccessStatusCode)
-        //         {
-        //             return StatusCode((int)response.StatusCode, new
-        //             {
-        //                 message = "API request failed",
-        //                 statusCode = (int)response.StatusCode,
-        //                 response = json
-        //             });
-        //         }
-
-        //         return Content(json, "application/json");
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         return StatusCode(500, new
-        //         {
-        //             message = ex.Message,
-        //             stackTrace = ex.StackTrace
-        //         });
-        //     }
-        // }
+        [HttpPost("ssoLogin")]
+        public async Task<IActionResult> SsoLogin([FromForm] string access_token, [FromForm] string targetUrl)
+        {
+            if (string.IsNullOrWhiteSpace(access_token)) return Unauthorized("Token missing");
+            try
+            {
+                var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("ApiSettings__WebDomain") ?? "";
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(JWT_SECRET_KEY);
+                // 1. ตรวจสอบ Signature และวันหมดอายุ
+                var validationParams = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+                // จะโยน Exception ถ้า Token ปลอมหรือหมดอายุ
+                var principal = tokenHandler.ValidateToken(access_token, validationParams, out _);
+                // 2. ดึงข้อมูล
+                var username = principal.Claims.FirstOrDefault(c => c.Type == "user")?.Value;
+                // 3. สร้าง Cookie / Session ของระบบปลายทาง
+                var claims = new List<Claim> { new Claim(ClaimTypes.Name, username ?? "Unknown") };
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+                // 4. สั่ง HTTP 302 Redirect ไปยังหน้าหลักตามเป้าหมาย
+                var redirectPath = string.IsNullOrEmpty(targetUrl) ? "/" : targetUrl;
+                return Redirect(redirectPath);
+            }
+            catch
+            {
+                return Unauthorized("Invalid or expired token");
+            }
+        }
 
     }
 

@@ -979,6 +979,24 @@ function initDataTables() {
     });
 }
 
+// เรียงข้อมูลตาม idno (น้อยไปมาก) — เทียบแบบตัวเลขถ้าเป็นตัวเลขทั้งคู่ ไม่งั้น fallback เป็นการเทียบข้อความ
+// (ตรงกับตรรกะการจัดเรียงใน prospectSetup.js)
+function sortItemsByIdno(list) {
+    if (!Array.isArray(list)) return list;
+    var normalizeIdno = function (value) { return String(value || '').trim(); };
+    list.sort(function (a, b) {
+        var aId = normalizeIdno(a && a.idno);
+        var bId = normalizeIdno(b && b.idno);
+        var aNum = Number(aId);
+        var bNum = Number(bId);
+        var aIsNum = aId !== '' && Number.isFinite(aNum);
+        var bIsNum = bId !== '' && Number.isFinite(bNum);
+        if (aIsNum && bIsNum) return aNum - bNum;
+        return aId.localeCompare(bId, undefined, { numeric: true, sensitivity: 'base' });
+    });
+    return list;
+}
+
 function filterProspectTable() {
     var prospectSearchInput = document.getElementById('prospectSearch');
     var query  = prospectSearchInput ? prospectSearchInput.value.trim().toLowerCase() : '';
@@ -1004,6 +1022,9 @@ function filterProspectTable() {
 
         return matchText && matchBranch && matchBy;
     });
+
+    // จัดเรียงรายการตาม idno (น้อยไปมาก) เหมือน prospectSetup.js
+    sortItemsByIdno(filteredItems);
 
     var total = filteredItems.length;
     var totalPages = Math.ceil(total / prospectPageSize) || 1;

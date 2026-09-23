@@ -1096,7 +1096,28 @@ console.log("rawProspectItems",rawProspectItems)
         return matchQuery && matchBranch && matchStatus && matchStatusLead;
     });
 
+    // จัดเรียงรายการตาม idno (น้อยไปมาก) เหมือน prospectSetup.js
+    sortItemsByIdno(filtered);
+
     renderProspectTable(filtered);
+}
+
+// เรียงข้อมูลตาม idno (น้อยไปมาก) — เทียบแบบตัวเลขถ้าเป็นตัวเลขทั้งคู่ ไม่งั้น fallback เป็นการเทียบข้อความ
+// (ตรงกับตรรกะการจัดเรียงใน prospectSetup.js)
+function sortItemsByIdno(list) {
+    if (!Array.isArray(list)) return list;
+    const normalizeIdno = (value) => String(value || '').trim();
+    list.sort((a, b) => {
+        const aId = normalizeIdno(a?.idno);
+        const bId = normalizeIdno(b?.idno);
+        const aNum = Number(aId);
+        const bNum = Number(bId);
+        const aIsNum = aId !== '' && Number.isFinite(aNum);
+        const bIsNum = bId !== '' && Number.isFinite(bNum);
+        if (aIsNum && bIsNum) return aNum - bNum;
+        return aId.localeCompare(bId, undefined, { numeric: true, sensitivity: 'base' });
+    });
+    return list;
 }
 
 // Render Prospect Pagination

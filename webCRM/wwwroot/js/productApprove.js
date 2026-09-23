@@ -514,9 +514,7 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
     // 1. Try getProductBatchByProductCode first
     try {
         const batchRes = await getProductBatchByProductCode(productCode);
-        console.log("batchRes",batchRes)
         const parsedBatch = extractProspectCustomers(batchRes);
-                console.log("parsedBatch",parsedBatch)
         if (parsedBatch.items && parsedBatch.items.length > 0) {
             items = parsedBatch.items;
             totalCount = parsedBatch.totalCount;
@@ -1546,8 +1544,7 @@ $(document).ready(async function () {
                             "CRM : ส่งกลับแก้ไข Campaign เรื่อง " + name,
                             emailContent
                         );
-                        console.log("creator", creator);
-                        console.log("profile",profile)
+
                         stopLoading(true);
                         Swal.fire({
                             title: 'ส่งกลับแก้ไขเรียบร้อย!',

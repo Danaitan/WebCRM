@@ -34,13 +34,16 @@ namespace webCRM.Models
     public class UpsertProspectFromETLRequest
     {
         [JsonPropertyName("Id")]
-        public object? Id { get; set; }
+        public string? Id { get; set; }
 
         [JsonPropertyName("productCode")]
         public string? productCode { get; set; }
 
         [JsonPropertyName("user")]
         public string? user { get; set; }
+
+        [JsonPropertyName("contno")]
+        public string? contno { get; set; }
     }
 
     public class PostNotiToApproverRequest

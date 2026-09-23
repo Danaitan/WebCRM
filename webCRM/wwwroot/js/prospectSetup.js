@@ -1699,6 +1699,20 @@ async function loadProspectList(page = 1, pageSize = 10) {
         // และให้ "พบ X รายการ" อ้างอิงจากจำนวนแถวจริงในตาราง ไม่ใช่ยอดดิบจาก SP ที่มีแถวซ้ำ
         prospectAuthoritativeTotal = rawData.length;
         prospectHiddenBySelectionCount = 0;
+
+        // เรียงรายการลูกค้าตาม idno (น้อยไปมาก) ก่อนแสดง
+        // ถ้า idno เป็นตัวเลขทั้งคู่ให้เทียบแบบตัวเลข ไม่งั้น fallback เป็นการเทียบข้อความ
+        rawData.sort((a, b) => {
+            const aId = normalizeIdno(a?.idno);
+            const bId = normalizeIdno(b?.idno);
+            const aNum = Number(aId);
+            const bNum = Number(bId);
+            const aIsNum = aId !== '' && Number.isFinite(aNum);
+            const bIsNum = bId !== '' && Number.isFinite(bNum);
+            if (aIsNum && bIsNum) return aNum - bNum;
+            return aId.localeCompare(bId, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
         renderProspectDataTable(rawData, page, pageSize);
         return;
     } catch (err) {
@@ -2351,10 +2365,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                     if (isCurrentCampaignImport) {
                         const upsertRequest = {
-                            Id: selectedIdnos,
+                            Id: selectedIdnos.join(","),
                             productCode: selectedCampaign.code || "",
-                            user: ""
+                            user: "",
+                            contno: selectedContnos.join(",")
                         };
+
                         response = await fetch(`/ProspectSetup/upsertProspectFromETL`, {
                             method: 'POST',
                             headers: {

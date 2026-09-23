@@ -1352,7 +1352,7 @@ $(document).ready(async function () {
                     });
 
                     selectedCampaignIsImport = hasImportFilter;
-console.log("hasImportFilter",hasImportFilter)
+
                     if (selectedCampaignIsImport) {
                         $("#chkImportExcel").prop("checked", true);
                         $("#filterSelectedRow").hide();

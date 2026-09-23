@@ -323,7 +323,9 @@ namespace webCRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> upsertProspectFromETL([FromBody] UpsertProspectFromETLRequest? request)
+        public async Task<IActionResult> upsertProspectFromETL(
+            [FromBody] UpsertProspectFromETLRequest? request
+            )
         {
             try
             {

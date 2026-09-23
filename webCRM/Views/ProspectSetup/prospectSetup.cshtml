@@ -52,13 +52,15 @@
     <div class="panel-main">
 
         <!-- การ์ดเงื่อนไข: กว้างเต็มด้านบน -->
-        <div class="card-custom mb-4">
-            <div class="card-header-custom">
+        <div class="card-custom mb-4" id="filterCard">
+            <div class="card-header-custom filter-card-header" id="filterCardToggle" role="button" tabindex="0"
+                 aria-expanded="true" aria-controls="filterCardBody" title="ยุบ/ขยายเงื่อนไข">
                 <h3 class="card-title-custom">
                     <i class="bi bi-funnel-fill text-primary"></i> เงื่อนไขการคัดเลือกลูกค้าเป้าหมาย
                 </h3>
+                <i class="bi bi-chevron-up filter-card-chevron" aria-hidden="true"></i>
             </div>
-            <div class="card-body-custom">
+            <div class="card-body-custom" id="filterCardBody">
                 <div class="row g-3" id="dynamicFilter">       
                 </div>
 

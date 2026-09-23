@@ -275,13 +275,20 @@ async function getCampainList(
             queryStr += `&sortCreateDate=${encodeURIComponent(sortCreateDate)}`;
         }
 
-        if (statusText !== undefined &&
-            statusText !== null &&
-            statusText !== '') {
+        // if (statusText !== undefined &&
+        //     statusText !== null &&
+        //     statusText !== '') {
 
-            queryStr += `&status=${encodeURIComponent(statusText)}`;
-        }
+        //     queryStr += `&status=${encodeURIComponent(statusText)}`;
+        // }
         queryStr += `&isFiltercompany=${encodeURIComponent(true)}`;
+
+        let status = "waiting prospect,waiting approve,approved,return,reject";
+        if (statusText && statusText.trim()) {
+            status = statusText;
+        }
+        queryStr += `&status=${encodeURIComponent(status)}`;
+
         const response = await fetch(
             `/Campain/GetCampainList${queryStr}`
         );
@@ -467,16 +474,16 @@ function productFilterHTML(filtercode, dropdownData = {}) {
         }
     }
 
-    function getOptions(keys, fallback = []) {
-        if (!opts || typeof opts !== 'object') return fallback;
-        for (const k of keys) {
-            const foundKey = Object.keys(opts).find(key => key.toLowerCase() === k.toLowerCase());
-            if (foundKey && Array.isArray(opts[foundKey]) && opts[foundKey].length > 0) {
-                return opts[foundKey].map(item => typeof item === 'object' && item !== null ? item : { name: item });
+        function getOptions(keys, fallback = []) {
+            if (!opts || typeof opts !== 'object') return fallback;
+            for (const k of keys) {
+                const foundKey = Object.keys(opts).find(key => key.toLowerCase() === k.toLowerCase());
+                if (foundKey && Array.isArray(opts[foundKey]) && opts[foundKey].length > 0) {
+                    return opts[foundKey].map(item => typeof item === 'object' && item !== null ? item : { name: item });
+                }
             }
+            return fallback;
         }
-        return fallback;
-    }
 
     const gender = getOptions(["gender"]);
     const caryear = getOptions(["caryear"]);
@@ -1647,7 +1654,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
         const allData = res && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
 
-        // dedup ด้วย idno เพื่อตัดแถวซ้ำที่ SP อาจคืนมาต่างกันแต่ละ request
+
         // และเก็บ lookup ข้อมูลดิบ (idno -> name/phone/branch) ไว้เติม field ที่ขาดในรายการที่เลือก
         const seenIdnos = new Set();
         const uniqueData = [];
@@ -1662,10 +1669,11 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     contno: item?.contno || ''
                 });
             }
-            if (!idno || !seenIdnos.has(idno)) {
+            // dedup ด้วย idno เพื่อตัดแถวซ้ำที่ SP อาจคืนมาต่างกันแต่ละ request
+            // if (!idno || !seenIdnos.has(idno)) {
                 if (idno) seenIdnos.add(idno);
                 uniqueData.push(item);
-            }
+            // }
         }
 
         // กรองตามสาขาและตัดลูกค้าที่อยู่ในรายการที่เลือกแล้ว (batch + manual) ด้วย idno
@@ -2127,8 +2135,32 @@ function removeSelectedRowsFromProspectTable(idnoSet) {
     return removedCount;
 }
 
+// ผูกปุ่มหุบ/ขยายการ์ด "เงื่อนไขการคัดเลือกลูกค้าเป้าหมาย"
+// เมื่อหุบ การ์ดเงื่อนไขจะเหลือเฉพาะ header ทำให้แถวรายการลูกค้าด้านล่างมีพื้นที่แสดงมากขึ้น
+function initFilterCardToggle() {
+    const card = document.getElementById('filterCard');
+    const header = document.getElementById('filterCardToggle');
+    if (!card || !header) return;
+
+    function toggleFilterCard() {
+        const collapsed = card.classList.toggle('filter-collapsed');
+        header.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+
+    header.addEventListener('click', toggleFilterCard);
+    header.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault();
+            toggleFilterCard();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async function () {
     const btnClearSelection = document.getElementById('btnClearSelection');
+
+    // หุบ/ขยายการ์ดเงื่อนไขการคัดเลือก เพื่อเพิ่มพื้นที่แสดงรายการลูกค้า
+    initFilterCardToggle();
 
     loadProductStatus();
 

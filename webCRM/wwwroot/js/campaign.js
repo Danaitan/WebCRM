@@ -6,6 +6,8 @@ let selectedCampaignCode = "";
 let selectedCampaignGuid = "";
 let selectedCampaignId = 0;
 let selectedCampaignFileId = "";
+// จำสถานะว่าแคมเปญที่เลือกอยู่เป็นแบบ import จาก Excel หรือไม่ (คำนวณตอนโหลด filter ตาม guid)
+let selectedCampaignIsImport = false;
 let fileIdToDelete = "";
 // promise ของการสร้างรหัสแคมเปญในโมดัล ใช้ให้การอัปโหลดไฟล์รอจนได้รหัสจริงก่อน
 let modalCampaignCodePromise = null;
@@ -1344,14 +1346,14 @@ $(document).ready(async function () {
                     }
 
                     const hasImportFilter = list.some(item => {
-                        const fname = (item.fname || item.FName || item.f_name || "").toString().toLowerCase().trim();
-                        const fcode = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim();
+                        const fname = (item.fname || "").toString().toLowerCase().trim();
+                        const fcode = (item.fcode || "").toString().trim();
                         return fname === "import" || (importCode && fcode.toLowerCase() === importCode.toLowerCase());
                     });
 
-                    campaign.isImportFromExcel = hasImportFilter;
-
-                    if (campaign.isImportFromExcel) {
+                    selectedCampaignIsImport = hasImportFilter;
+console.log("hasImportFilter",hasImportFilter)
+                    if (selectedCampaignIsImport) {
                         $("#chkImportExcel").prop("checked", true);
                         $("#filterSelectedRow").hide();
                         $("#btnGotoETL").show();
@@ -1836,7 +1838,7 @@ async function getCheckProductNo() {
                     if (isImportFromExcel) {
                         const importFilterObj = await getImportFilter();
                         if (importFilterObj) {
-                            const importCode = importFilterObj.fcode || importFilterObj.fCode || importFilterObj.FCode || importFilterObj.f_code || "";
+                            const importCode = importFilterObj.fcode || "";
                             if (importCode) {
                                 filterCodesToPost.push(importCode);
                             }
@@ -1888,7 +1890,6 @@ async function getCheckProductNo() {
                             guid: newGuid,
                             code: code,
                             name: name,
-                            // status: "waiting prospect",
                             status: "draft",
                             startDate: start,
                             endDate: end,
@@ -2114,7 +2115,9 @@ async function getCheckProductNo() {
 
                         let status = 'draft';
                         const selectedRowsCount = Array.isArray(selectedFilterCodes) ? selectedFilterCodes.length : 0;
-                        if (selectedRowsCount > 0) {
+                        // ใช้ค่าที่คำนวณไว้ตอนโหลดแคมเปญ (loadCampaignToForm) เพื่อลดการเรียก API ซ้ำ
+                        const isImportFromExcel = selectedCampaignIsImport;
+                        if (selectedRowsCount > 0 || isImportFromExcel) {
                             status = 'waiting prospect';
                         }
                         const filterRes = await postFilter(selectedCampaignGuid);

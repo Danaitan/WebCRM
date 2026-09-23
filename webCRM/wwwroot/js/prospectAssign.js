@@ -217,17 +217,10 @@ async function getAllBranch() {
     }
 }
 
-function normalizeBranchCode(code) {
-    const value = String(code ?? '').trim();
-    if (!value || !/^\d+$/.test(value)) return value;
-
-    return value.replace(/^0+/, '') || '0';
-}
-
 function parseBranchCodes(value) {
     return String(value || '')
         .split(',')
-        .map(normalizeBranchCode)
+        .map(v => String(v).trim().padStart(2, '0'))
         .filter(Boolean);
 }
 
@@ -249,16 +242,6 @@ function renderBranchDropdownOptions(allowedOffcdes) {
     container.innerHTML = '';
 
     let branches = allBranch || [];
-
-    // if (Array.isArray(allowedOffcdes)) {
-    //     const allowedBranchCodes = new Set(
-    //         allowedOffcdes.map(normalizeBranchCode).filter(Boolean)
-    //     );
-
-    //     branches = branches.filter(b =>
-    //         allowedBranchCodes.has(normalizeBranchCode(getBranchCode(b)))
-    //     );
-    // }
 
     const result = allBranch
         .filter(branch => allowedOffcdes.includes(branch.offcde))
@@ -422,7 +405,7 @@ function initBranchMultiSelect() {
 }
 
 function setSelectedBranches(offcdeString) {
-
+console.log("offcdeString",offcdeString)
     const campaignBranchCodes = parseBranchCodes(offcdeString);
     renderBranchDropdownOptions(campaignBranchCodes);
 

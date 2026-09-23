@@ -37,6 +37,7 @@ namespace webCRM.Controllers
                 string CookieCde = Request.Cookies["userCde"] ?? "";
                 string personalCode = "100664";
                 // string personalCode = "690001";
+                //string personalCode = "682001";
 
                 if (!env.IsDevelopment())
                 {

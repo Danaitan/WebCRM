@@ -256,12 +256,17 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> getFilterDropdown()
+        public async Task<IActionResult> getFilterDropdown(
+            string company = ""
+        )
         {
             try
             {
+                company = HttpContext.Session.GetString("company") ?? "";
                 var data =
-                    await crmService.GetFilterDropdown();
+                    await crmService.GetFilterDropdown(
+                        company
+                    );
 
                 return Content(
                     data,

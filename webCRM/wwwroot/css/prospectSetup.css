@@ -208,7 +208,7 @@
         align-items: flex-end;
         gap: 8px;
         border-top: 1px solid var(--border-color);
-        padding: 10px 0 2px;
+        padding: 10px;
         margin-top: 4px;
         background: #fff;
         overflow: visible;
@@ -1063,4 +1063,46 @@
     .prospect-list-toolbar {
         align-items: stretch !important;
     }
+}
+
+/* ===================================================================
+   การ์ดเงื่อนไข: หุบ/ขยายได้ เพื่อเพิ่มพื้นที่แสดงรายการลูกค้า
+   =================================================================== */
+
+/* header ของการ์ดเงื่อนไข: คลิกได้ */
+.filter-card-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-card-header:hover {
+    background-color: #f8fafc;
+}
+
+/* ไอคอน chevron หมุนตามสถานะ */
+.filter-card-chevron {
+    color: var(--text-gray);
+    font-size: 1rem;
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+/* สถานะหุบ: ซ่อน body ของการ์ดเงื่อนไข */
+#filterCard.filter-collapsed .card-body-custom {
+    display: none !important;
+}
+
+/* เมื่อหุบ ไม่ต้องมีเส้นคั่นใต้ header */
+#filterCard.filter-collapsed .filter-card-header {
+    border-bottom: none;
+}
+
+/* เมื่อหุบ การ์ดเงื่อนไขไม่ยืด ให้แถวรายการลูกค้ากินพื้นที่ที่เหลือทั้งหมด */
+#filterCard.filter-collapsed {
+    flex: 0 0 auto;
+}
+
+/* หมุน chevron เมื่อหุบ */
+#filterCard.filter-collapsed .filter-card-chevron {
+    transform: rotate(180deg);
 }

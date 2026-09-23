@@ -1854,12 +1854,13 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<string> GetFilterDropdown()
+        public async Task<string> GetFilterDropdown(
+            string company = ""
+        )
         {
             try
             {
-                return await GetStringAsync(
-                    "p3/getFilterDropdown");
+                return await GetStringAsync($"p3/getFilterDropdown?company={company}");
             }
             catch (Exception ex)
             {

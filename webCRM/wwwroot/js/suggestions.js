@@ -72,6 +72,68 @@ async function PostNoti(PostNotiData){
     return result;
 }
 
+/**
+ * ส่งการแจ้งเตือนข้อเสนอแนะ/ร้องเรียนให้ผู้รับปลายทาง
+ * รองรับทั้งกรณีเป็นบุคคล และเป็นกลุ่ม (จะกระจายการแจ้งเตือนให้สมาชิกในกลุ่มทุกคน)
+ * @param {string} target อีเมลของผู้รับ (บุคคลหรือกลุ่ม)
+ * @param {string} targetText ข้อความชื่อผู้รับสำหรับแสดงในการแจ้งเตือน
+ * @param {{topicTitle:string, suggestionDetail:string, contactDateTime:string, fullNameTh:string, senderId:string, refId:string}} ctx
+ */
+async function sendSuggestionNotification(target, targetText, ctx) {
+    const targetEmail = (target || '').toString().trim();
+    if (!targetEmail) {
+        return;
+    }
+
+    const buildEndDate = () => {
+        const endDate = new Date();
+        endDate.setFullYear(endDate.getFullYear() + 10);
+        return endDate;
+    };
+
+    const buildNotiContent = (recipientName) =>
+        `เรียน ${recipientName}<br><br>` +
+        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${ctx.topicTitle} ` +
+        `โดยมีเนื้อหาการร้องเรียนดังนี้ ${ctx.suggestionDetail}<br><br>` +
+        `<br><br>` +
+        `โปรดตอบกลับภายใน ${ctx.contactDateTime}<br><br><br>` +
+        `ขอขอบคุณ<br>` +
+        `${ctx.fullNameTh}`;
+
+    if (isGroupSendTo(targetEmail)) {
+        const url = `/Suggestions/GetpersonalInGroup?groupEmail=${encodeURIComponent(targetEmail)}`;
+        const response = await fetch(url, { skipLoading: true });
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+        const data = await response.json();
+
+        for (const personel of data) {
+            await PostNoti({
+                header: "ข้อเสนอแนะ/ร้องเรียน",
+                title: "เรื่อง : " + ctx.topicTitle,
+                message: buildNotiContent(personel.thname),
+                receiver_email: personel.e_mail,
+                sender: ctx.senderId,
+                create_by: ctx.senderId,
+                end_date: buildEndDate(),
+                ref_id: ctx.refId,
+            });
+        }
+    } else {
+        await PostNoti({
+            header: "ข้อเสนอแนะ/ร้องเรียน",
+            title: "เรื่อง : " + ctx.topicTitle,
+            message: buildNotiContent(targetText || targetEmail),
+            receiver_email: targetEmail,
+            sender: ctx.senderId,
+            create_by: ctx.senderId,
+            end_date: buildEndDate(),
+            ref_id: ctx.refId,
+        });
+    }
+}
+
 async function GetPersonalAndGroup() {
     try {
         const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup');
@@ -291,13 +353,6 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     }
 }
 
-// function isCreator(updBy) {
-//     const personalId = window.CURRENT_PERSONAL_ID.toString().trim();
-//     if (!personalId) return false;
-//     if (!updBy || updBy === '-' || updBy === 'null' || updBy === 'undefined') return false;
-//     return String(updBy).trim().toLowerCase() === personalId.toLowerCase();
-// }
-
 function canShowReplyBox(status) {
     return suggestionReplyAuthorization.canReplyToStatus(status);
 }
@@ -344,38 +399,6 @@ function updateActionButtonsState(status, updBy = '') {
         $('#closeBtn').prop('disabled', false);
     }
 }
-
-// function updateActionButtonsState(status, updBy = '') {
-//     const userIsCreator = isCreator(updBy);
-
-//     // กล่องบันทึกข้อมูล
-//     if (canShowReplyBox(status)) {
-//         $('#replyBoxSection').show();
-//     } else {
-//         $('#replyBoxSection').hide();
-//     }
-
-//     // ถ้าไม่ใช่คนสร้าง จะซ่อนปุ่มส่งต่อและปิดงาน
-//     // if (!userIsCreator) {
-//     //     $('#forwardBtnContainer').hide();
-//     //     $('#closeBtnContainer').hide();
-//     // } else {
-//     //     // ปุ่มส่งต่อ
-//     //     if (canShowForwardBtn(status)) {
-//     //         $('#forwardBtnContainer').show();
-//     //     } else {
-//     //         $('#forwardBtnContainer').hide();
-//     //     }
-
-//     //     // ปุ่มปิดงาน
-//     //     $('#closeBtnContainer').show();
-//     //     if (canEnableCloseBtn(status)) {
-//     //         $('#closeBtn').prop('disabled', false);
-//     //     } else {
-//     //         $('#closeBtn').prop('disabled', true);
-//     //     }
-//     // }
-// }
 
 function clearDetails() {
     $('#detail-nameprovider').text('-');
@@ -571,14 +594,24 @@ async function loadDepartmentOptions() {
         const uniqueEmails = [];
         // อีเมลสำหรับ "ส่งต่อ" (เฉพาะข้อมูลอีเมลของ personalData.personal เท่านั้น)
         const personalEmails = [];
+console.log("data",data)
+        // if (data && Array.isArray(data.email)) {
+        //     const filteredEmails = data.email.filter(item => {
+        //         if (!currentCompany) return true;
+        //         return item.company && item.company.trim().toUpperCase() === currentCompany;
+        //     });
+        //     filteredEmails.forEach(item => {
+        //         if (item.groupEmail && item.groupEmail.trim() !== '') {
+        //             const emailVal = item.groupEmail.trim();
+        //             if (!uniqueEmails.includes(emailVal)) {
+        //                 uniqueEmails.push(emailVal);
+        //             }
+        //         }
+        //     });
+        // }
 
         if (data && Array.isArray(data.email)) {
-            const filteredEmails = data.email.filter(item => {
-                if (!currentCompany) return true;
-                return item.company && item.company.trim().toUpperCase() === currentCompany;
-            });
-
-            filteredEmails.forEach(item => {
+            data.email.forEach(item => {
                 if (item.groupEmail && item.groupEmail.trim() !== '') {
                     const emailVal = item.groupEmail.trim();
                     if (!uniqueEmails.includes(emailVal)) {
@@ -771,7 +804,6 @@ function escapeHtml(str) {
 function parseCcMailList(ccMail) {
     const rawValue = String(ccMail || '').trim();
     if (!rawValue || rawValue === '-') return [];
-
     const seen = new Set();
     return rawValue
         .split(/[;,]/)
@@ -977,7 +1009,6 @@ async function showDetails(row) {
     window.currentReplyPermission = null;
     const getVal = (attr) => {
         const val = $row.attr('data-' + attr);
-        console.log(`data-${attr}:`, val);
         return (val !== undefined && val !== null && val.trim() !== '')
             ? val
             : '-';
@@ -1506,64 +1537,32 @@ async function AddSuggestion() {
                             emailContent
                         );
 
-                    if (isGroupSendTo(sendToVal)) {
+                    // ส่งการแจ้งเตือนให้ผู้รับผิดชอบหลัก (บุคคลหรือกลุ่ม)
+                    await sendSuggestionNotification(sendToVal, sendToText, {
+                        topicTitle,
+                        suggestionDetail,
+                        contactDateTime,
+                        fullNameTh,
+                        senderId,
+                        refId: msg.guid,
+                    });
 
-                        const url = `/Suggestions/GetpersonalInGroup?groupEmail=${encodeURIComponent(sendToVal)}`;
-                        const response = await fetch(url, { skipLoading: true });
-                        if (!response.ok) {
-                            throw new Error('HTTP error ' + response.status);
-                        }
-                        const data = await response.json();
-
-                        for (const personel of data) {
-
-                            const notiContent = 
-                                `เรียน ${personel.thname}<br><br>` +
-                                `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
-                                `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
-                                `<br><br>` +
-                                `ขอขอบคุณ<br>` +
-                                `${fullNameTh}`;
-
-                            const endDate = new Date();
-                            endDate.setFullYear(endDate.getFullYear() + 10);
-
-                            await PostNoti({
-                                header: "ข้อเสนอแนะ/ร้องเรียน",
-                                title: "เรื่อง : " + topicTitle,
-                                message: notiContent,
-                                receiver_email: personel.e_mail,
-                                sender: senderId,
-                                create_by: senderId,
-                                end_date: endDate,
-                                ref_id: msg.guid,
-                            });
-
+                    // ส่งการแจ้งเตือนให้ผู้ที่ถูก CC ด้วย (รองรับทั้งบุคคลและกลุ่ม)
+                    for (const ccVal of selectedCc) {
+                        const ccTarget = (ccVal || '').toString().trim();
+                        if (!ccTarget || ccTarget === sendToVal) {
+                            continue;
                         }
 
-                    } else {
+                        const ccText = $(`#post-cc option[value="${ccTarget}"]`).text() || ccTarget;
 
-                        const notiContent =
-                            `เรียน ${sendToText}<br><br>` +
-                            `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ได้รับมอบหมายให้ดูแลข้อเสนอแนะ/ร้องเรียนหัวข้อ ${topicTitle} ` +
-                            `โดยมีเนื้อหาการร้องเรียนดังนี้ ${suggestionDetail}<br><br>` +
-                            `<br><br>` +
-                            `โปรดตอบกลับภายใน ${contactDateTime}<br><br><br>` +
-                            `ขอขอบคุณ<br>` +
-                            `${fullNameTh}`;
-
-                        const endDate = new Date();
-                        endDate.setFullYear(endDate.getFullYear() + 10);
-
-                        await PostNoti({
-                            header: "ข้อเสนอแนะ/ร้องเรียน",
-                            title: "เรื่อง : " + topicTitle,
-                            message: notiContent,
-                            receiver_email: sendToVal,
-                            sender: senderId,
-                            create_by: senderId,
-                            end_date: endDate,
-                            ref_id: msg.guid,
+                        await sendSuggestionNotification(ccTarget, ccText, {
+                            topicTitle,
+                            suggestionDetail,
+                            contactDateTime,
+                            fullNameTh,
+                            senderId,
+                            refId: msg.guid,
                         });
                     }
                 })().catch((emailErr) => {

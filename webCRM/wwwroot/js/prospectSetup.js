@@ -344,41 +344,60 @@ async function getCampainList(
     }
 }
 
-async function displayCampaignFile(fileId, signal = null, requestId = currentFilterRequestId) {
-    const $fileNameText = $("#selectedFileNameText");
-    const $fileNameDisplay = $("#selectedFileNameDisplay");
-
-    if (fileId) {
-        try {
-            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`, { signal });
-            if (requestId !== currentFilterRequestId) return;
-            if (fileRes.ok) {
-                const fileData = await fileRes.json();
-                const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
-                const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
-
-                if (fileName) {
-                    $fileNameText
-                        .text(fileName)
-                        .attr("data-filepath", filePath)
-                        .css("cursor", "pointer")
-                        .attr("title", "คลิกเพื่อเปิดดูไฟล์");
-                    $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
-                    return;
-                }
-            }
-        } catch (e) {
-            if (e.name === 'AbortError') return;
-            console.error("Error fetching file info:", e);
-        }
-    }
-
-    if (requestId !== currentFilterRequestId) return;
-    $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
-    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+function escapeCampaignFileAttr(v) {
+    return String(v || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
-$(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+// รองรับ file_id แบบหลายไฟล์ (CSV เช่น "12,34,56") - วาดเป็นรายการไฟล์ที่คลิกดูได้
+async function displayCampaignFile(fileId, signal = null, requestId = currentFilterRequestId) {
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+    const $wrapper = $fileNameDisplay.parent();
+
+    // ล้าง chip ไฟล์เดิม (ถ้ามี) แล้วซ่อนกล่องต้นแบบ
+    $wrapper.find(".pa-file-chip").remove();
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+
+    const idCsv = String(fileId || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => /^\d+$/.test(s) && s !== "0")
+        .join(",");
+
+    if (!idCsv) return;
+
+    try {
+        const fileRes = await fetch(`/Campain/getFile?Id=${encodeURIComponent(idCsv)}`, { signal });
+        if (requestId !== currentFilterRequestId) return;
+        if (!fileRes.ok) return;
+
+        const fileData = await fileRes.json();
+        if (requestId !== currentFilterRequestId) return;
+        if (!Array.isArray(fileData) || fileData.length === 0) return;
+
+        fileData.forEach(row => {
+            const fileName = row.Name || row.name || "";
+            const filePath = row.Path || row.path || "";
+            if (!fileName && !filePath) return;
+
+            const chip = $(`
+                <div class="pa-file-chip d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                    <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                    <span class="fw-medium text-dark pa-file-name" style="cursor:pointer;" title="คลิกเพื่อเปิดดูไฟล์"
+                          data-filepath="${escapeCampaignFileAttr(filePath)}">${escapeCampaignFileAttr(fileName)}</span>
+                </div>`);
+            $wrapper.append(chip);
+        });
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.error("Error fetching file info:", e);
+    }
+}
+
+$(document).off("click", ".pa-file-name").on("click", ".pa-file-name", function () {
     const filePath = $(this).attr("data-filepath");
     const fileName = $(this).text().trim();
     if (!fileName && !filePath) return;
@@ -409,7 +428,20 @@ $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileName
     }
 });
 
-function productFilterHTML(filtercode, dropdownData = {}) {
+function productFilterHTML(filterMeta, dropdownData = {}) {
+    let filtercode = '';
+    let fCompanyFromFilter = '';
+    let fType = '';
+    let fName = '';
+
+    if (filterMeta && typeof filterMeta === 'object') {
+        filtercode = String(filterMeta.fcode || '').trim().toUpperCase();
+        fCompanyFromFilter = String(filterMeta.fcompany || '').trim();
+        fType = String(filterMeta.ftype || '').trim();
+        fName = String(filterMeta.fname || '').trim();
+    } else {
+        filtercode = String(filterMeta || '').trim().toUpperCase();
+    }
 
     function OptionHTML(labelName, optionData = [], fieldName = '') {
         const list = Array.isArray(optionData) ? optionData : [];
@@ -419,22 +451,11 @@ function productFilterHTML(filtercode, dropdownData = {}) {
                 <select class="form-select form-select-custom prospect-filter-input" data-field="${fieldName}">
                 <option value="">-- ทั้งหมด --</option>
                 ${list.map(item => {
-                    const text = typeof item === 'object' && item !== null ? (item.name || item.text || item.label || '') : item;
-                    const val = typeof item === 'object' && item !== null ? (item.value || item.name || text) : item;
+                    const text = typeof item === 'object' && item !== null ? (item.name || '') : item;
+                    const val = typeof item === 'object' && item !== null ? (item.name) : item;
                     return `<option value="${val}">${text}</option>`;
                 }).join('')}
                 </select>
-            </div>
-        `;
-        return HTML;
-    }
-
-    function RangeNumberHTMLAge(labelName, fieldName = '') {
-        const HTML = `
-            <div class="prospect-filter-col">
-                <label class="form-label-custom">${labelName}</label>
-                <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}" placeholder="เช่น 40 หรือ 40-60" pattern="^\\d+(-\\d+)?$" title="กรอกตัวเลขเดี่ยว เช่น 40 หรือช่วงตัวเลข เช่น 40-60">
-                <small class="text-muted">ตัวอย่าง: 40 หรือ 40-60</small>
             </div>
         `;
         return HTML;
@@ -444,7 +465,8 @@ function productFilterHTML(filtercode, dropdownData = {}) {
         const HTML = `
             <div class="prospect-filter-col">
                 <label class="form-label-custom">${labelName}</label>
-                <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}">
+                <input type="text" inputmode="numeric" class="form-control form-select-custom prospect-filter-input range-number-input" data-field="${fieldName}" placeholder="เช่น 40 หรือ 40-60" pattern="^\\d+(-\\d+)?$" title="กรอกตัวเลขเดี่ยว เช่น 40 หรือช่วงตัวเลข เช่น 40-60">
+                <small class="text-muted">ตัวอย่าง: 40 หรือ 40-60</small>
             </div>
         `;
         return HTML;
@@ -460,173 +482,55 @@ function productFilterHTML(filtercode, dropdownData = {}) {
         return HTML;
     }
 
-    const company = (window.CURRENT_COMPANY || "MICRO").toUpperCase();
-    
-    let opts = dropdownData;
-    if (typeof opts === 'string') {
-        try { opts = JSON.parse(opts); } catch(e) {}
+    let optionSource = dropdownData;
+    if (typeof optionSource === 'string') {
+        try { optionSource = JSON.parse(optionSource); } catch (e) {}
     }
-    if (opts && typeof opts === 'object') {
-        if (opts.data && typeof opts.data === 'object' && !Array.isArray(opts.data)) {
-            opts = opts.data;
-        } else if (opts.result && typeof opts.result === 'object' && !Array.isArray(opts.result)) {
-            opts = opts.result;
+    if (optionSource && !Array.isArray(optionSource)) {
+        if (Array.isArray(optionSource.data)) {
+            optionSource = optionSource.data;
+        } else if (Array.isArray(optionSource.result)) {
+            optionSource = optionSource.result;
         }
     }
+    if (!Array.isArray(optionSource)) optionSource = [];
 
-        function getOptions(keys, fallback = []) {
-            if (!opts || typeof opts !== 'object') return fallback;
-            for (const k of keys) {
-                const foundKey = Object.keys(opts).find(key => key.toLowerCase() === k.toLowerCase());
-                if (foundKey && Array.isArray(opts[foundKey]) && opts[foundKey].length > 0) {
-                    return opts[foundKey].map(item => typeof item === 'object' && item !== null ? item : { name: item });
-                }
-            }
-            return fallback;
-        }
+    const label = filterMeta.fremark || fName;
+    const fieldName = fName;
+    const normalizedType = fType.toLowerCase();
 
-    const gender = getOptions(["gender"]);
-    const caryear = getOptions(["caryear"]);
-    const custype = getOptions(["custype"]);
-    const occupation = getOptions(["occupation"]);
-    const carStype = getOptions(["carStype"]);
-    const provinceUsecar = getOptions(["provinceUsecar"]);
-    const branchName = getOptions(["branchName"]);
-    const current_region = getOptions(["current_region"]);
-    const vehicle_use_region = getOptions(["vehicle_use_region"]);
-    const consts = getOptions(["consts"]);
-    const districtUsecar = getOptions(["districtUsecar"]);
-    const businessType = getOptions(["businessType"]);
-    const registered_region = getOptions(["registered_region"]);
-    const category = getOptions(["category"]);
-    const brand = getOptions(["brand"]);
-    const ownins = getOptions(["ownins"]);
-    const policyDateExpire = ["ก่อน 1 ปี", "ตั้งแต่ 1 ปีขึ้นไป"];
-    const expireIns = ["หมดอายุ", "ยังไม่หมดอายุ"];
+    if (normalizedType === "option") {
 
-if (company == "MICRO") {
+        // รวม option ทุก company ที่มี fname เดียวกัน แล้ว dedupe ตาม name
+        const matched = optionSource.filter(item =>
+            item.fname === filterMeta.fname
+        );
 
-    switch (filtercode) {
-        case "F001":
-            return OptionHTML("ประเภทบุคคล", custype, "custype");
-        case "F002":
-            return OptionHTML("เพศ", gender, "gender");
-        case "F003":
-            return RangeNumberHTMLAge("อายุ", "age");
-        case "F004":
-            return OptionHTML("อาชีพผู้เช่าซื้อ", occupation, "occupation");
-        case "F005":
-            return OptionHTML("ประเภทธุรกิจ", businessType, "businessType");
-        case "F006":
-            return OptionHTML("ประเภทรถ", carStype, "carStype");
-        case "F009":
-            return OptionHTML("ช่วงปีรถ", caryear, "caryear");
-        case "F010":
-            return RangeNumberHTML("จำนวนงวด", "term");
-        case "F011":
-            return RangeNumberHTML("จำนวนงวดชำระ", "termpaid");
-        case "F012":
-            return RangeNumberHTML("จำนวนงวดค้างจ่าย", "total_ovd");
-        case "F013":
-            return RangeNumberHTML("ประสบการณ์ทำงาน", "totwrky");
-        case "F014":
-            return OptionHTML("ภูมิภาคที่อยู่ตามทะเบียนบ้าน", registered_region, "registered_region");
-        case "F015":
-            return OptionHTML("ภูมิภาคที่อยู่ปัจจุบัน", current_region, "current_region");
-        case "F016":
-            return OptionHTML("ภูมิภาคที่อยู่สถานที่ใช้รถ", vehicle_use_region, "vehicle_use_region");
-        case "F017":
-            return OptionHTML("จังหวัดที่อยู่สถานที่ใช้รถ", provinceUsecar, "provinceUsecar");
-        case "F018":
-            return OptionHTML("อำเภอที่อยู่สถานที่ใช้รถ", districtUsecar, "districtUsecar");
-        case "F019":
-            return RangeNumberHTML("จำนวนงวดที่ค้างชำระ", "ovd");
-        case "F020":
-            return OptionHTML("สาขาเปิดสัญญา", branchName, "branchName");
-        case "F021":
-            return OptionHTML("สถานะสัญญา", consts, "consts");
-        default:
-            return '';
+        const seen = new Set();
+        const option = [];
+        matched.forEach(item => {
+            const name = typeof item === 'object' && item !== null
+                ? (item.name || item.text || item.label || '')
+                : item;
+            const key = String(name).trim().toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            option.push(item);
+        });
+
+        return OptionHTML(label, option, fieldName);
+
+    } else if (normalizedType === "range") {
+
+        return RangeNumberHTML(label, fieldName);
+
+    } else if (normalizedType === "text") {
+
+        return FreeTextHTML(label, fieldName);
+
     }
 
-} else if (company == "MFIN"){
-
-        switch (filtercode) {
-        case "F001":
-            return OptionHTML("ประเภทบุคคล", custype, "custype");
-        case "F002":
-            return OptionHTML("เพศ", gender, "gender");
-        case "F003":
-            return RangeNumberHTMLAge("อายุ", "age");
-        case "F004":
-            return OptionHTML("อาชีพ", occupation, "occupation");
-        case "F005":
-            return OptionHTML("ประเภทธุรกิจ", businessType, "businessType");
-        case "F006":
-            return OptionHTML("ประเภทรถ", carStype, "carStype");
-        case "F007":
-            return OptionHTML("ลักษณะรถ", category, "category");
-        case "F008":
-            return OptionHTML("ยี่ห้อ", brand, "brand");
-        case "F009":
-            return OptionHTML("ช่วงปีรถ", caryear, "caryear");
-        case "F010":
-            return RangeNumberHTML("จำนวนงวด", "term");
-        case "F011":
-            return RangeNumberHTML("จำนวนงวดชำระ", "termpaid");
-        case "F012":
-            return RangeNumberHTML("จำนวนงวดค้างจ่าย", "total_ovd");
-        case "F013":
-            return RangeNumberHTML("ประสบการณ์ทำงาน", "totwrky");
-        case "F014":
-            return OptionHTML("ที่อยู่ตามทะเบียนบ้าน", registered_region, "registered_region");
-        case "F015":
-            return OptionHTML("ที่อยู่ปัจจุบัน", current_region, "current_region");
-        case "F016":
-            return FreeTextHTML("ที่อยู่จัดส่งเอกสาร", "docDelivery_regoin");
-        case "F017":
-            return RangeNumberHTML("จำนวนงวดที่ค้างชำระ", "ovd");
-        case "F018":
-            return OptionHTML("สาขาเปิดสัญญา", branchName, "branchName");
-        case "F019":
-            return OptionHTML("สถานะสัญญา", consts, "consts");
-        default:
-            return '';
-    }
-
-} else if (company == "MIB"){
-        switch (filtercode) {
-        case "F001":
-            return OptionHTML("ประเภทบุคคล", custype, "custype");
-        case "F002":
-            return OptionHTML("เพศ", gender, "gender");
-        case "F003":
-            return RangeNumberHTMLAge("อายุ", "age");
-        case "F004":
-            return OptionHTML("อาชีพ", occupation, "occupation");
-        case "F005":
-            return OptionHTML("ที่อยู่ปัจจุบัน", current_region, "current_region");
-        case "F006":
-            return OptionHTML("ยี่ห้อ", brand, "brand");
-        case "F007":
-            return OptionHTML("ประเภทรถ", carStype, "carStype");
-        case "F008":
-            return OptionHTML("ช่วงปีรถ", caryear, "caryear");
-        case "F009":
-            return OptionHTML("การทำประกัน", ownins, "ownins");
-        case "F010":
-            return OptionHTML("ประกันขาดต่ออายุ", policyDateExpire, "policyDateExpire");
-        case "F011":
-            return OptionHTML("บริษัทลูกค้าในเครือ", branchName, "branchName");
-        case "F012": 
-            return OptionHTML("ประกันหมดอายุ", expireIns, "expireIns");
-        case "F013":
-            return OptionHTML("ที่อยู่ปัจจุบัน", current_region, "current_region");
-        default:
-            return '';
-    }
-
-}
+    return '';
 
 }
 
@@ -760,7 +664,6 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                 filterAbortController = new AbortController();
                 const signal = filterAbortController.signal;
                 const requestId = ++currentFilterRequestId;
-
                 // แสดงไฟล์เฉพาะเมื่อ Campaign นี้ยังเป็นรายการล่าสุด
                 await displayCampaignFile(item.file_id, signal, requestId);
                 if (requestId !== currentFilterRequestId) return;
@@ -811,11 +714,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
 
                     } else {
 
-                        const filterData =
-                            await getProductFilterByGuid(
-                                targetGuid,
-                                signal
-                            );
+                        const filterData = await getProductFilterByGuid(targetGuid);
 
                         // ถ้า Campaign ถูกเปลี่ยนไปแล้ว
                         if (requestId !== currentFilterRequestId) {
@@ -890,14 +789,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                 typeof filter === 'object'
                             ) {
 
-                                const name =
-                                    filter.fname ||
-                                    filter.fName ||
-                                    filter.FName ||
-                                    filter.f_name ||
-                                    filter.filterName ||
-                                    filter.filter_name ||
-                                    '';
+                                const name = filter.fname || '';
 
                                 return String(name)
                                     .trim()
@@ -926,9 +818,41 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                             }
 
                         } else {
+
+                            const collectFilterValues = (key) => {
+                                const values = filters
+                                    .map(filter => {
+                                        if (
+                                            filter &&
+                                            typeof filter === 'object'
+                                        ) {
+                                            return filter[key] ?? '';
+                                        }
+                                        return '';
+                                    })
+                                    .map(v => String(v).trim())
+                                    .filter(v => v.length > 0);
+
+                                // ตัดค่าซ้ำออก
+                                const result = Array
+                                    .from(new Set(values))
+                                    .join(',');
+
+                                return result;
+                            };
+
+                            const fnameParam = collectFilterValues('fname');
+                            const fcompanyParam =
+                                collectFilterValues('fcompany');
+
+                            const dropdownQuery = new URLSearchParams({
+                                fname: fnameParam,
+                                fcompany: fcompanyParam
+                            });
+
                             const optionResponse =
                                 await fetch(
-                                    `/ProspectSetup/getFilterDropdown`,
+                                    `/ProspectSetup/getFilterDropdown?${dropdownQuery.toString()}`,
                                     {
                                         method: 'GET',
                                         signal: signal,
@@ -954,8 +878,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                 );
                             }
 
-                            const optionData =
-                                await optionResponse.json();
+                            const optionData = await optionResponse.json();
 
                             // Render Filter
                             if (
@@ -965,22 +888,17 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
 
                                 let renderedCount = 0;
 
+                                const renderedOptionFields = new Set();
                                 filters.forEach(filter => {
+
+                                    const isObj =
+                                        filter &&
+                                        typeof filter === 'object';
 
                                     const fCode =
                                         typeof filter === 'string'
                                             ? filter
-                                            : (
-                                                filter.fcode ||
-                                                filter.fCode ||
-                                                filter.FCode ||
-                                                filter.code ||
-                                                filter.f_code ||
-                                                filter.filterCode ||
-                                                filter.filter_code ||
-                                                filter.FilterCode ||
-                                                ''
-                                            );
+                                            : ( filter.fcode || '' );
 
                                     const normalizedFCode =
                                         String(fCode || '')
@@ -997,9 +915,50 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                         return;
                                     }
 
+                                    const filterMeta = {
+                                        fcode: normalizedFCode,
+                                        fcompany: isObj
+                                            ? String(filter.fcompany || '')
+                                                .trim()
+                                            : '',
+                                        ftype: isObj
+                                            ? String(filter.ftype || '')
+                                                .trim()
+                                            : '',
+                                        fname: isObj
+                                            ? String(filter.fname || '')
+                                                .trim()
+                                            : '',
+                                        fremark: isObj
+                                            ? String(filter.fremark || '')
+                                                .trim()
+                                            : '',
+                                    };
+
+                                    // ถ้าเป็น option และ fname เดียวกันถูก render ไปแล้ว ให้ข้าม
+                                    // เพราะตัวเลือกจากทุก company จะถูกรวมไว้ในกล่องเดียวแล้ว
+                                    const filterType =
+                                        String(filterMeta.ftype || '')
+                                            .trim()
+                                            .toLowerCase();
+                                    const optionFieldKey =
+                                        String(filterMeta.fname || '')
+                                            .trim()
+                                            .toLowerCase();
+
+                                    if (
+                                        filterType === 'option' &&
+                                        optionFieldKey
+                                    ) {
+                                        if (renderedOptionFields.has(optionFieldKey)) {
+                                            return;
+                                        }
+                                        renderedOptionFields.add(optionFieldKey);
+                                    }
+
                                     const filterHTML =
                                         productFilterHTML(
-                                            normalizedFCode,
+                                            filterMeta,
                                             optionData
                                         );
 
@@ -1021,10 +980,6 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                         );
                                     }
                                 });
-
-                                // =================================================
-                                // ไม่มี Filter ไหน Render ได้
-                                // =================================================
 
                                 if (renderedCount === 0) {
 
@@ -1270,6 +1225,15 @@ function normalizeIdno(value) {
     return String(value || '').trim();
 }
 
+// สร้าง key สำหรับเทียบซ้ำจากคู่ (idno + เลขที่สัญญา)
+// ถือว่าซ้ำก็ต่อเมื่อ "ทั้ง idno และ contno ตรงกันทั้งคู่"
+function makeIdnoContnoKey(idno, contno) {
+    const id = normalizeIdno(idno);
+    const cont = normalizeIdno(contno);
+    if (!id || !cont || cont === '-') return '';
+    return `${id}||${cont}`;
+}
+
 function getPersistedSelectedIdnos() {
     return new Set(
         currentBatchCustomers
@@ -1282,18 +1246,28 @@ function getPersistedSelectedIdnos() {
     );
 }
 
-// รวม idno ของ "รายการที่เลือก" ทั้งหมด (batch ที่ save แล้ว + manual ที่เพิ่งติ๊ก)
-// ใช้ตัดออกจาก "รายการลูกค้า" เพื่อไม่ให้แสดงซ้ำ
-function getAllSelectedIdnos() {
-    const idnos = getPersistedSelectedIdnos();
+// รวม key (idno + contno) ของ "รายการที่เลือก" ทั้งหมด (batch ที่ save แล้ว + manual ที่เพิ่งติ๊ก)
+// ใช้ตัดออกจาก "รายการลูกค้า" เพื่อไม่ให้แสดงซ้ำ โดยซ่อนเฉพาะแถวที่ idno และ contno ตรงกันทั้งคู่
+function getAllSelectedIdnoContnoKeys() {
+    const keys = new Set();
+
+    currentBatchCustomers
+        .filter(item => {
+            const id = String(item?.id || '').trim();
+            return !id || !removedBatchCustomerIds.has(id);
+        })
+        .forEach(item => {
+            const key = makeIdnoContnoKey(item?.idno, item?.contno);
+            if (key) keys.add(key);
+        });
 
     manuallySelectedCustomers.forEach((item, idKey) => {
         if (idKey && removedBatchCustomerIds.has(idKey)) return;
-        const idno = normalizeIdno(item?.idno) || normalizeIdno(idKey);
-        if (idno) idnos.add(idno);
+        const key = makeIdnoContnoKey(item?.idno, item?.contno);
+        if (key) keys.add(key);
     });
 
-    return idnos;
+    return keys;
 }
 
 // campaignOffcde เช่น "11,08" (คั่นด้วย ,) และข้อมูลสาขา เช่น "07-ขอนแก่น"
@@ -1306,13 +1280,20 @@ function isRowInCampaignBranch(item, campaignOffcde) {
 
     const campaignBranches = offcde.split(',').map(s => s.trim()).filter(Boolean);
     if (campaignBranches.length === 0) return true;
-    // ดึงรหัสสาขาจากข้อมูลแถว — รองรับหลายรูปแบบ field และรูปแบบ "07-ชื่อสาขา"
-    const rawBranch = String(item?.branchName || item?.ชื่อสาขาเดิม || '').trim();
 
-    if (!rawBranch) return false;
+    // ดึงรหัสสาขาจากข้อมูลแถว — ใช้ contractoffcde/offcde เป็นหลักเหมือนหน้า productApprove
+    // แล้ว fallback ไปที่การแยกรหัสนำหน้าจากชื่อสาขา ("07-ขอนแก่น" -> "07")
+    let rowCode = String(
+        item?.contractoffcde || item?.ContractOffCde ||
+        item?.offcde || item?.Offcde || ''
+    ).trim();
 
-    // แยกเอาเฉพาะรหัสนำหน้า (ก่อน "-") เช่น "07-ขอนแก่น" -> "07"
-    const rowCode = rawBranch.split('-')[0].trim();
+    if (!rowCode) {
+        const rawBranch = String(item?.branchName || item?.Branch_name || '').trim();
+        if (!rawBranch) return false;
+        // แยกเอาเฉพาะรหัสนำหน้า (ก่อน "-") เช่น "07-ขอนแก่น" -> "07"
+        rowCode = rawBranch.split('-')[0].trim();
+    }
     if (!rowCode) return false;
 
     const rowClean = rowCode.replace(/^0+/, '');
@@ -1398,7 +1379,7 @@ function getProspectRowState(item) {
     const prospectBatch = item.prospect_batch || item.product_batch || '';
     const name = item?.nameCus || '-';
     const phone = item?.mobile || item?.phone || '-';
-    const branch = item?.branchName || item?.ชื่อสาขาเดิม || '-';
+    const branch = item?.branchName || item?.Branch_name || '-';
     const contno = item?.contno || '-';
 
     const idStr = id && id !== '-'
@@ -1565,7 +1546,7 @@ function renderProspectDataTable(data, page = 1, pageSize = 10) {
                 {
                     data: null,
                     render: function (_value, type, row) {
-                        const value = row?.branchName || row?.ชื่อสาขาเดิม || '-';
+                        const value = row?.branchName || row?.Branch_name || '-';
                         return type === 'display' ? escapeHtml(value) : value;
                     }
                 },
@@ -1665,7 +1646,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
                 prospectCustomerLookup.set(idno, {
                     name: item?.nameCus || '',
                     phone: item?.mobile || item?.phone || '',
-                    branch: item?.branchName || item?.ชื่อสาขาเดิม || '',
+                    branch: item?.branchName || item?.Branch_name || '',
                     contno: item?.contno || ''
                 });
             }
@@ -1678,13 +1659,15 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
         // กรองตามสาขาและตัดลูกค้าที่อยู่ในรายการที่เลือกแล้ว (batch + manual) ด้วย idno
         const campaignOffcde = selectedCampaign ? selectedCampaign.offcde : '';
-        const selectedIdnos = getAllSelectedIdnos();
+        // ซ่อนแถวที่อยู่ใน "รายการที่เลือก" แล้ว โดยเทียบทั้ง idno และเลขที่สัญญา (contno)
+        // จะถือว่าซ้ำ (และซ่อน) ก็ต่อเมื่อทั้งคู่ตรงกัน
+        const selectedKeys = getAllSelectedIdnoContnoKeys();
         let hiddenBySelectionCount = 0;
 
         const rawData = uniqueData.filter(item => {
-            const idno = normalizeIdno(item.idno);
             if (!isRowInCampaignBranch(item, campaignOffcde)) return false;
-            if (idno && selectedIdnos.has(idno)) {
+            const key = makeIdnoContnoKey(item.idno, item.contno);
+            if (key && selectedKeys.has(key)) {
                 hiddenBySelectionCount++;
                 return false;
             }
@@ -2352,13 +2335,32 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังบันทึกข้อมูล...", "");
                 try {
                     const currentSelected = getSelectedList();
-                    // ใช้ idno เป็น key ในการบันทึก (getProspect_phase3 ไม่มี id ของ tblProspectCustomer)
-                    const selectedIdnos = Array.from(new Set(
-                        currentSelected.map(c => c.idno).filter(Boolean)
-                    ));
-                    const selectedContnos = Array.from(new Set(
-                        currentSelected.map(c => c.contno).filter(Boolean)
-                    ));
+                    // บันทึกเฉพาะรายการที่ "เพิ่มใหม่" (ยังไม่ถูกบันทึกลง batch) เท่านั้น
+                    // รายการที่มีอยู่ใน batch แล้ว (isBatchCustomer === true) ไม่ต้องส่งซ้ำ
+                    const newlyAdded = currentSelected.filter(c => c && c.isBatchCustomer === false);
+
+                    // ส่งรายการที่เพิ่มใหม่ไปทั้งหมด ไม่คัด idno/contno ที่ซ้ำกับของเดิมออก
+                    // เพื่อให้ข้อมูลครบ (การกันซ้ำใช้เกณฑ์ idno + contno ตอนติ๊กเลือกแล้ว)
+                    // เก็บ idno + contno เป็นคู่ในลูปเดียว เพื่อให้ index ของสอง array ตรงกัน
+                    const selectedIdnos = [];
+                    const selectedContnos = [];
+                    newlyAdded.forEach(c => {
+                        const idno = normalizeIdno(c.idno);
+                        if (!idno) return; // ต้องมี idno เป็น key ในการบันทึก
+                        selectedIdnos.push(idno);
+                        const contno = normalizeIdno(c.contno);
+                        selectedContnos.push(contno && contno !== '-' ? contno : '');
+                    });
+
+                    if (selectedIdnos.length === 0) {
+                        stopLoading(true);
+                        Swal.fire({
+                            title: "แจ้งเตือน",
+                            text: "ไม่มีรายการที่เพิ่มใหม่สำหรับบันทึก",
+                            icon: "info"
+                        });
+                        return;
+                    }
 
                     let response;
                     let data;
@@ -2513,18 +2515,15 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-async function getProductFilterByGuid(guid, signal = null) {
+async function getProductFilterByGuid(guid) {
     if (!guid) return [];
 
     try {
-        const response = await fetch(
-            `/ProspectSetup/GetProductFilterByGuid?guid=${encodeURIComponent(guid)}`,
-            signal ? { signal } : undefined
-        );
 
+        const response = await fetch(`/Campain/GetFilterByGuid?fguid=${encodeURIComponent(guid)}`);
         if (!response.ok) {
             console.error(
-                "GetProductFilterByGuid HTTP error:",
+                "GetFilterByGuid HTTP error:",
                 response.status,
                 response.statusText
             );
@@ -2538,11 +2537,11 @@ async function getProductFilterByGuid(guid, signal = null) {
     } catch (err) {
 
         if (err.name === 'AbortError') {
-            console.log("GetProductFilterByGuid request aborted");
+            console.log("GetFilterByGuid request aborted");
             return [];
         }
 
-        console.error("Error in getProductFilterByGuid:", err);
+        console.error("Error in GetFilterByGuid:", err);
         return [];
     }
 }
@@ -2697,7 +2696,7 @@ function extractCustomers(data) {
             const id = item.id || item.Id || '';
             const name = item?.nameCus || '-';
             const phone = item?.mobile || item?.phone || '-';
-            const branch = item?.branchName || item?.ชื่อสาขาเดิม || item?.BranchName ||  '-';
+            const branch = item?.branchName || item?.Branch_name || item?.BranchName ||  '-';
             const statusVal = item.assign_status || item.status || '';
             const statusStr = String(statusVal).trim().toLowerCase();
             const isDraft = statusStr === 'waiting prospect' || statusStr === 'return';

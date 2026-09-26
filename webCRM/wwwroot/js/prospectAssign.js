@@ -882,7 +882,7 @@ function extractProspectCustomers(data) {
             const prospectID = item.prospectID || item.prospectId || item.ProspectID || item.ProspectId || item.prospect_id || '';
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
-            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const branch = item.branch_Name || item.Branch_name || '-';
             const branchCode = item.offcde || item.Offcde || item.branch_code || item.branchCode || item.contractoffcde || item.ContractOffCde || item.branch || item.Branch || '';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const createdDate = item.created || item.ImportDate || '-';
@@ -1095,7 +1095,14 @@ function getSelectedBranchFilterSet() {
 function prospectMatchesSelectedBranch(item, filterSet) {
     const code = String(item.branchCode || '').trim().toLowerCase();
     const name = String(item.branch || '').trim().toLowerCase();
+    // ดึงรหัสสาขาจาก contractoffcde/offcde ของแถวดิบเหมือนหน้า productApprove
+    const raw = item.raw || {};
+    const contractOffcde = String(raw.contractoffcde || raw.ContractOffCde || '').trim().toLowerCase();
+    const rawOffcde = String(raw.offcde || raw.Offcde || '').trim().toLowerCase();
+
     if (code && filterSet.codeSet.has(code)) return true;
+    if (contractOffcde && filterSet.codeSet.has(contractOffcde)) return true;
+    if (rawOffcde && filterSet.codeSet.has(rawOffcde)) return true;
     if (name && filterSet.nameSet.has(name)) return true;
     return false;
 }
@@ -1514,38 +1521,57 @@ function buildPageRange(current, total) {
         return Math.max(1, Math.ceil(totalBatchCount / batchPerPage));
     }
 
-async function displayCampaignFile(fileId) {
-    const $fileNameText = $("#selectedFileNameText");
-    const $fileNameDisplay = $("#selectedFileNameDisplay");
-
-    if (fileId) {
-        try {
-            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`);
-            if (fileRes.ok) {
-                const fileData = await fileRes.json();
-                const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
-                const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
-
-                if (fileName) {
-                    $fileNameText
-                        .text(fileName)
-                        .attr("data-filepath", filePath)
-                        .css("cursor", "pointer")
-                        .attr("title", "คลิกเพื่อเปิดดูไฟล์");
-                    $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
-                    return;
-                }
-            }
-        } catch (e) {
-            console.error("Error fetching file info:", e);
-        }
-    }
-
-    $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
-    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+function escapeCampaignFileAttr(v) {
+    return String(v || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
-$(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+// รองรับ file_id แบบหลายไฟล์ (CSV เช่น "12,34,56") - วาดเป็นรายการไฟล์ที่คลิกดูได้
+async function displayCampaignFile(fileId) {
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+    const $wrapper = $fileNameDisplay.parent();
+
+    // ล้าง chip ไฟล์เดิม (ถ้ามี) แล้วซ่อนกล่องต้นแบบ
+    $wrapper.find(".pa-file-chip").remove();
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+
+    const idCsv = String(fileId || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => /^\d+$/.test(s) && s !== "0")
+        .join(",");
+
+    if (!idCsv) return;
+
+    try {
+        const fileRes = await fetch(`/Campain/getFile?Id=${encodeURIComponent(idCsv)}`);
+        if (!fileRes.ok) return;
+
+        const fileData = await fileRes.json();
+        if (!Array.isArray(fileData) || fileData.length === 0) return;
+
+        fileData.forEach(row => {
+            const fileName = row.Name || row.name || "";
+            const filePath = row.Path || row.path || "";
+            if (!fileName && !filePath) return;
+
+            const chip = $(`
+                <div class="pa-file-chip d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                    <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                    <span class="fw-medium text-dark pa-file-name" style="cursor:pointer;" title="คลิกเพื่อเปิดดูไฟล์"
+                          data-filepath="${escapeCampaignFileAttr(filePath)}">${escapeCampaignFileAttr(fileName)}</span>
+                </div>`);
+            $wrapper.append(chip);
+        });
+    } catch (e) {
+        console.error("Error fetching file info:", e);
+    }
+}
+
+$(document).off("click", ".pa-file-name").on("click", ".pa-file-name", function () {
     const filePath = $(this).attr("data-filepath");
     const fileName = $(this).text().trim();
     if (!fileName && !filePath) return;

@@ -16,6 +16,64 @@ let prospectTotalCount = 0;
 let dropdownMaster = [];
 let historyCall = [];
 let fpModalNextDate = null;
+let allBranch = [];
+
+// ดึงรายการสาขาจาก contractoffcde เหมือนหน้า productApprove
+async function getBranchList() {
+    try {
+        const response = await fetch(`/Campain/getBranchListForCRM`);
+        if (!response.ok) {
+            console.error("getBranchList HTTP error:", response.status, response.statusText);
+            return [];
+        }
+        const data = await response.json();
+        return data || [];
+    } catch (err) {
+        console.error("Error in getBranchList:", err);
+        return [];
+    }
+}
+
+// เติม option สาขาลงใน #filterBranch โดยใช้ค่า offcde เป็น value (เหมือนหน้า productApprove)
+function renderBranchOptions(branches) {
+    const branchSelect = document.getElementById('filterBranch');
+    if (!branchSelect) return;
+    branchSelect.innerHTML = '<option value="">ทั้งหมด</option>';
+
+    if (Array.isArray(branches) && branches.length > 0) {
+        const currentCompany = ((typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")) || "").trim().toUpperCase();
+
+        let filteredBranches = branches;
+        if (currentCompany) {
+            const matchingCompanyDepts = branches.filter(item => item && item.company && item.company.trim().toUpperCase() === currentCompany);
+            if (matchingCompanyDepts.length > 0) {
+                filteredBranches = matchingCompanyDepts;
+            }
+        }
+
+        const uniqueBranches = [];
+        const addedCodes = new Set();
+
+        filteredBranches.forEach(item => {
+            if (!item) return;
+
+            const offcde = (typeof item === 'string' ? item : (item.offcde || '')).trim();
+            const branchName = (typeof item === 'string' ? item : (item.branch_name || '')).trim();
+
+            if (offcde && !addedCodes.has(offcde)) {
+                addedCodes.add(offcde);
+                uniqueBranches.push({ offcde: offcde, name: branchName || offcde });
+            }
+        });
+
+        uniqueBranches.forEach(branchItem => {
+            const option = document.createElement('option');
+            option.value = branchItem.offcde;
+            option.textContent = branchItem.name;
+            branchSelect.appendChild(option);
+        });
+    }
+}
 
 // Get current datetime formatted in Thai timezone (Asia/Bangkok, UTC+7) codeside
 function getThaiNowISO() {
@@ -67,6 +125,7 @@ async function getCampainList(page = 1, pageSize = 10) {
             Objective_code: item.Objective_code || item.ObjectiveCode || '',
             IsImport:      item.IsImport || false,
             offcde:        item.offcde         || item.Offcde || '',
+            file_id:       item.file_id        || item.FileId || item.fileId || "",
             isActive:      item.isActive || false
         }));
 
@@ -188,19 +247,22 @@ function extractProspectCustomers(data) {
             item.prospects.forEach(c => checkAndPush(c));
             return;
         }
-
         if (typeof item === 'object') {
             const idno = item.idno || '';
-            const id = item.id || '';
+            const id = item.id || item.Id || item.cid || '';
+            const prospectBatch = item.prospect_batch || item.product_batch || item.prospectBatch || '';
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
-            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const branch = item.branch_Name || item.Branch_name || '-';
+            // ดึงรหัสสาขาจาก contractoffcde/offcde เหมือนหน้า productApprove
+            const offcde = item.offcde || item.Offcde || '';
+            const contractOffcde = item.contractoffcde || item.ContractOffCde || '';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const rawAssignDate = item.assign_date || item.created || item.ImportDate || '';
             const assignDate = rawAssignDate ? formatDateTh(rawAssignDate) : '-';
             const phone = item.mobile || item.phone || '-';
-            const status = getStatusLeadFromMaster('ผลการติดต่อ', item.isCallCase).NameTh;
-            const statusLead = getStatusLeadFromMaster('statuslead', item.StatusLead).NameEn;
+            const status = getStatusLeadFromMaster('ผลการติดต่อ', item.isCallCase || item.call_result).NameTh;
+            const statusLead = getStatusLeadFromMaster('statuslead', item.StatusLead || item.status_lead).NameEn;
             const remarks = item.remark || '';
             const rawNextAppt = item.appointment || '';
             const nextAppt = rawNextAppt ? formatDateCE(rawNextAppt) : '-';
@@ -210,7 +272,10 @@ function extractProspectCustomers(data) {
                 items.push({
                     id: String(id || '').trim(),
                     idno: String(idno || '').trim(),
+                    prospect_batch: String(prospectBatch || '').trim(),
                     branch: String(branch).trim(),
+                    offcde: String(offcde || '').trim(),
+                    contractoffcde: String(contractOffcde || '').trim(),
                     name: String(name).trim(),
                     contract: String(contract).trim(),
                     phone: String(phone).trim(),
@@ -335,11 +400,94 @@ function selectCampaignCard(code) {
     $('#detailStart').val(formatDateTh(campaign.startDate));
     $('#detailEnd').val(formatDateTh(campaign.endDate));
     $('#detailObjective').val(campaign.Objective_code || '');
-
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
     populateProductDropdownOptions(masterDropdownData, selectedCampaignObjective);
+
+    displayCampaignFile(campaign.file_id);
 
     loadProspectCallData(campaign.code, 1, prospectPageSize);
 }
+
+function escapeCampaignFileAttr(v) {
+    return String(v || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+// รองรับ file_id แบบหลายไฟล์ (CSV เช่น "12,34,56") - วาดเป็นรายการไฟล์ที่คลิกดูได้
+async function displayCampaignFile(fileId) {
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+    const $wrapper = $fileNameDisplay.parent();
+
+    // ล้าง chip ไฟล์เดิม (ถ้ามี) แล้วซ่อนกล่องต้นแบบ
+    $wrapper.find(".pa-file-chip").remove();
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+
+    const idCsv = String(fileId || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => /^\d+$/.test(s) && s !== "0")
+        .join(",");
+
+    if (!idCsv) return;
+
+    try {
+        const fileRes = await fetch(`/Campain/getFile?Id=${encodeURIComponent(idCsv)}`);
+        if (!fileRes.ok) return;
+
+        const fileData = await fileRes.json();
+        if (!Array.isArray(fileData) || fileData.length === 0) return;
+
+        fileData.forEach(row => {
+            const fileName = row.Name || row.name || "";
+            const filePath = row.Path || row.path || "";
+            if (!fileName && !filePath) return;
+
+            const chip = $(`
+                <div class="pa-file-chip d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                    <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                    <span class="fw-medium text-dark pa-file-name" style="cursor:pointer;" title="คลิกเพื่อเปิดดูไฟล์"
+                          data-filepath="${escapeCampaignFileAttr(filePath)}">${escapeCampaignFileAttr(fileName)}</span>
+                </div>`);
+            $wrapper.append(chip);
+        });
+    } catch (e) {
+        console.error("Error fetching file info:", e);
+    }
+}
+
+$(document).off("click", ".pa-file-name").on("click", ".pa-file-name", function () {
+    const filePath = $(this).attr("data-filepath");
+    const fileName = $(this).text().trim();
+    if (!fileName && !filePath) return;
+
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    const previewableExts = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.txt'];
+
+    if (previewableExts.includes(ext)) {
+        if (filePath) {
+            window.open(`/Campain/PreviewFile?filePath=${encodeURIComponent(filePath)}`, '_blank');
+        }
+    } else {
+        Swal.fire({
+            title: "แจ้งเตือน",
+            text: "ไฟล์นี้ไม่สามารถเปิดดูได้ในขณะนี้",
+            icon: "info",
+            showCancelButton: true,
+            confirmButtonColor: "#0d6efd",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: '<i class="bi bi-download me-1"></i> ดาวน์โหลด',
+            cancelButtonText: 'ปิด',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed && filePath) {
+                window.open(`/Campain/DownloadFile?filePath=${encodeURIComponent(filePath)}&fileName=${encodeURIComponent(fileName)}`, '_blank');
+            }
+        });
+    }
+});
 
 // Load Campaign List from API
 async function loadCampaignData(page = 1, pageSize = 10) {
@@ -1079,7 +1227,7 @@ function filterProspectTable() {
     const branch = $('#filterBranch').val() || '';
     const status = $('#filterStatus').val() || '';
     const statusLead = ($('#filterStatusLead').val() || $('#filterBy').val() || '').trim().toLowerCase();
-console.log("rawProspectItems",rawProspectItems)
+
     const filtered = rawProspectItems.filter(item => {
         const itemBranch = (item.branch || '').toLowerCase();
         const itemName = (item.name || '').toLowerCase();
@@ -1089,7 +1237,12 @@ console.log("rawProspectItems",rawProspectItems)
         const itemStatusLead = (item.statusLead || '').toLowerCase();
 
         const matchQuery = !query || itemBranch.includes(query) || itemName.includes(query) || itemContract.includes(query) || itemPhone.includes(query);
-        const matchBranch = !branch || item.branch === branch;
+        // จับคู่สาขาด้วยรหัส offcde/contractoffcde เป็นหลัก (เหมือนหน้า productApprove) แล้ว fallback เป็นชื่อสาขา
+        const matchBranch = !branch ||
+            item.offcde === branch ||
+            item.contractoffcde === branch ||
+            (item.raw && (item.raw.offcde === branch || item.raw.contractoffcde === branch)) ||
+            item.branch === branch;
         const matchStatus = !status || itemStatus === status;
         const matchStatusLead = !statusLead || itemStatusLead.includes(statusLead);
 
@@ -1539,14 +1692,26 @@ async function openRecordResultModal(trElement) {
     $('#modalHistoryList').html('<div class="text-center text-muted py-4 extra-small"><i class="bi bi-hourglass-split me-1"></i> กำลังโหลดประวัติการติดต่อ...</div>');
     $('#modalHistoryCount').text('(กำลังโหลด...)');
 
-    // Get prospectBatch and customerId for API call
+    // Get prospectBatch and customerId for API call.
+    // Prefer the normalized fields on the mapped customer, then fall back to
+    // the various raw field name variants coming from the API item.
     const rawItem = customer.raw || {};
-    const prospectBatch = rawItem.prospect_batch || '';
-    const customerId = rawItem.id || '';
+    const prospectBatch = customer.prospect_batch
+        || rawItem.prospect_batch
+        || rawItem.product_batch
+        || rawItem.prospectBatch
+        || '';
+    const customerId = customer.id
+        || rawItem.id
+        || rawItem.Id
+        || rawItem.cid
+        || '';
 
     let historyList = [];
     if (prospectBatch && customerId) {
         historyList = await getHistoryCall(prospectBatch, customerId);
+    } else {
+        console.warn("Cannot load history: missing prospectBatch or customerId", { prospectBatch, customerId, customer });
     }
 
     // Fallback to customer.historyList if API returned empty but local customer has history
@@ -1625,6 +1790,7 @@ function saveRecordResult() {
                 contno: contract,
                 name: $row.data('name'),
                 phone: $row.data('phone'),
+                mobile: $row.data('phone'),
                 idno: $row.data('idcard')
             };
         }
@@ -1647,20 +1813,28 @@ function saveRecordResult() {
             if (nextDateVal) {
                 apptStr = nextDateVal + (nextTimeVal ? ` ${nextTimeVal}` : '');
             }
+
+            const t = targetItem || {};
+            const cidVal = t.id || rawItem.id || rawItem.Id || rawItem.cid || '';
+            const contnoVal = t.contract || rawItem.contno || rawItem.contract || '';
+            const idnoVal = t.idno || rawItem.idno || '';
+            const mobileVal = t.phone || rawItem.mobile || rawItem.phone || '';
+            const prospectBatchVal = t.prospect_batch || rawItem.prospect_batch || rawItem.product_batch || rawItem.prospectBatch || '';
+
             const payload = [
                 {
-                    "cid": String(rawItem.id || ''),
-                    "contno": String(rawItem.contno || ''),
+                    "cid": String(cidVal),
+                    "contno": String(contnoVal),
                     "created": getThaiNowISO(),
-                    "idno": String(rawItem.idno || ''),
+                    "idno": String(idnoVal),
                     "isCall": true,
                     "isCallBy": String(currentUserId),
                     "isCallCase": String(resultVal),
                     "isCallLock": false,
                     "isCallLockTime": "0",
                     "isCallRemark": String(remarksVal),
-                    "mobile": String(rawItem.mobile || ''),
-                    "prospect_batch": String(rawItem.prospect_batch || ''),
+                    "mobile": String(mobileVal),
+                    "prospect_batch": String(prospectBatchVal),
                     "status_lead": String(statusLeadVal),
                     "call_result_description": String(salesResultVal),
                     "product_present": String(productVal),
@@ -1743,6 +1917,12 @@ async function call3CX(number) {
 $(document).ready(function () {
     // Initial Load Master Dropdowns
     loadMasterDropdowns();
+
+    // โหลดรายการสาขา (ดึงจาก contractoffcde เหมือนหน้า productApprove) แล้วเติมลง #filterBranch
+    getBranchList().then(branches => {
+        allBranch = branches || [];
+        renderBranchOptions(allBranch);
+    });
 
     // Initial Load Campaigns
     loadCampaignData();

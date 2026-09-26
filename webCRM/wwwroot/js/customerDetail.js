@@ -17,6 +17,11 @@ let currentContactLoadPromise = Promise.resolve(null);
 const contactInfoCache = new Map();
 const receiveListCache = new Map();
 const claimListCache = new Map();
+// Customer-level caches so re-opening a previously viewed customer does not
+// re-fetch anything. Keyed by the value each endpoint actually depends on.
+const pdpaCache = new Map();        // key: company code
+const checkPdpaCache = new Map();   // key: idno
+const contactListCache = new Map(); // key: idno (GetContact payload)
 
 async function getPDPAbg(checkPDPA, company) {
 
@@ -461,14 +466,28 @@ async function displayCustomerDetails(customer, selectionId) {
     let MS1Purpose = null;
     let MS2Purpose = null;
     try {
-        const response = await fetch(`/CustomerDetail/GetPDPA?company=${companyCode}`);
-        const checkPDPA = await fetch(`/CustomerDetail/GetCheckPDPA?idno=${customer.idno || ''}`);
+        const pdpaKey = String(companyCode ?? '');
+        const checkPdpaKey = String(customer.idno ?? '');
 
-        if (response.ok) {
-            pdpaData = await response.json();
+        // Serve PDPA data from cache when available; otherwise fetch and cache.
+        if (pdpaCache.has(pdpaKey)) {
+            pdpaData = pdpaCache.get(pdpaKey);
+        } else {
+            const response = await fetch(`/CustomerDetail/GetPDPA?company=${companyCode}`);
+            if (response.ok) {
+                pdpaData = await response.json();
+                pdpaCache.set(pdpaKey, pdpaData);
+            }
         }
-        if (checkPDPA.ok) {
-            checkPDPAData = await checkPDPA.json();
+
+        if (checkPdpaCache.has(checkPdpaKey)) {
+            checkPDPAData = checkPdpaCache.get(checkPdpaKey);
+        } else {
+            const checkPDPA = await fetch(`/CustomerDetail/GetCheckPDPA?idno=${customer.idno || ''}`);
+            if (checkPDPA.ok) {
+                checkPDPAData = await checkPDPA.json();
+                checkPdpaCache.set(checkPdpaKey, checkPDPAData);
+            }
         }
 
         if (companyCode === "MICRO"){
@@ -771,7 +790,7 @@ async function performSearch() {
                     currentCustomerCompanyFilter = 'ALL';
                     document.getElementById("customerCount").innerText = data.length;
                     const tbody = document.getElementById("searchResultBody");
-                    
+  
                     tbody.innerHTML = data.map((cust, index) => {
                         const name = cust.nameCus || '-';
                         const idno = cust.idno || '-';
@@ -1336,7 +1355,7 @@ function updateCustomerActiveStatus(customerIndex, customer, contract) {
             : (activeState === true ? 'A' : (isInactive ? '' : 'ไม่พบ'));
         statusCell.title = isMissingContractNumber
             ? 'ไม่พบเลขที่สัญญา'
-            : (activeState === true ? 'Active' : (isInactive ? 'Inactive' : 'ไม่พบข้อมูลสัญญา'));
+            : (activeState === true ? 'A' : (isInactive ? '' : 'ไม่พบข้อมูลสัญญา'));
         statusCell.classList.toggle('fw-medium', activeState !== null);
         statusCell.classList.toggle('text-dark', activeState === true);
         statusCell.classList.toggle('text-muted', activeState !== true);
@@ -1366,6 +1385,7 @@ function reorderCustomerRowsByActiveStatus() {
         tbody.appendChild(customerRow);
         if (cardRow) tbody.appendChild(cardRow);
     });
+
 }
 
 // Re-render the contract card for a specific customer row once contract data
@@ -1404,9 +1424,8 @@ function updateContractCard(customerIndex, customer, contactData) {
 
     if (match) {
         const { contract, company } = match;
-        const targetKey = company === 'MIB'
-            ? (contract.trackingMIB || contract.applno || contract.contno || '')
-            : (contract.contno || contract.applno || '');
+        // ใช้ "เลขที่สัญญา" (contno) เป็นคีย์สำหรับทุกบริษัท
+        const targetKey = customer.contno || '';
         toggle.setAttribute('data-company', company);
         toggle.setAttribute('data-target-key', encodeURIComponent(targetKey));
         toggle.setAttribute('data-contract', encodeURIComponent(JSON.stringify(contract)));
@@ -1466,7 +1485,8 @@ function findMatchingContract(customer, contactData) {
     } else if (companyUpper === 'MIB') {
         list = contactData.contactMIB || [];
         company = 'MIB';
-        preferredKey = 'applno';
+        // preferredKey = 'applno';
+        preferredKey = 'trackingMIB';
     } else {
         return null;
     }
@@ -1480,7 +1500,7 @@ function findMatchingContract(customer, contactData) {
     if (custValues.length === 0) return null;
 
     // Keys on a contract that could hold the number, preferred key first.
-    const contractKeys = [preferredKey, 'contno', 'applno', 'trackingMIB'];
+    const contractKeys = [preferredKey, 'contno', 'trackingMIB'];
 
     const matchesContract = (item, comparator) => {
         // Pre-compute normalised customer values once.
@@ -1525,9 +1545,8 @@ function autoSelectMatchingContract(customer, contactData) {
         ? '#dt-contact-Micro'
         : (company === 'MFIN' ? '#dt-contact-MFIN' : '#dt-contact-MIB');
 
-    // target key differs per company (MIB uses trackingMIB, others use contno)
-    const targetKey = company === 'MIB' ? (contract.trackingMIB || '') : (contract.contno || '');
-
+    // ใช้ "เลขที่สัญญา" (contno) เป็นคีย์สำหรับทุกบริษัท
+    const targetKey = customer.contno || '';
     if (window.jQuery && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable(tableId)) {
         const dt = $(tableId).DataTable();
         let matchedNode = null;
@@ -1559,28 +1578,36 @@ async function getContact(idno) {
     try {
         renderProductSummary(currentContactData, true);
 
-        const contactUrl = `/CustomerDetail/GetContact?idno=${encodeURIComponent(idno)}`;
-        console.log('Contract list request:', contactUrl);
+        const contactCacheKey = String(idno ?? '').trim();
+        let data = contactListCache.get(contactCacheKey);
 
-        const response = await fetch(contactUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+        if (!data) {
+            const contactUrl = `/CustomerDetail/GetContact?idno=${encodeURIComponent(idno)}`;
+
+            const response = await fetch(contactUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+            data = await response.json();
 
-        const data = await response.json();
+            if (requestId !== currentContactRequestId) {
+                return null;
+            }
 
-        if (requestId !== currentContactRequestId) {
+            if (data) {
+                contactListCache.set(contactCacheKey, data);
+            }
+        } else if (requestId !== currentContactRequestId) {
             return null;
         }
-
-        console.log('Contract list response:', data);
 
         if (data) {
             currentContactData = data;
@@ -1622,15 +1649,10 @@ async function getContact(idno) {
                         }
 
                         const cEncoded = encodeURIComponent(JSON.stringify(data));
-                        
-                        let targetIdno = idno;
-                        if (company === 'MIB') {
-                            targetIdno = data.trackingMIB;
-                        } else {
-                            targetIdno = data.contno;
-                        }
-
-                        $(row).attr('onclick', `getContactInfo('${targetIdno}', '${company}', '${cEncoded}', this)`);
+   
+                        // ใช้ "เลขที่สัญญา" (contno) จากข้อมูลลูกค้าแทน idno สำหรับทุกบริษัท
+                        const targetContno = data.contno;
+                        $(row).attr('onclick', `getContactInfo('${targetContno}', '${company}', '${cEncoded}', this)`);
                     },
                     language: {
                         emptyTable: "ไม่พบข้อมูล",
@@ -1702,7 +1724,16 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
     if (contractTab && !contractTab.classList.contains('active')) {
         contractTab.click();
     }
-    showContractDetailLoading(true);
+    // Determine up front whether this contract's data is already cached.
+    // When it is, we render straight from cache without ever showing the
+    // loading indicator, so going back to an already-viewed contract does not
+    // flash a spinner or trigger a reload.
+    const preCacheKey = `${normalizeCompanyName(company)}|${String(idno ?? '').trim()}`;
+    const isCached = contactInfoCache.has(preCacheKey);
+
+    if (!isCached) {
+        showContractDetailLoading(true);
+    }
     try {
         // Apply highlight to the clicked row
         if (clickedRow) {
@@ -1725,7 +1756,6 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             const cols = clickedRow.querySelectorAll('.contract-col');
             cols.forEach(col => col.classList.add('fw-medium', 'text-primary'));
         }
-
         const c = JSON.parse(decodeURIComponent(encodedC));
         const contactInfoUrl = `/CustomerDetail/GetContactInfo?idno=${encodeURIComponent(idno)}&company=${encodeURIComponent(company)}`;
 
@@ -1745,11 +1775,15 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 : null;
         }
         
-        // Show loading indicators for the whole box
-        document.getElementById("contract-loading-indicator").classList.remove("d-none");
-        document.getElementById("contract-details-container").classList.add("d-none");
+        // Show loading indicators for the whole box only when we actually need
+        // to fetch. For a cached contract we keep the current details visible
+        // and just swap in the cached values, avoiding any loading flash.
+        if (!isCached) {
+            document.getElementById("contract-loading-indicator").classList.remove("d-none");
+            document.getElementById("contract-details-container").classList.add("d-none");
+        }
 
-        const cacheKey = `${normalizeCompanyName(company)}|${String(idno ?? '').trim()}`;
+        const cacheKey = preCacheKey;
         let data = contactInfoCache.get(cacheKey);
 
         if (!data) {
@@ -1781,6 +1815,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             }
 
             data = await response.json();
+
             contactInfoCache.set(cacheKey, data);
         }
 
@@ -1854,7 +1889,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 document.getElementById("contract-detail-branch").innerText = contract.branch || '-';
                 document.getElementById("contract-detail-collector").innerText = contract.colcde || '-';
 
-                await getReceiveList (contract.contno, "Micro")
+                getReceiveList(contract.contno, "Micro");
             }
 
             if (company == "MFIN"){
@@ -1875,7 +1910,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 document.getElementById("contract-detail-branch").innerText = contract.branch || '-';
                 document.getElementById("contract-detail-collector").innerText = contract.colcde || '-';
 
-                await getReceiveList (contract.contno, "MFIN")
+                getReceiveList(contract.contno, "MFIN");
             }
 
             if (company == "MIB"){
@@ -1996,7 +2031,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 if (remDaysElem) remDaysElem.innerText = remainingDays;
 
                 // Fetch claim list using the application number from the MIB table
-                await getClaimList(c.trackingMIB || idno);
+                getClaimList(c.trackingMIB || idno);
             }
 
             //#endregion
@@ -2005,7 +2040,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
 
             document.getElementById("loan-detail-fianlamount").innerText = formatValues(contract.finamt);
             document.getElementById("loan-detail-aging").innerText = (contract.aging !== undefined && contract.aging !== null && contract.aging !== '') ? 'D' + contract.aging : '-';
-            document.getElementById("loan-detail-appraisal").innerText = formatValues(contract.estimatePrice);
+            document.getElementById("loan-detail-appraisal").innerText = " "+formatValues(contract.estimatePrice);
             document.getElementById("loan-detail-status").innerText = contract.contsts || '-';
             document.getElementById("loan-detail-ltv").innerText =  formatValues(contract.ltv);
             document.getElementById("loan-detail-open-date").innerText = formatDate(contract.aprvdte);
@@ -2199,6 +2234,7 @@ async function getClaimList(tracking){
             const response = await fetch(`/CustomerDetail/GetClaimList?tracking=${encodeURIComponent(tracking)}`);
             if (!response.ok) throw new Error(`GetClaimList returned ${response.status}`);
             data = await response.json();
+            console.log("data",data)
             claimListCache.set(cacheKey, data);
         }
 
@@ -2208,23 +2244,23 @@ async function getClaimList(tracking){
             data: data || [],
             destroy: true,
             columns: [
-                { data: 'policyNo', render: data => data || '-', className: 'text-center' },
-                { data: 'claimDate', render: data => formatDate(data) || '-', className: 'text-center' },
-                { data: 'claimNo', render: data => data || '-', className: 'text-center' },
-                { data: 'idNo', render: data => data || '-', className: 'text-center' },
-                { data: 'custName', render: data => data || '-', className: 'text-center' },
+                { data: 'Policy_No', render: data => data || '-', className: 'text-center' },
+                { data: 'Claim_Date', render: data => formatDate(data) || '-', className: 'text-center' },
+                { data: 'Claim_No', render: data => data || '-', className: 'text-center' },
+                { data: 'idno', render: data => data || '-', className: 'text-center' },
+                { data: 'Cust_Name', render: data => data || '-', className: 'text-center' },
                 { data: 'companyInsur', render: data => data || '-', className: 'text-center' },
-                { data: 'register', render: data => data || '-', className: 'text-center' },
-                { data: 'claimStatus', render: data => data || '-', className: 'text-center' },
+                { data: 'Register', render: data => data || '-', className: 'text-center' },
+                { data: 'Claim_Status', render: data => data || '-', className: 'text-center' },
                 { data: 'appNoMicro', render: data => data || '-', className: 'text-center' },
-                { data: 'venue', render: data => data || '-', className: 'text-center' },
-                { data: 'cause', render: data => data || '-', className: 'text-center' },
-                { data: 'claimDesc', render: data => data || '-', className: 'text-center' },
-                { data: 'remark', render: data => data || '-', className: 'text-center' },
-                { data: 'claimTotal', render: data => formatValues(data) || '-', className: 'text-center' },
-                { data: 'contactName', render: data => data || '-', className: 'text-center' },
-                { data: 'contactTel', render: data => data || '-', className: 'text-center' },
-                { data: 'trackingIns', render: data => data || '-', className: 'text-center' }
+                { data: 'Venue', render: data => data || '-', className: 'text-center' },
+                { data: 'Cause', render: data => data || '-', className: 'text-center' },
+                { data: 'Claim_Desc', render: data => data || '-', className: 'text-center' },
+                { data: 'Remark', render: data => data || '-', className: 'text-center' },
+                { data: 'Claim_Total', render: data => formatValues(data) || '-', className: 'text-center' },
+                { data: 'Contact_Name', render: data => data || '-', className: 'text-center' },
+                { data: 'Contact_Tel', render: data => data || '-', className: 'text-center' },
+                { data: 'Tracking_Ins', render: data => data || '-', className: 'text-center' }
             ],
             language: {
                 emptyTable: "ไม่พบรายการเคลม",
@@ -2273,7 +2309,6 @@ function startReplyTimeClock() {
 document.addEventListener('DOMContentLoaded', function () {
     startReplyTimeClock();
 });
-
 
 // Expand/collapse contract detail from the inline control in the customer row.
 // When collapsed, the separate detail row is completely hidden, leaving one row.

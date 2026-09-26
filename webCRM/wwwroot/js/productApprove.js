@@ -374,8 +374,10 @@ function extractProspectCustomers(data) {
             const id = item.id || '';
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
-            const offcde = item.offcde || '';
-            const branch = item.branch_Name || item.ชื่อสาขาเดิม || '-';
+            const offcde = item.offcde || item.Offcde || item.contractoffcde || item.ContractOffCde || '';
+            // ใช้สาขาจาก Branch_name (สาขาที่ผูกกับสัญญา เช่น "04-สุพรรณบุรี") เป็นหลัก
+            // แล้ว fallback ไปที่ branch_Name / ชื่อสาขาเดิม
+            const branch = item.Branch_name || item.branch_name || item.branch_Name || '-';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const createdDate = item.created || item.ImportDate || '-';
             const createdBy = item.created_by || '-';
@@ -511,47 +513,39 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
     let items = [];
     let totalCount = 0;
 
-    // 1. Try getProductBatchByProductCode first
-    try {
-        const batchRes = await getProductBatchByProductCode(productCode);
-        const parsedBatch = extractProspectCustomers(batchRes);
-        if (parsedBatch.items && parsedBatch.items.length > 0) {
-            items = parsedBatch.items;
-            totalCount = parsedBatch.totalCount;
-        }
-    } catch (e) {
-        console.error("Error fetching product batch:", e);
-    }
+    // ตรวจว่าแคมเปญนี้เป็นแบบ importExcel หรือไม่ (เหมือนหน้า prospectAssign)
+    const currentCampaign = campaigns.find(c => c.code === productCode);
+    const isImport = currentCampaign
+        ? (currentCampaign.IsImport === true || currentCampaign.IsImport === 'true' || currentCampaign.IsImport === 1 || currentCampaign.IsImport === '1')
+        : false;
 
-    // 2. If no items, try getCampaignDataForETL (for import campaigns or ETL data)
-    if (!items || items.length === 0) {
+    if (isImport) {
+        // แคมเปญที่ import Excel เข้า -> ดึงข้อมูลจาก getCampaignDataForETL (ใช้ node IsBatch)
         try {
             const etlRes = await getCampaignDataForETL(productCode);
-            if (etlRes) {
-                const parsedEtl = extractProspectCustomers(etlRes);
-                if (parsedEtl.items && parsedEtl.items.length > 0) {
-                    items = parsedEtl.items;
-                    totalCount = parsedEtl.totalCount;
-                }
+            const res = etlRes ? etlRes.IsBatch : null;
+            const parsedEtl = extractProspectCustomers(res);
+            if (parsedEtl.items && parsedEtl.items.length > 0) {
+                items = parsedEtl.items;
+                totalCount = parsedEtl.totalCount;
             }
         } catch (e) {
             console.error("Error fetching ETL data:", e);
         }
-    }
-
-    // 3. Fallback to GetProspectCustomerView if still no items
-    if (!items || items.length === 0) {
-        try {
-            const viewRes = await getProspectCustomerView(productCode);
-            if (viewRes) {
-                const parsedView = extractProspectCustomers(viewRes);
-                if (parsedView.items && parsedView.items.length > 0) {
-                    items = parsedView.items;
-                    totalCount = parsedView.totalCount;
+    } else {
+        if (!items || items.length === 0) {
+            try {
+                const viewRes = await getProspectCustomerView(productCode);
+                if (viewRes) {
+                    const parsedView = extractProspectCustomers(viewRes);
+                    if (parsedView.items && parsedView.items.length > 0) {
+                        items = parsedView.items;
+                        totalCount = parsedView.totalCount;
+                    }
                 }
+            } catch (e) {
+                console.error("Error fetching ProspectCustomerView:", e);
             }
-        } catch (e) {
-            console.error("Error fetching ProspectCustomerView:", e);
         }
     }
 
@@ -620,38 +614,57 @@ function formatDate(dateStr) {
     return String(dateStr || '');
 }
 
-async function displayCampaignFile(fileId) {
-    const $fileNameText = $("#selectedFileNameText");
-    const $fileNameDisplay = $("#selectedFileNameDisplay");
-
-    if (fileId) {
-        try {
-            const fileRes = await fetch(`/Campain/getFile?Id=${fileId}`);
-            if (fileRes.ok) {
-                const fileData = await fileRes.json();
-                const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
-                const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
-
-                if (fileName) {
-                    $fileNameText
-                        .text(fileName)
-                        .attr("data-filepath", filePath)
-                        .css("cursor", "pointer")
-                        .attr("title", "คลิกเพื่อเปิดดูไฟล์");
-                    $fileNameDisplay.removeClass("d-none").addClass("d-flex").show();
-                    return;
-                }
-            }
-        } catch (e) {
-            console.error("Error fetching file info:", e);
-        }
-    }
-
-    $fileNameText.removeAttr("data-filepath").removeAttr("title").css("cursor", "default").text("");
-    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+function escapeCampaignFileAttr(v) {
+    return String(v || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
-$(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+// รองรับ file_id แบบหลายไฟล์ (CSV เช่น "12,34,56") - วาดเป็นรายการไฟล์ที่คลิกดูได้
+async function displayCampaignFile(fileId) {
+    const $fileNameDisplay = $("#selectedFileNameDisplay");
+    const $wrapper = $fileNameDisplay.parent();
+
+    // ล้าง chip ไฟล์เดิม (ถ้ามี) แล้วซ่อนกล่องต้นแบบ
+    $wrapper.find(".pa-file-chip").remove();
+    $fileNameDisplay.addClass("d-none").removeClass("d-flex").hide();
+
+    const idCsv = String(fileId || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => /^\d+$/.test(s) && s !== "0")
+        .join(",");
+
+    if (!idCsv) return;
+
+    try {
+        const fileRes = await fetch(`/Campain/getFile?Id=${encodeURIComponent(idCsv)}`);
+        if (!fileRes.ok) return;
+
+        const fileData = await fileRes.json();
+        if (!Array.isArray(fileData) || fileData.length === 0) return;
+
+        fileData.forEach(row => {
+            const fileName = row.Name || row.name || "";
+            const filePath = row.Path || row.path || "";
+            if (!fileName && !filePath) return;
+
+            const chip = $(`
+                <div class="pa-file-chip d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                    <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                    <span class="fw-medium text-dark pa-file-name" style="cursor:pointer;" title="คลิกเพื่อเปิดดูไฟล์"
+                          data-filepath="${escapeCampaignFileAttr(filePath)}">${escapeCampaignFileAttr(fileName)}</span>
+                </div>`);
+            $wrapper.append(chip);
+        });
+    } catch (e) {
+        console.error("Error fetching file info:", e);
+    }
+}
+
+$(document).off("click", ".pa-file-name").on("click", ".pa-file-name", function () {
     const filePath = $(this).attr("data-filepath");
     const fileName = $(this).text().trim();
     if (!fileName && !filePath) return;
@@ -1014,10 +1027,17 @@ function filterProspectTable() {
             item.carLocation.toLowerCase().includes(query) ||
             item.createdBy.toLowerCase().includes(query);
 
+        // เทียบรหัสสาขาแบบไม่สนใจเลขศูนย์นำหน้า ("4" == "04") เพราะ dropdown ใช้ offcde แบบ pad ("04")
+        // แต่ contractoffcde จาก ETL เป็นแบบไม่ pad ("4")
+        var normalizeCode = function (v) { return String(v || '').trim().replace(/^0+/, ''); };
+        var branchCode = normalizeCode(branch);
+        // ดึงรหัสนำหน้าจาก Branch_name เช่น "04-สุพรรณบุรี" -> "4"
+        var rowBranchPrefix = normalizeCode(String(item.branch || '').split('-')[0]);
         var matchBranch = !branch ||
             item.branch === branch ||
-            item.offcde === branch ||
-            (item.raw && (item.raw.offcde === branch || item.raw.contractoffcde === branch || item.raw.branch_offcde === branch || item.raw.branch_Name === branch));
+            normalizeCode(item.offcde) === branchCode ||
+            rowBranchPrefix === branchCode ||
+            (item.raw && (normalizeCode(item.raw.offcde) === branchCode || normalizeCode(item.raw.contractoffcde) === branchCode));
         var matchBy = !byUser || item.createdBy.toLowerCase().includes(byUser.toLowerCase());
 
         return matchText && matchBranch && matchBy;
@@ -1040,6 +1060,7 @@ function filterProspectTable() {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบรายการ Prospect</td></tr>`;
     } else {
         var html = '';
+
         pagedItems.forEach(function (item, index) {
             var seq = start + index + 1;
             var dtStr = formatDateTime(item.createdDate);

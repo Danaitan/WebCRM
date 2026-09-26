@@ -26,7 +26,13 @@
         "ApiSettings__APILogin": "https://172.16.17.78:7102",
         "ApiSettings__WebDomain": "http://172.16.17.78:5003",
         "MGDomain": "http://172.16.17.73:1442/ml_system/index.php/index",
-        "JWT_SECRET_KEY":"32B92!2#"
+        "JWT_SECRET_KEY":"32B92!2#",
+        "Post_DMS":"https://micro-dev-docker.microleasingplc.com:7104/dms/api/v1/interface/uploads",
+        "DMS_companyId":"110",
+        "DMS_buId":"136",
+        "DMS_docTypeId":"115",
+        "DMS_storeId":"0F2D6F71",
+        "DMS_BearerToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhZG1pbiIsInVzZXJuYW1lIjoiYWRtaW4iLCJpYXQiOjE3ODg0MzY2NjQsImV4cCI6MTgxOTk3MjY2NH0.UR28F2I3bTMeidP_zNNrcnf-A55etOmgRcfyyCj-2y8"
       }
     }
   }

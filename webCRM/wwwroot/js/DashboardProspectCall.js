@@ -179,6 +179,22 @@ function renderEmptyProspectCallDashboard() {
     renderCampaignTable();
 }
 
+function getSelectedBranchParam() {
+    const selectEl = document.getElementById('filterBranch');
+    if (!selectEl) return '';
+
+    // The hidden <select multiple> holds exactly the checked branch codes.
+    let selected = $('#filterBranch').val() || [];
+    if (!Array.isArray(selected)) {
+        selected = selected ? [selected] : [];
+    }
+    selected = selected.map(v => String(v).trim()).filter(v => v && v !== "99");
+
+    // Send the selected branches joined by commas (e.g. "1,2,3").
+    const unique = Array.from(new Set(selected));
+    return unique.join(',');
+}
+
 async function setDashboard() {
     if (!validateDateRange()) return;
 
@@ -195,7 +211,7 @@ async function setDashboard() {
     const startDate = $('#filterStartDate').val() || '';
     const endDate = $('#filterEndDate').val() || '';
     const callType = $('#filterCallType').val() || '';
-    const branch = $('#filterBranch').val() || '';
+    const branch = getSelectedBranchParam();
     let callBy = $('#filterCaller').val() || '';
     if (isLockedCaller && window.USER_PERSONAL_ID) {
         callBy = String(window.USER_PERSONAL_ID).trim();
@@ -207,7 +223,7 @@ async function setDashboard() {
     if (startDate) params.append('startdate', startDate);
     if (endDate) params.append('enddate', endDate);
     if (callType) params.append('call_type', callType);
-    if (branch && branch !== "99") params.append('branch', branch);
+    if (branch) params.append('branch', branch);
     if (callBy) params.append('call_by', callBy);
     if (callResult) params.append('call_result', callResult);
     if (campaignName) params.append('campaign_name', campaignName);
@@ -739,25 +755,12 @@ async function resetFilters() {
     const hasFcrm006 = hasPermissionFCRM006();
     const isLockedCaller = !hasFcrm006 || (window.HAS_RCRM014 && Boolean(window.USER_PERSONAL_ID));
 
-    const select2Ids = ['#filterCallType', '#filterBranch', '#filterCaller', '#filterCallResult'];
+    const select2Ids = ['#filterCallType', '#filterCaller', '#filterCallResult'];
     select2Ids.forEach(id => {
         const $el = $(id);
         if ($el.length) {
             if (id === '#filterCaller' && isLockedCaller) {
                 return;
-            }
-            if (id === '#filterBranch') {
-                if (window.HAS_RCRM014 && window.USER_BRANCH_NAME && hasFcrm006) {
-                    return;
-                }
-                const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
-                if (variableFunc && $el[0].options && $el[0].options.length > 0) {
-                    $el.val($el[0].options[0].value);
-                    if (typeof $.fn !== 'undefined' && $.fn.select2) {
-                        $el.trigger('change');
-                    }
-                    return;
-                }
             }
             $el.val('');
             if (typeof $.fn !== 'undefined' && $.fn.select2) {
@@ -765,6 +768,11 @@ async function resetFilters() {
             }
         }
     });
+
+    // Reset branch checkboxes back to the default (all branches).
+    if (!(window.HAS_RCRM014 && window.USER_BRANCH_NAME && hasFcrm006)) {
+        selectAllBranches();
+    }
 
     await setFilterEmployee();
     await applyFilters();
@@ -920,62 +928,183 @@ async function setFilterBranch(branchData) {
         }
     }
 
-    const currentValue = selectEl.value || '';
     const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
 
-    let optionsHtml = '';
+    // Build the branch list (excluding any "99" pseudo-item from the API).
+    const branches = [];
     if (variableFunc && Array.isArray(data)) {
         data.forEach(item => {
             if (item && isBranchInVariableFunc(item, variableFunc)) {
                 const code = String(item.offcde || '').trim();
-                const name = code === "99" ? "ทั้งหมด" : item.branch_name;
-                optionsHtml += `<option value="${code}">${name}</option>`;
+                if (!code || code === "99") return;
+                branches.push({ code, name: String(item.branch_name || '').trim() });
             }
         });
     }
+
+    // Populate the hidden <select multiple> that the rest of the code reads.
+    let optionsHtml = '';
+    branches.forEach(b => {
+        optionsHtml += `<option value="${b.code}">${b.name}</option>`;
+    });
     selectEl.innerHTML = optionsHtml;
 
+    // Render the checkbox list inside the dropdown.
+    renderBranchCheckboxes(branches);
+
+    // Decide the default selection.
     const hasFcrm006 = hasPermissionFCRM006();
-    if (!hasFcrm006) {
-        // $(selectEl).prop('disabled', true);
-        if (currentValue && $(selectEl).find(`option[value="${currentValue}"]`).length > 0) {
-            selectEl.value = currentValue;
-        } else if (selectEl.options.length > 0) {
-            selectEl.value = selectEl.options[0].value;
-        } else if (window.USER_BRANCH_NAME) {
-            const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
-            if (matchedBranchVal) {
-                selectEl.value = matchedBranchVal;
-            }
-        }
-        if (typeof $.fn !== 'undefined' && $.fn.select2) {
-            $(selectEl).select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                language: {
-                    noResults: function () {
-                        return "ไม่พบข้อมูล";
-                    }
-                }
-            });
-            $(selectEl).trigger('change');
-        }
-    } else if (window.USER_BRANCH_NAME) {
+    let selection = [];
+    if (!hasFcrm006 && window.USER_BRANCH_NAME) {
         const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
-        if (matchedBranchVal) {
-            selectEl.value = matchedBranchVal;
-        }
-        // $(selectEl).prop('disabled', true);
-        if (typeof $.fn !== 'undefined' && $.fn.select2) {
-            $(selectEl).trigger('change');
-        }
-    } else if (selectEl.options.length > 0) {
-        if (!currentValue || $(selectEl).find(`option[value="${currentValue}"]`).length === 0) {
-            selectEl.value = selectEl.options[0].value;
-        }
-        if (typeof $.fn !== 'undefined' && $.fn.select2) {
-            $(selectEl).trigger('change');
-        }
+        if (matchedBranchVal) selection = [matchedBranchVal];
+    } else if (hasFcrm006 && window.USER_BRANCH_NAME && window.HAS_RCRM014) {
+        const matchedBranchVal = findMatchingBranchValue($(selectEl), window.USER_BRANCH_NAME);
+        if (matchedBranchVal) selection = [matchedBranchVal];
+    }
+
+    if (selection.length > 0) {
+        setBranchSelection(selection);
+    } else {
+        // Default = all branches selected.
+        selectAllBranches();
+    }
+}
+
+// Render checkbox options (including a master "ทั้งหมด" checkbox) for the branch filter.
+function renderBranchCheckboxes(branches) {
+    const container = document.getElementById('filterBranchOptions');
+    if (!container) return;
+
+    let html = '';
+    html += `
+        <div class="form-check branch-option-all">
+            <input class="form-check-input" type="checkbox" id="branchOptAll" value="__ALL__">
+            <label class="form-check-label" for="branchOptAll">ทั้งหมด</label>
+        </div>`;
+
+    branches.forEach((b, idx) => {
+        const id = `branchOpt_${idx}`;
+        const label = b.name || b.code;
+        html += `
+        <div class="form-check branch-option-item" data-search="${(label || '').toLowerCase()}">
+            <input class="form-check-input branch-opt" type="checkbox" id="${id}" value="${b.code}">
+            <label class="form-check-label" for="${id}">${label}</label>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+    // Wire up the "ทั้งหมด" master checkbox.
+    const allCb = document.getElementById('branchOptAll');
+    if (allCb) {
+        allCb.addEventListener('change', function () {
+            if (this.checked) {
+                selectAllBranches();
+            } else {
+                setBranchSelection([]);
+            }
+        });
+    }
+
+    // Wire up each branch checkbox.
+    container.querySelectorAll('.branch-opt').forEach(cb => {
+        cb.addEventListener('change', syncBranchFromCheckboxes);
+    });
+
+    // Wire up the search box (filters visible options only).
+    const searchInput = document.getElementById('filterBranchSearch');
+    if (searchInput && !searchInput._bound) {
+        searchInput._bound = true;
+        searchInput.addEventListener('input', function () {
+            const term = this.value.trim().toLowerCase();
+            document.querySelectorAll('#filterBranchOptions .branch-option-item').forEach(row => {
+                const hay = row.getAttribute('data-search') || '';
+                row.style.display = (!term || hay.includes(term)) ? '' : 'none';
+            });
+        });
+    }
+}
+
+// Get every real branch code from the hidden select (excludes "99").
+function getAllBranchCodes() {
+    const selectEl = document.getElementById('filterBranch');
+    if (!selectEl) return [];
+    return Array.from(selectEl.options)
+        .map(opt => String(opt.value).trim())
+        .filter(v => v && v !== "99");
+}
+
+// Check all branch checkboxes and select all in the hidden select.
+function selectAllBranches() {
+    setBranchSelection(getAllBranchCodes());
+}
+
+// Set the hidden select + checkboxes to exactly the given codes, then refresh UI.
+function setBranchSelection(codes) {
+    const selectEl = document.getElementById('filterBranch');
+    if (!selectEl) return;
+
+    const wanted = new Set((codes || []).map(v => String(v).trim()).filter(Boolean));
+
+    // Sync individual checkboxes.
+    document.querySelectorAll('#filterBranchOptions .branch-opt').forEach(cb => {
+        cb.checked = wanted.has(String(cb.value).trim());
+    });
+
+    // Sync hidden select.
+    $(selectEl).val(Array.from(wanted));
+
+    updateBranchAllCheckbox();
+    updateBranchLabel();
+}
+
+// Read the checkboxes and push the result into the hidden select.
+function syncBranchFromCheckboxes() {
+    const selectEl = document.getElementById('filterBranch');
+    if (!selectEl) return;
+
+    const checked = Array.from(document.querySelectorAll('#filterBranchOptions .branch-opt:checked'))
+        .map(cb => String(cb.value).trim())
+        .filter(Boolean);
+
+    $(selectEl).val(checked);
+
+    updateBranchAllCheckbox();
+    updateBranchLabel();
+    setFilterEmployee();
+}
+
+// Reflect whether every branch is selected in the master "ทั้งหมด" checkbox.
+function updateBranchAllCheckbox() {
+    const allCb = document.getElementById('branchOptAll');
+    if (!allCb) return;
+    const all = getAllBranchCodes();
+    const checked = Array.from(document.querySelectorAll('#filterBranchOptions .branch-opt:checked'))
+        .map(cb => String(cb.value).trim());
+    const everySelected = all.length > 0 && all.every(c => checked.includes(c));
+    allCb.checked = everySelected;
+    allCb.indeterminate = !everySelected && checked.length > 0;
+}
+
+// Update the single-line summary shown on the dropdown button.
+function updateBranchLabel() {
+    const labelEl = document.getElementById('filterBranchLabel');
+    if (!labelEl) return;
+
+    const all = getAllBranchCodes();
+    const checkedEls = Array.from(document.querySelectorAll('#filterBranchOptions .branch-opt:checked'));
+    const checkedCount = checkedEls.length;
+
+    if (checkedCount === 0) {
+        labelEl.textContent = 'ไม่ได้เลือก';
+    } else if (all.length > 0 && checkedCount === all.length) {
+        labelEl.textContent = 'ทั้งหมด';
+    } else if (checkedCount === 1) {
+        const lbl = document.querySelector(`label[for="${checkedEls[0].id}"]`);
+        labelEl.textContent = lbl ? lbl.textContent.trim() : checkedEls[0].value;
+    } else {
+        labelEl.textContent = `เลือก ${checkedCount} สาขา`;
     }
 }
 
@@ -1086,26 +1215,47 @@ async function setFilterEmployee(){
             return;
         }
 
-        const selectedBranchVal = ($('#filterBranch').val() || '').trim();
-        const selectedOption = document.querySelector('#filterBranch option:checked');
-        const selectedBranchText = (selectedOption ? selectedOption.textContent : '').trim();
+        // Collect all selected branches (multi-select => array).
+        let selectedBranchVals = $('#filterBranch').val() || [];
+        if (!Array.isArray(selectedBranchVals)) {
+            selectedBranchVals = selectedBranchVals ? [selectedBranchVals] : [];
+        }
+        selectedBranchVals = selectedBranchVals.map(v => String(v).trim()).filter(Boolean);
 
-        let cleanBranchName = "";
-        if (selectedBranchText && selectedBranchText !== "ทั้งหมด") {
-            cleanBranchName = selectedBranchText.includes('-')
-                ? selectedBranchText.split('-').slice(1).join('-').trim()
-                : selectedBranchText.trim();
+        // No branch restriction on callers when nothing / everything is selected.
+        const allBranchCodes = (typeof getAllBranchCodes === 'function') ? getAllBranchCodes() : [];
+        const allSelected = allBranchCodes.length > 0 &&
+            allBranchCodes.every(c => selectedBranchVals.includes(c));
+        const showAllBranches = selectedBranchVals.length === 0 ||
+            selectedBranchVals.includes("99") || allSelected;
+
+        // Build a lookup of the selected branches by both code and clean name.
+        const branchOptionEls = Array.from(document.querySelectorAll('#filterBranch option'));
+        const selectedBranchNames = [];
+        if (!showAllBranches) {
+            selectedBranchVals.forEach(val => {
+                const opt = branchOptionEls.find(o => String(o.value).trim() === val);
+                const text = (opt ? opt.textContent : '').trim();
+                if (text && text !== "ทั้งหมด") {
+                    const cleanName = text.includes('-')
+                        ? text.split('-').slice(1).join('-').trim()
+                        : text.trim();
+                    if (cleanName) selectedBranchNames.push(cleanName);
+                }
+            });
         }
 
-        const filteredItems = cleanBranchName
-            ? items.filter(obj => {
+        const filteredItems = showAllBranches
+            ? items
+            : items.filter(obj => {
                 if (!obj) return false;
                 const empBranch = (obj.branch || obj.branch_name_th || obj.branch_name || obj.Branch || obj.BranchNameTH || '').trim();
                 const empBranchNo = (obj.branch_no || obj.offcde || obj.branch_code || obj.BranchNo || '').trim();
-                return (empBranch && (empBranch === cleanBranchName || empBranch.includes(cleanBranchName))) ||
-                       (empBranchNo && (empBranchNo === selectedBranchVal || empBranchNo === cleanBranchName));
-            })
-            : items;
+                const matchByNo = empBranchNo && selectedBranchVals.includes(empBranchNo);
+                const matchByName = empBranch && selectedBranchNames.some(name =>
+                    empBranch === name || empBranch.includes(name) || name.includes(empBranch));
+                return matchByNo || matchByName;
+            });
 
         const optionsHtml = ['<option value="">ทั้งหมด</option>'].concat(
             filteredItems.map(obj => {
@@ -1163,7 +1313,7 @@ async function exportCallExcel() {
         const startDate = $('#filterStartDate').val() || '';
         const endDate = $('#filterEndDate').val() || '';
         const callType = $('#filterCallType').val() || '';
-        const branch = $('#filterBranch').val() || '';
+        const branch = getSelectedBranchParam();
         let callBy = $('#filterCaller').val() || '';
         if (isLockedCaller && window.USER_PERSONAL_ID) {
             callBy = String(window.USER_PERSONAL_ID).trim();
@@ -1175,7 +1325,7 @@ async function exportCallExcel() {
         if (startDate) params.append('startdate', startDate);
         if (endDate) params.append('enddate', endDate);
         if (callType) params.append('call_type', callType);
-        if (branch && branch !== "99") params.append('branch', branch);
+        if (branch) params.append('branch', branch);
         if (callBy) params.append('call_by', callBy);
         if (callResult) params.append('call_result', callResult);
         if (campaignName) params.append('campaign_name', campaignName);
@@ -1277,7 +1427,23 @@ async function exportCallExcel() {
             { title: 'ผู้ดูแล Lead', keys: ['ผู้ดูแล Lead'], width: 20, align: 'center' }
         ];
 
-        const historyHeaders = [...headers];
+        // History Call ให้เหลือเฉพาะคอลัมน์: product_code, วัตถุประสงค์, วันที่ Call Report, ผลการติดต่อ, รายงานผล, อธิบายผลการติดต่อ, Status Lead
+        const historyHeaders = [
+            { title: 'product_code', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
+            { title: 'idno', keys: ['idno'], width: 20, align: 'center' },
+            { title: 'nameCus', keys: ['nameCus'], width: 25, align: 'left' },
+            { title: 'contno', keys: ['contno'], width: 18, align: 'center' },
+            { title: 'contractoffcde', keys: ['contractoffcde'], width: 18, align: 'center' },
+            { title: 'company', keys: ['company'], width: 15, align: 'center' },
+            { title: 'phone', keys: ['phone'], width: 18, align: 'center' },
+            { title: 'เบอร์โทรศัพท์ 2', keys: ['เบอร์โทรศัพท์ 2'], width: 18, align: 'center' },
+            { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
+            { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
+            { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
+            { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
+            { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
+            { title: 'Status Lead', keys: ['Status Lead', 'status_lead'], width: 15, align: 'center' }
+        ];
 
         const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -1588,9 +1754,8 @@ $(document).ready(async function () {
         await setFilterEmployee();
         await setDashboard();
 
-        $('#filterBranch').on('change', function () {
-            setFilterEmployee();
-        });
+        // Branch selection changes are handled by the checkbox dropdown
+        // (see syncBranchFromCheckboxes), which already refreshes the caller list.
 
     } catch (error) {
         console.error("Error in document ready:", error);

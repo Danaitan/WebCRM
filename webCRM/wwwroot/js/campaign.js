@@ -1,11 +1,111 @@
 
 let campaigns = [];
 let masterFiltersData = [];
+// เก็บ "คีย์รวม" ของ filter ที่ถูกเลือก โดยใช้ fname + fcompany + fcode
+// เพราะ fcode อย่างเดียวอาจซ้ำกันได้ระหว่างบริษัท
 let selectedFilterCodes = [];
 let selectedCampaignCode = "";
 let selectedCampaignGuid = "";
 let selectedCampaignId = 0;
 let selectedCampaignFileId = "";
+
+// ===== รองรับแนบเอกสารหลายไฟล์ (เก็บ file_id เป็น CSV เช่น "12,34,56") =====
+// ไฟล์ที่อัปโหลดแล้ว (มี id จริง): { id, name, path }
+let campaignExistingFiles = [];
+// ไฟล์ที่เพิ่งเลือกจากเครื่อง ยังไม่อัปโหลด: File object
+let campaignPendingFiles = [];
+// id ของไฟล์เดิมที่ผู้ใช้กดลบออก เพื่อสั่ง soft-delete ตอนบันทึก
+let campaignRemovedFileIds = [];
+
+// ===== ค่าจำกัดการแนบเอกสาร (แก้ไขง่ายที่นี่) =====
+// จำนวนไฟล์แนบสูงสุดต่อแคมเปญ
+const MAX_ATTACHMENT_COUNT = 2;
+// ขนาดไฟล์สูงสุดต่อไฟล์ (หน่วยเป็น MB)
+const MAX_ATTACHMENT_SIZE_MB = 5;
+// ขนาดไฟล์สูงสุดต่อไฟล์ (หน่วยเป็น byte) - คำนวณอัตโนมัติจาก MB ด้านบน
+const MAX_ATTACHMENT_SIZE_BYTES = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+
+function csvToIds(csv) {
+    return String(csv || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => /^\d+$/.test(s) && s !== "0");
+}
+
+function isPreviewableExt(fileName) {
+    const name = (fileName || "").trim();
+    const ext = name.substring(name.lastIndexOf('.')).toLowerCase();
+    return ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.txt'].includes(ext);
+}
+
+function escapeHtmlAttr(v) {
+    return String(v || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+// วาดรายการไฟล์ทั้งหมด (ทั้งที่อัปโหลดแล้วและที่รออัปโหลด) ลงใน #selectedFilesList
+function renderSelectedFilesList() {
+    const $list = $("#selectedFilesList");
+    if ($list.length === 0) return;
+
+    const isDisabled = $("#btnImportFile").is(":disabled");
+    $list.empty();
+
+    campaignExistingFiles.forEach((f, idx) => {
+        const chip = $(`
+            <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                <span class="fw-medium text-dark selected-file-name" style="cursor:pointer;" title="คลิกเพื่อเปิดดูไฟล์"
+                      data-filepath="${escapeHtmlAttr(f.path)}">${escapeHtmlAttr(f.name)}</span>
+                ${isDisabled ? "" : `<i class="bi bi-x-circle-fill text-secondary remove-existing-file" data-index="${idx}" style="cursor:pointer;" title="ลบไฟล์"></i>`}
+            </div>`);
+        $list.append(chip);
+    });
+
+    campaignPendingFiles.forEach((file, idx) => {
+        const chip = $(`
+            <div class="d-flex align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                <i class="bi bi-file-earmark-arrow-up text-success fs-5"></i>
+                <span class="fw-medium text-dark selected-pending-file" style="cursor:pointer;" title="คลิกเพื่อเปิดดูไฟล์"
+                      data-index="${idx}">${escapeHtmlAttr(file.name)} <span class="text-muted">(ใหม่)</span></span>
+                ${isDisabled ? "" : `<i class="bi bi-x-circle-fill text-secondary remove-pending-file" data-index="${idx}" style="cursor:pointer;" title="ลบไฟล์"></i>`}
+            </div>`);
+        $list.append(chip);
+    });
+}
+
+// โหลดข้อมูลไฟล์เดิมจาก CSV ของ file_id (เรียก getFile ครั้งเดียวด้วย CSV แล้วได้ array กลับมา)
+async function loadExistingCampaignFiles(fileIdCsv) {
+    campaignExistingFiles = [];
+    campaignPendingFiles = [];
+    campaignRemovedFileIds = [];
+
+    const ids = csvToIds(fileIdCsv);
+    if (ids.length > 0) {
+        try {
+            const res = await fetch(`/Campain/getFile?Id=${encodeURIComponent(ids.join(","))}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    data.forEach((row, i) => {
+                        const name = row.Name || row.name || "";
+                        const path = row.Path || row.path || "";
+                        const id = row.Id || row.id || ids[i] || "";
+                        if (name || path) {
+                            campaignExistingFiles.push({ id: String(id), name, path });
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Error loading campaign files:", e);
+        }
+    }
+    renderSelectedFilesList();
+}
 // จำสถานะว่าแคมเปญที่เลือกอยู่เป็นแบบ import จาก Excel หรือไม่ (คำนวณตอนโหลด filter ตาม guid)
 let selectedCampaignIsImport = false;
 let fileIdToDelete = "";
@@ -223,13 +323,28 @@ async function renderMasterObjectives() {
     }
 }
 
+// สร้างคีย์รวมจาก fcode + fcompany (normalize เป็น lowercase, trim)
+// ใช้ระบุ filter ให้ไม่ซ้ำกัน เพราะ fcode อย่างเดียวอาจซ้ำข้ามบริษัทได้
+function buildFilterKey(item) {
+    if (!item) return "";
+    const fcode = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim().toLowerCase();
+    const fcompany = (item.fcompany || "").toString().trim().toLowerCase();
+    return `${fcode}||${fcompany}`;
+}
+
+// แปลงคีย์ที่ถูกเลือกกลับเป็นออบเจ็กต์ filter จริงจาก masterFiltersData
+function getSelectedFilterObjects() {
+    const keySet = new Set(selectedFilterCodes || []);
+    return (masterFiltersData || []).filter(item => keySet.has(buildFilterKey(item)));
+}
+
 async function GetFilterByGuid(productGuid) {
     const guid = productGuid || selectedCampaignGuid || "";
     if (!guid) return [];
-    const company = window.CURRENT_COMPANY || "MICRO";
+
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
-        const response = await fetch(`/Campain/GetFilterByGuid?fguid=${encodeURIComponent(guid)}&company=${encodeURIComponent(company)}`);
+        const response = await fetch(`/Campain/GetFilterByGuid?fguid=${encodeURIComponent(guid)}`);
         if (!response.ok) return [];
         let data = await response.json();
         if (typeof data === 'string') {
@@ -266,22 +381,22 @@ function updateFilterSelectionUI() {
     }
 
     $(".filter-chk").each(function () {
-        const code = ($(this).attr("data-fcode") || $(this).val() || "").toString().trim().toLowerCase();
-        $(this).prop("checked", selectedFilterCodes.some(c => (c || "").toString().trim().toLowerCase() === code));
+        const key = ($(this).attr("data-fkey") || "").toString();
+        $(this).prop("checked", selectedFilterCodes.includes(key));
     });
     updateSelectAllFiltersState();
     updateSelectedFiltersDisplay();
 }
 
-async function fetchRawMasterFilters() {
+async function fetchRawMasterFilters(company) {
     if (rawMasterFilters && rawMasterFilters.length > 0) {
         return rawMasterFilters;
     }
-    const company = window.CURRENT_COMPANY || "MICRO";
     try {
         const response = await fetch(`/Campain/GetMasterFilter?company=${encodeURIComponent(company)}`);
         if (!response.ok) return [];
         let data = await response.json();
+
         if (typeof data === 'string') {
             try { data = JSON.parse(data); } catch (e) {}
         }
@@ -304,10 +419,11 @@ async function fetchRawMasterFilters() {
 }
 
 async function getImportFilter() {
-    const rawList = await fetchRawMasterFilters();
+    const company = window.CURRENT_COMPANY || "MICRO";
+    const rawList = await fetchRawMasterFilters(company);
     const importItem = (rawList || []).find(item => {
-        const name = (item.fname || item.fName || item.FName || item.f_name || "").toString().toLowerCase().trim();
-        const code = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().toLowerCase().trim();
+        const name = (item.fname || "").toString().toLowerCase().trim();
+        const code = (item.fcode || "").toString().toLowerCase().trim();
         return name === "import" || code === "f999";
     });
     return importItem;
@@ -321,23 +437,24 @@ async function postFilter(productGuid) {
     const company = window.CURRENT_COMPANY || "MICRO";
     const isImportFromExcel = $("#chkImportExcel").is(":checked");
 
-    let filterCodesToPost = Array.from(new Set((selectedFilterCodes || []).map(c => (c || "").toString().trim()).filter(Boolean)));
+    // สร้างรายการที่จะบันทึกจากออบเจ็กต์ filter จริง เพื่อให้ได้ fcode + fcompany ที่ถูกต้อง
+    const selectedObjs = getSelectedFilterObjects();
+    let postData = selectedObjs.map(item => ({
+        fguid: guid,
+        fcode: (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim(),
+        fcompany: (item.fcompany || company).toString().trim()
+    })).filter(p => p.fcode);
 
     if (isImportFromExcel) {
         const importFilterObj = await getImportFilter();
         if (importFilterObj) {
             const importCode = (importFilterObj.fcode || importFilterObj.fCode || importFilterObj.FCode || importFilterObj.f_code || "").toString().trim();
-            if (importCode && !filterCodesToPost.some(c => c.toLowerCase() === importCode.toLowerCase())) {
-                filterCodesToPost.push(importCode);
+            const importCompany = (importFilterObj.fcompany || company).toString().trim();
+            if (importCode && !postData.some(p => p.fcode.toLowerCase() === importCode.toLowerCase() && p.fcompany.toLowerCase() === importCompany.toLowerCase())) {
+                postData.push({ fguid: guid, fcode: importCode, fcompany: importCompany });
             }
         }
     }
-
-    const postData = filterCodesToPost.map(code => ({
-        fguid: guid,
-        fcode: code,
-        fcompany: company
-    }));
 
     if (postData.length === 0) {
         console.warn("No filters selected to post.");
@@ -363,34 +480,33 @@ async function postFilter(productGuid) {
     }
 }
 
-async function getMasterFilter() {
+async function getMasterFilter(company) {
     startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
     try {
-        const data = await fetchRawMasterFilters();
-        const seenCodes = new Set();
+        const data = await fetchRawMasterFilters(company);
         const mappedData = [];
 
         (data || []).forEach(item => {
-            const code = (item.fcode || item.FCode || item.f_code || "").toString().trim();
-            const name = (item.fname || item.FName || item.f_name || "").toString().toLowerCase().trim();
+
+            const code = (item.fcode || "").toString().trim();
+            const name = (item.fname || "").toString().toLowerCase().trim();
+
             if (!code || code.toUpperCase() === "F999" || name === "import") {
                 return;
             }
-            if (!seenCodes.has(code)) {
-                seenCodes.add(code);
-                mappedData.push({
-                    id: item.id ?? item.Id ?? 0,
-                    fcode: code,
-                    fname: item.fname || item.FName || "",
-                    fremark: item.fremark || item.FRemark || "",
-                    ftype: item.ftype || item.FType || "",
-                    fcompany: item.fcompany || item.FCompany || "",
-                    fstatus: item.fstatus || item.FStatus || "",
-                    fremark2: item.fremark2 || item.FRemark2 || ""
-                });
-            }
+
+            mappedData.push({
+                id: item.id ?? item.Id ?? 0,
+                fcode: code,
+                fname: item.fname || "",
+                fremark: item.fremark || "",
+                ftype: item.ftype || "",
+                fcompany: item.fcompany || "",
+                fstatus: item.fstatus || "",
+                fremark2: item.fremark2 || ""
+            });
         });
-        
+
         return mappedData;
     } catch (error) {
         console.error('Error fetching master filter data:', error);
@@ -400,7 +516,7 @@ async function getMasterFilter() {
     }
 }
 
-async function renderMasterFilters() {
+async function renderMasterFilters(company) {
     try {
         const $rowsCount = $("#filterNameRowsCount");
         const $emptyState = $("#filterNameEmptyState");
@@ -415,7 +531,7 @@ async function renderMasterFilters() {
             </div>
         `);
 
-        const filters = await getMasterFilter();
+        const filters = await getMasterFilter(company);
         masterFiltersData = filters || [];
         $container.empty();
 
@@ -433,40 +549,149 @@ async function renderMasterFilters() {
 
         selectedFilterCodes = Array.from(new Set(selectedFilterCodes || []));
 
-        const canEdit = isCurrentCampaignEditable();
-        const isDisabledAttr = !canEdit ? "disabled" : "";
-        const cursorStyle = !canEdit ? "cursor: not-allowed;" : "cursor: pointer;";
+        // เติมตัวเลือกบริษัท (dropdown) ตามค่า fcompany ที่มีในข้อมูล
+        populateFilterCompanyDropdown();
 
-        masterFiltersData.forEach(item => {
-            const filterName = item.fname || item.fcode || "-";
-            const description = item.fremark || item.fremark2 || item.ftype || "-";
-            const itemCode = (item.fcode || "").toString().trim().toLowerCase();
-            const isChecked = selectedFilterCodes.some(c => (c || "").toString().trim().toLowerCase() === itemCode) ? "checked" : "";
-            const rowHtml = `
-                <div class="filter-name-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; ${cursorStyle}" data-id="${item.id}" data-fcode="${item.fcode}">
-                    <div style="width: 8%; text-align: center;">
-                        <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" ${isChecked} ${isDisabledAttr} style="${cursorStyle}">
-                    </div>
-                    <div style="width: 50%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
-                </div>
-            `;
-            $container.append(rowHtml);
+        // วาดรายการ filter ตามบริษัทที่เลือก (เริ่มต้น = ทั้งหมด)
+        renderFilterRows();
+
+        $("#filterCompanySelect").off("change").on("change", function () {
+            renderFilterRows();
         });
 
+    } catch (err) {
+        console.error("Error rendering master filters:", err);
+    }
+}
+
+// เติมรายการบริษัทลงใน dropdown จากค่า fcompany ที่ไม่ซ้ำกัน
+function populateFilterCompanyDropdown() {
+    const $select = $("#filterCompanySelect");
+    if ($select.length === 0) return;
+
+    const prevValue = $select.val() || "";
+    const companies = Array.from(new Set(
+        (masterFiltersData || [])
+            .map(item => (item.fcompany || "").toString().trim())
+            .filter(Boolean)
+    )).sort();
+
+    $select.empty();
+    companies.forEach(c => {
+        $select.append(`<option value="${c}">${c}</option>`);
+    });
+
+    // คงค่าที่เคยเลือกไว้ถ้ายังมีอยู่ มิฉะนั้น default = บริษัทตัวแรก (index 0)
+    if (prevValue && companies.includes(prevValue)) {
+        $select.val(prevValue);
+    } else if (companies.length > 0) {
+        $select.val(companies[0]);
+    }
+}
+
+// วาดแถวรายการ filter โดยกรองตามบริษัทที่เลือกใน dropdown
+function renderFilterRows() {
+    const $container = $("#filterNameListContainer");
+    const $rowsCount = $("#filterNameRowsCount");
+    if ($container.length === 0) return;
+
+    const selectedCompany = ($("#filterCompanySelect").val() || "").toString().trim();
+
+    const rows = (masterFiltersData || []).filter(item => {
+        if (!selectedCompany) return true;
+        return (item.fcompany || "").toString().trim() === selectedCompany;
+    });
+    $rowsCount.text(`Rows: ${rows.length}`);
+
+    const canEdit = isCurrentCampaignEditable();
+    const isDisabledAttr = !canEdit ? "disabled" : "";
+    const cursorStyle = !canEdit ? "cursor: not-allowed;" : "cursor: pointer;";
+
+    $container.empty();
+
+    rows.forEach(item => {
+        const description = item.fremark || "-";
+        const company = item.fcompany || "-";
+        const ftype = item.ftype || "-";
+        const fkey = buildFilterKey(item);
+        const fremarkAttr = (item.fremark || "").toString();
+        const ftypeAttr = (item.ftype || "").toString();
+        const isChecked = selectedFilterCodes.includes(fkey) ? "checked" : "";
+        const rowHtml = `
+            <div class="filter-name-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; ${cursorStyle}" data-id="${item.id}" data-fcode="${item.fcode}" data-fkey="${fkey}">
+                <div style="width: 8%; text-align: center;">
+                    <input type="checkbox" class="filter-chk" value="${item.fcode}" data-fcode="${item.fcode}" data-fkey="${fkey}" data-ftype="${ftypeAttr}" data-fremark="${fremarkAttr}" ${isChecked} ${isDisabledAttr} style="${cursorStyle}">
+                </div>
+                <div style="width: 42%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${description}</div>
+                <div style="width: 25%; color: #64748b; padding-right: 0.5rem; word-break: break-word;">${ftype}</div>
+                <div style="width: 25%; color: #64748b; padding-right: 0.5rem; word-break: break-word;">${company}</div>
+            </div>
+        `;
+        $container.append(rowHtml);
+    });
+
+    bindFilterRowEvents();
+    updateSelectAllFiltersState();
+    updateSelectedFiltersDisplay();
+}
+
+// ตรวจว่ารายการนี้เป็นประเภท "option" หรือไม่
+function isOptionType(item) {
+    return (item && (item.ftype || "").toString().trim().toLowerCase() === "option");
+}
+
+// คืนรายการคีย์ที่ต้องเลือก/ยกเลิกพร้อมกันเมื่อกดที่ filter หนึ่งรายการ
+// - ถ้าเป็นประเภท "option": เลือกทีละบริษัท (คืนเฉพาะคีย์ของตัวเอง)
+// - ถ้าไม่ใช่ "option": เลือกทุกรายการที่ "หัวข้อ Filter" (fremark) เดียวกัน "ทุกบริษัท"
+//   เช่น กด "ประเภทบุคคล" ที่มีในบริษัท a, b, c => เลือกครบทั้ง a, b, c
+function getGroupKeysFor(item) {
+    if (!item) return [];
+    const selfKey = buildFilterKey(item);
+
+    // ประเภท option ต้องเลือกทีละบริษัท ไม่ผูกกลุ่มข้ามบริษัท
+    if (isOptionType(item)) {
+        return [selfKey];
+    }
+
+    const fremark = (item.fremark || "").toString().trim().toLowerCase();
+    const groupKeys = (masterFiltersData || [])
+        .filter(f => !isOptionType(f) && (f.fremark || "").toString().trim().toLowerCase() === fremark)
+        .map(f => buildFilterKey(f));
+    // เผื่อกรณีหาไม่เจอ ให้มีคีย์ของตัวเองไว้เสมอ
+    if (groupKeys.length === 0) return [selfKey];
+    return Array.from(new Set(groupKeys));
+}
+
+// หาออบเจ็กต์ filter จริงจาก data-fkey บน checkbox
+function findFilterByFkey(fkey) {
+    return (masterFiltersData || []).find(f => buildFilterKey(f) === fkey);
+}
+
+// ผูก event ให้ checkbox และแถวรายการ filter (แยกออกมาเพื่อเรียกซ้ำหลังวาดใหม่)
+function bindFilterRowEvents() {
         $(".filter-chk").off("change").on("change", function (e) {
             if (!isCurrentCampaignEditable()) {
                 e.preventDefault();
                 return;
             }
             e.stopPropagation();
-            const code = $(this).attr("data-fcode") || $(this).val();
-            if ($(this).is(":checked")) {
-                if (!selectedFilterCodes.includes(code)) {
-                    selectedFilterCodes.push(code);
-                }
+            const key = $(this).attr("data-fkey") || "";
+            const isNowChecked = $(this).is(":checked");
+
+            // ถ้าประเภทเป็น "option" จะเลือกทีละบริษัท (เฉพาะรายการที่กด)
+            // ถ้าไม่ใช่ "option" จะเลือก/ยกเลิกทั้งกลุ่มที่หัวข้อ (fremark) เดียวกันทุกบริษัท
+            const item = findFilterByFkey(key);
+            const groupKeys = getGroupKeysFor(item);
+
+            if (isNowChecked) {
+                groupKeys.forEach(k => {
+                    if (!selectedFilterCodes.includes(k)) {
+                        selectedFilterCodes.push(k);
+                    }
+                });
             } else {
-                // ต้องมี Filter อย่างน้อย 1 อัน หากเลือกไว้แล้ว ห้ามเอาออกจนหมด
-                const remaining = selectedFilterCodes.filter(c => c !== code);
+                // ต้องมี Filter อย่างน้อย 1 อัน หากยกเลิกทั้งกลุ่มแล้วไม่เหลือเลย ห้ามเอาออก
+                const remaining = selectedFilterCodes.filter(c => !groupKeys.includes(c));
                 if (remaining.length === 0) {
                     $(this).prop("checked", true);
                     showFilterMinimumWarning();
@@ -475,6 +700,15 @@ async function renderMasterFilters() {
                 selectedFilterCodes = remaining;
             }
             selectedFilterCodes = Array.from(new Set(selectedFilterCodes));
+
+            // ปรับสถานะ checkbox ของทุกแถวในกลุ่มให้ตรงกัน
+            $(".filter-chk").each(function () {
+                const k = $(this).attr("data-fkey") || "";
+                if (groupKeys.includes(k)) {
+                    $(this).prop("checked", isNowChecked);
+                }
+            });
+
             updateSelectAllFiltersState();
             updateSelectedFiltersDisplay();
         });
@@ -491,29 +725,34 @@ async function renderMasterFilters() {
                 return;
             }
             const isChecked = $(this).is(":checked");
+            // เลือก/ยกเลิกเฉพาะรายการที่แสดงอยู่ (ตามบริษัทที่กรอง)
+            const visibleKeys = $(".filter-chk").map(function () {
+                return $(this).attr("data-fkey") || "";
+            }).get();
+
             if (isChecked) {
-                selectedFilterCodes = Array.from(new Set(masterFiltersData.map(f => f.fcode)));
+                visibleKeys.forEach(key => {
+                    if (!selectedFilterCodes.includes(key)) {
+                        selectedFilterCodes.push(key);
+                    }
+                });
+                selectedFilterCodes = Array.from(new Set(selectedFilterCodes));
                 $(".filter-chk").prop("checked", true);
             } else {
+                const remaining = selectedFilterCodes.filter(c => !visibleKeys.includes(c));
                 // ต้องมี Filter อย่างน้อย 1 อัน ห้ามยกเลิกเลือกทั้งหมด
-                if (selectedFilterCodes.length > 0) {
+                if (remaining.length === 0 && selectedFilterCodes.length > 0) {
                     $(this).prop("checked", true);
                     showFilterMinimumWarning();
                     updateSelectAllFiltersState();
                     return;
                 }
-                selectedFilterCodes = [];
+                selectedFilterCodes = remaining;
                 $(".filter-chk").prop("checked", false);
             }
+            updateSelectAllFiltersState();
             updateSelectedFiltersDisplay();
         });
-
-        updateSelectAllFiltersState();
-        updateSelectedFiltersDisplay();
-
-    } catch (err) {
-        console.error("Error rendering master filters:", err);
-    }
 }
 
 function showFilterMinimumWarning() {
@@ -530,8 +769,10 @@ function showFilterMinimumWarning() {
 }
 
 function updateSelectAllFiltersState() {
-    const total = masterFiltersData.length;
-    const checkedCount = Array.from(new Set(selectedFilterCodes || [])).length;
+    // นับเฉพาะรายการที่แสดงอยู่ (ตามบริษัทที่กรองด้วย dropdown)
+    const $visible = $(".filter-chk");
+    const total = $visible.length;
+    const checkedCount = $visible.filter(":checked").length;
     const canEdit = isCurrentCampaignEditable();
     const isDisabled = !canEdit;
     $("#chkSelectAllFilters").prop("checked", total > 0 && checkedCount === total).prop("disabled", isDisabled);
@@ -558,33 +799,51 @@ function updateSelectedFiltersDisplay() {
         return;
     }
 
-    const uniqueItems = [];
-    const seenDisplayKeys = new Set();
+    const displayRows = [];
+    const groupedIndex = {}; // fcode(lowercase) -> index ใน displayRows
 
-    selectedFilterCodes.forEach(code => {
-        const normalizedCode = (code || "").toString().trim().toLowerCase();
-        const filterObj = masterFiltersData.find(f => (f.fcode || "").toString().trim().toLowerCase() === normalizedCode);
-        const filterName = filterObj ? (filterObj.fname || filterObj.fcode) : code;
-        const description = filterObj ? (filterObj.fremark || filterObj.fremark2 || filterObj.fname || filterObj.ftype || code) : code;
-        const displayKey = (description || code).toString().trim();
+    selectedFilterCodes.forEach(key => {
+        // key = "fcode||fcompany" (lowercase) — แยกออกมาเพื่อให้ได้บริษัทจากคีย์เสมอ
+        const parts = (key || "").toString().split("||");
+        const fcodeFromKey = (parts[0] || "").trim();
+        const fcompanyFromKey = (parts[1] || "").trim();
 
-        if (!seenDisplayKeys.has(displayKey)) {
-            seenDisplayKeys.add(displayKey);
-            uniqueItems.push({
-                code: code,
-                description: description
-            });
+        // หา metadata (ชื่อ/ประเภท) จาก masterFiltersData:
+        // 1) ตรงทั้ง fcode + fcompany ก่อน  2) ถ้าไม่เจอ ใช้ fcode อย่างเดียว (เพราะ master อาจมีแค่บริษัทเดียว)
+        let filterObj = (masterFiltersData || []).find(f => buildFilterKey(f) === key);
+        if (!filterObj) {
+            filterObj = (masterFiltersData || []).find(f => (f.fcode || "").toString().trim().toLowerCase() === fcodeFromKey);
+        }
+
+        const fremark = filterObj ? (filterObj.fremark || filterObj.fremark2 || filterObj.fname || filterObj.ftype || fcodeFromKey) : fcodeFromKey;
+        const ftype = filterObj ? (filterObj.ftype || "-") : "-";
+        // ใช้บริษัทจากคีย์ที่บันทึกไว้จริง ไม่ใช่จาก master (master มีแค่บริษัทเดียว)
+        const company = fcompanyFromKey ? fcompanyFromKey.toUpperCase() : (filterObj ? (filterObj.fcompany || "-") : "-");
+
+        // รวมตาม fcode เพื่อให้ filter เดียวกันข้ามบริษัทอยู่แถวเดียว
+        const groupKey = fcodeFromKey;
+        if (groupedIndex[groupKey] === undefined) {
+            groupedIndex[groupKey] = displayRows.length;
+            displayRows.push({ name: fremark, ftype, companies: [] });
+        }
+        const row = displayRows[groupedIndex[groupKey]];
+        if (company && !row.companies.includes(company)) {
+            row.companies.push(company);
         }
     });
 
-    $rowsCount.text(`Rows: ${uniqueItems.length}`);
+    $rowsCount.text(`Rows: ${displayRows.length}`);
     $emptyState.addClass("d-none").attr("style", "display: none !important;");
     $container.removeClass("d-none").show();
 
-    uniqueItems.forEach(item => {
+    displayRows.forEach(row => {
+        const companyText = Array.from(new Set(row.companies)).sort().join(",");
+        const nameText = row.name;
         const rowHtml = `
             <div class="selected-filter-row d-flex py-2 align-items-center" style="border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;">
-                <div style="width: 100%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${item.description}</div>
+                <div style="width: 45%; color: #1e293b; font-weight: 500; padding-right: 0.5rem; word-break: break-word;">${nameText}</div>
+                <div style="width: 30%; color: #64748b; padding-right: 0.5rem; word-break: break-word;">${row.ftype}</div>
+                <div style="width: 25%; color: #64748b; padding-right: 0.5rem; word-break: break-word;">${companyText || "-"}</div>
             </div>
         `;
         $container.append(rowHtml);
@@ -937,6 +1196,10 @@ $(document).ready(async function () {
             selectedCampaignId = 0;
             selectedCampaignFileId = "";
             fileIdToDelete = "";
+            campaignExistingFiles = [];
+            campaignPendingFiles = [];
+            campaignRemovedFileIds = [];
+            renderSelectedFilesList();
 
             $("#campaignCode").val("");
             $("#campaignName").val("");
@@ -1288,46 +1551,12 @@ $(document).ready(async function () {
             updateBranchDisplay();
             
             $("#fileInput").val("");
-            if (selectedCampaignFileId) {
-                try {
-                    const fileRes = await fetch(`/Campain/getFile?Id=${selectedCampaignFileId}`);
-                    if (fileRes.ok) {
-                        const fileData = await fileRes.json();
-                        const fileName = (fileData && fileData[0]) ? (fileData[0].Name || "") : "";
-                        const filePath = (fileData && fileData[0]) ? (fileData[0].Path || "") : "";
-
-                        if (fileName) {
-                            $("#selectedFileNameText")
-                                .text(fileName)
-                                .attr("data-filepath", filePath)
-                                .css("cursor", "pointer")
-                                .attr("title", "คลิกเพื่อเปิดดูไฟล์");
-                            $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
-                            if (isDisabled) {
-                                $("#btnRemoveFile").addClass("d-none");
-                            } else {
-                                $("#btnRemoveFile").removeClass("d-none");
-                            }
-                        } else {
-                            $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
-                            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
-                        }
-                    } else {
-                        $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
-                        $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
-                    }
-                } catch (e) {
-                    console.error("Error fetching file info:", e);
-                    $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
-                    $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
-                }
-            } else {
-                $("#selectedFileNameText").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
-                $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
-            }
+            // โหลดไฟล์แนบทั้งหมด (รองรับหลายไฟล์จาก file_id แบบ CSV) แล้ววาดลงรายการ
+            await loadExistingCampaignFiles(selectedCampaignFileId);
 
             if (!masterFiltersData || masterFiltersData.length === 0) {
-                await renderMasterFilters();
+                const stroffCde = campaign.branches.join(",");
+                const result = await renderMasterFilters(stroffCde);
             }
 
             if (selectedCampaignGuid) {
@@ -1363,10 +1592,14 @@ $(document).ready(async function () {
                         $("#btnGotoETL").hide();
                     }
 
-                    const rawCodes = list
-                        .map(item => (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim())
-                        .filter(c => c !== "" && c.toLowerCase() !== importCode.toLowerCase());
-                    selectedFilterCodes = Array.from(new Set(rawCodes));
+                    // สร้างคีย์รวม (fcode + fcompany) จาก filter ที่บันทึกไว้ ตัด import filter ออก
+                    const rawKeys = list
+                        .filter(item => {
+                            const fcode = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim();
+                            return fcode !== "" && fcode.toLowerCase() !== importCode.toLowerCase();
+                        })
+                        .map(item => buildFilterKey(item));
+                    selectedFilterCodes = Array.from(new Set(rawKeys));
                 } catch (err) {
                     console.error("Error loading filters by guid:", err);
                     selectedFilterCodes = [];
@@ -1380,6 +1613,28 @@ $(document).ready(async function () {
             renderCampaignsList();
         } finally {
             stopLoading();
+        }
+    }
+
+    async function reloadCampaignsAndSelect(code) {
+
+        $("#campaignSearchInput").val("");
+        $("#campaignStatusFilter").val("");
+
+        // selectedCampaignCode = code;
+
+        await new Promise(resolve => {
+            if (campaignTable) {
+                campaignTable.page(0);
+                campaignTable.ajax.reload(() => resolve(), false);
+            } else {
+                resolve();
+            }
+        });
+
+        const found = Array.isArray(campaigns) ? campaigns.find(c => c.code === code) : null;
+        if (found) {
+            await loadCampaignToForm(code);
         }
     }
 
@@ -1434,30 +1689,6 @@ $(document).ready(async function () {
             Swal.fire({ title: "รีเฟรชข้อมูลสำเร็จ", text: "อัปเดตข้อมูลรายการแคมเปญเรียบร้อยแล้ว", icon: "success", timer: 1500, showConfirmButton: false });
         } catch (err) {
             console.error("Error refreshing campaigns:", err);
-        } finally {
-            stopLoading();
-        }
-    });
-
-    $("#refreshFiltersBtn").off("click").on("click", async function () {
-        startLoading('กำลังโหลดข้อมูล...', 'กรุณารอสักครู่');
-        try {
-            await renderMasterFilters();
-            if (selectedCampaignGuid) {
-                try {
-                    const filterData = await GetFilterByGuid(selectedCampaignGuid);
-                    if (Array.isArray(filterData)) {
-                        const rawCodes = filterData
-                            .map(item => item.fcode || item.fCode || item.FCode || item.f_code || "")
-                            .filter(c => c !== "");
-                        selectedFilterCodes = Array.from(new Set(rawCodes));
-                    }
-                } catch (e) {
-                    console.error("Error refreshing filters:", e);
-                }
-            }
-            updateFilterSelectionUI();
-            Swal.fire({ title: "รีเฟรช Filter สำเร็จ", text: "อัปเดตข้อมูล Filter เรียบร้อยแล้ว", icon: "success", timer: 1500, showConfirmButton: false });
         } finally {
             stopLoading();
         }
@@ -1666,10 +1897,8 @@ $(document).ready(async function () {
 async function getCheckProductNo() {
     try {
         const response = await fetch('/Campain/GetCheckProductNo');
-        console.log("response",response)
         if (!response.ok) return '';
         const data = await response.json();
-        console.log("data",data)
         if (Array.isArray(data) && data.length > 0) {
             return data[0].newCode || data[0].NewCode || data[0].code || data[0].Code || '';
         } else if (data && typeof data === 'object') {
@@ -1729,13 +1958,13 @@ async function getCheckProductNo() {
     });
 
     $("#modalSubmitBtn").off("click").on("click", function () {
-        const name = $("#modalCampaignName").val().trim();
-        let code = $("#modalCampaignCode").val().trim();
-        const start = $("#modalStartDate").val();
-        const end = $("#modalEndDate").val();
-        const note = $("#modalRemarks").val().trim();
-        const Objective_code = $("#modalCampaignObjective").val();
-        
+        const name = ($("#modalCampaignName").val() || "").trim();
+        let code = ($("#modalCampaignCode").val() || "").trim();
+        const start = $("#modalStartDate").val() || "";
+        const end = $("#modalEndDate").val() || "";
+        const note = ($("#modalRemarks").val() || "").trim();
+        const Objective_code = $("#modalCampaignObjective").val() || "";
+
         $("#modalCampaignName, #modalStartDate, #modalEndDate, #modalCampaignObjective, #modalBranchSelectDisplay, #modalRemarks").removeClass("is-invalid");
 
         const missingFields = [];
@@ -1804,17 +2033,25 @@ async function getCheckProductNo() {
                 startLoading("กำลังสร้างแคมเปญใหม่", "ระบบกำลังบันทึกข้อมูล...");
 
                 try {
-                    // รอให้รหัส Campaign ที่ถูก generate แบบ async เสร็จก่อน
-                    // กันกรณีผู้ใช้กดบันทึกเร็วเกินไปจนรหัสยังเป็น placeholder หรือค่าว่าง
-                    // ซึ่งเป็นสาเหตุที่บางครั้งบันทึกแล้วขึ้นข้อผิดพลาด
-                    if (modalCampaignCodePromise) {
-                        try {
+                    try {
+                        const freshCode = (await getCheckProductNo() || "").trim();
+                        if (freshCode) {
+                            code = freshCode;
+                            $("#modalCampaignCode").val(freshCode);
+                            $("#campaignCode").val(freshCode);
+                        } else if (modalCampaignCodePromise) {
                             const resolvedCode = await modalCampaignCodePromise;
-                            if (resolvedCode) {
-                                code = resolvedCode.trim();
+                            if (resolvedCode) code = resolvedCode.trim();
+                        }
+                    } catch (e) {
+                        console.error("Error fetching fresh campaign code:", e);
+                        if (modalCampaignCodePromise) {
+                            try {
+                                const resolvedCode = await modalCampaignCodePromise;
+                                if (resolvedCode) code = resolvedCode.trim();
+                            } catch (e2) {
+                                console.error("Error awaiting campaign code:", e2);
                             }
-                        } catch (e) {
-                            console.error("Error awaiting campaign code:", e);
                         }
                     }
 
@@ -1886,27 +2123,16 @@ async function getCheckProductNo() {
                     const data = await response.json();
                     
                     if (data.status === "success") {
-                        const campaignData = {
-                            guid: newGuid,
-                            code: code,
-                            name: name,
-                            status: "draft",
-                            startDate: start,
-                            endDate: end,
-                            objective: Objective_code,
-                            branches: [...modalSelectedBranches],
-                            descriptions: note,
-                            file_id: modalFileId,
-                            isImportFromExcel: isImportFromExcel
-                        };
-
-                        campaigns.unshift(campaignData);
                         selectedCampaignCode = code;
                         selectedCampaignGuid = newGuid;
                         selectedCampaignFileId = modalFileId;
 
+                        // ดึงรายการใหม่จากฐานข้อมูล เพื่อให้ได้ข้อมูลจริง (รวมถึง id ของแคมเปญ)
+                        // แทนการ unshift ข้อมูลในหน่วยความจำ ซึ่งจะหายไปเมื่อ DataTable โหลดใหม่
+                        // และทำให้แคมเปญที่เพิ่งสร้างไม่ขึ้นในรายการ/ดึงข้อมูลไม่ได้
+                        await reloadCampaignsAndSelect(code);
+
                         Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
-                        await loadCampaignToForm(code);
                     } else {
                         Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
                     }
@@ -2060,12 +2286,14 @@ async function getCheckProductNo() {
                 if (result.isConfirmed) {
                     startLoading("กำลังบันทึกข้อมูล...", "ระบบกำลังบันทึกข้อมูลแคมเปญและ Filter...");
                     try {
-                        // จำไว้ว่ามีการลบไฟล์เดิมหรือไม่ ก่อนที่จะเคลียร์ fileIdToDelete
-                        const hadFileDeleted = !!fileIdToDelete;
+                        // จำไว้ว่ามีการลบไฟล์เดิมหรือไม่ (จากรายการหลายไฟล์)
+                        const hadFileDeleted = campaignRemovedFileIds.length > 0;
 
-                        if (fileIdToDelete) {
+                        // soft-delete ไฟล์เดิมที่ผู้ใช้กดลบออกทั้งหมด
+                        for (const removedId of campaignRemovedFileIds) {
+                            if (!removedId) continue;
                             try {
-                                const delRes = await fetch(`/Campain/DeleteFile?Id=${fileIdToDelete}`, {
+                                const delRes = await fetch(`/Campain/DeleteFile?Id=${removedId}`, {
                                     method: 'PUT'
                                 });
                                 if (!delRes.ok) {
@@ -2079,23 +2307,16 @@ async function getCheckProductNo() {
                             } catch (deleteErr) {
                                 console.error("Error calling DeleteFile:", deleteErr);
                             }
-                            fileIdToDelete = "";
                         }
+                        campaignRemovedFileIds = [];
 
-                        // ถ้าเคยมีไฟล์แล้วผู้ใช้ลบทิ้ง ต้องส่ง "0" เพื่อให้ backend ล้างค่า
-                        // (การส่ง "" จะถูก backend มองข้าม ทำให้ค่าเดิมไม่ถูกอัปเดต)
-                        let fileIdToSave = selectedCampaignFileId || (hadFileDeleted ? "0" : "");
-                        const mainFileInput = document.getElementById("fileInput");
-                        if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
-                            const uploadRes = await uploadCampaignFile(mainFileInput, false, false);
-                            if (uploadRes && uploadRes.status === "success") {
-                                const uploadedId = extractUploadedFileId(uploadRes);
-                                if (uploadedId) {
-                                    fileIdToSave = uploadedId;
-                                }
-                                selectedCampaignFileId = fileIdToSave;
-                            }
+                        await uploadPendingCampaignFiles();
+
+                        let fileIdToSave = buildCampaignFileIdCsv();
+                        if (!fileIdToSave) {
+                            fileIdToSave = hadFileDeleted ? "0" : "";
                         }
+                        selectedCampaignFileId = fileIdToSave;
 
                         let currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
                         if (!currentCampaignId && selectedCampaignCode) {
@@ -2200,15 +2421,9 @@ async function getCheckProductNo() {
                     try {
                         const newGuid = generateUUID();
                         const company = window.CURRENT_COMPANY || "MICRO";
-                        let mainFileId = "";
-                        const mainFileInput = document.getElementById("fileInput");
-                        if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
-                            const uploadRes = await uploadCampaignFile(mainFileInput, false, false);
-                            if (uploadRes && uploadRes.status === "success") {
-                                mainFileId = extractUploadedFileId(uploadRes);
-                            }
-                        }
-
+                        // อัปโหลดไฟล์ที่รออยู่ทั้งหมด (ใช้รหัสแคมเปญที่กำลังสร้าง)
+                        await uploadPendingCampaignFiles(code);
+                        let mainFileId = buildCampaignFileIdCsv();
                         const postData = {
                             productInfo: {
                                 product_code: code,
@@ -2223,10 +2438,10 @@ async function getCheckProductNo() {
                                 Objective_code: Objective_code,
                                 file_id: mainFileId
                             },
-                            filtersInfo: selectedFilterCodes.map(c => ({
+                            filtersInfo: getSelectedFilterObjects().map(item => ({
                                 fguid: newGuid,
-                                fcode: c,
-                                fcompany: company
+                                fcode: (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim(),
+                                fcompany: (item.fcompany || company).toString().trim()
                             }))
                         };
 
@@ -2241,17 +2456,14 @@ async function getCheckProductNo() {
                         const data = await response.json();
                         
                         if (data.status === "success") {
-                            campaignData.guid = newGuid;
-                            campaignData.file_id = mainFileId;
-                            campaignData.status = "waiting prospect";
-                            campaigns.unshift(campaignData);
                             selectedCampaignCode = code;
                             selectedCampaignGuid = newGuid;
                             selectedCampaignFileId = mainFileId;
 
                             stopLoading(true);
+                            // โหลดรายการใหม่จากฐานข้อมูลแล้วเลือกแคมเปญที่เพิ่งสร้าง
+                            await reloadCampaignsAndSelect(code);
                             Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
-                            await loadCampaignToForm(code);
                         } else {
                             stopLoading(true);
                             Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
@@ -2272,7 +2484,7 @@ async function getCheckProductNo() {
         await renderMasterObjectives();
         renderBranchCheckboxes();
         renderModalBranchCheckboxes();
-        await renderMasterFilters();
+        // await renderMasterFilters();
         initDataTables();
 
         const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
@@ -2316,35 +2528,41 @@ async function getCheckProductNo() {
         });
 
         $("#fileInput").off("change").on("change", function () {
-            if (selectedCampaignFileId) {
-                fileIdToDelete = selectedCampaignFileId;
-                selectedCampaignFileId = "";
-            }
             handleFileSelect(this, false);
         });
 
-        $(document).off("click", "#selectedFileNameText").on("click", "#selectedFileNameText", function () {
+        // เปิดดูไฟล์เดิมที่อัปโหลดแล้ว
+        $(document).off("click", "#selectedFilesList .selected-file-name").on("click", "#selectedFilesList .selected-file-name", function () {
             const filePath = $(this).attr("data-filepath");
             const fileName = $(this).text().trim();
-            previewCampaignFile(fileName, filePath, "#fileInput");
+            previewCampaignFile(fileName, filePath);
         });
 
-        $(document).off("click", "#modalSelectedFileNameText").on("click", "#modalSelectedFileNameText", function () {
-            const filePath = $(this).attr("data-filepath");
-            const fileName = $(this).text().trim();
-            previewCampaignFile(fileName, filePath, "#modalfileInput");
+        // เปิดดูไฟล์ใหม่ที่ยังไม่อัปโหลด (พรีวิวจากไฟล์ในเครื่อง)
+        $(document).off("click", "#selectedFilesList .selected-pending-file").on("click", "#selectedFilesList .selected-pending-file", function () {
+            const idx = parseInt($(this).attr("data-index"), 10);
+            const file = campaignPendingFiles[idx];
+            if (!file) return;
+            previewLocalFile(file);
         });
 
-        $(document).off("click", "#btnRemoveFile").on("click", "#btnRemoveFile", function (e) {
+        // ลบไฟล์เดิม (บันทึกไว้เพื่อ soft-delete ตอน save)
+        $(document).off("click", "#selectedFilesList .remove-existing-file").on("click", "#selectedFilesList .remove-existing-file", function (e) {
             e.stopPropagation();
-            if ($("#btnRemoveFile").hasClass("d-none") || $("#btnImportFile").is(":disabled")) return;
-            $("#fileInput").val("");
-            if (selectedCampaignFileId) {
-                fileIdToDelete = selectedCampaignFileId;
-            }
-            selectedCampaignFileId = "";
-            $("#selectedFileNameText").text("").removeAttr("data-filepath").removeAttr("title").css("cursor", "default");
-            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+            if ($("#btnImportFile").is(":disabled")) return;
+            const idx = parseInt($(this).attr("data-index"), 10);
+            const removed = campaignExistingFiles.splice(idx, 1)[0];
+            if (removed && removed.id) campaignRemovedFileIds.push(removed.id);
+            renderSelectedFilesList();
+        });
+
+        // ลบไฟล์ใหม่ที่ยังไม่อัปโหลด
+        $(document).off("click", "#selectedFilesList .remove-pending-file").on("click", "#selectedFilesList .remove-pending-file", function (e) {
+            e.stopPropagation();
+            if ($("#btnImportFile").is(":disabled")) return;
+            const idx = parseInt($(this).attr("data-index"), 10);
+            campaignPendingFiles.splice(idx, 1);
+            renderSelectedFilesList();
         });
 
         $("#modalfileInput").off("change").on("change", function () {
@@ -2428,14 +2646,17 @@ function previewCampaignFile(fileName, filePath, fileInputSelector = null) {
 }
 
 function handleFileSelect(fileInputEl, isModal = false) {
-    const file = fileInputEl.files && fileInputEl.files[0];
-    if (!file) return;
+    const files = fileInputEl.files ? Array.from(fileInputEl.files) : [];
+    if (files.length === 0) return;
 
     const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.png', '.jpg', '.jpeg'];
-    const fileName = file.name;
-    const fileExtension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
 
-    if (!allowedExtensions.includes(fileExtension)) {
+    const invalid = files.find(f => {
+        const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
+        return !allowedExtensions.includes(ext);
+    });
+
+    if (invalid) {
         Swal.fire({
             title: "ประเภทไฟล์ไม่ถูกต้อง",
             text: `กรุณาอัปโหลดเฉพาะไฟล์: ${allowedExtensions.join(', ')}`,
@@ -2447,24 +2668,158 @@ function handleFileSelect(fileInputEl, isModal = false) {
         if (isModal) {
             $("#modalSelectedFileNameText").text('');
             $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
-        } else {
-            $("#selectedFileNameText").text('');
-            $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+        }
+        return;
+    }
+
+    // ตรวจขนาดไฟล์: ห้ามเกินไฟล์ละ MAX_ATTACHMENT_SIZE_MB MB
+    const tooLarge = files.find(f => f.size > MAX_ATTACHMENT_SIZE_BYTES);
+    if (tooLarge) {
+        Swal.fire({
+            title: "ไฟล์มีขนาดใหญ่เกินไป",
+            text: `ขนาดไฟล์ต้องไม่เกิน ${MAX_ATTACHMENT_SIZE_MB} MB ต่อไฟล์ (ไฟล์ "${tooLarge.name}" มีขนาดใหญ่เกินกำหนด)`,
+            icon: "error",
+            timer: 2500,
+            showConfirmButton: true
+        });
+        fileInputEl.value = '';
+        if (isModal) {
+            $("#modalSelectedFileNameText").text('');
+            $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
         }
         return;
     }
 
     if (isModal) {
+        // โมดัลยังคงพฤติกรรมไฟล์เดียวเดิม (ส่วนนี้ถูกปิดใช้งานใน view)
+        const file = files[0];
         $("#modalSelectedFileNameText").text(file.name).removeAttr("data-filepath").css("cursor", "pointer").attr("title", "คลิกเพื่อเปิดดูไฟล์");
         $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
-    } else {
-        $("#selectedFileNameText").text(file.name).removeAttr("data-filepath").css("cursor", "pointer").attr("title", "คลิกเพื่อเปิดดูไฟล์");
-        $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
-        if ($("#btnImportFile").is(":disabled")) {
-            $("#btnRemoveFile").addClass("d-none");
-        } else {
-            $("#btnRemoveFile").removeClass("d-none");
+        return;
+    }
+
+    // เพิ่มไฟล์ที่เลือกทั้งหมดเข้าคิวรออัปโหลด (กันไฟล์ชื่อซ้ำที่รออยู่แล้ว)
+    // จำกัดจำนวนไฟล์รวม (ไฟล์เดิม + ไฟล์ใหม่ที่รออัปโหลด) ไม่เกิน MAX_ATTACHMENT_COUNT
+    let reachedLimit = false;
+    files.forEach(f => {
+        const dup = campaignPendingFiles.some(p => p.name === f.name && p.size === f.size);
+        if (dup) return;
+
+        const currentCount = campaignExistingFiles.length + campaignPendingFiles.length;
+        if (currentCount >= MAX_ATTACHMENT_COUNT) {
+            reachedLimit = true;
+            return;
         }
+        campaignPendingFiles.push(f);
+    });
+
+    if (reachedLimit) {
+        Swal.fire({
+            title: "แนบไฟล์ได้สูงสุด " + MAX_ATTACHMENT_COUNT + " ไฟล์",
+            text: `แนบเอกสารได้ไม่เกิน ${MAX_ATTACHMENT_COUNT} ไฟล์ต่อแคมเปญ ระบบเพิ่มให้เฉพาะไฟล์ที่อยู่ในโควตาเท่านั้น`,
+            icon: "warning",
+            timer: 2500,
+            showConfirmButton: true
+        });
+    }
+    // เคลียร์ input เพื่อให้เลือกไฟล์เดิมซ้ำได้อีกครั้งหากต้องการ
+    fileInputEl.value = '';
+    renderSelectedFilesList();
+}
+
+// พรีวิว/ดาวน์โหลดไฟล์ที่ยังอยู่ในเครื่อง (ยังไม่อัปโหลด)
+function previewLocalFile(file) {
+    if (!file) return;
+    const fileName = file.name || "";
+    const blobUrl = URL.createObjectURL(file);
+    if (isPreviewableExt(fileName)) {
+        window.open(blobUrl, '_blank');
+    } else {
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    }
+}
+
+// อัปโหลดไฟล์ที่รออยู่ทั้งหมด แล้วคืนค่าเป็น array ของ id
+async function uploadPendingCampaignFiles(campaignCodeOverride = "") {
+    const uploadedIds = [];
+    for (let i = 0; i < campaignPendingFiles.length; i++) {
+        const file = campaignPendingFiles[i];
+        const uploadRes = await uploadSingleCampaignFile(file, campaignCodeOverride);
+        if (uploadRes && uploadRes.status === "success") {
+            const id = extractUploadedFileId(uploadRes);
+            if (id) {
+                uploadedIds.push(id);
+                campaignExistingFiles.push({
+                    id: String(id),
+                    name: uploadRes.name || file.name,
+                    path: uploadRes.path || ""
+                });
+            }
+        }
+    }
+    campaignPendingFiles = [];
+    renderSelectedFilesList();
+    return uploadedIds;
+}
+
+function buildCampaignFileIdCsv() {
+    const ids = campaignExistingFiles.map(f => String(f.id)).filter(id => /^\d+$/.test(id) && id !== "0");
+    return Array.from(new Set(ids)).join(",");
+}
+
+// อัปโหลดไฟล์เดียว (รับ File object) ใช้กับการแนบหลายไฟล์ - ไม่ยุ่งกับ UI display
+async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
+    if (!file) return { status: "error", message: "ไม่พบไฟล์" };
+
+    let campaignCode = (campaignCodeOverride || selectedCampaignCode || $("#campaignCode").val() || "").trim();
+    if (campaignCode === CAMPAIGN_CODE_PLACEHOLDER) campaignCode = "";
+
+    if (!campaignCode) {
+        return { status: "error", message: "ไม่พบรหัสแคมเปญ" };
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("campaignCode", campaignCode);
+
+        const response = await fetch('/Campain/UploadCampaignFile', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+            let returnedFileName = data.name || file.name;
+            let returnedPath = data.path || "";
+            if (!returnedPath && data.data) {
+                let rawData = data.data;
+                if (typeof rawData === 'string') {
+                    try { rawData = JSON.parse(rawData); } catch (e) { }
+                }
+                if (rawData) {
+                    if (!data.name && (rawData.Name || rawData.name)) {
+                        returnedFileName = rawData.Name || rawData.name;
+                    }
+                    if (rawData.Path || rawData.path) {
+                        returnedPath = rawData.Path || rawData.path;
+                    }
+                }
+            }
+            data.name = returnedFileName;
+            data.path = returnedPath || `campaignFile/${campaignCode}/${returnedFileName}`;
+        }
+        return data;
+    } catch (err) {
+        console.error("Upload error:", err);
+        return { status: "error", message: err.message };
     }
 }
 

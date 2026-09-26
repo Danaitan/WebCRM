@@ -84,43 +84,6 @@ namespace webCRM.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetProductFilterByGuid(
-            string guid)
-        {
-            try
-            {
-                var company =
-                    HttpContext.Session.GetString("company")
-                    ?? "";
-
-                var data =
-                    await crmService.GetProductFilterByGuid(
-                        guid,
-                        company);
-
-                return Content(
-                    data,
-                    "application/json");
-            }
-            catch (Exception ex)
-            {
-                ViewBag.ErrorMessage =
-                    "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
-                    + ex.Message;
-
-                return Content(
-                    JsonSerializer.Serialize(
-                        new
-                        {
-                            status = false,
-                            message = ex.Message,
-                            data = Array.Empty<object>()
-                        }),
-                    "application/json");
-            }
-        }
-
         [HttpPost]
         public async Task<IActionResult> PostNewProspectBatch(
             [FromBody] PostNewProspectBatchRequest request)
@@ -257,15 +220,16 @@ namespace webCRM.Controllers
 
         [HttpGet]
         public async Task<IActionResult> getFilterDropdown(
-            string company = ""
+            string  fname,
+            string  fcompany
         )
         {
             try
             {
-                company = HttpContext.Session.GetString("company") ?? "";
                 var data =
                     await crmService.GetFilterDropdown(
-                        company
+                        fname,
+                        fcompany
                     );
 
                 return Content(

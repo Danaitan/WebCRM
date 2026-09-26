@@ -293,15 +293,17 @@ namespace webCRM.Services
                     }
                 }
 
-                return list?
-                    .Where(x =>
-                        !string.IsNullOrWhiteSpace(x.FCode))
-                    .GroupBy(
-                        x => x.FCode!.Trim(),
-                        StringComparer.OrdinalIgnoreCase)
-                    .Select(g => g.First())
-                    .ToList()
-                    ?? new List<MasterFilter>();
+                // list = list?
+                //     .Where(x =>
+                //         !string.IsNullOrWhiteSpace(x.FCode))
+                //     .GroupBy(
+                //         x => x.FCode!.Trim(),
+                //         StringComparer.OrdinalIgnoreCase)
+                //     .Select(g => g.First())
+                //     .ToList()
+                //     ?? new List<MasterFilter>();
+
+                return list ?? new List<MasterFilter>();
             }
             catch (Exception ex)
             {
@@ -337,19 +339,14 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid, string company)
+        public async Task<List<GetFilterByGuid>> GetFilterByGuid(string fguid)
         {
             try
             {
-                var comp =
-                    string.IsNullOrWhiteSpace(company)
-                        ? "MICRO"
-                        : company;
 
                 var endpoint =
                     $"p2/getProductFilterByGuid/" +
-                    $"{Uri.EscapeDataString(fguid)}/" +
-                    $"{Uri.EscapeDataString(comp)}";
+                    $"{Uri.EscapeDataString(fguid)}/";
 
                 var root = await GetAsync<JsonNode>(endpoint);
 
@@ -388,15 +385,18 @@ namespace webCRM.Services
                     }
                 }
 
-                return list?
-                    .Where(x =>
-                        !string.IsNullOrWhiteSpace(x.fcode))
-                    .GroupBy(
-                        x => x.fcode!.Trim(),
-                        StringComparer.OrdinalIgnoreCase)
-                    .Select(g => g.First())
-                    .ToList()
-                    ?? new List<GetFilterByGuid>();
+                // return list?
+                //     .Where(x =>
+                //         !string.IsNullOrWhiteSpace(x.fcode))
+                //     .GroupBy(
+                //         x => x.fcode!.Trim(),
+                //         StringComparer.OrdinalIgnoreCase)
+                //     .Select(g => g.First())
+                //     .ToList()
+                //     ?? new List<GetFilterByGuid>();
+
+                return list ?? new List<GetFilterByGuid>();
+
             }
             catch (Exception ex)
             {
@@ -1855,12 +1855,24 @@ namespace webCRM.Services
         }
 
         public async Task<string> GetFilterDropdown(
-            string company = ""
+            string  fname,
+            string  fcompany
         )
         {
             try
             {
-                return await GetStringAsync($"p3/getFilterDropdown?company={company}");
+                // fname / fcompany รองรับหลายค่าคั่นด้วย comma
+                // เช่น fname = "a,b,c", fcompany = "com1,com2"
+                var url =
+                    QueryHelpers.AddQueryString(
+                        "p3/getFilterDropdown",
+                        new Dictionary<string, string?>
+                        {
+                            ["fname"] = fname ?? "",
+                            ["fcompany"] = fcompany ?? ""
+                        });
+
+                return await GetStringAsync(url);
             }
             catch (Exception ex)
             {

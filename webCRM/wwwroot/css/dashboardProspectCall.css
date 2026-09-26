@@ -255,3 +255,66 @@ body {
     padding-left: 0;
     color: #212529;
 }
+
+/* ===== Branch multi-select (checkbox dropdown) ===== */
+.branch-multiselect {
+    position: relative;
+}
+
+/* Keep the trigger a single fixed-height line so it never swells */
+.branch-multiselect-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.branch-multiselect-label {
+    display: block;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.branch-multiselect-menu {
+    width: 100%;
+    min-width: 220px;
+    max-height: 320px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.branch-multiselect-options {
+    overflow-y: auto;
+    max-height: 260px;
+}
+
+.branch-multiselect-options .form-check {
+    margin: 0;
+    padding: 0.35rem 0.75rem 0.35rem 2.25rem;
+}
+
+.branch-multiselect-options .form-check:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.branch-multiselect-options .form-check-label {
+    cursor: pointer;
+    font-size: 0.875rem;
+    white-space: normal;
+}
+
+.branch-multiselect-options .form-check-input {
+    cursor: pointer;
+}
+
+.branch-multiselect-options .branch-option-all {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.branch-multiselect-options .branch-option-all .form-check-label {
+    font-weight: 600;
+}

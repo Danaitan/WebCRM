@@ -70,7 +70,7 @@
     /* Layout Grids */
     .prospect-layout {
         display: flex;
-        /* height: calc(100vh - 80px); */
+        min-height: 1000px;
         height: 100vh;
         overflow: hidden;
         flex: column;
@@ -100,7 +100,7 @@
     /* การ์ดเงื่อนไข: กว้างเต็ม อยู่บน ยอมหดได้เมื่อพื้นที่แนวตั้งไม่พอ */
     .panel-main > .card-custom:first-child {
         flex: 0 1 auto;
-        min-height: 0;
+        min-height: 400px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -558,6 +558,7 @@
         table-layout: fixed;
         width: max-content;             /* ตารางกว้างตามผลรวมคอลัมน์ ไม่หดตามกรอบ */
         min-width: 100%;
+        min-height: 400px;
     }
     .selected-table th:not(:last-child),
     .selected-table td:not(:last-child) {
@@ -620,6 +621,7 @@
         .prospect-layout {
             flex-direction: column;
             height: calc(100vh - 77px);
+            min-height: 1000px;
             overflow-y: auto;
             overflow-x: hidden;
         }

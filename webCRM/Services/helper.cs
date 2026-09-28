@@ -293,16 +293,6 @@ namespace webCRM.Services
                     }
                 }
 
-                // list = list?
-                //     .Where(x =>
-                //         !string.IsNullOrWhiteSpace(x.FCode))
-                //     .GroupBy(
-                //         x => x.FCode!.Trim(),
-                //         StringComparer.OrdinalIgnoreCase)
-                //     .Select(g => g.First())
-                //     .ToList()
-                //     ?? new List<MasterFilter>();
-
                 return list ?? new List<MasterFilter>();
             }
             catch (Exception ex)
@@ -840,11 +830,13 @@ namespace webCRM.Services
             string? branch,
             string? call_by,
             string? call_result,
-            string? campaign_name)
+            string? campaign_name,
+            string? is_creater = "0"
+            )
         {
             var queryParams =
                 new Dictionary<string, string?>();
-
+            queryParams["is_creater"] = is_creater;
             if (!string.IsNullOrEmpty(startdate))
             {
                 queryParams["startdate"] = startdate;

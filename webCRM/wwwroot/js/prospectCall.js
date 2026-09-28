@@ -267,7 +267,7 @@ function extractProspectCustomers(data) {
             const rawNextAppt = item.appointment || '';
             const nextAppt = rawNextAppt ? formatDateCE(rawNextAppt) : '-';
             const isActive = item.isActive || false;
-
+console.log("item",item)
             if (id || idno || (name && name !== '-')) {
                 items.push({
                     id: String(id || '').trim(),
@@ -442,7 +442,9 @@ async function displayCampaignFile(fileId) {
 
         fileData.forEach(row => {
             const fileName = row.Name || row.name || "";
-            const filePath = row.Path || row.path || "";
+            // ใช้ dms_doc_file_id อ้างอิงไฟล์ใน DMS, fallback เป็น path เดิม (ไฟล์ local เก่า)
+            const docFileId = row.Dms_doc_file_id || row.dms_doc_file_id || "";
+            const filePath = docFileId || row.Path || row.path || "";
             if (!fileName && !filePath) return;
 
             const chip = $(`
@@ -603,7 +605,7 @@ async function loadProspectCallData(productCode, page = 1, pageSize = 10) {
     } else {
         res = await getProductBatchByProductCode(productCode);
     }
-
+console.log("res",res)
     const { items, totalCount } = extractProspectCustomers(res);
 
     rawProspectItems = items;
@@ -1648,11 +1650,12 @@ async function openRecordResultModal(trElement) {
     // Populate modalProduct dropdown based on Objective (CS/RM vs MC/FL)
     populateProductDropdownOptions(masterDropdownData, campaignObjectiveCode);
 
-    // if (customer.isActive) {
-    //     $('#btnSaveResult').show();
-    // } else {
-    //     $('#btnSaveResult').hide();
-    // }
+    if (activeCampaign.isActive) {
+        $('#btnSaveResult').show();
+    } else {
+        $('#btnSaveResult').hide();
+    }
+
     // Set modal title & customer summary info
     $('#modalCustName').text(customer.name).attr('title', customer.name);
     $('#modalCustPhone').text(customer.phone);

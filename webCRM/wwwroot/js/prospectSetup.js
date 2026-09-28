@@ -21,25 +21,16 @@ let prospectAbortController = null;
 let currentProspectRequestId = 0;
 let prospectSearchTimer = null;
 let prospectTable = null;
-// จำนวนรวมจริงจาก API (SP) คงที่ต่อการโหลด ใช้แสดง "พบ X รายการ" เมื่อไม่มีการค้นหา
 let prospectAuthoritativeTotal = null;
-// จำนวนที่ถูกซ่อนออกจากรายการลูกค้าเพราะอยู่ในรายการที่เลือก (หักออกจาก total ตอนแสดง)
 let prospectHiddenBySelectionCount = 0;
 
-// แสดงจำนวน "พบ X รายการ" = จำนวนแถวจริงในตารางหลังกรอง (recordsDisplay ของ DataTables)
-// ตารางถูก render ด้วย rawData ที่ dedup + กรองสาขา + ตัดรายการที่เลือกแล้วออกมาแล้ว
-// ดังนั้นจำนวนนี้จึงเท่ากับจำนวนที่ "เลือกทั้งหมด" ทำได้จริงเสมอ
 function updateProspectTotalFound(recordsDisplay) {
     const totalFoundEl = document.getElementById('totalFound');
     if (!totalFoundEl) return;
 
-    // ถ้าไม่ได้ส่ง recordsDisplay มา ให้ดึงจาก DataTables ปัจจุบัน
     if (recordsDisplay === undefined && prospectTable) {
         recordsDisplay = prospectTable.page.info().recordsDisplay;
     }
-
-    // ระหว่างค้นหาใช้จำนวนหลังกรองของ DataTables, ไม่ค้นหาก็ใช้จำนวนแถวทั้งหมดในตาราง
-    // ทั้งสองกรณีคือ recordsDisplay จึงตรงกับจำนวนแถวที่ผู้ใช้ติ๊กเลือกได้จริง
     let value = recordsDisplay;
     if (!Number.isFinite(value)) {
         value = Number.isFinite(prospectAuthoritativeTotal) ? prospectAuthoritativeTotal : 0;
@@ -47,16 +38,11 @@ function updateProspectTotalFound(recordsDisplay) {
     totalFoundEl.textContent = Number(value || 0).toLocaleString();
 }
 
-// index ของ batch สำหรับตัดสิน matched อย่างรวดเร็ว (สร้างใหม่เมื่อ currentProductBatches/currentBatchCustomers เปลี่ยน)
 let batchMatchIndex = { batchIds: new Set(), batchNames: new Set(), savedIds: new Set() };
-// รายการ idno ของแถวที่ผู้ใช้เลือกได้ (selectable) ในชุดข้อมูลปัจจุบัน คำนวณครั้งเดียวต่อการ render
 let selectableRowIdStrs = [];
-// lookup ข้อมูลลูกค้าดิบจาก "รายการลูกค้า" (idno -> {name, phone, branch}) ใช้เติม field ที่ขาดในรายการที่เลือก
 let prospectCustomerLookup = new Map();
-// จำ signature ล่าสุดที่ใช้คำนวณ selectableRowIdStrs (search term) เพื่อ recompute เฉพาะเมื่อเปลี่ยน
 let selectableRowIdStrsKey = null;
 
-// รีเฟรช selectableRowIdStrs จากแถวที่ตรงตัวกรองปัจจุบัน (recompute เฉพาะเมื่อ search เปลี่ยน)
 function refreshSelectableRowIdStrs(force = false) {
     if (!prospectTable) {
         selectableRowIdStrs = [];
@@ -65,14 +51,13 @@ function refreshSelectableRowIdStrs(force = false) {
     }
     const searchKey = ($prospectSearchInput.val() || '').trim().toLowerCase();
     if (!force && searchKey === selectableRowIdStrsKey) return;
-
     selectableRowIdStrs = prospectTable
         .rows({ search: 'applied' })
         .data()
         .toArray()
         .map(getProspectRowState)
-        .filter(state => state.idStr && !state.isDisabled)
-        .map(state => state.idStr);
+        .map(state => state.selKey || state.idStr)
+        .filter(Boolean);
     selectableRowIdStrsKey = searchKey;
 }
 
@@ -380,7 +365,9 @@ async function displayCampaignFile(fileId, signal = null, requestId = currentFil
 
         fileData.forEach(row => {
             const fileName = row.Name || row.name || "";
-            const filePath = row.Path || row.path || "";
+            // ใช้ dms_doc_file_id อ้างอิงไฟล์ใน DMS, fallback เป็น path เดิม (ไฟล์ local เก่า)
+            const docFileId = row.Dms_doc_file_id || row.dms_doc_file_id || "";
+            const filePath = docFileId || row.Path || row.path || "";
             if (!fileName && !filePath) return;
 
             const chip = $(`
@@ -935,25 +922,27 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                                             : '',
                                     };
 
-                                    // ถ้าเป็น option และ fname เดียวกันถูก render ไปแล้ว ให้ข้าม
-                                    // เพราะตัวเลือกจากทุก company จะถูกรวมไว้ในกล่องเดียวแล้ว
+                                    // ตัด filter ซ้ำเมื่อเลือกหลายบริษัท
+                                    // ใช้ fname + ftype เป็น key เพราะแต่ละบริษัทจะส่ง
+                                    // filter ที่มี fname เดียวกันมาซ้ำกัน (ต่างกันแค่ fcompany)
+                                    // option: ตัวเลือกจากทุกบริษัทถูกรวมในกล่องเดียวแล้ว
+                                    // range/text: กล่องเหมือนกันทุกบริษัท จึงเก็บแค่กล่องเดียว
                                     const filterType =
                                         String(filterMeta.ftype || '')
                                             .trim()
                                             .toLowerCase();
-                                    const optionFieldKey =
+                                    const dedupKey =
+                                        filterType +
+                                        '::' +
                                         String(filterMeta.fname || '')
                                             .trim()
                                             .toLowerCase();
 
-                                    if (
-                                        filterType === 'option' &&
-                                        optionFieldKey
-                                    ) {
-                                        if (renderedOptionFields.has(optionFieldKey)) {
+                                    if (dedupKey && dedupKey !== '::') {
+                                        if (renderedOptionFields.has(dedupKey)) {
                                             return;
                                         }
-                                        renderedOptionFields.add(optionFieldKey);
+                                        renderedOptionFields.add(dedupKey);
                                     }
 
                                     const filterHTML =
@@ -1146,8 +1135,6 @@ function renderBatchPaginationControls(currentPage, pageSize, totalCount) {
     paginationEl.appendChild(nextLi);
 }
 
-// เปิด Select2 ให้ <select> ในเงื่อนไขคัดเลือก เพื่อให้พิมพ์ค้นหาตัวเลือกได้
-// ความสูงของ dropdown (สูงสุด 7 / ต่ำสุด 3 รายการ) คุมด้วย CSS (.prospect-filter-select2-dropdown)
 function initProspectFilterSelects() {
     if (typeof $ === 'undefined' || !$.fn || !$.fn.select2) return;
 
@@ -1185,7 +1172,6 @@ function getFilterParams() {
     return params;
 }
 
-// มี filter ที่ผู้ใช้เลือกไว้อย่างน้อย 1 อันหรือไม่ (ไม่นับ batch/branch ของแคมเปญ)
 function hasAnyProspectFilter(params) {
     const p = params || getFilterParams();
     for (const key of p.keys()) {
@@ -1195,7 +1181,6 @@ function hasAnyProspectFilter(params) {
     return false;
 }
 
-// batch ของแคมเปญที่เลือกอยู่ (รองรับหลายรูปแบบ field)
 function getCampaignBatch() {
     // จาก selectedCampaign ก่อน
     if (selectedCampaign) {
@@ -1220,18 +1205,16 @@ function getCampaignBatch() {
     return '';
 }
 
-// ตรวจว่าแถวลูกค้า (row) อยู่ในสาขาของ Campaign (offcde) หรือไม่ — กรองที่ frontend
 function normalizeIdno(value) {
     return String(value || '').trim();
 }
 
-// สร้าง key สำหรับเทียบซ้ำจากคู่ (idno + เลขที่สัญญา)
-// ถือว่าซ้ำก็ต่อเมื่อ "ทั้ง idno และ contno ตรงกันทั้งคู่"
 function makeIdnoContnoKey(idno, contno) {
     const id = normalizeIdno(idno);
+    if (!id) return '';
     const cont = normalizeIdno(contno);
-    if (!id || !cont || cont === '-') return '';
-    return `${id}||${cont}`;
+    const contKey = (cont && cont !== '-') ? cont : '-';
+    return `${id}||${contKey}`;
 }
 
 function getPersistedSelectedIdnos() {
@@ -1246,19 +1229,16 @@ function getPersistedSelectedIdnos() {
     );
 }
 
-// รวม key (idno + contno) ของ "รายการที่เลือก" ทั้งหมด (batch ที่ save แล้ว + manual ที่เพิ่งติ๊ก)
-// ใช้ตัดออกจาก "รายการลูกค้า" เพื่อไม่ให้แสดงซ้ำ โดยซ่อนเฉพาะแถวที่ idno และ contno ตรงกันทั้งคู่
 function getAllSelectedIdnoContnoKeys() {
     const keys = new Set();
 
     currentBatchCustomers
-        .filter(item => {
-            const id = String(item?.id || '').trim();
-            return !id || !removedBatchCustomerIds.has(id);
-        })
         .forEach(item => {
-            const key = makeIdnoContnoKey(item?.idno, item?.contno);
-            if (key) keys.add(key);
+            const key = makeIdnoContnoKey(item?.idno, item?.contno) ||
+                (item?.id ? String(item.id).trim() : '');
+            if (key && removedBatchCustomerIds.has(key)) return;
+            const idnoContnoKey = makeIdnoContnoKey(item?.idno, item?.contno);
+            if (idnoContnoKey) keys.add(idnoContnoKey);
         });
 
     manuallySelectedCustomers.forEach((item, idKey) => {
@@ -1270,8 +1250,6 @@ function getAllSelectedIdnoContnoKeys() {
     return keys;
 }
 
-// campaignOffcde เช่น "11,08" (คั่นด้วย ,) และข้อมูลสาขา เช่น "07-ขอนแก่น"
-// ถ้า Campaign เป็นทุกสาขา ("", "99", "ทุกสาขา") ให้ผ่านทั้งหมด
 function isRowInCampaignBranch(item, campaignOffcde) {
     const offcde = String(campaignOffcde || '').trim();
     if (!offcde || offcde === '99' || offcde === 'ทุกสาขา') {
@@ -1290,11 +1268,15 @@ function isRowInCampaignBranch(item, campaignOffcde) {
 
     if (!rowCode) {
         const rawBranch = String(item?.branchName || item?.Branch_name || '').trim();
-        if (!rawBranch) return false;
+        // ไม่มีข้อมูลสาขาในแถว (เช่น branchName เป็น null): ปล่อยผ่าน
+        // เพราะฝั่ง server ได้กรองด้วยพารามิเตอร์ branch=<offcde> มาแล้ว
+        // การกรองซ้ำฝั่ง client ไม่ควรทิ้งแถวที่ไม่มีรหัสสาขาให้เทียบ
+        if (!rawBranch) return true;
         // แยกเอาเฉพาะรหัสนำหน้า (ก่อน "-") เช่น "07-ขอนแก่น" -> "07"
         rowCode = rawBranch.split('-')[0].trim();
     }
-    if (!rowCode) return false;
+    // เทียบรหัสสาขาไม่ได้ (แถวไม่มีรหัส): ปล่อยผ่านเช่นกัน เพราะ server กรองมาแล้ว
+    if (!rowCode) return true;
 
     const rowClean = rowCode.replace(/^0+/, '');
     const rowPad = rowCode.padStart(2, '0');
@@ -1342,13 +1324,10 @@ async function getProspect(signal = null) {
 
         const filterParams = getFilterParams();
 
-        // แคมเปญที่ไม่ใช่แบบ import ต้องเลือก filter อย่างน้อย 1 อันก่อน
-        // ไม่งั้นไม่ต้อง fetch และแสดงรายการว่าง
         if (!hasAnyProspectFilter(filterParams)) {
             return { count: 0, total: 0, data: [] };
         }
 
-        // batch ของแคมเปญ และ branch (สาขา) ของแคมเปญ
         const campaignBatch = getCampaignBatch();
         const campaignBranch = selectedCampaign ? (selectedCampaign.offcde || '') : '';
         if (campaignBatch) filterParams.append('batch', campaignBatch);
@@ -1358,11 +1337,12 @@ async function getProspect(signal = null) {
             `/ProspectSetup/GetProspect?${filterParams.toString()}`,
             { signal }
         );
+
         if (!response.ok) {
             throw new Error(`GetProspect HTTP ${response.status} ${response.statusText}`);
         }
-        return await response.json();
-        return await response.json();
+        const result = await response.json();
+        return result;
     }
     catch(error){
         if (error.name === 'AbortError') throw error;
@@ -1386,23 +1366,30 @@ function getProspectRowState(item) {
         ? String(id).trim()
         : (idno && idno !== '-' ? String(idno).trim() : '');
 
+    // selKey = key ที่ใช้เก็บ "รายการที่เลือก" ต้อง unique ต่อแถวเสมอ
+    // ใช้ _rowUid ที่ฝังไว้ตอนโหลดข้อมูล (unique ต่อแถวจริง) เป็นหลัก
+    // เพื่อให้เลือกได้ครบทุกแถว แม้ idno+contno ซ้ำกันจริง หรือ contno ว่าง
+    // fallback เป็น idno||contno แล้วค่อย idStr เผื่อกรณีไม่มี _rowUid (เช่น batch ที่ save แล้ว)
+    const selKey = item._rowUid || makeIdnoContnoKey(idno, contno) || idStr;
+
     const { batchIds, batchNames, savedIds } = batchMatchIndex;
     const matchedInBatchDef =
         (prospectBatch && batchNames.has(String(prospectBatch).trim())) ||
         (idStr && batchIds.has(idStr));
     const isMatchedInBatch = idStr && savedIds.has(idStr);
 
-    const isRemoved = idStr && removedBatchCustomerIds.has(idStr);
+    const isRemoved = selKey && removedBatchCustomerIds.has(selKey);
     const isMatched = !isRemoved && (matchedInBatchDef || isMatchedInBatch);
 
     const batchStatus = item.status || item.assign_status || '';
     const normalizedStatus = String(batchStatus).trim().toLowerCase();
     const isDraft = normalizedStatus === 'waiting prospect' || normalizedStatus === 'return';
-    const isChecked = isMatched || (idStr && manuallySelectedCustomers.has(idStr) && !isRemoved);
+    const isChecked = isMatched || (selKey && manuallySelectedCustomers.has(selKey) && !isRemoved);
     const isDisabled = !isProspectSelectionAllowed() || (isMatched && !isDraft) || !selectedCampaign?.isActive;
 
     return {
         idStr,
+        selKey,
         idno: idno !== '-' ? idno : '',
         name: name !== '-' ? name : '',
         phone: phone !== '-' ? phone : '',
@@ -1433,18 +1420,19 @@ function isIdnoContnoAlreadySelected(idno, contno, excludeIdStr = '') {
     });
 }
 
-// เลือก/ยกเลิกแถวหนึ่งในสถานะ selection (ใช้ร่วมกันระหว่าง select-all และติ๊กรายแถว)
 function applyProspectRowSelection(state, isChecked) {
-    const { idStr, idno, name, phone, branch, contno } = state;
-    if (!idStr) return;
+    const { idStr, selKey, idno, name, phone, branch, contno } = state;
+    const key = selKey || idStr;
+    if (!key) return;
 
     if (isChecked) {
-        removedBatchCustomerIds.delete(idStr);
+        removedBatchCustomerIds.delete(key);
         const isSavedInBatch = Array.isArray(currentBatchCustomers) &&
             currentBatchCustomers.some(c => c && c.id && String(c.id).trim() === idStr);
         if (!isSavedInBatch) {
-            manuallySelectedCustomers.set(idStr, {
+            manuallySelectedCustomers.set(key, {
                 id: idStr,
+                selKey: key,
                 idno: idno,
                 name: name || '-',
                 phone: phone || '-',
@@ -1455,8 +1443,8 @@ function applyProspectRowSelection(state, isChecked) {
             });
         }
     } else {
-        manuallySelectedCustomers.delete(idStr);
-        removedBatchCustomerIds.add(idStr);
+        manuallySelectedCustomers.delete(key);
+        removedBatchCustomerIds.add(key);
         if (Array.isArray(currentBatchCustomers)) {
             const removeIndex = currentBatchCustomers.findIndex(c => c && c.id && String(c.id).trim() === idStr);
             if (removeIndex !== -1) {
@@ -1466,7 +1454,6 @@ function applyProspectRowSelection(state, isChecked) {
     }
 }
 
-// รวบรวมข้อมูลทุกแถวที่ตรงกับตัวกรองปัจจุบัน (ทุกหน้า ไม่ใช่แค่หน้าที่แสดง)
 function getFilteredProspectItems() {
     if (!prospectTable) return [];
     return prospectTable.rows({ search: 'applied' }).data().toArray();
@@ -1474,20 +1461,20 @@ function getFilteredProspectItems() {
 
 function renderProspectCheckbox(item) {
     const state = getProspectRowState(item);
-    const { idStr, idno, name, phone, branch, contno, prospectBatch, isChecked, isDisabled } = state;
+    const { idStr, selKey, idno, name, phone, branch, contno, prospectBatch, isChecked, isDisabled } = state;
 
     return `
         <div class="form-check d-flex justify-content-center m-0">
             <input class="form-check-input row-checkbox" type="checkbox"
                 data-id="${escapeHtml(idStr)}"
+                data-selkey="${escapeHtml(selKey || '')}"
                 data-idno="${escapeHtml(idno)}"
                 data-name="${escapeHtml(name)}"
                 data-phone="${escapeHtml(phone)}"
                 data-branch="${escapeHtml(branch)}"
                 data-contno="${escapeHtml(contno)}"
                 data-batch="${escapeHtml(prospectBatch)}"
-                ${isChecked ? 'checked' : ''}
-                ${isDisabled ? 'disabled' : ''}>
+                ${isChecked ? 'checked' : ''}>
         </div>`;
 }
 
@@ -1606,7 +1593,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
             prospectTable.clear().draw();
         } else {
             const totalFoundEl = document.getElementById('totalFound');
-            if (totalFoundEl) totalFoundEl.textContent = '0';
+            if (totalFoundEl) totalFoundEl.textContent = ' 0 ';
 
             const tbody = document.getElementById('dataTableBody');
             if (tbody) {
@@ -1640,6 +1627,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
         const seenIdnos = new Set();
         const uniqueData = [];
         prospectCustomerLookup = new Map();
+        let _rowUidSeq = 0;
         for (const item of allData) {
             const idno = normalizeIdno(item.idno);
             if (idno && !prospectCustomerLookup.has(idno)) {
@@ -1650,6 +1638,9 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     contno: item?.contno || ''
                 });
             }
+            // ฝัง _rowUid unique ต่อแถว เพื่อใช้เป็น key เก็บ "รายการที่เลือก"
+            // รับประกันเลือกได้ครบทุกแถว แม้ idno+contno ซ้ำกันจริง หรือ contno ว่าง
+            item._rowUid = `row_${_rowUidSeq++}`;
             // dedup ด้วย idno เพื่อตัดแถวซ้ำที่ SP อาจคืนมาต่างกันแต่ละ request
             // if (!idno || !seenIdnos.has(idno)) {
                 if (idno) seenIdnos.add(idno);
@@ -1743,20 +1734,27 @@ function getSelectedList() {
     const seenIds = new Set();
 
     if (Array.isArray(currentBatchCustomers)) {
-        currentBatchCustomers.forEach(c => {
+        currentBatchCustomers.forEach((c, batchIdx) => {
             if (!c) return;
             const idKey = c.id ? String(c.id).trim() : null;
-            if (idKey && removedBatchCustomerIds.has(idKey)) return;
-            if (idKey) seenIds.add(idKey);
             const name = c.name || '-';
             const phone = c.phone || '-';
             const branch = c.branch || '-';
             const contno = c.contno || '-';
             const isDisabled = c.isDisabled !== undefined ? c.isDisabled : true;
+            const cIdno = c.idno || (c.raw ? c.raw.idno : '');
+            // selKey ต้อง unique ต่อแถว ไม่งั้น batch ที่ idno/contno ซ้ำ (หรือ contno ว่าง) จะยุบรวมกัน
+            // batch ที่โหลดจาก DB ทุกแถวคือรายการที่บันทึกไปแล้วจริง ต้องแสดงครบ จึงใช้ index เป็น uid
+            const cSelKey = `batch_${batchIdx}`;
+            // การลบ: เทียบทั้ง uid และ key เดิม (idno+contno / id) เผื่อ removed ถูกเก็บด้วย key ต่างรูปแบบ
+            const legacyKey = makeIdnoContnoKey(cIdno, contno) || (idKey || '');
+            if (removedBatchCustomerIds.has(cSelKey)) return;
+            if (legacyKey && removedBatchCustomerIds.has(legacyKey)) return;
 
             combinedList.push(fillMissingFromLookup({
                 id: idKey || '',
-                idno: c.idno || (c.raw ? c.raw.idno : ''),
+                selKey: cSelKey,
+                idno: cIdno,
                 name: name,
                 phone: phone,
                 branch: branch,
@@ -1768,13 +1766,15 @@ function getSelectedList() {
         });
     }
 
+    // idKey ที่นี่คือ selKey (idno||contno) — ใช้ dedup, แต่ id ที่แสดง/ส่งต้องเป็น id จริงจาก item
     manuallySelectedCustomers.forEach((item, idKey) => {
         if (idKey && removedBatchCustomerIds.has(idKey)) return;
         if (idKey && seenIds.has(idKey)) return;
         if (idKey) seenIds.add(idKey);
 
         combinedList.push(fillMissingFromLookup({
-            id: idKey || '',
+            id: item.id || '',
+            selKey: idKey || '',
             idno: item.idno || '',
             name: item.name || '-',
             phone: item.phone || '-',
@@ -1812,14 +1812,14 @@ function updateSelectedList() {
                 <td class="text-muted">${escapeHtml(item.phone)}</td>
                 <td class="text-muted">${escapeHtml(item.branch)}</td>
                 <td class="text-muted">${escapeHtml(item.contno)}</td>
-                <td class="text-center">${(item.isDisabled || !canSelect) ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-idno="${escapeHtml(item.idno)}" data-id="${escapeHtml(item.id)}"></i>`}</td>
+                <td class="text-center">${(item.isDisabled || !canSelect) ? '' : `<i class="bi bi-x text-secondary remove-item" style="cursor:pointer;" data-idno="${escapeHtml(item.idno)}" data-id="${escapeHtml(item.id)}" data-selkey="${escapeHtml(item.selKey || '')}" data-contno="${escapeHtml(item.contno)}"></i>`}</td>
             `;
             selectedTableBody.appendChild(newRow);
         });
     }
 
-    if (selectedCountText) selectedCountText.textContent = `รายการที่เลือก (${selectedCount} รายการ)`;
-    if (selectedTotalText) selectedTotalText.textContent = `รวมทั้งหมด ${selectedCount} รายการ`;
+    if (selectedCountText) selectedCountText.textContent = `รายการที่เลือก (${selectedCount.toLocaleString('en-US')} รายการ)`;
+    if (selectedTotalText) selectedTotalText.textContent = `รวมทั้งหมด ${selectedCount.toLocaleString('en-US')} รายการ`;
 
     renderSelectedPaginationControls(currentSelectedPage, currentSelectedPageSize, selectedCount);
 
@@ -1827,19 +1827,25 @@ function updateSelectedList() {
         btn.addEventListener('click', function () {
             const targetIdno = this.getAttribute('data-idno');
             const targetId = this.getAttribute('data-id');
+            const targetContno = this.getAttribute('data-contno');
+            const targetSelKey = this.getAttribute('data-selkey');
 
             const idStr = targetId ? String(targetId).trim() : (targetIdno ? String(targetIdno).trim() : '');
+            // key ที่ใช้ลบออกจาก selection maps = selKey (unique ต่อแถว) ถ้ามี ไม่งั้น fallback
+            const selKey = (targetSelKey && targetSelKey.trim())
+                ? targetSelKey.trim()
+                : (makeIdnoContnoKey(targetIdno, targetContno) || idStr);
 
-            if (idStr) {
-                removedBatchCustomerIds.add(idStr);
-                manuallySelectedCustomers.delete(idStr);
+            if (selKey) {
+                removedBatchCustomerIds.add(selKey);
+                manuallySelectedCustomers.delete(selKey);
             }
 
+            // ยกเลิกติ๊ก checkbox ในตาราง "รายการลูกค้า" ที่มี selKey ตรงกัน (แถวเดียวกัน)
             const matchCbs = document.querySelectorAll('#dataTableBody .row-checkbox');
             matchCbs.forEach(cb => {
-                const cbId = cb.getAttribute('data-id') ? String(cb.getAttribute('data-id')).trim() : '';
-                const cbIdno = cb.getAttribute('data-idno') ? String(cb.getAttribute('data-idno')).trim() : '';
-                if (idStr && (cbId === idStr || cbIdno === idStr)) {
+                const cbSelKey = cb.getAttribute('data-selkey') ? String(cb.getAttribute('data-selkey')).trim() : '';
+                if (selKey && cbSelKey === selKey) {
                     cb.checked = false;
                     cb.disabled = false;
                 }
@@ -1847,9 +1853,9 @@ function updateSelectedList() {
 
             if (Array.isArray(currentBatchCustomers)) {
                 const removeIndex = currentBatchCustomers.findIndex(c => {
-                    const cId = c.id ? String(c.id).trim() : '';
-                    const cIdno = c.idno ? String(c.idno).trim() : '';
-                    return idStr && (cId === idStr || cIdno === idStr);
+                    const cKey = makeIdnoContnoKey(c.idno, c.contno) ||
+                        (c.id ? String(c.id).trim() : '');
+                    return selKey && cKey === selKey;
                 });
                 if (removeIndex !== -1) {
                     currentBatchCustomers.splice(removeIndex, 1);
@@ -1993,12 +1999,11 @@ function updateCheckAllStatus() {
     refreshSelectableRowIdStrs();
 
     // ประเมินจากรายการ selectable ที่แคชไว้ (ทุกหน้า) เทียบกับ selection maps โดยตรง (Set lookup)
+    // selectable เก็บเป็น selKey (idno+contno) แล้ว จึงเทียบกับ manuallySelectedCustomers/removedBatchCustomerIds ที่ key ด้วย selKey เช่นกัน
     const selectable = selectableRowIdStrs;
     let checkedCount = 0;
-    for (const idStr of selectable) {
-        const isChecked =
-            (manuallySelectedCustomers.has(idStr) && !removedBatchCustomerIds.has(idStr)) ||
-            (batchMatchIndex.savedIds.has(idStr) && !removedBatchCustomerIds.has(idStr));
+    for (const selKey of selectable) {
+        const isChecked = manuallySelectedCustomers.has(selKey) && !removedBatchCustomerIds.has(selKey);
         if (isChecked) checkedCount++;
     }
 
@@ -2033,17 +2038,13 @@ function bindTableCheckboxEvents() {
             // ทำงานหนักแบบ async เพื่อให้ overlay แสดงก่อน แล้วไม่ freeze UI
             setTimeout(() => {
                 try {
-                    // วนทุกแถวที่ตรงตัวกรอง (ทุกหน้า) จาก DataTables ไม่ใช่แค่ DOM ที่ render อยู่
+
+                    // เลือกทุกแถว โดยใช้ _rowUid (unique ต่อแถว) เป็น key จึงเก็บได้ครบทุกแถว
                     const allItems = getFilteredProspectItems();
                     allItems.forEach(item => {
                         const state = getProspectRowState(item);
-                        if (state.idStr && !state.isDisabled) {
-                            applyProspectRowSelection(state, isChecked);
-                        }
+                        applyProspectRowSelection(state, isChecked);
                     });
-
-                    // ไม่ย้ายแถวออกจาก "รายการลูกค้า" — คงแถวไว้ทั้งหมดและแค่ติ๊ก/ยกเลิกติ๊ก
-                    // re-render checkbox หน้าปัจจุบันให้ตรงกับ state ล่าสุด
                     if (prospectTable) {
                         prospectTable
                             .rows({ page: 'current' })
@@ -2258,7 +2259,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             const allItems = getFilteredProspectItems();
             allItems.forEach(item => {
                 const state = getProspectRowState(item);
-                if (state.idStr && !state.isDisabled) {
+                if (state.idStr) {
                     applyProspectRowSelection(state, false);
                 }
             });
@@ -2348,8 +2349,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                         const idno = normalizeIdno(c.idno);
                         if (!idno) return; // ต้องมี idno เป็น key ในการบันทึก
                         selectedIdnos.push(idno);
+                        // แถวที่ไม่มีเลขสัญญา ให้ส่ง contno เป็น "-" (ไม่ใช่ค่าว่าง) เพื่อให้บันทึกเข้าไปด้วย
                         const contno = normalizeIdno(c.contno);
-                        selectedContnos.push(contno && contno !== '-' ? contno : '');
+                        selectedContnos.push(contno && contno !== '-' ? contno : '-');
                     });
 
                     if (selectedIdnos.length === 0) {
@@ -2447,7 +2449,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         Swal.fire({
-            title: "ยืนยันการอนุมัติ",
+            title: "ยืนยันการส่งอนุมัติ",
             icon: "question",
             showCancelButton: true,
             confirmButtonColor: "#28a745",
@@ -2697,6 +2699,7 @@ function extractCustomers(data) {
             const name = item?.nameCus || '-';
             const phone = item?.mobile || item?.phone || '-';
             const branch = item?.branchName || item?.Branch_name || item?.BranchName ||  '-';
+            const contno = item?.contno || item?.Contno || item?.contNo || '';
             const statusVal = item.assign_status || item.status || '';
             const statusStr = String(statusVal).trim().toLowerCase();
             const isDraft = statusStr === 'waiting prospect' || statusStr === 'return';
@@ -2709,6 +2712,7 @@ function extractCustomers(data) {
                     name: String(name).trim(),
                     phone: String(phone).trim(),
                     branch: String(branch).trim(),
+                    contno: String(contno || '').trim(),
                     isDisabled: isDisabled,
                     raw: item
                 });

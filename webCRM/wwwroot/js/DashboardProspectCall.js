@@ -227,7 +227,7 @@ async function setDashboard() {
     if (callBy) params.append('call_by', callBy);
     if (callResult) params.append('call_result', callResult);
     if (campaignName) params.append('campaign_name', campaignName);
-
+    params.append('is_creater', window.isCreater);
     const queryString = params.toString();
     const url = `/DashboardProspectCall/GetCallDashboard${queryString ? '?' + queryString : ''}`;
 
@@ -1021,6 +1021,72 @@ function renderBranchCheckboxes(branches) {
             document.querySelectorAll('#filterBranchOptions .branch-option-item').forEach(row => {
                 const hay = row.getAttribute('data-search') || '';
                 row.style.display = (!term || hay.includes(term)) ? '' : 'none';
+            });
+        });
+    }
+
+    // Make sure the open/close behaviour for the branch dropdown is wired up.
+    initBranchDropdownToggle();
+}
+
+// Manually control the branch dropdown open/close so it always closes reliably.
+// (Replaces Bootstrap's data-bs-toggle behaviour, which was leaving the menu stuck open.)
+function initBranchDropdownToggle() {
+    const toggleBtn = document.getElementById('filterBranchButton');
+    if (!toggleBtn) return;
+
+    const wrapper = toggleBtn.closest('.branch-multiselect');
+    const menu = wrapper ? wrapper.querySelector('.branch-multiselect-menu') : null;
+    if (!wrapper || !menu) return;
+
+    const openMenu = () => {
+        menu.classList.add('show');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+    };
+    const closeMenu = () => {
+        menu.classList.remove('show');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    // Toggle when the button itself is clicked.
+    if (!toggleBtn._branchToggleBound) {
+        toggleBtn._branchToggleBound = true;
+        toggleBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (menu.classList.contains('show')) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        });
+
+        // Keep the menu open while interacting with its contents (search, checkboxes).
+        menu.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+    }
+
+    // Close on any click outside the branch multiselect (bound once at document level).
+    if (!document._branchDropdownOutsideBound) {
+        document._branchDropdownOutsideBound = true;
+        document.addEventListener('click', function (e) {
+            const openWrapper = document.querySelector('.branch-multiselect');
+            if (!openWrapper) return;
+            const openMenuEl = openWrapper.querySelector('.branch-multiselect-menu.show');
+            if (openMenuEl && !openWrapper.contains(e.target)) {
+                openMenuEl.classList.remove('show');
+                const btn = openWrapper.querySelector('.branch-multiselect-toggle');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        // Close on Escape.
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            document.querySelectorAll('.branch-multiselect-menu.show').forEach(m => {
+                m.classList.remove('show');
+                const btn = m.closest('.branch-multiselect')?.querySelector('.branch-multiselect-toggle');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
             });
         });
     }

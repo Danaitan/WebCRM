@@ -513,14 +513,12 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
     let items = [];
     let totalCount = 0;
 
-    // ตรวจว่าแคมเปญนี้เป็นแบบ importExcel หรือไม่ (เหมือนหน้า prospectAssign)
     const currentCampaign = campaigns.find(c => c.code === productCode);
     const isImport = currentCampaign
         ? (currentCampaign.IsImport === true || currentCampaign.IsImport === 'true' || currentCampaign.IsImport === 1 || currentCampaign.IsImport === '1')
         : false;
 
     if (isImport) {
-        // แคมเปญที่ import Excel เข้า -> ดึงข้อมูลจาก getCampaignDataForETL (ใช้ node IsBatch)
         try {
             const etlRes = await getCampaignDataForETL(productCode);
             const res = etlRes ? etlRes.IsBatch : null;
@@ -648,7 +646,9 @@ async function displayCampaignFile(fileId) {
 
         fileData.forEach(row => {
             const fileName = row.Name || row.name || "";
-            const filePath = row.Path || row.path || "";
+            // ใช้ dms_doc_file_id อ้างอิงไฟล์ใน DMS, fallback เป็น path เดิม (ไฟล์ local เก่า)
+            const docFileId = row.Dms_doc_file_id || row.dms_doc_file_id || "";
+            const filePath = docFileId || row.Path || row.path || "";
             if (!fileName && !filePath) return;
 
             const chip = $(`
@@ -992,8 +992,6 @@ function initDataTables() {
     });
 }
 
-// เรียงข้อมูลตาม idno (น้อยไปมาก) — เทียบแบบตัวเลขถ้าเป็นตัวเลขทั้งคู่ ไม่งั้น fallback เป็นการเทียบข้อความ
-// (ตรงกับตรรกะการจัดเรียงใน prospectSetup.js)
 function sortItemsByIdno(list) {
     if (!Array.isArray(list)) return list;
     var normalizeIdno = function (value) { return String(value || '').trim(); };
@@ -1027,11 +1025,9 @@ function filterProspectTable() {
             item.carLocation.toLowerCase().includes(query) ||
             item.createdBy.toLowerCase().includes(query);
 
-        // เทียบรหัสสาขาแบบไม่สนใจเลขศูนย์นำหน้า ("4" == "04") เพราะ dropdown ใช้ offcde แบบ pad ("04")
-        // แต่ contractoffcde จาก ETL เป็นแบบไม่ pad ("4")
         var normalizeCode = function (v) { return String(v || '').trim().replace(/^0+/, ''); };
         var branchCode = normalizeCode(branch);
-        // ดึงรหัสนำหน้าจาก Branch_name เช่น "04-สุพรรณบุรี" -> "4"
+
         var rowBranchPrefix = normalizeCode(String(item.branch || '').split('-')[0]);
         var matchBranch = !branch ||
             item.branch === branch ||
@@ -1043,7 +1039,6 @@ function filterProspectTable() {
         return matchText && matchBranch && matchBy;
     });
 
-    // จัดเรียงรายการตาม idno (น้อยไปมาก) เหมือน prospectSetup.js
     sortItemsByIdno(filteredItems);
 
     var total = filteredItems.length;

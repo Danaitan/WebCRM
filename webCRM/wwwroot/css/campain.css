@@ -1005,3 +1005,11 @@ table.dataTable#campaignsTable {
 .branch-select-container.disabled .branch-dropdown-panel {
     display: none !important;
 }
+
+#deleteActionBtn:disabled {
+    background-color: #d1d5db;
+    color: #6b7280;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+    opacity: 1;
+}

@@ -9,6 +9,8 @@
     var funcId = Context.Session.GetString("func_id") ?? "";
     var hasFCRM006 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM006");
     var hasFCRM007 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM007");
+    var hasFCRM004 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM004");
+    var isCreater = (hasFCRM004 && !hasFCRM006);
 }
 
 @section Styles {
@@ -43,7 +45,7 @@
                     <div class="dropdown branch-multiselect">
                         <button type="button" id="filterBranchButton"
                                 class="form-select form-select-sm text-start branch-multiselect-toggle"
-                                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                aria-expanded="false">
                             <span id="filterBranchLabel" class="branch-multiselect-label">ทั้งหมด</span>
                         </button>
                         <div class="dropdown-menu branch-multiselect-menu p-0" aria-labelledby="filterBranchButton">
@@ -283,8 +285,7 @@
         window.VARIABLE_FUNC = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("variable_func") ?? ""));
         window.HAS_FCRM006 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM006));
         window.HAS_FCRM007 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM007));
-        console.log("window.HAS_FCRM006",window.HAS_FCRM006);
-        console.log("window.HAS_FCRM007",window.HAS_FCRM007);
+        window.isCreater = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(isCreater));
         
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

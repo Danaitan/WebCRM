@@ -282,9 +282,21 @@ body {
     width: 100%;
     min-width: 220px;
     max-height: 320px;
+    overflow: hidden;
+}
+
+/* Positioning is controlled manually (menu is shown/hidden via the .show class) */
+.branch-multiselect-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    margin-top: 0.125rem;
+}
+
+.branch-multiselect-menu.show {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .branch-multiselect-options {

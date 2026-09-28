@@ -18,10 +18,13 @@ namespace webCRM.Controllers
             string? branch,
             string? call_by,
             string? call_result,
-            string? campaign_name)
+            string? campaign_name,
+            bool? is_creater = false
+            )
         {
             try
             {
+                string is_createrString = is_creater.HasValue && is_creater.Value ? "1" : "0";
                 var data = await crmService.GetCallDashboard(
                     startdate,
                     enddate,
@@ -29,7 +32,9 @@ namespace webCRM.Controllers
                     branch,
                     call_by,
                     call_result,
-                    campaign_name);
+                    campaign_name,
+                    is_createrString
+                    );
 
                 return Content(data, "application/json");
             }

@@ -92,7 +92,10 @@ async function loadExistingCampaignFiles(fileIdCsv) {
                 if (Array.isArray(data)) {
                     data.forEach((row, i) => {
                         const name = row.Name || row.name || "";
-                        const path = row.Path || row.path || "";
+                        // ใช้ dms_doc_file_id เป็นตัวอ้างอิงไฟล์ใน DMS (สำหรับ preview/download)
+                        // fallback เป็น path เดิมสำหรับไฟล์เก่าที่ยังเก็บแบบ local
+                        const docFileId = row.Dms_doc_file_id || row.dms_doc_file_id || "";
+                        const path = docFileId || row.Path || row.path || "";
                         const id = row.Id || row.id || ids[i] || "";
                         if (name || path) {
                             campaignExistingFiles.push({ id: String(id), name, path });
@@ -116,7 +119,18 @@ const CAMPAIGN_CODE_PLACEHOLDER = "กำลังสร้างรหัส...
 const pageSize = 5;
 let page = 1;
 let rawMasterFilters = [];
+// cache ของ raw master filter แยกตาม "company/branch" ที่ร้องขอ
+// key = ค่า company ที่ normalize แล้ว, value = array ของ filter
+// ใช้กันปัญหา cache รวมก้อนเดียวที่ทำให้ filter ไม่ตรงกับ campaign ที่เลือก
+let rawMasterFiltersCache = {};
+// จำ company/branch ที่ใช้เรนเดอร์ master filter ล่าสุด เพื่อตรวจว่าต้องโหลดใหม่ไหม
+let loadedFilterCompanyKey = null;
 let campaignTable;
+
+// normalize ค่า company/branch ให้เป็นคีย์ cache ที่สม่ำเสมอ
+function normalizeCompanyKey(company) {
+    return (company || "").toString().trim().toLowerCase();
+}
 
 // ดึง file id จาก response ของการอัปโหลดแบบยืดหยุ่น
 // รองรับ id ระดับบนสุด, การห่อด้วย data/result และรูปแบบ array/ตัวพิมพ์ต่างกัน
@@ -388,9 +402,15 @@ function updateFilterSelectionUI() {
     updateSelectedFiltersDisplay();
 }
 
-async function fetchRawMasterFilters(company) {
-    if (rawMasterFilters && rawMasterFilters.length > 0) {
-        return rawMasterFilters;
+async function fetchRawMasterFilters(company, forceReload = false) {
+    const cacheKey = normalizeCompanyKey(company);
+
+    if (!forceReload
+        && Object.prototype.hasOwnProperty.call(rawMasterFiltersCache, cacheKey)
+        && Array.isArray(rawMasterFiltersCache[cacheKey])
+        && rawMasterFiltersCache[cacheKey].length > 0) {
+        rawMasterFilters = rawMasterFiltersCache[cacheKey];
+        return rawMasterFiltersCache[cacheKey];
     }
     try {
         const response = await fetch(`/Campain/GetMasterFilter?company=${encodeURIComponent(company)}`);
@@ -408,9 +428,9 @@ async function fetchRawMasterFilters(company) {
             else if (Array.isArray(data.result)) list = data.result;
             else if (Array.isArray(data.filters)) list = data.filters;
         }
-        if (list.length > 0) {
-            rawMasterFilters = list;
-        }
+        // เก็บ cache แยกตาม company/branch เพื่อให้แต่ละ campaign ได้ชุดที่ถูกต้อง
+        rawMasterFiltersCache[cacheKey] = list;
+        rawMasterFilters = list;
         return list;
     } catch (e) {
         console.error("Error fetching raw master filter:", e);
@@ -533,6 +553,8 @@ async function renderMasterFilters(company) {
 
         const filters = await getMasterFilter(company);
         masterFiltersData = filters || [];
+        // จำ company/branch ที่เพิ่งเรนเดอร์ เพื่อเทียบตอนสลับ campaign
+        loadedFilterCompanyKey = normalizeCompanyKey(company);
         $container.empty();
 
         if (!masterFiltersData || masterFiltersData.length === 0) {
@@ -678,8 +700,6 @@ function bindFilterRowEvents() {
             const key = $(this).attr("data-fkey") || "";
             const isNowChecked = $(this).is(":checked");
 
-            // ถ้าประเภทเป็น "option" จะเลือกทีละบริษัท (เฉพาะรายการที่กด)
-            // ถ้าไม่ใช่ "option" จะเลือก/ยกเลิกทั้งกลุ่มที่หัวข้อ (fremark) เดียวกันทุกบริษัท
             const item = findFilterByFkey(key);
             const groupKeys = getGroupKeysFor(item);
 
@@ -690,13 +710,8 @@ function bindFilterRowEvents() {
                     }
                 });
             } else {
-                // ต้องมี Filter อย่างน้อย 1 อัน หากยกเลิกทั้งกลุ่มแล้วไม่เหลือเลย ห้ามเอาออก
+
                 const remaining = selectedFilterCodes.filter(c => !groupKeys.includes(c));
-                if (remaining.length === 0) {
-                    $(this).prop("checked", true);
-                    showFilterMinimumWarning();
-                    return;
-                }
                 selectedFilterCodes = remaining;
             }
             selectedFilterCodes = Array.from(new Set(selectedFilterCodes));
@@ -740,13 +755,6 @@ function bindFilterRowEvents() {
                 $(".filter-chk").prop("checked", true);
             } else {
                 const remaining = selectedFilterCodes.filter(c => !visibleKeys.includes(c));
-                // ต้องมี Filter อย่างน้อย 1 อัน ห้ามยกเลิกเลือกทั้งหมด
-                if (remaining.length === 0 && selectedFilterCodes.length > 0) {
-                    $(this).prop("checked", true);
-                    showFilterMinimumWarning();
-                    updateSelectAllFiltersState();
-                    return;
-                }
                 selectedFilterCodes = remaining;
                 $(".filter-chk").prop("checked", false);
             }
@@ -769,7 +777,6 @@ function showFilterMinimumWarning() {
 }
 
 function updateSelectAllFiltersState() {
-    // นับเฉพาะรายการที่แสดงอยู่ (ตามบริษัทที่กรองด้วย dropdown)
     const $visible = $(".filter-chk");
     const total = $visible.length;
     const checkedCount = $visible.filter(":checked").length;
@@ -800,33 +807,41 @@ function updateSelectedFiltersDisplay() {
     }
 
     const displayRows = [];
-    const groupedIndex = {}; // fcode(lowercase) -> index ใน displayRows
+    const groupedIndex = {};
 
     selectedFilterCodes.forEach(key => {
-        // key = "fcode||fcompany" (lowercase) — แยกออกมาเพื่อให้ได้บริษัทจากคีย์เสมอ
         const parts = (key || "").toString().split("||");
         const fcodeFromKey = (parts[0] || "").trim();
         const fcompanyFromKey = (parts[1] || "").trim();
 
-        // หา metadata (ชื่อ/ประเภท) จาก masterFiltersData:
-        // 1) ตรงทั้ง fcode + fcompany ก่อน  2) ถ้าไม่เจอ ใช้ fcode อย่างเดียว (เพราะ master อาจมีแค่บริษัทเดียว)
         let filterObj = (masterFiltersData || []).find(f => buildFilterKey(f) === key);
         if (!filterObj) {
             filterObj = (masterFiltersData || []).find(f => (f.fcode || "").toString().trim().toLowerCase() === fcodeFromKey);
         }
 
-        const fremark = filterObj ? (filterObj.fremark || filterObj.fremark2 || filterObj.fname || filterObj.ftype || fcodeFromKey) : fcodeFromKey;
-        const ftype = filterObj ? (filterObj.ftype || "-") : "-";
-        // ใช้บริษัทจากคีย์ที่บันทึกไว้จริง ไม่ใช่จาก master (master มีแค่บริษัทเดียว)
-        const company = fcompanyFromKey ? fcompanyFromKey.toUpperCase() : (filterObj ? (filterObj.fcompany || "-") : "-");
+        const fremark = filterObj?.fremark || filterObj?.fremark2;
+        const ftype = filterObj?.ftype;
+        const company = fcompanyFromKey
+            ? fcompanyFromKey.toUpperCase()
+            : (filterObj?.fcompany || "-");
 
-        // รวมตาม fcode เพื่อให้ filter เดียวกันข้ามบริษัทอยู่แถวเดียว
+        if (!filterObj || !fremark) {
+            return;
+        }
+
         const groupKey = fcodeFromKey;
+
         if (groupedIndex[groupKey] === undefined) {
             groupedIndex[groupKey] = displayRows.length;
-            displayRows.push({ name: fremark, ftype, companies: [] });
+            displayRows.push({
+                name: fremark,
+                ftype,
+                companies: []
+            });
         }
+
         const row = displayRows[groupedIndex[groupKey]];
+
         if (company && !row.companies.includes(company)) {
             row.companies.push(company);
         }
@@ -1461,7 +1476,8 @@ $(document).ready(async function () {
             //#region setReadonly
             const canEdit = isCurrentCampaignEditable(campaign);
             const isDisabled = !canEdit || !window.isCampaignCreate;
-            
+
+            $('#deleteActionBtn').prop('disabled', isDisabled);
             $('#submitFormBtn, #btnGotoETL').prop('disabled', isDisabled);
             $('#btnImportFile').prop('disabled', isDisabled);
             $('#campaignName').prop('disabled', isDisabled);
@@ -1554,9 +1570,17 @@ $(document).ready(async function () {
             // โหลดไฟล์แนบทั้งหมด (รองรับหลายไฟล์จาก file_id แบบ CSV) แล้ววาดลงรายการ
             await loadExistingCampaignFiles(selectedCampaignFileId);
 
-            if (!masterFiltersData || masterFiltersData.length === 0) {
-                const stroffCde = campaign.branches.join(",");
-                const result = await renderMasterFilters(stroffCde);
+            // โหลด master filter ใหม่ทุกครั้งที่ company/branch ของ campaign เปลี่ยน
+            // (เดิมโหลดแค่ครั้งแรกที่ masterFiltersData ว่าง ทำให้พอสลับ campaign
+            //  ข้อมูล Filter ค้างเป็นของ campaign ก่อนหน้า ไม่ตรงกับที่เลือก)
+            const stroffCde = (campaign.branches || []).join(",");
+            const needReloadFilters =
+                !masterFiltersData ||
+                masterFiltersData.length === 0 ||
+                loadedFilterCompanyKey !== normalizeCompanyKey(stroffCde);
+
+            if (needReloadFilters) {
+                await renderMasterFilters(stroffCde);
             }
 
             if (selectedCampaignGuid) {
@@ -2255,6 +2279,17 @@ async function getCheckProductNo() {
             return;
         }
 
+        // ต้องมี Filter ที่ถูกเลือกอย่างน้อย 1 อัน (ยกเว้นกรณีดึงข้อมูลจาก Data ETL/Excel)
+        const selectedFiltersCount = Array.isArray(selectedFilterCodes) ? selectedFilterCodes.length : 0;
+        if (selectedFiltersCount === 0 && !selectedCampaignIsImport) {
+            Swal.fire({
+                title: "กรุณาเลือก Filter",
+                text: "กรุณาเลือก Filter อย่างน้อย 1 รายการก่อนทำการบันทึกข้อมูล",
+                icon: "warning"
+            });
+            return;
+        }
+
         const existingIdx = campaigns.findIndex(c => c.code === selectedCampaignCode);
         const currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
         const currentCampaignStatus = existingIdx > -1 ? (campaigns[existingIdx].status || "waiting prospect") : "waiting prospect";
@@ -2798,7 +2833,8 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
 
         if (data.status === "success") {
             let returnedFileName = data.name || file.name;
-            let returnedPath = data.path || "";
+            // ใช้ dms_doc_file_id เป็นตัวอ้างอิงไฟล์ใน DMS (ใช้กับ preview/download)
+            let returnedPath = data.dms_doc_file_id || data.doc_file_id || data.path || "";
             if (!returnedPath && data.data) {
                 let rawData = data.data;
                 if (typeof rawData === 'string') {
@@ -2808,13 +2844,13 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
                     if (!data.name && (rawData.Name || rawData.name)) {
                         returnedFileName = rawData.Name || rawData.name;
                     }
-                    if (rawData.Path || rawData.path) {
-                        returnedPath = rawData.Path || rawData.path;
+                    if (rawData.Dms_doc_file_id || rawData.dms_doc_file_id) {
+                        returnedPath = rawData.Dms_doc_file_id || rawData.dms_doc_file_id;
                     }
                 }
             }
             data.name = returnedFileName;
-            data.path = returnedPath || `campaignFile/${campaignCode}/${returnedFileName}`;
+            data.path = returnedPath;
         }
         return data;
     } catch (err) {
@@ -2868,7 +2904,8 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
 
         if (data.status === "success") {
             let returnedFileName = data.name || file.name;
-            let returnedPath = data.path || "";
+            // ใช้ dms_doc_file_id เป็นตัวอ้างอิงไฟล์ใน DMS (ใช้กับ preview/download)
+            let returnedPath = data.dms_doc_file_id || data.doc_file_id || data.path || "";
             if (!returnedPath && data.data) {
                 let rawData = data.data;
                 if (typeof rawData === 'string') {
@@ -2878,13 +2915,13 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
                     if (!data.name && (rawData.Name || rawData.name)) {
                         returnedFileName = rawData.Name || rawData.name;
                     }
-                    if (rawData.Path || rawData.path) {
-                        returnedPath = rawData.Path || rawData.path;
+                    if (rawData.Dms_doc_file_id || rawData.dms_doc_file_id) {
+                        returnedPath = rawData.Dms_doc_file_id || rawData.dms_doc_file_id;
                     }
                 }
             }
 
-            const uploadedPath = returnedPath || `campaignFile/${campaignCode}/${returnedFileName}`;
+            const uploadedPath = returnedPath;
             if (isModal) {
                 $("#modalSelectedFileNameText").text(returnedFileName).attr("data-filepath", uploadedPath).css("cursor", "pointer").attr("title", "คลิกเพื่อเปิดดูไฟล์");
                 $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();

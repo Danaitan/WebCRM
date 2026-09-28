@@ -27,7 +27,7 @@
         "ApiSettings__WebDomain": "http://172.16.17.78:5003",
         "MGDomain": "http://172.16.17.73:1442/ml_system/index.php/index",
         "JWT_SECRET_KEY":"32B92!2#",
-        "Post_DMS":"https://micro-dev-docker.microleasingplc.com:7104/dms/api/v1/interface/uploads",
+        "DMS":"https://micro-dev-docker.microleasingplc.com:7104/dms/api/v1/interface",
         "DMS_companyId":"110",
         "DMS_buId":"136",
         "DMS_docTypeId":"115",

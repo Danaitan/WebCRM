@@ -269,6 +269,9 @@ namespace webCRM.Models
         
         [JsonPropertyName("created_by")]
         public string? created_by { get; set; }
+
+        [JsonPropertyName("dms_doc_file_id")]
+        public string? dms_doc_file_id { get; set; }
     }
 
     public class UpdateFileRequest

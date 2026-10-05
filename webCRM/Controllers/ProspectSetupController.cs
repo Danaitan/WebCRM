@@ -326,16 +326,7 @@ namespace webCRM.Controllers
                             : data,
                         "application/json");
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "upsertProspectFromETL",
-                //     targetId: request.productCode ?? "",
-                //     targetType: "Campaign",
-                //     message: "upsertProspectFromETL successfully",
-                //     module: "upsertProspectFromETL"
-                // );
-
+                
                 return Content(
                     data,
                     "application/json");

@@ -35,10 +35,9 @@ namespace webCRM.Controllers
                     HttpContext.Session.GetString("switchedRoleName") ?? "";
 
                 string CookieCde = Request.Cookies["userCde"] ?? "";
-                string personalCode = "100664";
+                 string personalCode = "100664";
                 // string personalCode = "690001";
-                //string personalCode = "100345";
-                //string personalCode = "100130";
+                //string personalCode = "100650";
 
                 if (!env.IsDevelopment())
                 {
@@ -137,8 +136,6 @@ namespace webCRM.Controllers
                     profile["companyCode"]?.ToString()
                     ?? "";
 
-                // If the user manually switched their role before this
-                // re-login, keep that role instead of the profile default.
                 if (!string.IsNullOrWhiteSpace(switchedRoleId))
                 {
                     roleId = switchedRoleId;
@@ -214,9 +211,7 @@ namespace webCRM.Controllers
                     "branchName",
                     $"{formattedBranchNo}-{branch}");
 
-                // =========================
                 // DEBUG
-                // =========================
 
                 Console.WriteLine(
                     $"LOGIN SUCCESS: {pCode}");
@@ -227,19 +222,11 @@ namespace webCRM.Controllers
                 Console.WriteLine(
                     $"personalId: {HttpContext.Session.GetString("personalId")}");
 
-                // The switched role has now been applied to the freshly
-                // rebuilt session, so the one-shot marker is no longer
-                // needed. Clearing it lets a future natural login fall
-                // back to the personnel's default role.
                 HttpContext.Session.Remove("switchedRoleId");
                 HttpContext.Session.Remove("switchedRoleName");
 
-                // =========================
                 // Redirect
-                // =========================
 
-                // Return to the page the user was on before re-login,
-                // but only if it is a safe local URL.
                 if (!string.IsNullOrWhiteSpace(returnUrl)
                     && Url.IsLocalUrl(returnUrl))
                 {
@@ -542,15 +529,15 @@ namespace webCRM.Controllers
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
-                // จะโยน Exception ถ้า Token ปลอมหรือหมดอายุ
+
                 var principal = tokenHandler.ValidateToken(access_token, validationParams, out _);
-                // 2. ดึงข้อมูล
+
                 var username = principal.Claims.FirstOrDefault(c => c.Type == "user")?.Value;
-                // 3. สร้าง Cookie / Session ของระบบปลายทาง
+
                 var claims = new List<Claim> { new Claim(ClaimTypes.Name, username ?? "Unknown") };
                 var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-                // 4. สั่ง HTTP 302 Redirect ไปยังหน้าหลักตามเป้าหมาย
+
                 var redirectPath = string.IsNullOrEmpty(targetUrl) ? "/" : targetUrl;
                 return Redirect(redirectPath);
             }

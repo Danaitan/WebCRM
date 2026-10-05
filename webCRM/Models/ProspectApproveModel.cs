@@ -87,10 +87,10 @@ namespace webCRM.Models
         public DateTime? IsCallTime { get; set; }
 
         [JsonPropertyName("isCallLock")]
-        public bool? IsCallLock { get; set; }
+        public string? IsCallLock { get; set; }
 
         [JsonPropertyName("isCallLockTime")]
-        public DateTime? IsCallLockTime { get; set; }
+        public string? IsCallLockTime { get; set; }
 
         [JsonPropertyName("isCallRemark")]
         public string? IsCallRemark { get; set; }
@@ -102,7 +102,10 @@ namespace webCRM.Models
         public string? IsCallBy { get; set; }
 
         [JsonPropertyName("isCallId")]
-        public string? IsCallId { get; set; }
+        public int? IsCallId { get; set; }
+
+        [JsonPropertyName("BranchName")]
+        public string? BranchName { get; set; }
     }
 
     public class FilterValues

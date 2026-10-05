@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using webCRM.Models;
 using webCRM.Services;
 
@@ -95,15 +96,6 @@ namespace webCRM.Controllers
                         "application/json");
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "UpdateProspectCustomer",
-                //     targetId: request.assign_to ?? "",
-                //     targetType: "USER",
-                //     message: "UpdateProspectCustomer successfully",
-                //     module: "UpdateProspectCustomer"
-                // );
-
                 return Content(data, "application/json");
             }
             catch (Exception ex)
@@ -124,15 +116,15 @@ namespace webCRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetStafflist(
-            string branchId)
+        public async Task<IActionResult> GetStafflist()
         {
             try
             {
-                var data =
-                    await crmService.GetStaffList(branchId);
+                    var single =
+                        await crmService.GetStaffList();
 
-                return Content(data, "application/json");
+                    return Content(single, "application/json");
+
             }
             catch (Exception ex)
             {
@@ -154,6 +146,88 @@ namespace webCRM.Controllers
                     errJson,
                     "application/json");
             }
+        }
+
+        // แปลง JSON ที่ได้จาก staff API ให้เป็นรายการ staff
+        // พร้อมฝังรหัสสาขา (offcde) ลงในแต่ละ record เพื่อให้ฝั่ง client กรองได้
+        private static IEnumerable<JsonElement> ExtractStaffElements(
+            string raw,
+            string branchCode)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                yield break;
+            }
+
+            JsonDocument doc;
+            try
+            {
+                doc = JsonDocument.Parse(raw);
+            }
+            catch
+            {
+                yield break;
+            }
+
+            using (doc)
+            {
+                var root = doc.RootElement;
+
+                JsonElement array;
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    array = root;
+                }
+                else if (root.ValueKind == JsonValueKind.Object
+                         && root.TryGetProperty("data", out var dataProp)
+                         && dataProp.ValueKind == JsonValueKind.Array)
+                {
+                    array = dataProp;
+                }
+                else if (root.ValueKind == JsonValueKind.Object
+                         && root.TryGetProperty("result", out var resultProp)
+                         && resultProp.ValueKind == JsonValueKind.Array)
+                {
+                    array = resultProp;
+                }
+                else
+                {
+                    yield break;
+                }
+
+                foreach (var item in array.EnumerateArray())
+                {
+                    yield return InjectBranchCode(item, branchCode);
+                }
+            }
+        }
+
+        // ฝัง offcde ลงในแต่ละ staff record (ถ้ายังไม่มี)
+        private static JsonElement InjectBranchCode(
+            JsonElement item,
+            string branchCode)
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                return item.Clone();
+            }
+
+            var dict = new Dictionary<string, JsonElement>();
+            foreach (var prop in item.EnumerateObject())
+            {
+                dict[prop.Name] = prop.Value.Clone();
+            }
+
+            if (!dict.ContainsKey("offcde"))
+            {
+                using var branchDoc = JsonDocument.Parse(
+                    System.Text.Json.JsonSerializer.Serialize(branchCode));
+                dict["offcde"] = branchDoc.RootElement.Clone();
+            }
+
+            using var merged = JsonDocument.Parse(
+                System.Text.Json.JsonSerializer.Serialize(dict));
+            return merged.RootElement.Clone();
         }
     }
 }

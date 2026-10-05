@@ -13,6 +13,7 @@ let rawProspectItems = [];
 
 async function getProductStatus() { 
     try {
+        // const response = await fetch('/crmweb/Campain/getProductStatus');
         const response = await fetch('/Campain/getProductStatus');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -98,6 +99,15 @@ async function PostNoti(PostNotiData){
         end_date: PostNotiData.end_date,
         receiver_email: PostNotiData.receiver_email || ""
     };
+
+    // const response = await fetch('/crmweb/Suggestions/PostNotification', {
+    //     method: 'POST',
+    //     headers: {
+    //         'Content-Type': 'application/json'
+    //     },
+    //     body: JSON.stringify(payload),
+    //     skipLoading: true
+    // });
 
     const response = await fetch('/Suggestions/PostNotification', {
         method: 'POST',
@@ -198,6 +208,7 @@ async function SearchCampaign() {
 }  
 
 function reloadCampaignComponent() {
+    console.log("reloadCampaignComponent")
     if (typeof campaignTable !== "undefined" && campaignTable) {
         campaignTable.ajax.reload(null, false);
     } else {
@@ -227,7 +238,9 @@ async function getProspectCustomerView(productBatch) {
     try {
         const response = await fetch(`/ProductApprove/GetProspectCustomerView?productBatch=${encodeURIComponent(productBatch)}`);
         if (!response.ok) return null;
-        return await response.json();
+        const result = await response.json()
+// console.log("getProspectCustomerView_result",result)
+        return result;
     } catch (err) {
         console.error("Error in getProspectCustomerView:", err);
         return null;
@@ -375,9 +388,8 @@ function extractProspectCustomers(data) {
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
             const offcde = item.offcde || item.Offcde || item.contractoffcde || item.ContractOffCde || '';
-            // ใช้สาขาจาก Branch_name (สาขาที่ผูกกับสัญญา เช่น "04-สุพรรณบุรี") เป็นหลัก
-            // แล้ว fallback ไปที่ branch_Name / ชื่อสาขาเดิม
-            const branch = item.Branch_name || item.branch_name || item.branch_Name || '-';
+
+            const branch = item.Branch_name || item.branch_name || item.BranchName || '-';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const createdDate = item.created || item.ImportDate || '-';
             const createdBy = item.created_by || '-';
@@ -875,6 +887,7 @@ async function getCampainList(page, pageSize, statusText) {
 }
 
 function initDataTables() {
+    console.log("initDataTables")
     campaignTable = $("#campaignsTable").DataTable({
         serverSide: true,
         processing: false,
@@ -1188,7 +1201,7 @@ $(document).ready(async function () {
     if (branch) {
         renderBranchOptions(branch);
     }
-    $("#campaignsTable").on("click", ".pa-card, tbody tr", function () {
+    $("#campaignsTable").on("click", ".pa-card", function () {
         const card = $(this).hasClass("pa-card") ? $(this) : $(this).find(".pa-card");
         if (!card.length) return;
         const code = String(card.data("code"));

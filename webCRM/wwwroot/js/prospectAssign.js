@@ -4,6 +4,7 @@ let prospectTotalCount = 0;
 let rawProspectItems = [];
 let activeStatusFilter = 'all';
 let allBranch = [];
+let allStaff= [];
 let prospectPage = 1;
 let prospectPageSize = 10;
 let campaigns = [];
@@ -13,6 +14,7 @@ let currentFilteredProspectItems = [];
 
 // แปลง selection key (row key ที่เลือกไว้) กลับเป็น id จริงสำหรับส่งไป assign
 function resolveSelectedAssignIds() {
+    console.log("resolveSelectedAssignIds")
     const map = new Map(
         (currentFilteredProspectItems || []).map(x => [x.selectKey, x.assignId])
     );
@@ -25,6 +27,7 @@ function resolveSelectedAssignIds() {
 }
 
 async function PostNoti(PostNotiData){
+    console.log("PostNoti")
     try {
         if (!PostNotiData.receiver && !PostNotiData.receiver_email) {
             console.warn("PostNoti skipped: Both receiver and receiver_email are empty.");
@@ -41,6 +44,15 @@ async function PostNoti(PostNotiData){
             receiver_email: PostNotiData.receiver_email || ""
         };
 
+        // const response = await fetch('/crmweb/Suggestions/PostNotification', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify(payload),
+        //     skipLoading: true
+        // });
+
         const response = await fetch('/Suggestions/PostNotification', {
             method: 'POST',
             headers: {
@@ -49,6 +61,7 @@ async function PostNoti(PostNotiData){
             body: JSON.stringify(payload),
             skipLoading: true
         });
+
         return response;
     } catch (error) {
         console.error("Error in PostNotification:", error);
@@ -56,6 +69,7 @@ async function PostNoti(PostNotiData){
 }
 
 async function sendEmail(to, cc, subject, content) {
+    console.log("sendEmail")
     const ccArray = Array.isArray(cc)
         ? cc
         : (typeof cc === 'string' && cc.trim() !== '' ? cc.split(',').map(s => s.trim()).filter(Boolean) : []);
@@ -77,6 +91,7 @@ async function sendEmail(to, cc, subject, content) {
 }
 
 async function sendPostNotiForAssign(requestData, actionType) {
+    console.log("sendPostNotiForAssign")
     try {
         if (!requestData || !requestData.assign_to) return;
 
@@ -170,6 +185,7 @@ async function sendPostNotiForAssign(requestData, actionType) {
 }
 
 async function getProfileByCode(personalCode) {
+    console.log("getProfileByCode")
     try {
         const response = await fetch(`/Login/GetProfile?user=${personalCode}`, { skipLoading: true });
         const data = await response.json();
@@ -180,29 +196,13 @@ async function getProfileByCode(personalCode) {
     }
 }
 
-// async function getAllBranch() {
-//     if (allBranch && allBranch.length > 0) {
-//         return allBranch;
-//     }
-//     try {
-//         const branchResponse = await fetch(`/ProspectAssign/GetAllowedBranchList`);
-//         if (!branchResponse.ok) {
-//             throw new Error('Network response was not ok');
-//         }
-//         const branchData = await branchResponse.json();
-//         allBranch = branchData || [];
-//         return allBranch;
-//     } catch (err) {
-//         console.error("Error in getAllBranch:", err);
-//         return [];
-//     }
-// }
-
 async function getAllBranch() {
+    console.log("getAllBranch")
     if (allBranch && allBranch.length > 0) {
         return allBranch;
     }
     try {
+        // const branchResponse = await fetch('/crmweb/Campain/getBranchListForCRM');
         const branchResponse = await fetch('/Campain/getBranchListForCRM');
         if (!branchResponse.ok) {
             throw new Error('Network response was not ok');
@@ -218,6 +218,7 @@ async function getAllBranch() {
 }
 
 function parseBranchCodes(value) {
+    console.log("parseBranchCodes")
     return String(value || '')
         .split(',')
         .map(v => String(v).trim().padStart(2, '0'))
@@ -226,15 +227,16 @@ function parseBranchCodes(value) {
 
 function getBranchCode(b) {
     if (!b) return '';
-    return String(b.offcde || b.Offcde || '').trim();
+    return String(b.offcde || '').trim();
 }
 
 function getBranchName(b) {
     if (!b) return '';
-    return b.branch_name || b.branchName || b.BranchName || b.Bname || b.bname || getBranchCode(b);
+    return b.branch_name || getBranchCode(b);
 }
 
 function renderBranchDropdownOptions(allowedOffcdes) {
+    console.log("renderBranchDropdownOptions")
     const container = document.getElementById('branchOptions');
 
     if (!container) return;
@@ -248,7 +250,24 @@ function renderBranchDropdownOptions(allowedOffcdes) {
         .map(branch => {
             return branch;
     });
-        
+
+    // ตัวเลือก "ทั้งหมด" สำหรับเลือก/ยกเลิก checkbox สาขาที่เลือกได้ทั้งหมด
+    if (result.some(b => getBranchCode(b))) {
+        const allDiv = document.createElement('div');
+        allDiv.className = 'branch-option';
+
+        allDiv.innerHTML = `
+            <label>
+                <input type="checkbox"
+                       class="branch-checkbox-all"
+                       id="branchSelectAll">
+                <span>ทั้งหมด</span>
+            </label>
+        `;
+
+        container.appendChild(allDiv);
+    }
+
     result.forEach(b => {
         const code = getBranchCode(b);
         const name = getBranchName(b);
@@ -272,35 +291,60 @@ function renderBranchDropdownOptions(allowedOffcdes) {
     });
 
     bindBranchCheckboxEvents();
+    bindBranchSelectAllEvent();
+}
+
+// ซิงก์สถานะ checkbox "ทั้งหมด" ให้ติ๊กเมื่อสาขาถูกเลือกครบทุกตัว
+function syncBranchSelectAllState() {
+    const selectAll = document.getElementById('branchSelectAll');
+    if (!selectAll) return;
+
+    const all = Array.from(document.querySelectorAll('.branch-checkbox'));
+    if (all.length === 0) {
+        selectAll.checked = false;
+        return;
+    }
+    selectAll.checked = all.every(cb => cb.checked);
+}
+
+function bindBranchSelectAllEvent() {
+    const selectAll = document.getElementById('branchSelectAll');
+    if (!selectAll) return;
+
+    selectAll.addEventListener('change', function () {
+        const isChecked = this.checked;
+
+        document.querySelectorAll('.branch-checkbox').forEach(cb => {
+            cb.checked = isChecked;
+        });
+
+        updateBranchSelectedDisplay();
+        onBranchSelectionChanged();
+    });
 }
 
 function bindBranchCheckboxEvents() {
-
+console.log("bindBranchCheckboxEvents")
     document.querySelectorAll('.branch-checkbox').forEach(checkbox => {
 
         checkbox.addEventListener('change', function () {
 
+            syncBranchSelectAllState();
             updateBranchSelectedDisplay();
-
-            const selectedBranches = getSelectedBranchCodes();
-
-            loadAndRenderStaffList(selectedBranches);
-
-            // เปลี่ยนสาขา -> แสดง Prospect ตามสาขาที่เลือกใหม่
             onBranchSelectionChanged();
         });
     });
 }
 
 function getSelectedBranchCodes() {
-
+console.log("getSelectedBranchCodes")
     return Array.from(
         document.querySelectorAll('.branch-checkbox:checked')
     ).map(x => x.value);
 }
 
 function updateBranchSelectedDisplay() {
-
+console.log("updateBranchSelectedDisplay")
     const box = document.getElementById('branchSelectBox');
 
     if (!box) return;
@@ -340,11 +384,8 @@ function updateBranchSelectedDisplay() {
             .addEventListener('click', function (e) {
                 e.stopPropagation();
                 checkbox.checked = false;
+                syncBranchSelectAllState();
                 updateBranchSelectedDisplay();
-                const selectedBranches = getSelectedBranchCodes();
-                loadAndRenderStaffList(selectedBranches);
-
-                // เอาสาขาออก -> อัปเดตรายการ Prospect ตามสาขาที่เหลือ
                 onBranchSelectionChanged();
             });
 
@@ -360,7 +401,7 @@ function updateBranchSelectedDisplay() {
 }
 
 function initBranchMultiSelect() {
-
+console.log("initBranchMultiSelect")
     const box = document.getElementById('branchSelectBox');
     const dropdown = document.getElementById('branchDropdownMenu');
 
@@ -390,7 +431,7 @@ function initBranchMultiSelect() {
 
             const keyword = this.value.toLowerCase().trim();
 
-            document.querySelectorAll('.branch-option')
+            document.querySelectorAll('#branchOptions .branch-option')
                 .forEach(option => {
 
                     const text = option.innerText.toLowerCase();
@@ -405,22 +446,240 @@ function initBranchMultiSelect() {
 }
 
 function setSelectedBranches(offcdeString) {
-console.log("offcdeString",offcdeString)
+console.log("setSelectedBranches")
     const campaignBranchCodes = parseBranchCodes(offcdeString);
-    renderBranchDropdownOptions(campaignBranchCodes);
 
+    // สาขาลูกค้า: ใช้กรองรายการ Prospect
+    renderBranchDropdownOptions(campaignBranchCodes);
     updateBranchSelectedDisplay();
+
+    // สาขาพนักงาน: ใช้กรองผู้รับผิดชอบ
+    renderStaffBranchDropdownOptions(campaignBranchCodes);
+    updateStaffBranchSelectedDisplay();
+
     loadAndRenderStaffList([]);
 }
 
-async function getStaffList(branchId){
+//    สาขาพนักงาน (Staff Branch) - ใช้กรอง "เลือกผู้รับผิดชอบ"
+function renderStaffBranchDropdownOptions(allowedOffcdes) {
+    console.log("renderStaffBranchDropdownOptions")
+    const container = document.getElementById('staffBranchOptions');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const result = (allBranch || [])
+        .filter(branch => allowedOffcdes.includes(branch.offcde));
+
+    // ตัวเลือก "ทั้งหมด" สำหรับเลือก/ยกเลิกสาขาพนักงานที่เลือกได้ทั้งหมด
+    if (result.some(b => getBranchCode(b))) {
+        const allDiv = document.createElement('div');
+        allDiv.className = 'branch-option';
+
+        allDiv.innerHTML = `
+            <label>
+                <input type="checkbox"
+                       class="staff-branch-checkbox-all"
+                       id="staffBranchSelectAll">
+                <span>ทั้งหมด</span>
+            </label>
+        `;
+
+        container.appendChild(allDiv);
+    }
+
+    result.forEach(b => {
+        const code = getBranchCode(b);
+        const name = getBranchName(b);
+
+        if (!code) return;
+
+        const div = document.createElement('div');
+        div.className = 'branch-option';
+
+        div.innerHTML = `
+            <label>
+                <input type="checkbox"
+                       class="staff-branch-checkbox"
+                       value="${code}"
+                       data-name="${name}">
+                <span>${name}</span>
+            </label>
+        `;
+
+        container.appendChild(div);
+    });
+
+    bindStaffBranchCheckboxEvents();
+    bindStaffBranchSelectAllEvent();
+}
+
+// ซิงก์สถานะ checkbox "ทั้งหมด" ของสาขาพนักงานให้ติ๊กเมื่อเลือกครบทุกตัว
+function syncStaffBranchSelectAllState() {
+    const selectAll = document.getElementById('staffBranchSelectAll');
+    if (!selectAll) return;
+
+    const all = Array.from(document.querySelectorAll('.staff-branch-checkbox'));
+    if (all.length === 0) {
+        selectAll.checked = false;
+        return;
+    }
+    selectAll.checked = all.every(cb => cb.checked);
+}
+
+function bindStaffBranchSelectAllEvent() {
+    const selectAll = document.getElementById('staffBranchSelectAll');
+    if (!selectAll) return;
+
+    selectAll.addEventListener('change', function () {
+        const isChecked = this.checked;
+
+        document.querySelectorAll('.staff-branch-checkbox').forEach(cb => {
+            cb.checked = isChecked;
+        });
+
+        updateStaffBranchSelectedDisplay();
+        loadAndRenderStaffList(getSelectedStaffBranchCodes());
+    });
+}
+
+function bindStaffBranchCheckboxEvents() {
+    console.log("bindStaffBranchCheckboxEvents")
+    document.querySelectorAll('.staff-branch-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            syncStaffBranchSelectAllState();
+            updateStaffBranchSelectedDisplay();
+
+            const selectedBranches = getSelectedStaffBranchCodes();
+
+            // สาขาพนักงาน -> โหลดรายชื่อผู้รับผิดชอบตามสาขาที่เลือก
+            loadAndRenderStaffList(selectedBranches);
+        });
+    });
+}
+
+function getSelectedStaffBranchCodes() {
+    console.log("getSelectedStaffBranchCodes")
+    return Array.from(
+        document.querySelectorAll('.staff-branch-checkbox:checked')
+    ).map(x => x.value);
+}
+
+function updateStaffBranchSelectedDisplay() {
+    console.log("updateStaffBranchSelectedDisplay")
+    const box = document.getElementById('staffBranchSelectBox');
+    if (!box) return;
+
+    const selected = Array.from(
+        document.querySelectorAll('.staff-branch-checkbox:checked')
+    );
+
+    box.innerHTML = '';
+
+    if (selected.length === 0) {
+        box.innerHTML = `
+            <span class="multi-select-placeholder">
+                -- เลือกสาขา --
+            </span>
+            <span class="multi-select-arrow">▼</span>
+        `;
+        return;
+    }
+
+    selected.forEach(checkbox => {
+        const tag = document.createElement('span');
+        tag.className = 'branch-tag';
+
+        tag.innerHTML = `
+            ${checkbox.dataset.name}
+            <span class="remove-branch"
+                  data-value="${checkbox.value}">
+                ×
+            </span>
+        `;
+
+        tag.querySelector('.remove-branch')
+            .addEventListener('click', function (e) {
+                e.stopPropagation();
+                checkbox.checked = false;
+                syncStaffBranchSelectAllState();
+                updateStaffBranchSelectedDisplay();
+                const selectedBranches = getSelectedStaffBranchCodes();
+                loadAndRenderStaffList(selectedBranches);
+            });
+
+        box.appendChild(tag);
+    });
+
+    const arrow = document.createElement('span');
+    arrow.className = 'multi-select-arrow';
+    arrow.innerHTML = '▼';
+    box.appendChild(arrow);
+}
+
+function initStaffBranchMultiSelect() {
+    console.log("initStaffBranchMultiSelect")
+    const box = document.getElementById('staffBranchSelectBox');
+    const dropdown = document.getElementById('staffBranchDropdownMenu');
+
+    if (!box || !dropdown) return;
+
+    box.addEventListener('click', function () {
+        dropdown.classList.toggle('show');
+    });
+
+    document.addEventListener('click', function (e) {
+        const container = document.getElementById('staffBranchSelectContainer');
+        if (container && !container.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
+    const searchInput = document.getElementById('staffBranchSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const keyword = this.value.toLowerCase().trim();
+            document.querySelectorAll('#staffBranchOptions .branch-option')
+                .forEach(option => {
+                    const text = option.innerText.toLowerCase();
+                    option.style.display = text.includes(keyword) ? '' : 'none';
+                });
+        });
+    }
+}
+
+// ดึงรหัสสาขาของพนักงานแต่ละคน (รองรับหลายชื่อ field)
+function getStaffBranchCode(s) {
+    if (!s || typeof s !== 'object') return '';
+    const raw = s.offcde ?? s.Offcde ?? s.branch ?? s.Branch
+        ?? s.branch_code ?? s.branchCode ?? s.sectionCde ?? s.section_cde ?? '';
+    return String(raw).trim();
+}
+
+// ดึงรายชื่อพนักงานทั้งหมด (ดึงครั้งเดียวแล้ว cache ไว้)
+async function getStaffList(){
+    console.log("getStaffList")
+    if (allStaff && allStaff.length > 0) {
+        return allStaff;
+    }
     try {
-        const response = await fetch(`/ProspectAssign/GetStaffList?branchId=${branchId}`);
+        const response = await fetch(`/ProspectAssign/GetStaffList`);
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        return data || [];
+console.log("data",data)
+        let arr = [];
+        if (Array.isArray(data)) {
+            arr = data;
+        } else if (data && Array.isArray(data.data)) {
+            arr = data.data;
+        } else if (data && Array.isArray(data.result)) {
+            arr = data.result;
+        }
+
+        allStaff = arr;
+        return allStaff;
     } catch(err) {
         console.error("Error in getStaffList:", err);
         return [];
@@ -428,7 +687,7 @@ async function getStaffList(branchId){
 }
 
 async function loadAndRenderStaffList(branchIds) {
-
+console.log("loadAndRenderStaffList")
     const dropdownMenu = document.getElementById('responsibleDropdownMenu');
     const newDropdownMenu = document.getElementById('newResponsibleDropdownMenu');
 
@@ -469,22 +728,17 @@ async function loadAndRenderStaffList(branchIds) {
     if (dropdownMenu) dropdownMenu.innerHTML = loadingHtml;
     if (newDropdownMenu) newDropdownMenu.innerHTML = loadingHtml;
 
-    // โหลด staff ของทุกสาขา
-    const results = await Promise.all(
-        branchIds.map(branchId => getStaffList(branchId))
-    );
+    // โหลด staff ทั้งหมด (ดึงครั้งเดียว แล้ว cache) ก่อนกรอง
+    const allStaffList = await getStaffList();
 
-    // รวม staff ทุกสาขา
-    let staffArray = [];
+    // normalize รหัสสาขาที่เลือกให้เป็น 2 หลัก เพื่อเทียบกับสาขาของพนักงาน
+    const allowedBranchCodes = branchIds
+        .map(v => String(v).trim().padStart(2, '0'))
+        .filter(Boolean);
 
-    results.forEach(res => {
-        if (Array.isArray(res)) {
-            staffArray.push(...res);
-        } else if (res && Array.isArray(res.data)) {
-            staffArray.push(...res.data);
-        } else if (res && Array.isArray(res.result)) {
-            staffArray.push(...res.result);
-        }
+    let staffArray = (allStaffList || []).filter(s => {
+        const code = getStaffBranchCode(s).padStart(2, '0');
+        return code && allowedBranchCodes.includes(code);
     });
 
     // ลบข้อมูลซ้ำ
@@ -501,7 +755,6 @@ async function loadAndRenderStaffList(branchIds) {
             uniqueStaff.push(s);
         }
     });
-
     staffArray = uniqueStaff;
 
     // กรอง role RCRM011
@@ -1831,11 +2084,23 @@ $(document).off("click", ".pa-file-name").on("click", ".pa-file-name", function 
     });
 
     async function init() {
-        allBranch = await getAllBranch();
+        console.log("init")
+        // โหลดข้อมูลสาขา และรายชื่อพนักงานทั้งหมด (ดึงครั้งเดียวตอนเปิดหน้า)
+        await Promise.all([
+            getAllBranch(),
+            getStaffList()
+        ]);
         // ยังไม่แสดงสาขาจนกว่าจะรู้สาขาที่กำหนดในแคมเปญ
+        // สาขาลูกค้า -> กรอง Prospect
         renderBranchDropdownOptions([]);
         initBranchMultiSelect();
         updateBranchSelectedDisplay();
+
+        // สาขาพนักงาน -> กรองผู้รับผิดชอบ
+        renderStaffBranchDropdownOptions([]);
+        initStaffBranchMultiSelect();
+        updateStaffBranchSelectedDisplay();
+
         loadAndRenderStaffList([]);
         await loadBatch(1);
     }

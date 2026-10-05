@@ -829,7 +829,8 @@ function getContactResultDisplayName(result) {
 // Fetch master dropdowns from API
 async function loadMasterDropdowns() {
     try {
-        const response = await fetch('/ProspectCall/GetDropDown');
+        // const response = await fetch('/crmweb/ProspectCall/GetDropDown');
+         const response = await fetch('/ProspectCall/GetDropDown');
         if (!response.ok) {
             console.error("GetDropDown HTTP error:", response.status, response.statusText);
             return;
@@ -1852,6 +1853,14 @@ function saveRecordResult() {
                 if (typeof startLoading === 'function') {
                     startLoading('กำลังบันทึกข้อมูล...', 'ระบบกำลังส่งข้อมูลผลการติดต่อ กรุณารอสักครู่...');
                 }
+
+                // const response = await fetch('/crmweb/ProspectCall/postHistoryCall', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json'
+                //     },
+                //     body: JSON.stringify(payload)
+                // });
 
                 const response = await fetch('/ProspectCall/postHistoryCall', {
                     method: 'POST',

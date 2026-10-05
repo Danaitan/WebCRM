@@ -49,6 +49,15 @@ async function PostNoti(PostNotiData){
         ref_id: PostNotiData.ref_id
     };
 
+    // const response = await fetch('/crmweb/Suggestions/PostNotification', {
+    //     method: 'POST',
+    //     headers: {
+    //         'Content-Type': 'application/json'
+    //     },
+    //     body: JSON.stringify(payload),
+    //     skipLoading: true
+    // });
+
     const response = await fetch('/Suggestions/PostNotification', {
         method: 'POST',
         headers: {
@@ -136,6 +145,7 @@ async function sendSuggestionNotification(target, targetText, ctx) {
 
 async function GetPersonalAndGroup() {
     try {
+        // const response = await fetch('/crmweb/DashboardSuggestion/GetPersonalAndGroup');
         const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup');
         const data = await response.json();
         return data;
@@ -551,10 +561,16 @@ $(document).ready(function () {
 
 async function loadDepartmentOptions() {
     try {
+        // const [masterRes, personalData] = await Promise.all([
+        //     fetch('/crmweb/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
+        //     GetPersonalAndGroup().catch(() => null)
+        // ]);
+
         const [masterRes, personalData] = await Promise.all([
             fetch('/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
             GetPersonalAndGroup().catch(() => null)
         ]);
+
         const data = masterRes;
         const currentCompany = (typeof userCompany !== 'undefined' ? userCompany : (window.CURRENT_COMPANY || "")).trim().toUpperCase();
 
@@ -693,6 +709,7 @@ console.log("data",data)
 
 async function loadSuggestionHeaderOptions() {
     try {
+        // const response = await fetch('/crmweb/Suggestions/GetSuggestionHeader');
         const response = await fetch('/Suggestions/GetSuggestionHeader');
         if (!response.ok) return;
         const data = await response.json();
@@ -736,6 +753,7 @@ window.suggestionStatusMap = {};
 
 async function loadSuggestionStatusOptions() {
     try {
+        // const response = await fetch('/crmweb/Suggestions/GetSuggestionStatus');
         const response = await fetch('/Suggestions/GetSuggestionStatus');
         if (!response.ok) return;
         const data = await response.json();

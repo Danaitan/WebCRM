@@ -38,9 +38,14 @@
 
         if (!groupEmailLoadPromise) {
             groupEmailLoadPromise = (async () => {
+                // const response = await fetch('/crmweb/DashboardSuggestion/GetPersonalAndGroup', {
+                //     skipLoading: true
+                // });
+
                 const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup', {
                     skipLoading: true
                 });
+
                 if (!response.ok) {
                     throw new Error(`HTTP error ${response.status}`);
                 }

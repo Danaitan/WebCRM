@@ -915,6 +915,7 @@ async function setFilterBranch(branchData) {
     let data = branchData;
     if (!data) {
         try {
+            // const branchResponse = await fetch('/crmweb/Campain/getBranchListForCRM');
             const branchResponse = await fetch('/Campain/getBranchListForCRM');
             if (branchResponse.ok) {
                 data = await branchResponse.json();
@@ -932,13 +933,23 @@ async function setFilterBranch(branchData) {
 
     // Build the branch list (excluding any "99" pseudo-item from the API).
     const branches = [];
+
     if (variableFunc && Array.isArray(data)) {
         data.forEach(item => {
-            if (item && isBranchInVariableFunc(item, variableFunc)) {
-                const code = String(item.offcde || '').trim();
-                if (!code || code === "99") return;
-                branches.push({ code, name: String(item.branch_name || '').trim() });
+            if (!isSeeAllBranch){
+                if (item && isBranchInVariableFunc(item, variableFunc)) {
+                        const code = String(item.offcde || '').trim();
+                        if (!code || code === "99") return;
+                    branches.push({ code, name: String(item.branch_name || '').trim() });
+                }
+            } else {
+                if (item) {
+                        const code = String(item.offcde || '').trim();
+                        if (!code || code === "99") return;
+                    branches.push({ code, name: String(item.branch_name || '').trim() });
+                }
             }
+
         });
     }
 

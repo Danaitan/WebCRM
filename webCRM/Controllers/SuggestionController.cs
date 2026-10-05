@@ -128,15 +128,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "AddRequestSuggestion",
-                //     targetId: request.Guid ?? "",
-                //     targetType: "SUGGESTION",
-                //     message: "AddRequestSuggestion successfully",
-                //     module: "AddRequestSuggestion"
-                // );
-
                 return Ok(new
                 {
                     status = "success",
@@ -202,15 +193,6 @@ namespace webCRM.Controllers
                             JsonDocument.Parse(
                                 result.Response);
 
-                        // await ActivityLogger.SendAsync(
-                        //     HttpContext,
-                        //     action: "ReplySuggestion",
-                        //     targetId: guid,
-                        //     targetType: "SUGGESTION",
-                        //     message: "ReplySuggestion successfully",
-                        //     module: "UpdateSuggestion"
-                        // );
-
                         return Content(
                             result.Response,
                             "application/json");
@@ -220,15 +202,6 @@ namespace webCRM.Controllers
                         // Response ไม่ใช่ JSON
                     }
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "ReplySuggestion",
-                //     targetId: guid,
-                //     targetType: "SUGGESTION",
-                //     message: "ReplySuggestion successfully",
-                //     module: "UpdateSuggestion"
-                // );
 
                 return Ok(new
                 {
@@ -362,15 +335,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "PostSuggestion",
-                //     targetId: request.Guid ?? "",
-                //     targetType: "SUGGESTION",
-                //     message: "PostSuggestion successfully",
-                //     module: "PostSuggestion"
-                // );
-
                 return Ok(new
                 {
                     status = "success",
@@ -406,15 +370,6 @@ namespace webCRM.Controllers
                             $"API responded with status code: {result.StatusCode}"
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "PutSuggestionStatusUpd",
-                //     targetId: guid,
-                //     targetType: "SUGGESTION",
-                //     message: "PutSuggestionStatusUpd successfully",
-                //     module: "PutSuggestionStatusUpd"
-                // );
 
                 return Ok(new
                 {
@@ -463,15 +418,6 @@ namespace webCRM.Controllers
                         detail = result.Response
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "UpdateSuggestionStatus",
-                //     targetId: guid,
-                //     targetType: "SUGGESTION",
-                //     message : $"Update status To: {statusTask}",
-                //     module: "UpdateSuggestionStatus"
-                // );
 
                 return Ok(new
                 {

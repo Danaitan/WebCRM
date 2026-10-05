@@ -546,7 +546,9 @@ body {
 }
 
 .multi-select-box {
+    height: 38px;
     min-height: 38px;
+    max-height: 38px;
     border: 1px solid #ced4da;
     border-radius: 6px;
     background: #fff;
@@ -555,8 +557,32 @@ body {
     position: relative;
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    /* คงความสูงไว้แถวเดียว ถ้า tag ยาวเกินให้เลื่อนแนวนอนแทนการตกบรรทัด */
+    flex-wrap: nowrap;
     gap: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
+}
+
+/* scrollbar แนวนอนให้บางลง ไม่เบียดเนื้อหา */
+.multi-select-box::-webkit-scrollbar {
+    height: 6px;
+}
+
+.multi-select-box::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+/* ไม่ให้ tag ย่อขนาดจนบีบกัน ให้คงขนาดแล้วเลื่อนแทน */
+.multi-select-box .branch-tag {
+    flex: 0 0 auto;
+}
+
+.multi-select-placeholder {
+    flex: 0 0 auto;
 }
 
 .multi-select-placeholder {
@@ -627,6 +653,7 @@ body {
     border-radius: 4px;
     padding: 3px 7px;
     font-size: 13px;
+    white-space: nowrap;
 }
 
 .branch-tag .remove-branch {

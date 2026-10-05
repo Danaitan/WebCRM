@@ -551,14 +551,11 @@
         box-shadow: inset 0 -1px 0 var(--border-color);
     }
 
-    /* ตารางรายการที่เลือก: ให้กว้างเกินกรอบ เพื่อบังคับให้เลื่อนซ้ายขวา
-       ความกว้างต่อหัวข้อ ~140px => กรอบมองเห็นได้ประมาณ 3.5 หัวข้อ (~490px)
-       ที่เหลือเลื่อนดูได้ */
     .selected-table {
         table-layout: fixed;
-        width: max-content;             /* ตารางกว้างตามผลรวมคอลัมน์ ไม่หดตามกรอบ */
+        width: max-content;
         min-width: 100%;
-        min-height: 400px;
+        /* min-height: 400px; */
     }
     .selected-table th:not(:last-child),
     .selected-table td:not(:last-child) {

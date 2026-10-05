@@ -184,6 +184,7 @@ const STATUS_CAN_EDIT = [
 
 async function getProductStatus() { 
     try {
+        // const response = await fetch('/crmweb/Campain/getProductStatus');
         const response = await fetch('/Campain/getProductStatus');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1251,11 +1252,12 @@ $(document).ready(async function () {
             $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
             $("#filterSelectedRow").hide();
             $("#btnGotoETL").hide();
+            $("#btnDeleteETL").hide();
 
             selectedFilterCodes = [];
             updateFilterSelectionUI();
 
-            $("#campaignName, #startDate, #endDate, #campaignObjective, #descriptions, #chkImportExcel, #btnImportFile, #submitFormBtn, #btnGotoETL").prop("disabled", true);
+            $("#campaignName, #startDate, #endDate, #campaignObjective, #descriptions, #chkImportExcel, #btnImportFile, #submitFormBtn, #btnGotoETL, #btnDeleteETL").prop("disabled", true);
             if (fpStartDate && fpStartDate.altInput) fpStartDate.altInput.disabled = true;
             if (fpEndDate && fpEndDate.altInput) fpEndDate.altInput.disabled = true;
             $("#branchSelectDisplay, #branchSelectContainer").addClass("disabled").css("pointer-events", "none");
@@ -1266,7 +1268,7 @@ $(document).ready(async function () {
             $("#campaignName, #startDate, #endDate, #campaignObjective, #branchSelectDisplay, #descriptions").removeClass("is-invalid");
             $(".campaign-card").removeClass("active");
         } else {
-            $("#campaignName, #endDate, #campaignObjective, #descriptions, #chkImportExcel, #btnImportFile, #submitFormBtn, #btnGotoETL").prop("disabled", false);
+            $("#campaignName, #endDate, #campaignObjective, #descriptions, #chkImportExcel, #btnImportFile, #submitFormBtn, #btnGotoETL, #btnDeleteETL").prop("disabled", false);
             $("#startDate").prop("disabled", true);
             if (fpStartDate && fpStartDate.altInput) {
                 fpStartDate.altInput.disabled = true;
@@ -1478,7 +1480,7 @@ $(document).ready(async function () {
             const isDisabled = !canEdit || !window.isCampaignCreate;
 
             $('#deleteActionBtn').prop('disabled', isDisabled);
-            $('#submitFormBtn, #btnGotoETL').prop('disabled', isDisabled);
+            $('#submitFormBtn, #btnGotoETL, #btnDeleteETL').prop('disabled', isDisabled);
             $('#btnImportFile').prop('disabled', isDisabled);
             $('#campaignName').prop('disabled', isDisabled);
             $('#startDate').prop('disabled', isDisabled);
@@ -1610,10 +1612,12 @@ $(document).ready(async function () {
                         $("#chkImportExcel").prop("checked", true);
                         $("#filterSelectedRow").hide();
                         $("#btnGotoETL").show();
+                        $("#btnDeleteETL").show();
                     } else {
                         $("#chkImportExcel").prop("checked", false);
                         $("#filterSelectedRow").show();
                         $("#btnGotoETL").hide();
+                        $("#btnDeleteETL").hide();
                     }
 
                     // สร้างคีย์รวม (fcode + fcompany) จาก filter ที่บันทึกไว้ ตัด import filter ออก
@@ -1920,6 +1924,7 @@ $(document).ready(async function () {
 
 async function getCheckProductNo() {
     try {
+        // const response = await fetch('/crmweb/Campain/GetCheckProductNo');
         const response = await fetch('/Campain/GetCheckProductNo');
         if (!response.ok) return '';
         const data = await response.json();
@@ -2824,11 +2829,14 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
         formData.append("file", file);
         formData.append("campaignCode", campaignCode);
 
+        // const response = await fetch('/crmweb/Campain/UploadCampaignFile', {
+        //     method: 'POST',
+        //     body: formData
+        // });
         const response = await fetch('/Campain/UploadCampaignFile', {
             method: 'POST',
             body: formData
         });
-
         const data = await response.json();
 
         if (data.status === "success") {
@@ -2860,82 +2868,290 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
 }
 
 async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true) {
-    const file = fileInputEl.files && fileInputEl.files[0];
-    if (!file) return { status: "success" };
 
-    // ในโหมดสร้างใหม่ รหัสถูก generate แบบ async รอให้เสร็จก่อนเพื่อกันแนบเอกสารพลาด
-    if (isModal && modalCampaignCodePromise) {
-        try { await modalCampaignCodePromise; } catch (e) { /* จัดการต่อด้านล่าง */ }
+    console.log("========== uploadCampaignFile START ==========");
+    console.log("[1] Params:", {
+        fileInputEl,
+        isModal,
+        showSwal
+    });
+
+    const file = fileInputEl.files && fileInputEl.files[0];
+
+    console.log("[2] File:", file);
+
+    if (!file) {
+        console.log("[2.1] ❌ ไม่มีไฟล์");
+        return { status: "success" };
     }
+
+    console.log("[3] ตรวจสอบ modalCampaignCodePromise...");
+
+    if (isModal && modalCampaignCodePromise) {
+        console.log("[3.1] พบ modalCampaignCodePromise -> กำลัง await...");
+
+        try {
+            await modalCampaignCodePromise;
+            console.log("[3.2] ✅ modalCampaignCodePromise resolved");
+        } catch (e) {
+            console.error("[3.2] ⚠️ modalCampaignCodePromise rejected:", e);
+        }
+    }
+
+    console.log("[4] กำลังหา campaignCode...");
 
     let campaignCode = isModal
         ? ($("#modalCampaignCode").val() || "").trim()
         : (selectedCampaignCode || $("#campaignCode").val() || "").trim();
 
-    // กันกรณีค่าที่ได้ยังเป็น placeholder ระหว่างรอสร้างรหัส
+    console.log("[4.1] campaignCode ก่อนตรวจสอบ:", campaignCode);
+
     if (campaignCode === CAMPAIGN_CODE_PLACEHOLDER) {
+        console.log("[4.2] campaignCode เป็น placeholder -> เปลี่ยนเป็นค่าว่าง");
         campaignCode = "";
     }
 
+    console.log("[4.3] campaignCode หลังตรวจสอบ:", campaignCode);
+
     if (!campaignCode) {
+
+        console.log("[5] ❌ ไม่พบ campaignCode");
+
         if (showSwal) {
+            console.log("[5.1] กำลังแสดง Swal: ไม่พบรหัสแคมเปญ");
+
             Swal.fire({
                 title: "ไม่พบรหัสแคมเปญ",
                 text: "กรุณาเลือกหรือสร้างรหัสแคมเปญก่อนแนบเอกสาร",
                 icon: "warning"
             });
         }
+
         fileInputEl.value = '';
-        return { status: "error", message: "ไม่พบรหัสแคมเปญ" };
+
+        console.log("[5.2] return error");
+
+        return {
+            status: "error",
+            message: "ไม่พบรหัสแคมเปญ"
+        };
     }
 
-    startLoading('กำลังอัปโหลดไฟล์...', 'ระบบกำลังบันทึกไฟล์แนบในแคมเปญ...');
+    console.log("[6] ✅ มี campaignCode แล้ว:", campaignCode);
+
+    console.log("[7] startLoading...");
+
+    startLoading(
+        'กำลังอัปโหลดไฟล์...',
+        'ระบบกำลังบันทึกไฟล์แนบในแคมเปญ...'
+    );
+
+    console.log("[7.1] startLoading เรียบร้อย");
+
     try {
+
+        console.log("[8] สร้าง FormData...");
+
         const formData = new FormData();
+
         formData.append("file", file);
         formData.append("campaignCode", campaignCode);
+
+        console.log("[8.1] FormData:", {
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            campaignCode: campaignCode
+        });
+
+        console.log(" กำลัง fetch /Campain/UploadCampaignFile...");
+
+        const fetchStartTime = performance.now();
+
+        // const response = await fetch('/crmweb/Campain/UploadCampaignFile', {
+        //     method: 'POST',
+        //     body: formData
+        // });
 
         const response = await fetch('/Campain/UploadCampaignFile', {
             method: 'POST',
             body: formData
         });
 
+        console.log(
+            `[9.1] ✅ fetch response กลับมาแล้ว (${Math.round(performance.now() - fetchStartTime)} ms)`,
+            response
+        );
+
+        console.log("[9.2] response.status:", response.status);
+        console.log("[9.3] response.ok:", response.ok);
+
+        console.log("[10] กำลัง response.json()...");
+
+        const jsonStartTime = performance.now();
+
         const data = await response.json();
 
+        console.log(
+            `[10.1] ✅ response.json() สำเร็จ (${Math.round(performance.now() - jsonStartTime)} ms)`
+        );
+
+        console.log("[10.2] Server response data:", data);
+
         if (data.status === "success") {
+
+            console.log("[11] ✅ data.status === success");
+
             let returnedFileName = data.name || file.name;
-            // ใช้ dms_doc_file_id เป็นตัวอ้างอิงไฟล์ใน DMS (ใช้กับ preview/download)
-            let returnedPath = data.dms_doc_file_id || data.doc_file_id || data.path || "";
+
+            console.log("[11.1] returnedFileName:", returnedFileName);
+
+            // ใช้ dms_doc_file_id เป็นตัวอ้างอิงไฟล์ใน DMS
+            let returnedPath =
+                data.dms_doc_file_id ||
+                data.doc_file_id ||
+                data.path ||
+                "";
+
+            console.log("[11.2] returnedPath จาก data:", returnedPath);
+
             if (!returnedPath && data.data) {
+
+                console.log("[12] ไม่พบ returnedPath -> ตรวจสอบ data.data");
+
                 let rawData = data.data;
+
+                console.log("[12.1] rawData ก่อน parse:", rawData);
+                console.log("[12.2] rawData type:", typeof rawData);
+
                 if (typeof rawData === 'string') {
-                    try { rawData = JSON.parse(rawData); } catch (e) { }
-                }
-                if (rawData) {
-                    if (!data.name && (rawData.Name || rawData.name)) {
-                        returnedFileName = rawData.Name || rawData.name;
+
+                    console.log("[12.3] data.data เป็น string -> กำลัง JSON.parse...");
+
+                    try {
+                        rawData = JSON.parse(rawData);
+
+                        console.log("[12.4] ✅ JSON.parse สำเร็จ:", rawData);
+
+                    } catch (e) {
+
+                        console.error(
+                            "[12.4] ❌ JSON.parse data.data ไม่สำเร็จ:",
+                            e
+                        );
                     }
-                    if (rawData.Dms_doc_file_id || rawData.dms_doc_file_id) {
-                        returnedPath = rawData.Dms_doc_file_id || rawData.dms_doc_file_id;
+                }
+
+                if (rawData) {
+
+                    console.log("[12.5] กำลังตรวจสอบ rawData.Name / rawData.name");
+
+                    if (!data.name && (rawData.Name || rawData.name)) {
+
+                        returnedFileName =
+                            rawData.Name ||
+                            rawData.name;
+
+                        console.log(
+                            "[12.6] ได้ returnedFileName จาก rawData:",
+                            returnedFileName
+                        );
+                    }
+
+                    console.log(
+                        "[12.7] กำลังตรวจสอบ Dms_doc_file_id..."
+                    );
+
+                    if (
+                        rawData.Dms_doc_file_id ||
+                        rawData.dms_doc_file_id
+                    ) {
+
+                        returnedPath =
+                            rawData.Dms_doc_file_id ||
+                            rawData.dms_doc_file_id;
+
+                        console.log(
+                            "[12.8] ได้ returnedPath จาก rawData:",
+                            returnedPath
+                        );
                     }
                 }
             }
 
+            console.log("[13] Final returnedFileName:", returnedFileName);
+            console.log("[13.1] Final returnedPath:", returnedPath);
+
             const uploadedPath = returnedPath;
+
+            console.log("[14] uploadedPath:", uploadedPath);
+            console.log("[14.1] isModal:", isModal);
+
             if (isModal) {
-                $("#modalSelectedFileNameText").text(returnedFileName).attr("data-filepath", uploadedPath).css("cursor", "pointer").attr("title", "คลิกเพื่อเปิดดูไฟล์");
-                $("#modalSelectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+
+                console.log("[15] กำลัง update Modal UI...");
+
+                $("#modalSelectedFileNameText")
+                    .text(returnedFileName)
+                    .attr("data-filepath", uploadedPath)
+                    .css("cursor", "pointer")
+                    .attr("title", "คลิกเพื่อเปิดดูไฟล์");
+
+                console.log("[15.1] update #modalSelectedFileNameText สำเร็จ");
+
+                $("#modalSelectedFileNameDisplay")
+                    .removeClass("d-none")
+                    .addClass("d-flex")
+                    .show();
+
+                console.log("[15.2] update #modalSelectedFileNameDisplay สำเร็จ");
+
             } else {
-                $("#selectedFileNameText").text(returnedFileName).attr("data-filepath", uploadedPath).css("cursor", "pointer").attr("title", "คลิกเพื่อเปิดดูไฟล์");
-                $("#selectedFileNameDisplay").removeClass("d-none").addClass("d-flex").show();
+
+                console.log("[16] กำลัง update Main UI...");
+
+                $("#selectedFileNameText")
+                    .text(returnedFileName)
+                    .attr("data-filepath", uploadedPath)
+                    .css("cursor", "pointer")
+                    .attr("title", "คลิกเพื่อเปิดดูไฟล์");
+
+                console.log("[16.1] update #selectedFileNameText สำเร็จ");
+
+                $("#selectedFileNameDisplay")
+                    .removeClass("d-none")
+                    .addClass("d-flex")
+                    .show();
+
+                console.log("[16.2] update #selectedFileNameDisplay สำเร็จ");
+
+                console.log(
+                    "[16.3] btnImportFile disabled:",
+                    $("#btnImportFile").is(":disabled")
+                );
+
                 if ($("#btnImportFile").is(":disabled")) {
+
+                    console.log("[16.4] btnImportFile disabled -> ซ่อน btnRemoveFile");
+
                     $("#btnRemoveFile").addClass("d-none");
+
                 } else {
+
+                    console.log("[16.4] btnImportFile enabled -> แสดง btnRemoveFile");
+
                     $("#btnRemoveFile").removeClass("d-none");
                 }
             }
+
+            console.log("[17] UI update เสร็จแล้ว");
+
             if (showSwal) {
+
+                console.log("[18] กำลัง stopLoading + แสดง success Swal");
+
                 stopLoading(true);
+
                 Swal.fire({
                     title: "แนบเอกสารสำเร็จ",
                     text: `บันทึกไฟล์ ${returnedFileName} เรียบร้อยแล้ว`,
@@ -2943,49 +3159,144 @@ async function uploadCampaignFile(fileInputEl, isModal = false, showSwal = true)
                     timer: 2000,
                     showConfirmButton: false
                 });
+
+                console.log("[18.1] Success Swal ถูกเรียกแล้ว");
             }
+
+            console.log("[19] ✅ uploadCampaignFile SUCCESS");
+            console.log("========== uploadCampaignFile END ==========");
+
             return data;
+
         } else {
+
+            console.log("[20] ❌ Server response ไม่ใช่ success:", data);
+
             if (showSwal) {
+
+                console.log("[20.1] แสดง Error Swal");
+
                 stopLoading(true);
+
                 Swal.fire({
                     title: "เกิดข้อผิดพลาดในการแนบไฟล์",
                     text: data.message || "ไม่สามารถอัปโหลดไฟล์ได้",
                     icon: "error"
                 });
             }
+
             fileInputEl.value = '';
+
+            console.log("[20.2] reset file input");
+
             if (isModal) {
-                $("#modalSelectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+
+                console.log("[20.3] ซ่อน modal file display");
+
+                $("#modalSelectedFileNameDisplay")
+                    .addClass("d-none")
+                    .removeClass("d-flex")
+                    .hide();
+
             } else {
-                $("#selectedFileNameDisplay").addClass("d-none").removeClass("d-flex").hide();
+
+                console.log("[20.3] ซ่อน main file display");
+
+                $("#selectedFileNameDisplay")
+                    .addClass("d-none")
+                    .removeClass("d-flex")
+                    .hide();
             }
+
+            console.log("[21] return server error");
+
             return data;
         }
+
     } catch (err) {
-        console.error("Upload error:", err);
+
+        console.error("========== ❌ UPLOAD ERROR ==========");
+        console.error("[ERROR] err:", err);
+        console.error("[ERROR] message:", err.message);
+        console.error("[ERROR] stack:", err.stack);
+
         if (showSwal) {
+
+            console.log("[22] แสดง connection error Swal");
+
             stopLoading(true);
+
             Swal.fire({
                 title: "เกิดข้อผิดพลาด",
                 text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ในการอัปโหลดไฟล์",
                 icon: "error"
             });
         }
-        return { status: "error", message: err.message };
+
+        console.log("[23] return catch error");
+
+        return {
+            status: "error",
+            message: err.message
+        };
+
     } finally {
+
+        console.log("[24] finally -> stopLoading(true)");
+
         stopLoading(true);
+
+        console.log("[25] ========== uploadCampaignFile FINISHED ==========");
     }
 }
 
-$("#btnGotoETL").off("click").on("click", function () {
+$("#btnGotoETL").off("click").on("click", async function () {
+    const config = await fetch('/api/config').then(res => res.json());
+    let ETL_URL = config.etL_URL;
+    ETL_URL += "?type=1&id=" + selectedCampaignCode + "&user=" + encodeURIComponent(window.CURRENT_USER_ID);
+    // console.log("ETL_URL:", ETL_URL);
     if ($(this).prop("disabled") || !selectedCampaignCode) return;
-    var url = "http://172.16.17.73:8032/ImportExcel/LinkCRM?type=1&id=" + selectedCampaignCode + "&user=" + encodeURIComponent(window.CURRENT_USER_ID);
-    window.open(url);
+    window.open(ETL_URL);
 });
 
-$("#btnSearch").off("click").on("click", function () {
-    SearchCampaign();
+$("#btnDeleteETL").off("click").on("click", async function () {
+
+            Swal.fire({
+            title: "ยืนยันการลบข้อมูล ETL",
+            text: `ต้องการลบข้อมูล ETL ของแคมเปญ "${selectedCampaignCode}" หรือไม่`,
+            showCancelButton: true,
+            confirmButtonColor: "#dc3545",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: "🗑️ ยืนยันลบข้อมูล",
+            cancelButtonText: "ยกเลิก",
+            reverseButtons: true,
+            focusCancel: true
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                startLoading("กำลังลบข้อมูล ETL", "");
+
+                try {
+
+                    const response = await fetch(`/Campain/DeleteETLFromProductCode?ProductCode=${selectedCampaignCode}`, {
+                        method: 'PUT'
+                    });
+                        
+                    const data = await response.json();
+
+                    if (data.status === "success") {
+                        Swal.fire({ title: "ลบสำเร็จ", text: `ลบข้อมูล ETL ในแคมเปญ ${selectedCampaignCode} เรียบร้อยแล้ว`, icon: "success" });
+                    } else {
+                        Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
+                    }
+                } catch (error) {
+                    console.error(error);
+                    Swal.fire({ title: "เกิดข้อผิดพลาด", text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้", icon: "error" });
+                } finally {
+                    stopLoading();
+                }
+            }
+        });
+
 });
 
 $("#campaignSearchInput").off("keydown").on("keydown", function (e) {

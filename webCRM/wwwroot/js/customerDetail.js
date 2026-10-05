@@ -17,11 +17,10 @@ let currentContactLoadPromise = Promise.resolve(null);
 const contactInfoCache = new Map();
 const receiveListCache = new Map();
 const claimListCache = new Map();
-// Customer-level caches so re-opening a previously viewed customer does not
-// re-fetch anything. Keyed by the value each endpoint actually depends on.
-const pdpaCache = new Map();        // key: company code
-const checkPdpaCache = new Map();   // key: idno
-const contactListCache = new Map(); // key: idno (GetContact payload)
+
+const pdpaCache = new Map();
+const checkPdpaCache = new Map();
+const contactListCache = new Map();
 
 async function getPDPAbg(checkPDPA, company) {
 
@@ -55,6 +54,7 @@ async function getPDPAbg(checkPDPA, company) {
 
 async function getmaster() {
     try {
+        // const response = await fetch('/crmweb/Home/GetMaster');
         const response = await fetch('/Home/GetMaster');
         masterData = await response.json();
         renderCompanyTabs();
@@ -780,6 +780,7 @@ async function performSearch() {
             startLoading('กำลังค้นหาข้อมูล...', 'ระบบกำลังค้นหาข้อมูลลูกค้า กรุณารอสักครู่...');
             const originalText = searchBtn.innerHTML;
             searchBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังค้นหา...';
+            // const response = await fetch('/crmweb/CustomerDetail/GetCustomerList?idno=' + encodeURIComponent(searchValue));
             const response = await fetch('/CustomerDetail/GetCustomerList?idno=' + encodeURIComponent(searchValue));
 
             if (response.ok) {
@@ -847,29 +848,10 @@ async function performSearch() {
                     renderCompanyTabs(currentCustomerSearchData);
                     currentContactLoadPromise = getContact(searchValue);
 
-                    tbody.onclick = async function(e) {
-                        // The inline contract toggle has its own delegated handler.
-                        if (e.target.closest('.customer-contract-inline-toggle')) return;
-                        
-                        let clickedRow = e.target.closest('tr[data-index]');
-                        if (!clickedRow) {
-                            const cardRow = e.target.closest('tr.customer-contract-card-row');
-                            if (cardRow) {
-                                const cardIdx = cardRow.dataset.cardIndex;
-                                clickedRow = tbody.querySelector(`tr[data-index="${cardIdx}"]`);
-                            }
-                        }
-                        if (!clickedRow || clickedRow.dataset.index == null) return;
-                        if (clickedRow.classList.contains('active-row')) return;
-
-                        setActiveCustomerRow(tbody, clickedRow);
-
-                        const idx = parseInt(clickedRow.dataset.index);
-                        const selectedCust = data[idx];
-                        if (selectedCust) {
-                            await loadCustomerSelection(selectedCust, idx);
-                        }
-                    };
+                    // Row selection, loading, and contract-card expand/collapse
+                    // are all handled by the delegated document-level click
+                    // handler so that clicking anywhere on a customer row (not
+                    // just the chevron) expands its contract details.
 
                     showLoading(
                         'กำลังประมวลผลข้อมูล...',
@@ -1716,9 +1698,6 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
     if (clickedRow && clickedRow.classList.contains('active-row')) return;
     const requestId = ++currentContactInfoRequestId;
 
-    // Open the contract detail component immediately and render loading inside
-    // that component. This keeps the customer/contract list interactive so the
-    // user can select another item while the current request is still loading.
     setContractTabEnabled(true);
     const contractTab = document.querySelector('.crm-tabs .nav-link[data-target="tab-content-contract"]');
     if (contractTab && !contractTab.classList.contains('active')) {
@@ -2050,7 +2029,8 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             document.getElementById("loan-detail-last-due-date").innerText = formatDate(contract.enddte);
             document.getElementById("loan-detail-termpaid").innerText = contract.termpaid || '-';
             document.getElementById("loan-detail-close-date").innerText = formatDate(contract.settledte);
-            document.getElementById("loan-detail-overdue-days").innerText = formatValues(contract.DPD);
+            // document.getElementById("loan-detail-overdue-days").innerText = formatValues(contract.DPD) || '-';
+                        document.getElementById("loan-detail-overdue-days").innerText = contract.DPD;
             document.getElementById("loan-detail-installment-amount").innerText = formatValues(contract.instamt) || '-';
             document.getElementById("loan-detail-overdue-terms").innerText = contract.totalOvd || '-';
             document.getElementById("loan-detail-insurance-due-date").innerText = formatDate(contract.insurancedte);
@@ -2310,19 +2290,32 @@ document.addEventListener('DOMContentLoaded', function () {
     startReplyTimeClock();
 });
 
-// Expand/collapse contract detail from the inline control in the customer row.
-// When collapsed, the separate detail row is completely hidden, leaving one row.
 document.addEventListener('click', function (e) {
+    // Allow expanding/collapsing the contract card by clicking anywhere on the
+    // customer row, not only the chevron toggle button.
     const toggle = e.target.closest('.customer-contract-inline-toggle');
-    if (!toggle) return;
+    const customerRowClicked = e.target.closest('#searchResultBody tr[data-index]');
+
+    if (!toggle && !customerRowClicked) return;
+
+    // Ignore clicks on interactive elements inside the row (links, buttons,
+    // inputs) so they keep their own behaviour, except the chevron toggle.
+    if (!toggle && customerRowClicked) {
+        const interactive = e.target.closest('a, button, input, select, textarea, [data-bs-toggle]');
+        if (interactive && !interactive.classList.contains('customer-contract-inline-toggle')) return;
+    }
 
     e.preventDefault();
     e.stopPropagation();
 
-    const index = toggle.getAttribute('data-card-index');
+    const index = toggle
+        ? toggle.getAttribute('data-card-index')
+        : customerRowClicked.getAttribute('data-index');
     const cardRow = document.querySelector(`#searchResultBody tr.customer-contract-card-row[data-card-index="${index}"]`);
     const customerRow = document.querySelector(`#searchResultBody tr[data-index="${index}"]`);
     if (!cardRow || !customerRow) return;
+
+    const inlineToggle = toggle || customerRow.querySelector('.customer-contract-inline-toggle');
 
     const wasActive = customerRow.classList.contains('active-row');
     setActiveCustomerRow(customerRow.closest('tbody'), customerRow);
@@ -2357,19 +2350,21 @@ document.addEventListener('click', function (e) {
     cardRow.dataset.expanded = willOpen ? 'true' : 'false';
     cardRow.classList.toggle('d-none', !willOpen);
     customerRow.classList.toggle('contract-expanded', willOpen);
-    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (inlineToggle) {
+        inlineToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
 
-    const chevron = toggle.querySelector('.customer-contract-inline-chevron');
-    if (chevron) {
-        chevron.classList.toggle('bi-chevron-down', !willOpen);
-        chevron.classList.toggle('bi-chevron-up', willOpen);
+        const chevron = inlineToggle.querySelector('.customer-contract-inline-chevron');
+        if (chevron) {
+            chevron.classList.toggle('bi-chevron-down', !willOpen);
+            chevron.classList.toggle('bi-chevron-up', willOpen);
+        }
     }
 
     if (!willOpen) return;
 
-    const company = toggle.getAttribute('data-company') || '';
-    const targetKey = decodeURIComponent(toggle.getAttribute('data-target-key') || '');
-    const encodedContract = toggle.getAttribute('data-contract') || '';
+    const company = inlineToggle?.getAttribute('data-company') || '';
+    const targetKey = decodeURIComponent(inlineToggle?.getAttribute('data-target-key') || '');
+    const encodedContract = inlineToggle?.getAttribute('data-contract') || '';
     if (company && encodedContract && typeof getContactInfo === 'function') {
         getContactInfo(targetKey, company, encodedContract, null);
     }

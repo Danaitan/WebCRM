@@ -1804,6 +1804,12 @@ async function switchOwnRole(roleId, roleName) {
             showLoading('กำลังเปลี่ยนบทบาท', 'ระบบกำลังปรับบทบาทของคุณ กรุณารอสักครู่...');
         }
 
+        // const response = await fetch('/crmweb/Layout/SwitchRole', {
+        //     method: 'POST',
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify({ role_id: roleId, role_name: roleName })
+        // });
+
         const response = await fetch('/Layout/SwitchRole', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

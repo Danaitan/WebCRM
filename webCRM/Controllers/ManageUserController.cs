@@ -148,15 +148,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "PostCRMPersonalRole",
-                //     targetId: request.role_id ?? "",
-                //     targetType: "ROLE",
-                //     message: "PostCRMPersonalRole successfully",
-                //     module: "PostCRMPersonalRole"
-                // );
-
                 return Ok(new
                 {
                     status = "success"
@@ -208,15 +199,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "postPageRole",
-                //     targetId: request.RoleId ?? "",
-                //     targetType: "ROLE",
-                //     message: "postPageRole successfully",
-                //     module: "postPageRole"
-                // );
-
                 return Ok(new
                 {
                     status = "success"
@@ -266,15 +248,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "postCRMRole",
-                //     targetId: "",
-                //     targetType: "ROLE",
-                //     message: "postCRMRole successfully",
-                //     module: "postCRMRole"
-                // );
-
                 return Ok(new
                 {
                     status = "success"
@@ -323,15 +296,6 @@ namespace webCRM.Controllers
                         detail = result.Response
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "deleteCRMRole",
-                //     targetId: request.role_id ?? "",
-                //     targetType: "ROLE",
-                //     message: "deleteCRMRole successfully",
-                //     module: "deleteCRMRole"
-                // );
 
                 return Ok(new
                 {
@@ -387,15 +351,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "deleteCRMPersonalRole",
-                //     targetId: request.role_id ?? "",
-                //     targetType: "ROLE",
-                //     message: "deleteCRMPersonalRole successfully",
-                //     module: "deleteCRMPersonalRole"
-                // );
-
                 return Ok(new
                 {
                     status = "success"
@@ -439,15 +394,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "updateStatusPersonalRole",
-                //     targetId: request.user ?? "",
-                //     targetType: "USER",
-                //     message : "updateStatusPersonalRole successfully",
-                //     module: "updateStatusPersonalRole"
-                // );
-
                 return Ok(new
                 {
                     status = "success",
@@ -488,15 +434,6 @@ namespace webCRM.Controllers
                         detail = result.Response
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "UpdateCRMRole",
-                //     targetId: request.user ?? "",
-                //     targetType: "USER",
-                //     message : "updateCRMRole successfully",
-                //     module: "updateCRMRole"
-                // );
 
                 return Ok(new
                 {
@@ -586,15 +523,6 @@ namespace webCRM.Controllers
                     });
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "UpsertRoleFunc",
-                //     targetId: request.user ?? "",
-                //     targetType: "USER",
-                //     message: "UpsertRoleFunc successfully",
-                //     module: "UpsertRoleFunc"
-                // );
-
                 return Ok(new
                 {
                     status = "success"
@@ -634,15 +562,6 @@ namespace webCRM.Controllers
                         detail = result.Response
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "UpdateVariableFunc",
-                //     targetId: request.user ?? "",
-                //     targetType: "USER",
-                //     message : "UpdateVariableFunc successfully",
-                //     module: "UpdateVariableFunc"
-                // );
 
                 return Ok(new
                 {

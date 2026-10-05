@@ -299,13 +299,16 @@
                     </div>
                 </div>
                 
-                <div class="mt-3 mb-3">
-                @if (isCampaignCreate)
-                {
-                    <button class="btn btn-success w-100" type="button" id="btnGotoETL" disabled>
-                        ไปยังระบบ Data ETL 
-                    </button>
-                }
+                <div class="mt-3 mb-3 d-flex gap-5">
+                    @if (isCampaignCreate)
+                    {
+                        <button class="btn btn-success w-100" type="button" id="btnGotoETL" disabled>
+                            ไปยังระบบ Data ETL 
+                        </button>
+                        <button class="btn btn-danger w-100" type="button" id="btnDeleteETL" disabled>
+                            ลบข้อมูล ETL
+                        </button>
+                    }
                 </div>
                 <!-- Bottom Action Buttons -->
                 <div class="bottom-actions-row">

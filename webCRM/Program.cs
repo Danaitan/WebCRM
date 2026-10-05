@@ -27,6 +27,9 @@ if (string.IsNullOrWhiteSpace(bearerToken))
     throw new InvalidOperationException("ApiSettings:BearerToken is not configured.");
 }
 
+// Logs every outbound CRM API call to LOG_URL.
+builder.Services.AddTransient<CrmApiLoggingHandler>();
+
 builder.Services.AddHttpClient("CRMApi", client =>
 {
     client.BaseAddress = new Uri($"{apiDomain.TrimEnd('/')}/crm/api/v1/");
@@ -35,6 +38,7 @@ builder.Services.AddHttpClient("CRMApi", client =>
 
     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 })
+.AddHttpMessageHandler<CrmApiLoggingHandler>()
 .ConfigurePrimaryHttpMessageHandler(() =>
 {
     return new HttpClientHandler
@@ -47,6 +51,14 @@ builder.Services.AddHttpClient("CRMApi", client =>
 builder.Services.AddScoped<CRMService>();
 var app = builder.Build();
 
+app.MapGet("/api/config", () =>
+{
+    return new
+    {
+        ETL_URL = Environment.GetEnvironmentVariable("ETL_URL")
+    };
+});
+        
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -79,7 +91,7 @@ app.UseRequestLocalization(localizationOptions);
 
 app.UseStaticFiles();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseRouting();
 

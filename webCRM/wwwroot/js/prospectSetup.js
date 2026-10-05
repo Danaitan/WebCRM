@@ -94,6 +94,7 @@ function rebuildBatchMatchIndex() {
 
 async function getProductStatus() { 
     try {
+        // const response = await fetch('/crmweb/Campain/getProductStatus');
         const response = await fetch('/Campain/getProductStatus');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1259,8 +1260,6 @@ function isRowInCampaignBranch(item, campaignOffcde) {
     const campaignBranches = offcde.split(',').map(s => s.trim()).filter(Boolean);
     if (campaignBranches.length === 0) return true;
 
-    // ดึงรหัสสาขาจากข้อมูลแถว — ใช้ contractoffcde/offcde เป็นหลักเหมือนหน้า productApprove
-    // แล้ว fallback ไปที่การแยกรหัสนำหน้าจากชื่อสาขา ("07-ขอนแก่น" -> "07")
     let rowCode = String(
         item?.contractoffcde || item?.ContractOffCde ||
         item?.offcde || item?.Offcde || ''
@@ -1268,14 +1267,10 @@ function isRowInCampaignBranch(item, campaignOffcde) {
 
     if (!rowCode) {
         const rawBranch = String(item?.branchName || item?.Branch_name || '').trim();
-        // ไม่มีข้อมูลสาขาในแถว (เช่น branchName เป็น null): ปล่อยผ่าน
-        // เพราะฝั่ง server ได้กรองด้วยพารามิเตอร์ branch=<offcde> มาแล้ว
-        // การกรองซ้ำฝั่ง client ไม่ควรทิ้งแถวที่ไม่มีรหัสสาขาให้เทียบ
         if (!rawBranch) return true;
-        // แยกเอาเฉพาะรหัสนำหน้า (ก่อน "-") เช่น "07-ขอนแก่น" -> "07"
         rowCode = rawBranch.split('-')[0].trim();
     }
-    // เทียบรหัสสาขาไม่ได้ (แถวไม่มีรหัส): ปล่อยผ่านเช่นกัน เพราะ server กรองมาแล้ว
+
     if (!rowCode) return true;
 
     const rowClean = rowCode.replace(/^0+/, '');
@@ -1351,8 +1346,6 @@ async function getProspect(signal = null) {
     }
 }
 
-// คำนวณสถานะการเลือกของแถวจาก item เดียว ใช้ร่วมกันทั้งการ render และ select-all
-// ใช้ batchMatchIndex (O(1) lookup) แทนการ find ทั้ง array ต่อแถว เพื่อรองรับข้อมูลจำนวนมาก
 function getProspectRowState(item) {
     const idno = item.idno || '-';
     const id = item.id || item.Id || '-';
@@ -1366,10 +1359,6 @@ function getProspectRowState(item) {
         ? String(id).trim()
         : (idno && idno !== '-' ? String(idno).trim() : '');
 
-    // selKey = key ที่ใช้เก็บ "รายการที่เลือก" ต้อง unique ต่อแถวเสมอ
-    // ใช้ _rowUid ที่ฝังไว้ตอนโหลดข้อมูล (unique ต่อแถวจริง) เป็นหลัก
-    // เพื่อให้เลือกได้ครบทุกแถว แม้ idno+contno ซ้ำกันจริง หรือ contno ว่าง
-    // fallback เป็น idno||contno แล้วค่อย idStr เผื่อกรณีไม่มี _rowUid (เช่น batch ที่ save แล้ว)
     const selKey = item._rowUid || makeIdnoContnoKey(idno, contno) || idStr;
 
     const { batchIds, batchNames, savedIds } = batchMatchIndex;
@@ -1638,14 +1627,11 @@ async function loadProspectList(page = 1, pageSize = 10) {
                     contno: item?.contno || ''
                 });
             }
-            // ฝัง _rowUid unique ต่อแถว เพื่อใช้เป็น key เก็บ "รายการที่เลือก"
-            // รับประกันเลือกได้ครบทุกแถว แม้ idno+contno ซ้ำกันจริง หรือ contno ว่าง
+
             item._rowUid = `row_${_rowUidSeq++}`;
-            // dedup ด้วย idno เพื่อตัดแถวซ้ำที่ SP อาจคืนมาต่างกันแต่ละ request
-            // if (!idno || !seenIdnos.has(idno)) {
                 if (idno) seenIdnos.add(idno);
                 uniqueData.push(item);
-            // }
+
         }
 
         // กรองตามสาขาและตัดลูกค้าที่อยู่ในรายการที่เลือกแล้ว (batch + manual) ด้วย idno
@@ -1665,17 +1651,11 @@ async function loadProspectList(page = 1, pageSize = 10) {
             return true;
         });
 
-        // จำนวนที่ถูกซ่อนเพราะอยู่ในรายการที่เลือก ใช้หักออกจาก API total ตอนแสดง "พบ X รายการ"
         prospectHiddenBySelectionCount = hiddenBySelectionCount;
 
-        // แสดงเฉพาะข้อมูลที่ผ่านการ dedup (idno) + กรองสาขา + ตัดรายการที่เลือกแล้วออก (rawData)
-        // เพื่อให้จำนวนแถวในตาราง = จำนวนที่ "เลือกทั้งหมด" ทำได้จริง (ไม่มีแถวซ้ำ/แถวที่เลือกไม่ได้)
-        // และให้ "พบ X รายการ" อ้างอิงจากจำนวนแถวจริงในตาราง ไม่ใช่ยอดดิบจาก SP ที่มีแถวซ้ำ
         prospectAuthoritativeTotal = rawData.length;
         prospectHiddenBySelectionCount = 0;
 
-        // เรียงรายการลูกค้าตาม idno (น้อยไปมาก) ก่อนแสดง
-        // ถ้า idno เป็นตัวเลขทั้งคู่ให้เทียบแบบตัวเลข ไม่งั้น fallback เป็นการเทียบข้อความ
         rawData.sort((a, b) => {
             const aId = normalizeIdno(a?.idno);
             const bId = normalizeIdno(b?.idno);
@@ -2336,20 +2316,15 @@ document.addEventListener('DOMContentLoaded', async function () {
                 startLoading("กำลังบันทึกข้อมูล...", "");
                 try {
                     const currentSelected = getSelectedList();
-                    // บันทึกเฉพาะรายการที่ "เพิ่มใหม่" (ยังไม่ถูกบันทึกลง batch) เท่านั้น
-                    // รายการที่มีอยู่ใน batch แล้ว (isBatchCustomer === true) ไม่ต้องส่งซ้ำ
                     const newlyAdded = currentSelected.filter(c => c && c.isBatchCustomer === false);
 
-                    // ส่งรายการที่เพิ่มใหม่ไปทั้งหมด ไม่คัด idno/contno ที่ซ้ำกับของเดิมออก
-                    // เพื่อให้ข้อมูลครบ (การกันซ้ำใช้เกณฑ์ idno + contno ตอนติ๊กเลือกแล้ว)
-                    // เก็บ idno + contno เป็นคู่ในลูปเดียว เพื่อให้ index ของสอง array ตรงกัน
                     const selectedIdnos = [];
                     const selectedContnos = [];
                     newlyAdded.forEach(c => {
                         const idno = normalizeIdno(c.idno);
-                        if (!idno) return; // ต้องมี idno เป็น key ในการบันทึก
+                        if (!idno) return;
                         selectedIdnos.push(idno);
-                        // แถวที่ไม่มีเลขสัญญา ให้ส่ง contno เป็น "-" (ไม่ใช่ค่าว่าง) เพื่อให้บันทึกเข้าไปด้วย
+
                         const contno = normalizeIdno(c.contno);
                         selectedContnos.push(contno && contno !== '-' ? contno : '-');
                     });
@@ -2489,7 +2464,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                         var request = {
                             title: "Campaign Waiting Approve",
-                            message: `Campaign ${selectedCampaign.code} (${selectedCampaign.product_name}) ถูกส่งอนุมัติโดย ${typeof userFullNameTh !== 'undefined' ? userFullNameTh : ''}`,
+                            message: `Campaign ${selectedCampaign.code} (${selectedCampaign.name}) ถูกส่งอนุมัติโดย ${typeof userFullNameTh !== 'undefined' ? userFullNameTh : ''}`,
                             sender: userId,
                         };
 

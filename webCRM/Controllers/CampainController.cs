@@ -11,8 +11,8 @@ using webCRM.Services;
 namespace webCRM.Controllers
 {
     public class CampainController(
-        CRMService crmService,
-        IWebHostEnvironment webHostEnvironment
+        CRMService crmService
+        //,IWebHostEnvironment webHostEnvironment
         ) : Controller
     {
         public async Task<IActionResult> Index()
@@ -82,15 +82,6 @@ namespace webCRM.Controllers
 
                 if (result.Success)
                 {
-                    // await ActivityLogger.SendAsync(
-                    //     HttpContext,
-                    //     action: "Remove Campaign",
-                    //     targetId: productId,
-                    //     targetType: "Campaign",
-                    //     message: "Remove campaign successfully",
-                    //     module: "putProductRemove"
-                    // );
-
                     return "Remove Success";
                 }
 
@@ -141,15 +132,6 @@ namespace webCRM.Controllers
                         detail = result.Response
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "Post Campaign",
-                //     targetId: "",
-                //     targetType: "Campaign",
-                //     message: "Post campaign successfully",
-                //     module: "postNewProduct"
-                // );
 
                 return Ok(new
                 {
@@ -300,15 +282,6 @@ namespace webCRM.Controllers
                         detail = result.Response
                     });
                 }
-
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "Update Campaign",
-                //     targetId: request.ProductInfo?.Id ?? "",
-                //     targetType: "Campaign",
-                //     message: "Update campaign successfully",
-                //     module: "putProductsPhase3"
-                // );
 
                 return Ok(new
                 {
@@ -1248,6 +1221,41 @@ namespace webCRM.Controllers
                 return Content(
                     $"\"เกิดข้อผิดพลาดในการโหลดข้อมูล: {ex.Message}\"",
                     "application/json");
+            }
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> DeleteETLFromProductCode(string ProductCode)
+        {
+            try
+            {
+                var result =
+                    await crmService.DeleteETLFromProductCode(ProductCode);
+
+                //if (!result.Success)
+                //{
+                //    return Ok(new
+                //    {
+                //        status = "error",
+                //        message =
+                //            $"API responded with status code: {result.StatusCode}",
+                //        detail = result.Response
+                //    });
+                //}
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    status = "error",
+                    message = "Error updating file: " + ex.Message
+                });
             }
         }
 

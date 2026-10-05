@@ -276,7 +276,7 @@ namespace webCRM.Models
         public decimal? Ltv { get; set; }
 
         [JsonPropertyName("DPD")]
-        public int? DPD { get; set; }
+        public string? DPD { get; set; }
 
         [JsonPropertyName("aprvsts")]
         public string? Aprvsts { get; set; }
@@ -426,7 +426,7 @@ namespace webCRM.Models
         public int? TotalOvd { get; set; }
 
         [JsonPropertyName("DPD")]
-        public int? DPD { get; set; }
+        public string? DPD { get; set; }
 
         [JsonPropertyName("rateFlat")]
         [JsonConverter(typeof(NumberToStringConverter))]

@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using webCRM.Models;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace webCRM.Services
 {
@@ -66,26 +67,56 @@ namespace webCRM.Services
             }
         }
 
-        // POST
-        private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
-        {
-            try
-            {
-                return await _httpClient.PostAsJsonAsync(
-                    endpoint,
-                    data,
-                    _jsonOptions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Error posting data to {Endpoint}",
-                    endpoint);
+private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
+{
+    var startTime = DateTime.Now;
 
-                throw;
-            }
-        }
+    try
+    {
+        _logger.LogInformation("========== PostAsync START ==========");
+        _logger.LogInformation("[1] Endpoint: {Endpoint}", endpoint);
+        _logger.LogInformation("[2] Data Type: {DataType}", typeof(T).FullName);
+        _logger.LogInformation("[3] Start Time: {StartTime}", startTime);
+
+        _logger.LogInformation("[4] Before PostAsJsonAsync");
+
+        var response = await _httpClient.PostAsJsonAsync(
+            endpoint,
+            data,
+            _jsonOptions);
+
+        var elapsed = DateTime.Now - startTime;
+
+        _logger.LogInformation("[5] After PostAsJsonAsync");
+        _logger.LogInformation("[6] Status Code: {StatusCode}", (int)response.StatusCode);
+        _logger.LogInformation("[7] Status: {Status}", response.StatusCode);
+        _logger.LogInformation("[8] IsSuccessStatusCode: {IsSuccessStatusCode}", response.IsSuccessStatusCode);
+        _logger.LogInformation("[9] Elapsed: {ElapsedSeconds:F2} seconds", elapsed.TotalSeconds);
+        _logger.LogInformation("========== PostAsync END ==========");
+
+        return response;
+    }
+    catch (Exception ex)
+    {
+        var elapsed = DateTime.Now - startTime;
+
+        _logger.LogError(
+            ex,
+            "========== PostAsync ERROR ==========\n" +
+            "Endpoint: {Endpoint}\n" +
+            "Data Type: {DataType}\n" +
+            "Elapsed: {ElapsedSeconds:F2} seconds\n" +
+            "Exception Type: {ExceptionType}\n" +
+            "Message: {Message}",
+            endpoint,
+            typeof(T).FullName,
+            elapsed.TotalSeconds,
+            ex.GetType().FullName,
+            ex.Message);
+
+        throw;
+    }
+}
 
         // PUT
         private async Task<HttpResponseMessage> PutAsync<T>(string endpoint, T data)
@@ -426,6 +457,7 @@ namespace webCRM.Services
                 throw;
             }
         }
+        
         public async Task<string> GetProspect(int page = 1, int pageSize = 10)
         {
             try
@@ -1556,19 +1588,16 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<string> GetStaffList(string branchId)
+        public async Task<string> GetStaffList()
         {
             try
             {
                 return await GetStringAsync(
-                    $"p2/getStaffList/{Uri.EscapeDataString(branchId)}");
+                    $"p2/getStaffList");
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Error loading StaffList for BranchId: {BranchId}",
-                    branchId);
+                _logger.LogError("Error loading StaffList for BranchId: {BranchId}",ex);
 
                 throw;
             }
@@ -1702,18 +1731,15 @@ namespace webCRM.Services
         {
             try
             {
-                var queryParams =
-                    new Dictionary<string, string?>
+                // API changed to POST and reads all parameters from the request body.
+                var body =
+                    new Dictionary<string, object?>
                     {
                         ["isNotAssign"] = "true",
                         ["search"] = search ?? "",
+                        ["batch"] = string.IsNullOrWhiteSpace(batch) ? null : batch,
                         ["branch"] = branch ?? ""
                     };
-
-                if (!string.IsNullOrWhiteSpace(batch))
-                {
-                    queryParams["batch"] = batch;
-                }
 
                 if (request != null)
                 {
@@ -1725,19 +1751,19 @@ namespace webCRM.Services
                         var value =
                             prop.GetValue(request)?.ToString();
 
-                        if (!string.IsNullOrWhiteSpace(value))
-                        {
-                            queryParams[prop.Name] = value;
-                        }
+                        body[prop.Name] =
+                            string.IsNullOrWhiteSpace(value) ? null : value;
                     }
                 }
 
-                var endpoint =
-                    QueryHelpers.AddQueryString(
+                var response =
+                    await PostAsync(
                         "p2/getProspect_phase3",
-                        queryParams);
+                        body);
 
-                return await GetStringAsync(endpoint);
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadAsStringAsync();
             }
             catch (Exception ex)
             {
@@ -1853,18 +1879,18 @@ namespace webCRM.Services
         {
             try
             {
-                // fname / fcompany รองรับหลายค่าคั่นด้วย comma
-                // เช่น fname = "a,b,c", fcompany = "com1,com2"
-                var url =
-                    QueryHelpers.AddQueryString(
+                var response =
+                    await _httpClient.PostAsJsonAsync(
                         "p3/getFilterDropdown",
-                        new Dictionary<string, string?>
+                        new
                         {
-                            ["fname"] = fname ?? "",
-                            ["fcompany"] = fcompany ?? ""
+                            fname = fname ?? "",
+                            fcompany = fcompany ?? ""
                         });
 
-                return await GetStringAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadAsStringAsync();
             }
             catch (Exception ex)
             {
@@ -2476,14 +2502,39 @@ namespace webCRM.Services
             {
                 _logger.LogError(
                     ex,
-                    "Error loading getContnoByIdno. idno:",
+                    "Error loading getContnoByIdno. idno: {Idno}",
                     idno);
 
                 throw;
             }
         }
 
+        public async Task<(bool Success, int StatusCode, string Content)> DeleteETLFromProductCode(
+            string ProductCode)
+        {
+            try
+            {
+                var response = await PutAsync(
+                    "p3/deleteETLFromProductCode",
+                    ProductCode);
 
+                var content = await response.Content.ReadAsStringAsync();
+
+                return (
+                    response.IsSuccessStatusCode,
+                    (int)response.StatusCode,
+                    content
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error updating CRMRole");
+
+                throw;
+            }
+        }
 
     }
 }

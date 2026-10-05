@@ -66,15 +66,6 @@ namespace webCRM.Controllers
                     }
                 }
 
-                // await ActivityLogger.SendAsync(
-                //     HttpContext,
-                //     action: "postHistoryCall",
-                //     targetId: targetId,
-                //     targetType: "CUSTOMER",
-                //     message: "postHistoryCall successfully",
-                //     module: "postHistoryCall"
-                // );
-
                 return Content(
                     data,
                     "application/json");

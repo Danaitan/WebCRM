@@ -30,23 +30,36 @@ if (string.IsNullOrWhiteSpace(bearerToken))
 // Logs every outbound CRM API call to LOG_URL.
 builder.Services.AddTransient<CrmApiLoggingHandler>();
 
-builder.Services.AddHttpClient("CRMApi", client =>
+// builder.Services.AddHttpClient("CRMApi", client =>
+// {
+//     client.BaseAddress = new Uri($"{apiDomain.TrimEnd('/')}/crm/api/v1/");
+
+//     client.Timeout = TimeSpan.FromSeconds(30);
+
+//     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+// })
+// .AddHttpMessageHandler<CrmApiLoggingHandler>();
+
+var httpClientBuilder = builder.Services.AddHttpClient("CRMApi", client =>
 {
     client.BaseAddress = new Uri($"{apiDomain.TrimEnd('/')}/crm/api/v1/");
-
     client.Timeout = TimeSpan.FromSeconds(30);
-
-    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+    client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Bearer", bearerToken);
 })
-.AddHttpMessageHandler<CrmApiLoggingHandler>()
-.ConfigurePrimaryHttpMessageHandler(() =>
+.AddHttpMessageHandler<CrmApiLoggingHandler>();
+
+if (builder.Environment.IsDevelopment())
 {
-    return new HttpClientHandler
+    httpClientBuilder.ConfigurePrimaryHttpMessageHandler(() =>
     {
-        ServerCertificateCustomValidationCallback =
-            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-    };
-});
+        return new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        };
+    });
+}
 
 builder.Services.AddScoped<CRMService>();
 var app = builder.Build();

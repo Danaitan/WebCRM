@@ -1232,17 +1232,6 @@ namespace webCRM.Controllers
                 var result =
                     await crmService.DeleteETLFromProductCode(ProductCode);
 
-                //if (!result.Success)
-                //{
-                //    return Ok(new
-                //    {
-                //        status = "error",
-                //        message =
-                //            $"API responded with status code: {result.StatusCode}",
-                //        detail = result.Response
-                //    });
-                //}
-
                 return Ok(new
                 {
                     status = "success",

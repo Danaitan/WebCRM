@@ -231,13 +231,13 @@ namespace webCRM.Models
         public int? Termpaid { get; set; }
 
         [JsonPropertyName("totalOvd")]
-        public int? TotalOvd { get; set; }
+        public string? TotalOvd { get; set; }
 
         [JsonPropertyName("rateFlat")]
         public string? RateFlat { get; set; }
 
         [JsonPropertyName("aging")]
-        public int? Aging { get; set; }
+        public string? Aging { get; set; }
 
         [JsonPropertyName("contsts")]
         public string? Contsts { get; set; }
@@ -423,7 +423,7 @@ namespace webCRM.Models
         public int? Termpaid { get; set; }
 
         [JsonPropertyName("totalOvd")]
-        public int? TotalOvd { get; set; }
+        public string? TotalOvd { get; set; }
 
         [JsonPropertyName("DPD")]
         public string? DPD { get; set; }
@@ -433,7 +433,7 @@ namespace webCRM.Models
         public string? RateFlat { get; set; }
 
         [JsonPropertyName("aging")]
-        public int? Aging { get; set; }
+        public string? Aging { get; set; }
 
         [JsonPropertyName("contsts")]
         public string? Contsts { get; set; }

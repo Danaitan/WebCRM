@@ -429,5 +429,29 @@ namespace webCRM.Controllers
             }
         }
     
+        [HttpPut]
+        public async Task<IActionResult> delProspectByProductcode(string ProductCode)
+        {
+            try
+            {
+                var result =
+                    await crmService.delProspectByProductcode(ProductCode);
+
+                return Ok(new
+                {
+                    status = "success",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    status = "error",
+                    message = "Error updating file: " + ex.Message
+                });
+            }
+        }
+
     }
 }

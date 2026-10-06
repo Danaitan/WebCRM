@@ -43,6 +43,14 @@ let selectableRowIdStrs = [];
 let prospectCustomerLookup = new Map();
 let selectableRowIdStrsKey = null;
 
+async function delProspectByProductcode (ProductCode){
+
+    const response = await fetch(`/ProspectSetup/delProspectByProductcode?ProductCode=${ProductCode}`, {
+        method: 'PUT'
+    });
+}
+
+
 function refreshSelectableRowIdStrs(force = false) {
     if (!prospectTable) {
         selectableRowIdStrs = [];
@@ -1005,11 +1013,8 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                         return;
                     }
 
-                    // เปิดใช้ Select2 ให้ dropdown ตัวเลือก (เช่น อำเภอที่อยู่สถานที่ใช้รถ) ค้นหาได้
                     initProspectFilterSelects();
-
                     await refreshSelectedCampaignCustomers();
-
                     if (requestId !== currentFilterRequestId) {
                         return;
                     }
@@ -1390,17 +1395,12 @@ function getProspectRowState(item) {
     };
 }
 
-// ตรวจว่าคู่ (idno + contno) นี้มีอยู่ใน "รายการที่เลือก" แล้วหรือไม่
-// ใช้กันการติ๊กสัญญาซ้ำที่ idno และ contno ตรงกันแต่คนละ id
-// ถ้าส่ง excludeIdStr มา จะไม่นับแถวที่เป็นตัวเดียวกัน (id เดียวกัน)
 function isIdnoContnoAlreadySelected(idno, contno, excludeIdStr = '') {
     const targetIdno = normalizeIdno(idno);
     const targetContno = normalizeIdno(contno);
-    // ต้องมีทั้ง idno และ contno จึงจะถือว่าเป็น "สัญญา" ที่นำมาเทียบซ้ำได้
+
     if (!targetIdno || !targetContno) return false;
-
     const exclude = String(excludeIdStr || '').trim();
-
     return getSelectedList().some(item => {
         const itemId = String(item.id || '').trim();
         if (exclude && itemId === exclude) return false;
@@ -1634,10 +1634,7 @@ async function loadProspectList(page = 1, pageSize = 10) {
 
         }
 
-        // กรองตามสาขาและตัดลูกค้าที่อยู่ในรายการที่เลือกแล้ว (batch + manual) ด้วย idno
         const campaignOffcde = selectedCampaign ? selectedCampaign.offcde : '';
-        // ซ่อนแถวที่อยู่ใน "รายการที่เลือก" แล้ว โดยเทียบทั้ง idno และเลขที่สัญญา (contno)
-        // จะถือว่าซ้ำ (และซ่อน) ก็ต่อเมื่อทั้งคู่ตรงกัน
         const selectedKeys = getAllSelectedIdnoContnoKeys();
         let hiddenBySelectionCount = 0;
 
@@ -1873,22 +1870,26 @@ function isProspectSelectionAllowed() {
 function updateSendForApprovalButtonState() {
     const sendBtn = document.getElementById('sendForApprovalBtn');
     const saveBtn = document.getElementById('saveDraftBtn');
+    const delBtn = document.getElementById('btnDelSelected');
 
     const isWaitingProspect = isProspectSelectionAllowed();
 
     if (saveBtn) {
         const shouldDisableSave = !isWaitingProspect;
         saveBtn.disabled = shouldDisableSave;
+        delBtn.disabled = shouldDisableSave;
         if (shouldDisableSave) {
             saveBtn.classList.add('disabled');
             saveBtn.style.opacity = '0.5';
             saveBtn.style.pointerEvents = 'none';
             saveBtn.style.cursor = 'not-allowed';
+            delBtn.classList.add('disabled');
         } else {
             saveBtn.classList.remove('disabled');
             saveBtn.style.opacity = '1';
             saveBtn.style.pointerEvents = 'auto';
             saveBtn.style.cursor = 'pointer';
+            delBtn.classList.remove('disabled');
         }
     }
 
@@ -2719,4 +2720,37 @@ function extractCustomers(data) {
 $("#campaignStatusFilter").off("change").on("change", function () {
     currentBatchPage = 1;
     loadBatchList();
+});
+
+$("#btnDelSelected").off("click").on("click", async function () {
+
+            Swal.fire({
+            title: "ลบลูกค้าทั้งหมด",
+            text: `ต้องการลบลูกค้าที่เลือกทั้งหมด ของ ${selectedCampaign.code} ใช่หรือไม่?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#fd0d0d",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: 'ตกลง',
+            cancelButtonText: 'ยกเลิก',
+            reverseButtons: true
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await delProspectByProductcode(selectedCampaign.code);
+
+                // ล้าง state การเลือกในฝั่ง client เพื่อให้ "รายการที่เลือก" กลับเป็น 0
+                manuallySelectedCustomers.clear();
+                removedBatchCustomerIds.clear();
+                currentBatchCustomers = [];
+                currentSelectedPage = 1;
+
+                // โหลดรายการ prospect ใหม่ และ refresh ตาราง "รายการที่เลือก"
+                await loadProspectList(currentProspectPage, currentProspectPageSize);
+                await refreshSelectedCampaignCustomers();
+
+                updateSelectedList();
+                updateCheckAllStatus();
+            }
+        });
+
 });

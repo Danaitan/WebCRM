@@ -2536,5 +2536,36 @@ private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
             }
         }
 
+        public async Task<(bool Success, int StatusCode, string Content)> delProspectByProductcode(
+            string ProductCode)
+        {
+            try
+            {
+                var response = await _httpClient.PutAsJsonAsync(
+                    "p3/delProspectByProductcode",
+                    new { ProductCode },
+                    new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = null
+                    });
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                return (
+                    response.IsSuccessStatusCode,
+                    (int)response.StatusCode,
+                    content
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error updating CRMRole");
+
+                throw;
+            }
+        }
+
     }
 }

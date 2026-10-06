@@ -81,10 +81,6 @@ namespace webCRM.Controllers
             }
         }
 
-        // =========================================================
-        // Contact Info
-        // =========================================================
-
         [HttpGet]
         public async Task<IActionResult> GetContactInfo(
             string idno,
@@ -221,10 +217,6 @@ namespace webCRM.Controllers
                     "application/json");
             }
         }
-
-        // =========================================================
-        // Check PDPA
-        // =========================================================
 
         public async Task<IActionResult> GetCheckPDPA(
             string idno)

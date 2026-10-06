@@ -49,7 +49,12 @@ var httpClientBuilder = builder.Services.AddHttpClient("CRMApi", client =>
 })
 .AddHttpMessageHandler<CrmApiLoggingHandler>();
 
-if (builder.Environment.IsDevelopment())
+var isCheckCert = string.Equals(
+    Environment.GetEnvironmentVariable("isCheckCert"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+
+if (!isCheckCert)
 {
     httpClientBuilder.ConfigurePrimaryHttpMessageHandler(() =>
     {

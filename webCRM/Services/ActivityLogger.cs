@@ -31,7 +31,7 @@ namespace webCRM.Services
             string targetType = "",
             string message = "",
             string module = "",
-            string environment = "production",
+            string environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");,
             string appVersion = "3.0.0")
         {
             try

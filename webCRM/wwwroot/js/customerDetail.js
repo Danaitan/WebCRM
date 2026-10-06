@@ -1754,9 +1754,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
                 : null;
         }
         
-        // Show loading indicators for the whole box only when we actually need
-        // to fetch. For a cached contract we keep the current details visible
-        // and just swap in the cached values, avoiding any loading flash.
+
         if (!isCached) {
             document.getElementById("contract-loading-indicator").classList.remove("d-none");
             document.getElementById("contract-details-container").classList.add("d-none");
@@ -2018,7 +2016,11 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             //#region ข้อมูลสินเชื่อ
 
             document.getElementById("loan-detail-fianlamount").innerText = formatValues(contract.finamt);
-            document.getElementById("loan-detail-aging").innerText = (contract.aging !== undefined && contract.aging !== null && contract.aging !== '') ? 'D' + contract.aging : '-';
+            // document.getElementById("loan-detail-aging").innerText = (contract.aging !== undefined && contract.aging !== null && contract.aging !== '') ? 'D' + contract.aging : '-';
+            document.getElementById("loan-detail-aging").innerText =
+                (contract.aging !== undefined && contract.aging !== null && contract.aging !== '')
+                    ? (!isNaN(contract.aging) ? 'D' + contract.aging : contract.aging)
+                    : '-';
             document.getElementById("loan-detail-appraisal").innerText = " "+formatValues(contract.estimatePrice);
             document.getElementById("loan-detail-status").innerText = contract.contsts || '-';
             document.getElementById("loan-detail-ltv").innerText =  formatValues(contract.ltv);
@@ -2030,7 +2032,7 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             document.getElementById("loan-detail-termpaid").innerText = contract.termpaid || '-';
             document.getElementById("loan-detail-close-date").innerText = formatDate(contract.settledte);
             // document.getElementById("loan-detail-overdue-days").innerText = formatValues(contract.DPD) || '-';
-                        document.getElementById("loan-detail-overdue-days").innerText = contract.DPD;
+            document.getElementById("loan-detail-overdue-days").innerText = contract.DPD;
             document.getElementById("loan-detail-installment-amount").innerText = formatValues(contract.instamt) || '-';
             document.getElementById("loan-detail-overdue-terms").innerText = contract.totalOvd || '-';
             document.getElementById("loan-detail-insurance-due-date").innerText = formatDate(contract.insurancedte);

@@ -14,6 +14,83 @@ namespace webCRM.Services
     {
         private static string? LogUrl =>
             Environment.GetEnvironmentVariable("LOG_URL");
+        public static readonly Dictionary<string, string> ActionMap =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                // --- Login / Authentication ---
+                { "getProfileByPersonalCode", "เข้าสู่ระบบ" },
+                { "getPage",                  "ดึงข้อมูลหน้าMenu" },
+
+                // --- Campaign (แคมเปญ) ---
+                { "getProductsPhase3",           "ดึงรายการแคมเปญ" },
+                { "getProductFilterByGuid",      "ดึงตัวกรองแคมเปญ" },
+                { "getProductBatchByProductCode", "ดึงข้อมูล Batch แคมเปญ" },
+                { "getFilterDropdown",           "ดึงตัวเลือกตัวกรอง" },
+                { "getProductStatus",            "ดึงสถานะแคมเปญ" },
+                { "getCheckProductNo",           "ตรวจสอบเลขแคมเปญ" },
+                { "postNewProduct",              "สร้างแคมเปญใหม่" },
+                { "putProductsPhase3",           "แก้ไขแคมเปญ" },
+                { "putProductRemove",            "ลบแคมเปญ" },
+                { "postNewProductFilter",        "บันทึกตัวกรองแคมเปญ" },
+
+                // --- Prospect ---
+                { "getProspect_phase3",  "ดึงรายการ Prospect" },
+
+                // --- Master Data ---
+                { "getMasterObjective",  "ดึง Master Objective" },
+                { "getMasterFilter",     "ดึง Master Filter" },
+                { "getMasterDropdown",   "ดึง Master Dropdown" },
+                { "getBranchListForCRM", "ดึงรายการสาขา" },
+
+                // --- File ---
+                { "postFile",   "อัปโหลดไฟล์" },
+                { "getFile",    "ดึงไฟล์" },
+                { "updateFile", "อัปเดตไฟล์" },
+
+                // --- Customer ---
+                { "customerLists", "ดึงรายการลูกค้า" },
+                { "contactLists",  "ดึงรายการผู้ติดต่อ" },
+                { "contactInfo",   "ดึงข้อมูลผู้ติดต่อ" },
+                { "receiveInfo",   "ดึงข้อมูลการรับชำระ" },
+                { "claimInfo",     "ดึงข้อมูลการเคลม" },
+
+                // --- Notification ---
+                { "getNotification", "ดึงการแจ้งเตือน" },
+
+                // --- PDPA ---
+                { "getpdpa",      "ดึงข้อมูล PDPA" },
+                { "getCheckPDPA", "ตรวจสอบ PDPA" },
+
+                // --- Dashboard ---
+                { "callDashboard", "ดึง Dashboard การโทร" },
+                {"customerDashboard","ดึง Dashboard สัญญาลูกค้า"},
+
+                // --- master ---
+                {"master","ดึง master อีเมล"}
+            };
+
+        public static string ResolveActionName(string? endpoint, string? fallback = null)
+        {
+            if (string.IsNullOrWhiteSpace(endpoint))
+            {
+                return fallback ?? string.Empty;
+            }
+
+            string path = endpoint.Split('?')[0].TrimEnd('/');
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var segment in segments)
+            {
+                if (ActionMap.TryGetValue(segment, out var friendly))
+                {
+                    return friendly;
+                }
+            }
+
+            string lastSegment =
+                segments.LastOrDefault() ?? path;
+
+            return fallback ?? lastSegment;
+        }
 
         private static bool IsLogOn =>
             string.Equals(
@@ -37,8 +114,33 @@ namespace webCRM.Services
             new ErrorCode { error_code = "SYS-5001", http_status_code = "500", category = "DATABASE", default_message_en = "Database connection error or query failed", default_message_th = "ไม่สามารถเชื่อมต่อหรือประมวลผลฐานข้อมูลได้", log_level = "FATAL" },
             new ErrorCode { error_code = "SYS-5002", http_status_code = "502", category = "GATEWAY", default_message_en = "Bad gateway or upstream service error", default_message_th = "ระบบย่อยตอบกลับไม่ถูกต้อง", log_level = "ERROR" },
             new ErrorCode { error_code = "SYS-5003", http_status_code = "503", category = "SYSTEM", default_message_en = "Service temporarily unavailable", default_message_th = "ระบบปิดปรับปรุงชั่วคราว กรุณาลองใหม่ภายหลัง", log_level = "ERROR" },
-            new ErrorCode { error_code = "SYS-5004", http_status_code = "504", category = "TIMEOUT", default_message_en = "Service response timeout", default_message_th = "การเชื่อมต่อหมดเวลา (Timeout)", log_level = "ERROR" }
+            new ErrorCode { error_code = "SYS-5004", http_status_code = "504", category = "TIMEOUT", default_message_en = "Service response timeout", default_message_th = "การเชื่อมต่อหมดเวลา (Timeout)", log_level = "ERROR" },
+            new ErrorCode { error_code = "SYS-2000", http_status_code = "200", category = "SYSTEM", default_message_en = "OK", default_message_th = "OK", log_level = "INFO" },
+            new ErrorCode { error_code = "SYS-2001", http_status_code = "201", category = "SYSTEM", default_message_en = "Created", default_message_th = "สร้างแล้ว", log_level = "INFO" }
         };
+
+        private const string TraceIdSessionKey = "activityTraceId";
+
+        private static string GetOrCreateSessionTraceId(HttpContext httpContext)
+        {
+            var existing = httpContext.Session.GetString(TraceIdSessionKey);
+
+            if (!string.IsNullOrEmpty(existing))
+            {
+                return existing;
+            }
+
+            var traceId = Guid.NewGuid().ToString();
+            httpContext.Session.SetString(TraceIdSessionKey, traceId);
+            return traceId;
+        }
+
+        public static string ResetSessionTraceId(HttpContext httpContext)
+        {
+            var traceId = Guid.NewGuid().ToString();
+            httpContext.Session.SetString(TraceIdSessionKey, traceId);
+            return traceId;
+        }
 
         private static ErrorCode? ResolveErrorCode(string? code)
         {
@@ -72,18 +174,19 @@ namespace webCRM.Services
             string message = "",
             string module = "",
             string? environment = null,
-            string? appVersion = null
+            string? appVersion = null,
+            string? actorIdOverride = null
             )
         {
             try
             {
                 environment ??= Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                appVersion ??= Environment.GetEnvironmentVariable("appVersion") ?? "3.0.0";
-
                 if (!IsLogOn)
                 {
-                    Debug.WriteLine(
-                        "[ActivityLogger] isLogOn is not \"true\". Skipping log.");
+                    Console.WriteLine(
+                        "[ActivityLogger] isLogOn is not \"true\" (value: "
+                        + (Environment.GetEnvironmentVariable("isLogOn") ?? "")
+                        + "). Skipping log.");
                     return;
                 }
 
@@ -91,12 +194,12 @@ namespace webCRM.Services
 
                 if (string.IsNullOrWhiteSpace(logUrl))
                 {
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         "[ActivityLogger] WARNING: LOG_URL is not configured. Skipping log.");
                     return;
                 }
 
-                string traceId = Guid.NewGuid().ToString();
+                string traceId = string.Empty;
 
                 string clientIp = string.Empty;
                 string browser = string.Empty;
@@ -121,26 +224,35 @@ namespace webCRM.Services
                             httpContext.Session.GetString("personalId")
                             ?? string.Empty;
 
+                        if (string.IsNullOrEmpty(personnelCode)
+                            && !string.IsNullOrEmpty(actorIdOverride))
+                        {
+                            personnelCode = actorIdOverride;
+                        }
+
                         sessionId = httpContext.Session.Id;
+
+                        traceId = GetOrCreateSessionTraceId(httpContext);
                     }
                     catch
                     {
-                        // Session may not be available on every request path.
+
                     }
                 }
 
-                // แปลง code ที่รับเข้ามาให้เป็น error_code จาก catalog
-                // ถ้าหาเจอจะส่ง error_code (เช่น SYS-1000) และใช้ log_level จาก catalog
+                if (string.IsNullOrEmpty(personnelCode)
+                    && !string.IsNullOrEmpty(actorIdOverride))
+                {
+                    personnelCode = actorIdOverride;
+                }
+
                 var resolved = ResolveErrorCode(code);
 
                 string eventCode = resolved?.error_code ?? code ?? string.Empty;
 
                 string eventLogLevel = resolved?.log_level ?? "INFO";
 
-                var thaiTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(
-                    DateTime.UtcNow,
-                    "SE Asia Standard Time"
-                );
+                var eventTimestamp = DateTime.UtcNow.ToString("o");
                 var envelope = new
                 {
                     source_service = "WebCRM",
@@ -155,7 +267,7 @@ namespace webCRM.Services
                         new
                         {
 
-                            timestamp = thaiTime,
+                            timestamp = eventTimestamp,
                             trace_id = traceId,
                             log_level = eventLogLevel,
 
@@ -170,7 +282,7 @@ namespace webCRM.Services
                             actor = new
                             {
                                 id = personnelCode,
-                                type = "USER",
+                                type = "user",
                                 client_ip = clientIp,
                                 session_id = sessionId
                             },
@@ -195,7 +307,7 @@ namespace webCRM.Services
                     envelope,
                     new JsonSerializerOptions
                     {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
                     });
 
                 var handler = new HttpClientHandler
@@ -211,7 +323,13 @@ namespace webCRM.Services
                     Encoding.UTF8,
                     "application/json");
 
-                var token = Environment.GetEnvironmentVariable("LOG_Token");
+                // var token = httpContext?.Items["LogToken"] as string;
+                var token = Environment.GetEnvironmentVariable("LOG_Token") ?? "";;
+
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    token = httpContext?.Request.Cookies["LogToken"] ?? "";
+                }
 
                 if (!string.IsNullOrWhiteSpace(token))
                 {
@@ -220,12 +338,14 @@ namespace webCRM.Services
                 }
                 else
                 {
-                    Debug.WriteLine(
-                        "[ActivityLogger] WARNING: LOG_Token is not configured.");
+                    Console.WriteLine(
+                        "[ActivityLogger] WARNING: LogToken cookie is empty. Sending without Authorization header.");
                 }
 
-                Debug.WriteLine(
-                    $"[ActivityLogger] Sending POST {logUrl}");
+                // Console.WriteLine(
+                //     $"[ActivityLogger] Sending POST {logUrl}");
+                // Console.WriteLine(
+                //     $"[ActivityLogger] Payload: {json}");
 
                 var response = await client.PostAsync(
                     logUrl,
@@ -236,15 +356,15 @@ namespace webCRM.Services
                     var errorContent =
                         await response.Content.ReadAsStringAsync();
 
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         $"[ActivityLogger] HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
 
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         $"[ActivityLogger] Error Response Body: {errorContent}");
                 }
                 else
                 {
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         $"[ActivityLogger] Log sent successfully. HTTP {(int)response.StatusCode}");
                 }
 
@@ -252,7 +372,6 @@ namespace webCRM.Services
             }
             catch (Exception ex)
             {
-                // Logging failure must NOT break the main application.
                 Console.WriteLine(
                     $"[ActivityLogger] Exception: {ex.GetType().Name}: {ex.Message}");
 

@@ -1,17 +1,18 @@
-using webCRM.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using webCRM.Models;
 using webCRM.Services;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.IdentityModel.Tokens;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace webCRM.Controllers
 {
@@ -29,6 +30,8 @@ namespace webCRM.Controllers
             try
             {
                 var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "";
+                // string CookieLogToken = Request.Cookies["LogToken"] ?? "";
+
                 string switchedRoleId =
                     HttpContext.Session.GetString("switchedRoleId") ?? "";
                 string switchedRoleName =
@@ -59,6 +62,46 @@ namespace webCRM.Controllers
                         return RedirectToMGResult();
                     }
                 }
+
+                // if (string.IsNullOrEmpty(CookieLogToken))
+                // {
+                //     var LogClientId = Environment.GetEnvironmentVariable("LOG_client_id") ?? "";
+                //     var LogClientSecret = Environment.GetEnvironmentVariable("LOG_client_secret") ?? "";
+
+                //     var body = JsonSerializer.SerializeToElement(new
+                //     {
+                //         client_id = LogClientId,
+                //         client_secret = LogClientSecret
+                //     });
+
+                //     var LogAuthResponse = await crmService.LogAuth(body);
+                //     var LogAuthContent =
+                //         await LogAuthResponse.Content.ReadAsStringAsync();
+                //     var LogAuthResult =
+                //         JsonNode.Parse(LogAuthContent);
+                //         Console.WriteLine("LogAuthContent",LogAuthContent);
+                //         Console.WriteLine("LogAuthResult",LogAuthResult);
+                //     var LogToken = LogAuthResult?["access_token"]?.ToString() ?? "";
+
+
+                //     Response.Cookies.Append(
+                //         "LogToken",
+                //         LogToken,
+                //         new CookieOptions
+                //         {
+                //             HttpOnly = true,
+                //             IsEssential = true,
+                //             SameSite = SameSiteMode.Lax
+                //         });
+
+                //     HttpContext.Items["LogToken"] = LogToken;
+                // }
+                // else
+                // {
+                //     HttpContext.Items["LogToken"] = CookieLogToken;
+                // }
+
+                var traceId = ActivityLogger.ResetSessionTraceId(HttpContext);
 
                 var rootNode =
                     await crmService.GetProfileByPersonalCode(personalCode);
@@ -211,8 +254,6 @@ namespace webCRM.Controllers
                     "branchName",
                     $"{formattedBranchNo}-{branch}");
 
-                // DEBUG
-
                 Console.WriteLine(
                     $"LOGIN SUCCESS: {pCode}");
 
@@ -221,6 +262,9 @@ namespace webCRM.Controllers
 
                 Console.WriteLine(
                     $"personalId: {HttpContext.Session.GetString("personalId")}");
+
+                Console.WriteLine(
+                    $"traceId: {traceId}");
 
                 HttpContext.Session.Remove("switchedRoleId");
                 HttpContext.Session.Remove("switchedRoleName");
@@ -544,6 +588,37 @@ namespace webCRM.Controllers
             catch
             {
                 return Unauthorized("Invalid or expired token");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> LogAuth(
+            [FromBody] JsonElement body)
+        {
+            try
+            {
+                var response =
+                    await crmService.LogAuth(body);
+
+                var data =
+                    await response.Content.ReadAsStringAsync();
+
+                return Content(
+                    data,
+                    "application/json");
+            }
+            catch (Exception ex)
+            {
+                return Content(
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            status = false,
+                            message = "เกิดข้อผิดพลาดในการโหลดข้อมูล: "
+                                + ex.Message,
+                            data = Array.Empty<object>()
+                        }),
+                    "application/json");
             }
         }
 

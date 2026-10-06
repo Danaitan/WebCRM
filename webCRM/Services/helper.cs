@@ -2561,5 +2561,25 @@ namespace webCRM.Services
             }
         }
 
+        public async Task<HttpResponseMessage> LogAuth(
+            JsonElement body
+            )
+        {
+            try
+            {
+                var LOG_Auth_URL = Environment.GetEnvironmentVariable("LOG_Auth") ?? "";
+
+                return await PostAsync(LOG_Auth_URL,body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error upserting ProspectFromETL");
+
+                throw;
+            }
+        }
+
     }
 }

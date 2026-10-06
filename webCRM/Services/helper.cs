@@ -67,7 +67,32 @@ namespace webCRM.Services
             }
         }
 
-private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
+// POST ส่ง body แบบ JSON แล้วอ่านผลลัพธ์กลับมาเป็น string
+        private async Task<string> PostStringAsync<T>(string endpoint, T data)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync(
+                    endpoint,
+                    data,
+                    _jsonOptions);
+
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error posting data to {Endpoint}",
+                    endpoint);
+
+                throw;
+            }
+        }
+
+        private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
 {
     var startTime = DateTime.Now;
 
@@ -866,50 +891,19 @@ private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
             string? is_creater = "0"
             )
         {
-            var queryParams =
-                new Dictionary<string, string?>();
-            queryParams["is_creater"] = is_creater;
-            if (!string.IsNullOrEmpty(startdate))
+            var payload = new CallDashboardRequest
             {
-                queryParams["startdate"] = startdate;
-            }
+                Startdate = string.IsNullOrEmpty(startdate) ? null : startdate,
+                Enddate = string.IsNullOrEmpty(enddate) ? null : enddate,
+                CallType = string.IsNullOrEmpty(call_type) ? null : call_type,
+                Branch = string.IsNullOrEmpty(branch) ? null : branch,
+                CallBy = string.IsNullOrEmpty(call_by) ? null : call_by,
+                CallResult = string.IsNullOrEmpty(call_result) ? null : call_result,
+                CampaignName = string.IsNullOrEmpty(campaign_name) ? null : campaign_name,
+                IsCreater = is_creater
+            };
 
-            if (!string.IsNullOrEmpty(enddate))
-            {
-                queryParams["enddate"] = enddate;
-            }
-
-            if (!string.IsNullOrEmpty(call_type))
-            {
-                queryParams["call_type"] = call_type;
-            }
-
-            if (!string.IsNullOrEmpty(branch))
-            {
-                queryParams["branch"] = branch;
-            }
-
-            if (!string.IsNullOrEmpty(call_by))
-            {
-                queryParams["call_by"] = call_by;
-            }
-
-            if (!string.IsNullOrEmpty(call_result))
-            {
-                queryParams["call_result"] = call_result;
-            }
-
-            if (!string.IsNullOrEmpty(campaign_name))
-            {
-                queryParams["campaign_name"] = campaign_name;
-            }
-
-            var endpoint =
-                QueryHelpers.AddQueryString(
-                    "p3/callDashboard",
-                    queryParams);
-
-            return await GetStringAsync(endpoint);
+            return await PostStringAsync("p3/callDashboard", payload);
         }
 
         public async Task<string> GetCallResult()
@@ -2516,7 +2510,7 @@ private async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
             {
                 var response = await PutAsync(
                     "p3/deleteETLFromProductCode",
-                    ProductCode);
+                    new { ProductCode });
 
                 var content = await response.Content.ReadAsStringAsync();
 

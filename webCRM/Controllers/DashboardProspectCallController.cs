@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using webCRM.Models;
 using webCRM.Services;
 
 namespace webCRM.Controllers
@@ -11,28 +12,31 @@ namespace webCRM.Controllers
             return View("~/Views/Home/Dashboard/prospectCall.cshtml");
         }
 
+        [HttpPost]
         public async Task<IActionResult> GetCallDashboard(
-            string? startdate,
-            string? enddate,
-            string? call_type,
-            string? branch,
-            string? call_by,
-            string? call_result,
-            string? campaign_name,
-            bool? is_creater = false
+            [FromBody] CallDashboardRequest request
             )
         {
             try
             {
-                string is_createrString = is_creater.HasValue && is_creater.Value ? "1" : "0";
+                request ??= new CallDashboardRequest();
+
+                // รองรับทั้ง "1"/"0", "true"/"false" ที่ส่งมาใน is_creater
+                string is_createrString =
+                    (request.IsCreater?.Trim().ToLowerInvariant()) switch
+                    {
+                        "1" or "true" => "1",
+                        _ => "0"
+                    };
+
                 var data = await crmService.GetCallDashboard(
-                    startdate,
-                    enddate,
-                    call_type,
-                    branch,
-                    call_by,
-                    call_result,
-                    campaign_name,
+                    request.Startdate,
+                    request.Enddate,
+                    request.CallType,
+                    request.Branch,
+                    request.CallBy,
+                    request.CallResult,
+                    request.CampaignName,
                     is_createrString
                     );
 

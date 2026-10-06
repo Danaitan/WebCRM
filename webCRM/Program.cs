@@ -30,16 +30,6 @@ if (string.IsNullOrWhiteSpace(bearerToken))
 // Logs every outbound CRM API call to LOG_URL.
 builder.Services.AddTransient<CrmApiLoggingHandler>();
 
-// builder.Services.AddHttpClient("CRMApi", client =>
-// {
-//     client.BaseAddress = new Uri($"{apiDomain.TrimEnd('/')}/crm/api/v1/");
-
-//     client.Timeout = TimeSpan.FromSeconds(30);
-
-//     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-// })
-// .AddHttpMessageHandler<CrmApiLoggingHandler>();
-
 var httpClientBuilder = builder.Services.AddHttpClient("CRMApi", client =>
 {
     client.BaseAddress = new Uri($"{apiDomain.TrimEnd('/')}/crm/api/v1/");

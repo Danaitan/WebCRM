@@ -1874,21 +1874,32 @@ function updateSendForApprovalButtonState() {
 
     const isWaitingProspect = isProspectSelectionAllowed();
 
+    // ต้องมีรหัสแคมเปญ (selectedCampaign.code) ก่อน ปุ่มลบจึงจะใช้งานได้
+    const hasCampaignCode = !!(selectedCampaign && selectedCampaign.code);
+
     if (saveBtn) {
         const shouldDisableSave = !isWaitingProspect;
         saveBtn.disabled = shouldDisableSave;
-        delBtn.disabled = shouldDisableSave;
         if (shouldDisableSave) {
             saveBtn.classList.add('disabled');
             saveBtn.style.opacity = '0.5';
             saveBtn.style.pointerEvents = 'none';
             saveBtn.style.cursor = 'not-allowed';
-            delBtn.classList.add('disabled');
         } else {
             saveBtn.classList.remove('disabled');
             saveBtn.style.opacity = '1';
             saveBtn.style.pointerEvents = 'auto';
             saveBtn.style.cursor = 'pointer';
+        }
+    }
+
+    if (delBtn) {
+        // ถ้ายังไม่มีรหัสแคมเปญ หรือยังไม่อยู่ในสถานะที่เลือกได้ ให้ปิดปุ่มลบไว้
+        const shouldDisableDel = !hasCampaignCode || !isWaitingProspect;
+        delBtn.disabled = shouldDisableDel;
+        if (shouldDisableDel) {
+            delBtn.classList.add('disabled');
+        } else {
             delBtn.classList.remove('disabled');
         }
     }

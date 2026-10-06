@@ -2222,6 +2222,12 @@ async function getClaimList(tracking){
 
         if (requestId !== currentClaimListRequestId) return;
 
+        const truncateCell = value => {
+            const text = (value === null || value === undefined || value === '') ? '-' : String(value);
+            const safe = $('<div>').text(text).html();
+            return `<span class="claim-cell-truncate" data-full="${safe}">${safe}</span>`;
+        };
+
         const dtClaimConfig = {
             data: data || [],
             destroy: true,
@@ -2230,17 +2236,17 @@ async function getClaimList(tracking){
                 { data: 'Claim_Date', render: data => formatDate(data) || '-', className: 'text-center' },
                 { data: 'Claim_No', render: data => data || '-', className: 'text-center' },
                 { data: 'idno', render: data => data || '-', className: 'text-center' },
-                { data: 'Cust_Name', render: data => data || '-', className: 'text-center' },
-                { data: 'companyInsur', render: data => data || '-', className: 'text-center' },
+                { data: 'Cust_Name', render: data => truncateCell(data), className: 'text-center claim-col-text' },
+                { data: 'companyInsur', render: data => truncateCell(data), className: 'text-center claim-col-text' },
                 { data: 'Register', render: data => data || '-', className: 'text-center' },
                 { data: 'Claim_Status', render: data => data || '-', className: 'text-center' },
                 { data: 'appNoMicro', render: data => data || '-', className: 'text-center' },
-                { data: 'Venue', render: data => data || '-', className: 'text-center' },
-                { data: 'Cause', render: data => data || '-', className: 'text-center' },
-                { data: 'Claim_Desc', render: data => data || '-', className: 'text-center' },
-                { data: 'Remark', render: data => data || '-', className: 'text-center' },
+                { data: 'Venue', render: data => truncateCell(data), className: 'text-center claim-col-text' },
+                { data: 'Cause', render: data => truncateCell(data), className: 'text-center claim-col-text' },
+                { data: 'Claim_Desc', render: data => truncateCell(data), className: 'text-center claim-col-text' },
+                { data: 'Remark', render: data => truncateCell(data), className: 'text-center claim-col-text' },
                 { data: 'Claim_Total', render: data => formatValues(data) || '-', className: 'text-center' },
-                { data: 'Contact_Name', render: data => data || '-', className: 'text-center' },
+                { data: 'Contact_Name', render: data => truncateCell(data), className: 'text-center claim-col-text' },
                 { data: 'Contact_Tel', render: data => data || '-', className: 'text-center' },
                 { data: 'Tracking_Ins', render: data => data || '-', className: 'text-center' }
             ],
@@ -2290,7 +2296,79 @@ function startReplyTimeClock() {
 
 document.addEventListener('DOMContentLoaded', function () {
     startReplyTimeClock();
+    initClaimCellTooltip();
 });
+
+/**
+ * Lightweight hover tooltip for truncated claim-history cells.
+ * Shows the full (untruncated) text in a styled popup that follows the cursor,
+ * so long content stays readable without stretching the table rows.
+ */
+function initClaimCellTooltip() {
+    let tip = null;
+
+    const ensureTip = () => {
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.className = 'claim-cell-tooltip';
+            document.body.appendChild(tip);
+        }
+        return tip;
+    };
+
+    const hideTip = () => {
+        if (tip) tip.classList.remove('is-visible');
+    };
+
+    const positionTip = (e) => {
+        if (!tip) return;
+        const offset = 14;
+        const margin = 8;
+        const rect = tip.getBoundingClientRect();
+        let left = e.clientX + offset;
+        let top = e.clientY + offset;
+
+        if (left + rect.width + margin > window.innerWidth) {
+            left = e.clientX - rect.width - offset;
+        }
+        if (top + rect.height + margin > window.innerHeight) {
+            top = e.clientY - rect.height - offset;
+        }
+        tip.style.left = `${Math.max(margin, left)}px`;
+        tip.style.top = `${Math.max(margin, top)}px`;
+    };
+
+    document.addEventListener('mouseover', function (e) {
+        const cell = e.target.closest('.claim-cell-truncate');
+        if (!cell) return;
+        const full = cell.getAttribute('data-full') || '';
+        if (!full || full === '-') return;
+
+        const t = ensureTip();
+        // data-full is already HTML-escaped when produced, so decode it back to
+        // plain text and let the browser re-escape via textContent.
+        const tmp = document.createElement('textarea');
+        tmp.innerHTML = full;
+        t.textContent = tmp.value;
+        t.classList.add('is-visible');
+        positionTip(e);
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (tip && tip.classList.contains('is-visible')) {
+            positionTip(e);
+        }
+    });
+
+    document.addEventListener('mouseout', function (e) {
+        const cell = e.target.closest('.claim-cell-truncate');
+        if (!cell) return;
+        if (e.relatedTarget && cell.contains(e.relatedTarget)) return;
+        hideTip();
+    });
+
+    document.addEventListener('scroll', hideTip, true);
+}
 
 document.addEventListener('click', function (e) {
     // Allow expanding/collapsing the contract card by clicking anywhere on the

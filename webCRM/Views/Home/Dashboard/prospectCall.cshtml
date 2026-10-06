@@ -10,7 +10,6 @@
     var hasFCRM006 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM006");
     var hasFCRM007 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM007");
     var hasFCRM004 = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM004");
-    var isSeeAllBranch = roleId.Split(',').Select(r => r.Trim()).Contains("RCRM009");
     var isCreater = (hasFCRM004 && !hasFCRM006);
 }
 
@@ -287,8 +286,7 @@
         window.HAS_FCRM006 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM006));
         window.HAS_FCRM007 = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(hasFCRM007));
         window.isCreater = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(isCreater));
-        window.isSeeAllBranch = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(isSeeAllBranch));
-        console.log("window.isSeeAllBranch",window.isSeeAllBranch)
+
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

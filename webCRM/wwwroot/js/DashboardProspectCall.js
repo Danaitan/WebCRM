@@ -219,19 +219,25 @@ async function setDashboard() {
     const campaignName = $('#filterCampaign').val() || '';
     const callResult = $('#filterCallResult').val() || '';
 
-    const params = new URLSearchParams();
-    if (startDate) params.append('startdate', startDate);
-    if (endDate) params.append('enddate', endDate);
-    if (callType) params.append('call_type', callType);
-    if (branch) params.append('branch', branch);
-    if (callBy) params.append('call_by', callBy);
-    if (callResult) params.append('call_result', callResult);
-    if (campaignName) params.append('campaign_name', campaignName);
-    params.append('is_creater', window.isCreater);
-    const queryString = params.toString();
-    const url = `/DashboardProspectCall/GetCallDashboard${queryString ? '?' + queryString : ''}`;
+    const payload = {
+        startdate: startDate || null,
+        enddate: endDate || null,
+        call_type: callType || null,
+        branch: branch || null,
+        call_by: callBy || null,
+        call_result: callResult || null,
+        campaign_name: campaignName || null,
+        is_creater: (window.isCreater === true || window.isCreater === 1 || window.isCreater === '1' || window.isCreater === 'true') ? '1' : '0'
+    };
 
-    const response = await fetch(url);
+    const url = `/DashboardProspectCall/GetCallDashboard`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+console.log("payload",payload)
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     if (!data) return;
@@ -931,26 +937,32 @@ async function setFilterBranch(branchData) {
 
     const variableFunc = (typeof window.VARIABLE_FUNC === 'string') ? window.VARIABLE_FUNC.trim() : '';
 
-    // Build the branch list (excluding any "99" pseudo-item from the API).
     const branches = [];
 
     if (variableFunc && Array.isArray(data)) {
-        data.forEach(item => {
-            if (!isSeeAllBranch){
-                if (item && isBranchInVariableFunc(item, variableFunc)) {
-                        const code = String(item.offcde || '').trim();
-                        if (!code || code === "99") return;
-                    branches.push({ code, name: String(item.branch_name || '').trim() });
-                }
-            } else {
+
+        if(variableFunc.includes("00")){
+
+            data.forEach(item => {
                 if (item) {
                         const code = String(item.offcde || '').trim();
                         if (!code || code === "99") return;
                     branches.push({ code, name: String(item.branch_name || '').trim() });
                 }
-            }
+            });
 
-        });
+        } else {
+
+            data.forEach(item => {
+                if (item && isBranchInVariableFunc(item, variableFunc)) {
+                        const code = String(item.offcde || '').trim();
+                        if (!code || code === "99") return;
+                    branches.push({ code, name: String(item.branch_name || '').trim() });
+                }
+            });
+
+        }
+
     }
 
     // Populate the hidden <select multiple> that the rest of the code reads.
@@ -1828,7 +1840,9 @@ $(document).ready(async function () {
         await setFilterCallType();
         await setFilterBranch();
         await setFilterCallResult();
-        await setFilterEmployee();
+        // หมายเหตุ: ไม่ต้องเรียก setFilterEmployee() ซ้ำที่นี่
+        // เพราะ setFilterBranch() ด้านบนเรียกให้แล้ว การเรียกซ้ำทำให้
+        // dashboard ถูกโหลด/ยิง callDashboard ซ้อน 2 ครั้งตอนเปิดหน้า
         await setDashboard();
 
         // Branch selection changes are handled by the checkbox dropdown

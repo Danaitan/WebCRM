@@ -47,13 +47,31 @@ namespace webCRM.Services
             {
                 stopwatch.Stop();
 
-                _ = LogCallAsync(
-                    method,
-                    endpoint,
-                    response,
-                    error,
-                    stopwatch.ElapsedMilliseconds);
+                if (!ShouldSkipLogging(method, endpoint))
+                {
+                    _ = LogCallAsync(
+                        method,
+                        endpoint,
+                        response,
+                        error,
+                        stopwatch.ElapsedMilliseconds);
+                }
             }
+        }
+
+        // Endpoints ที่ไม่ต้องการให้บันทึก log (noise/polling calls)
+        private static bool ShouldSkipLogging(string method, string endpoint)
+        {
+            // ตัด query string ออกก่อนเทียบ path
+            string path = endpoint.Split('?')[0];
+
+            if (string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase) &&
+                path.EndsWith("/p3/getNotification", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private Task LogCallAsync(
@@ -70,7 +88,7 @@ namespace webCRM.Services
                 response != null &&
                 response.IsSuccessStatusCode;
 
-            string status = success ? "SUCCESS" : "FAILURE";
+            string status = success ? "SUCCESS" : "FAILED";
 
             string code =
                 response != null

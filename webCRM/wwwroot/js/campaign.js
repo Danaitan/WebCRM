@@ -3276,7 +3276,7 @@ $("#btnDeleteETL").off("click").on("click", async function () {
                 startLoading("กำลังลบข้อมูล ETL", "");
 
                 try {
-
+                            console.log("selectedCampaignCode",selectedCampaignCode)
                     const response = await fetch(`/Campain/DeleteETLFromProductCode?ProductCode=${selectedCampaignCode}`, {
                         method: 'PUT'
                     });

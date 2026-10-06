@@ -553,3 +553,53 @@ body.crm-body {
     border: 0 !important;
     border-radius: 0 !important;
 }
+
+/* ========== Claim history table: long-text columns ========== */
+/* Keep rows a single line and truncate long content with an ellipsis.
+   Full text is still available via the native tooltip (title attribute). */
+#tab-table-claim td,
+#tab-table-claim th {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+#tab-table-claim td.claim-col-text {
+    max-width: 220px;
+}
+
+.claim-cell-truncate {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+/* Full-text hover popup for truncated claim cells */
+.claim-cell-tooltip {
+    position: fixed;
+    z-index: 2000;
+    max-width: 320px;
+    padding: 0.5rem 0.7rem;
+    border-radius: 0.5rem;
+    background-color: #1e293b;
+    color: #f8fafc;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease;
+}
+
+.claim-cell-tooltip.is-visible {
+    opacity: 1;
+    visibility: visible;
+}

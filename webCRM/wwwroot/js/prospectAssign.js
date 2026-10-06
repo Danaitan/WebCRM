@@ -458,6 +458,32 @@ console.log("setSelectedBranches")
     updateStaffBranchSelectedDisplay();
 
     loadAndRenderStaffList([]);
+
+    // หากมีแค่สาขาเดียว ให้ default เลือกสาขานั้นเลยทั้งสาขาลูกค้าและสาขาพนักงาน
+    applyDefaultSingleBranchSelection();
+}
+
+// ถ้าตัวเลือกสาขามีเพียงสาขาเดียว ให้ติ๊กเลือกให้อัตโนมัติ
+function applyDefaultSingleBranchSelection() {
+    console.log("applyDefaultSingleBranchSelection");
+
+    // สาขาลูกค้า
+    const branchCheckboxes = Array.from(document.querySelectorAll('.branch-checkbox'));
+    if (branchCheckboxes.length === 1 && !branchCheckboxes[0].checked) {
+        branchCheckboxes[0].checked = true;
+        syncBranchSelectAllState();
+        updateBranchSelectedDisplay();
+        onBranchSelectionChanged();
+    }
+
+    // สาขาพนักงาน
+    const staffBranchCheckboxes = Array.from(document.querySelectorAll('.staff-branch-checkbox'));
+    if (staffBranchCheckboxes.length === 1 && !staffBranchCheckboxes[0].checked) {
+        staffBranchCheckboxes[0].checked = true;
+        syncStaffBranchSelectAllState();
+        updateStaffBranchSelectedDisplay();
+        loadAndRenderStaffList(getSelectedStaffBranchCodes());
+    }
 }
 
 //    สาขาพนักงาน (Staff Branch) - ใช้กรอง "เลือกผู้รับผิดชอบ"

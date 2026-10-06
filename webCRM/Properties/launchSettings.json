@@ -24,8 +24,8 @@
         "LOG_URL": "https://172.16.17.78:30011/api/v1/logs",
         "LOG_Token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2aWNlIjoibW9iaWxlLWlvcy1hcHAiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODkwMzE5ODIsImV4cCI6NDk0MjYzMTk4Mn0.ug4LIemWO4ajA2M8qQSSx8wLTBAzlMhFTNRBR4gHiBA",
         "isLogOn": "true",
-        "isCheckCert":"false"
-
+        "isCheckCert":"false",
+        "appVersion":"3.0.1"
       }
     },
     "https": {
@@ -51,8 +51,8 @@
         "LOG_URL": "https://172.16.17.78:30011/api/v1/logs",
         "LOG_Token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2aWNlIjoibW9iaWxlLWlvcy1hcHAiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODkwMzE5ODIsImV4cCI6NDk0MjYzMTk4Mn0.ug4LIemWO4ajA2M8qQSSx8wLTBAzlMhFTNRBR4gHiBA",
         "isLogOn": "true",
-        "isCheckCert":"false"
-
+        "isCheckCert":"false",
+        "appVersion":"3.0.1"
       }
     }
   }

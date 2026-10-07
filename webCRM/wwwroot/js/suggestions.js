@@ -49,15 +49,6 @@ async function PostNoti(PostNotiData){
         ref_id: PostNotiData.ref_id
     };
 
-    // const response = await fetch('/crmweb/Suggestions/PostNotification', {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json'
-    //     },
-    //     body: JSON.stringify(payload),
-    //     skipLoading: true
-    // });
-
     const response = await fetch('/Suggestions/PostNotification', {
         method: 'POST',
         headers: {
@@ -155,6 +146,7 @@ async function GetPersonalAndGroup() {
 }
 
 async function sendEmail(to, cc, subject, content) {
+
     const ccArray = Array.isArray(cc)
         ? cc
         : (typeof cc === 'string' && cc.trim() !== '' ? cc.split(',').map(s => s.trim()).filter(Boolean) : []);
@@ -1535,7 +1527,8 @@ async function AddSuggestion() {
                         const sendToText = sendToVal;
                         const fullNameTh = typeof userFullNameTh !== 'undefined' ? userFullNameTh : '';
                         const senderId = typeof userId !== 'undefined' ? userId : '';
-                        const emailSubject = "CRM : การมอบหมายข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle;
+                        let emailSubject = "CRM : การมอบหมายข้อเสนอแนะ/ร้องเรียน เรื่อง " + topicTitle;
+                        
                         const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Suggestions')}`;
                         const emailContent =
                             `เรียน ${sendToText}<br><br>` +

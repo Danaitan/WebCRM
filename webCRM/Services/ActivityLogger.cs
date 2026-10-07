@@ -316,13 +316,26 @@ namespace webCRM.Services
                         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
                     });
 
-                var handler = new HttpClientHandler
+                var handler = new SocketsHttpHandler
                 {
-                    ServerCertificateCustomValidationCallback =
-                        (message, cert, chain, errors) => true
+                    // ปิด revocation check (OCSP/CRL) กัน TLS handshake
+                    // ค้างรอ timeout เมื่อเข้าถึง responder ไม่ได้
+                    SslOptions =
+                    {
+                        CertificateRevocationCheckMode =
+                            System.Security.Cryptography.X509Certificates
+                                .X509RevocationMode.NoCheck,
+                        RemoteCertificateValidationCallback =
+                            (message, cert, chain, errors) => true
+                    },
+                    ConnectTimeout = TimeSpan.FromSeconds(5)
                 };
 
-                using var client = new HttpClient(handler);
+                using var client = new HttpClient(handler)
+                {
+                    // log ต้องไม่หน่วงนาน ถ้า endpoint ช้าให้ยอมแพ้เร็ว
+                    Timeout = TimeSpan.FromSeconds(10)
+                };
 
                 using var content = new StringContent(
                     json,

@@ -5,6 +5,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"]</title>
+    @*
+        PathBase ที่แอปทำงานอยู่ (เช่น "/crmweb" เมื่อ deploy
+        ผ่าน Nginx Proxy Manager, หรือ "" เมื่อรันที่ root).
+        ใช้ Content("~/") เพื่อให้ ASP.NET คืน path base จริง
+        แล้วตัด trailing slash ออก
+    *@
+    <script>
+        window.appBase = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            (Url.Content("~/") ?? "/").TrimEnd('/')));
+    </script>
+    <script src="~/js/app-base.js"></script>
     <!-- Add Google Fonts (Prompt and Kanit for standard Thai UI) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,15 +108,15 @@
                         </button>
                         <div class="collapse @(isDashboardActive ? "show" : "")" id="sidebarSubmenu_1">
                             <div class="sidebar-submenu d-flex flex-column gap-1 my-1">
-                                <a href="/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                                <a href="~/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
                                     <i class="bi bi-person fs-6"></i>
                                     <span class="sidebar-text">ข้อมูลสัญญา</span>
                                 </a>
-                                <a href="/DashboardProspectCall" class="nav-link @GetActiveClass("/DashboardProspectCall") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                                <a href="~/DashboardProspectCall" class="nav-link @GetActiveClass("/DashboardProspectCall") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
                                     <i class="bi bi-telephone-inbound fs-6"></i>
                                     <span class="sidebar-text">การติดต่อลูกค้า</span>
                                 </a>
-                                <a href="/DashboardSuggestion" class="nav-link @GetActiveClass("/DashboardSuggestion") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                                <a href="~/DashboardSuggestion" class="nav-link @GetActiveClass("/DashboardSuggestion") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
                                     <i class="bi bi-chat-left-dots fs-6"></i>
                                     <span class="sidebar-text">ข้อเสนอแนะ/ร้องเรียน</span>
                                 </a>
@@ -113,31 +124,31 @@
                         </div>
                     </div>
                     
-                    <a href="/CustomerDetail" class="nav-link @GetActiveClass("/CustomerDetail") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/CustomerDetail" class="nav-link @GetActiveClass("/CustomerDetail") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-person fs-5"></i> <span class="fw-medium sidebar-text">ข้อมูลลูกค้า</span>
                     </a>
                     
-                    <a href="/Suggestions" class="nav-link @GetActiveClass("/Suggestions") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/Suggestions" class="nav-link @GetActiveClass("/Suggestions") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-chat-dots fs-5"></i> <span class="fw-medium sidebar-text">ข้อเสนอแนะ/ร้องเรียน</span>
                     </a>
 
-                    <a href="/Campain" class="nav-link @GetActiveClass("/Campain") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/Campain" class="nav-link @GetActiveClass("/Campain") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-megaphone fs-5"></i> <span class="fw-medium sidebar-text">Campaign Create</span>
                     </a>
                     
-                    <a href="/ProspectSetup" class="nav-link @GetActiveClass("/ProspectSetup") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/ProspectSetup" class="nav-link @GetActiveClass("/ProspectSetup") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-people-fill fs-5"></i> <span class="fw-medium sidebar-text">Prospect Setup</span>
                     </a>
                     
-                    <a href="/ProductApprove" class="nav-link @GetActiveClass("/ProductApprove") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/ProductApprove" class="nav-link @GetActiveClass("/ProductApprove") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-shield-check fs-5"></i> <span class="fw-medium sidebar-text">Campaign Approve</span>
                     </a>
                     
-                    <a href="/ProspectAssign" class="nav-link @GetActiveClass("/ProspectAssign") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/ProspectAssign" class="nav-link @GetActiveClass("/ProspectAssign") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-people fs-5"></i> <span class="fw-medium sidebar-text">Prospect Assign</span>
                     </a>
                     
-                    <a href="/ProspectCall" class="nav-link @GetActiveClass("/ProspectCall") d-flex align-items-center gap-3 px-3 py-2 rounded">
+                    <a href="~/ProspectCall" class="nav-link @GetActiveClass("/ProspectCall") d-flex align-items-center gap-3 px-3 py-2 rounded">
                         <i class="bi bi-telephone fs-5"></i> <span class="fw-medium sidebar-text">ขายและติดตาม</span>
                     </a>
                     

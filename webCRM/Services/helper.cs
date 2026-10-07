@@ -52,9 +52,20 @@ namespace webCRM.Services
             {
                 var response = await _httpClient.GetAsync(endpoint);
 
-                response.EnsureSuccessStatusCode();
+                var content = await response.Content.ReadAsStringAsync();
 
-                return await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError(
+                        "CRM API returned error. Endpoint: {Endpoint}, StatusCode: {StatusCode}, Response: {Response}",
+                        endpoint,
+                        (int)response.StatusCode,
+                        content);
+
+                    response.EnsureSuccessStatusCode();
+                }
+
+                return content;
             }
             catch (Exception ex)
             {
@@ -1718,9 +1729,9 @@ namespace webCRM.Services
 
         public async Task<string> GetProspectPhase3(
             GetProspectRequest request,
-            string search,
-            string batch,
-            string branch
+            string search = "",
+            string? batch = null,
+            string branch = ""
             )
         {
             try
@@ -2360,6 +2371,12 @@ namespace webCRM.Services
         {
             try
             {
+                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+                if (env != "production")
+                {
+                    request.Subject = "[ทดสอบ]" + request.Subject;
+                }
+
                 var response =
                     await PostAsync(
                         "p3/sendEmail",

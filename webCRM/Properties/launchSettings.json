@@ -28,8 +28,8 @@
         "LOG_client_id":"admin",
         "LOG_client_secret":"p@ssword",
         "LOG_Auth":"https://mguat.microleasingplc.com/logs/api/v1/auth/token",
-        "LOG_Token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInNlcnZpY2UiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc5MTI4OTU2NywiZXhwIjoxNzkxMzIxOTY3fQ.t8c_HV8rLGncVriq9Amwqipb5VHiI63svz-6bMHjk94"
-        
+        "LOG_Token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInNlcnZpY2UiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc5MTI4OTU2NywiZXhwIjoxNzkxMzIxOTY3fQ.t8c_HV8rLGncVriq9Amwqipb5VHiI63svz-6bMHjk94",
+        "PathBase":"/crmweb"
       }
     },
     "https": {
@@ -53,10 +53,15 @@
         "DMS_BearerToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhZG1pbiIsInVzZXJuYW1lIjoiYWRtaW4iLCJpYXQiOjE3ODg0MzY2NjQsImV4cCI6MTgxOTk3MjY2NH0.UR28F2I3bTMeidP_zNNrcnf-A55etOmgRcfyyCj-2y8",
         "ETL_URL": "http://172.16.17.73:8032/ImportExcel/LinkCRM",
         "LOG_URL": "https://172.16.17.78:30011/api/v1/logs",
-        "LOG_Token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2aWNlIjoibW9iaWxlLWlvcy1hcHAiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3ODkwMzE5ODIsImV4cCI6NDk0MjYzMTk4Mn0.ug4LIemWO4ajA2M8qQSSx8wLTBAzlMhFTNRBR4gHiBA",
+
         "isLogOn": "true",
         "isCheckCert":"false",
-        "appVersion":"3.0.1"
+        "appVersion":"3.0.1",
+        "LOG_client_id":"admin",
+        "LOG_client_secret":"p@ssword",
+        "LOG_Auth":"https://mguat.microleasingplc.com/logs/api/v1/auth/token",
+        "LOG_Token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInNlcnZpY2UiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc5MTI4OTU2NywiZXhwIjoxNzkxMzIxOTY3fQ.t8c_HV8rLGncVriq9Amwqipb5VHiI63svz-6bMHjk94",
+        "PathBase":"/crmweb"
       }
     }
   }

@@ -66,7 +66,13 @@ namespace webCRM.Services
                 {"customerDashboard","ดึง Dashboard สัญญาลูกค้า"},
 
                 // --- master ---
-                {"master","ดึง master อีเมล"}
+                {"master","ดึง master อีเมล"},
+                {"getpersonalwithRole","ดึงข้อมูล Role ของพนักงาน"},
+                {"getFunc","ดึงข้อมูล Function ของพนักงาน"},
+                {"getCRMRoles","ดึงข้อมูล Roles ทั้งหมด"},
+                {"getPageSidebar","ดึงหน้าเมนูทั้งหมด"},
+                {"getStaffList","ดึงรายชื่อพนักงานทั้งหมด"},
+                {"postCRMPersonalRole","อัพเดท Role พนักงาน"},
             };
 
         public static string ResolveActionName(string? endpoint, string? fallback = null)

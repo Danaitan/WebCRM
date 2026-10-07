@@ -563,7 +563,6 @@ namespace webCRM.Controllers
                 var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("ApiSettings__WebDomain") ?? "";
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var key = Encoding.UTF8.GetBytes(JWT_SECRET_KEY);
-                // 1. ตรวจสอบ Signature และวันหมดอายุ
                 var validationParams = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,

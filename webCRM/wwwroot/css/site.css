@@ -378,3 +378,159 @@ table.table-dark thead th {
   text-align: justify;
 }
 
+
+/* ==========================================================================
+   _Layout.cshtml extracted styles
+   (moved from inline <style> block and inline style="" attributes)
+   ========================================================================== */
+
+/* Notification bell ring animation */
+@keyframes bell-ring {
+  0%   { transform: rotate(-15deg); }
+  50%  { transform: rotate(15deg); }
+  100% { transform: rotate(-15deg); }
+}
+
+.hover-ring {
+  transform-origin: top center;
+}
+
+.hover-ring:hover {
+  animation: bell-ring 1.2s ease-in-out infinite;
+}
+
+.notification-group [data-bs-toggle="collapse"] .bi-chevron-down {
+  transition: transform 0.2s ease-in-out;
+}
+
+.notification-group [data-bs-toggle="collapse"][aria-expanded="true"] .bi-chevron-down {
+  transform: rotate(180deg);
+}
+
+/* App shell layout */
+.crm-shell {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.crm-sidebar {
+  width: 260px;
+  transition: all 0.3s;
+}
+
+.crm-sidebar-title {
+  color: var(--bs-primary, #0d6efd);
+}
+
+.crm-hide-sidebar-btn {
+  font-size: 14px;
+}
+
+.crm-main {
+  min-width: 0;
+  min-height: 0;
+  background-color: #f8fafc;
+}
+
+.crm-content-wrapper {
+  min-height: 0;
+}
+
+/* Header welcome text */
+.crm-welcome-text {
+  font-size: 0.85rem;
+}
+
+/* Notification bell + badge */
+.crm-bell {
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+}
+
+.crm-notification-badge {
+  top: 2px;
+  right: 0px;
+  font-size: 0.6rem;
+  padding: 0.25em 0.4em;
+}
+
+/* Shared dropdown panel (notifications / role switcher) */
+.crm-dropdown-panel {
+  width: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.crm-dropdown-panel-wide {
+  width: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.crm-panel-header {
+  background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%);
+}
+
+.crm-notification-list {
+  max-height: 350px;
+}
+
+.crm-dropdown-footer {
+  background-color: #f8fafc;
+}
+
+.crm-role-list {
+  max-height: 320px;
+}
+
+/* Modals */
+.crm-modal-content {
+  border-radius: 12px;
+  max-height: 85vh;
+}
+
+.crm-modal-header {
+  background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.crm-modal-body-light {
+  background-color: #f8fafc;
+  overflow: hidden;
+}
+
+.crm-modal-grid {
+  min-height: 480px;
+  max-height: 72vh;
+}
+
+.crm-modal-list-pane {
+  max-height: 72vh;
+  background-color: #f8fafc;
+}
+
+.crm-modal-detail-pane {
+  max-height: 72vh;
+}
+
+.crm-modal-footer {
+  border-radius: 0 0 12px 12px;
+}
+
+/* Notification detail modal */
+.crm-modal-content-plain {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.crm-modal-header-plain {
+  background: linear-gradient(135deg, var(--bs-primary, #0d6efd) 0%, #3b82f6 100%);
+}
+
+.crm-modal-body-scroll {
+  max-height: 70vh;
+  overflow-y: auto;
+}

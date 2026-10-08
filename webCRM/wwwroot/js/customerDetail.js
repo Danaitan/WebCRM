@@ -2015,6 +2015,12 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
 
             //#region ข้อมูลสินเชื่อ
 
+            // MICRO shows "ยอดจัด (รวมภาษี)" MFIN shows "ยอดจัด"
+            const finalAmountLabel = document.getElementById("loan-detail-fianlamount-label");
+            if (finalAmountLabel) {
+                finalAmountLabel.innerText = (company === "Micro") ? "ยอดจัด (รวมภาษี)" : "ยอดจัด";
+            }
+
             document.getElementById("loan-detail-fianlamount").innerText = formatValues(contract.finamt);
             // document.getElementById("loan-detail-aging").innerText = (contract.aging !== undefined && contract.aging !== null && contract.aging !== '') ? 'D' + contract.aging : '-';
             document.getElementById("loan-detail-aging").innerText =

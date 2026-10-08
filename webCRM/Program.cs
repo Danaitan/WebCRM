@@ -181,14 +181,6 @@ var httpClientBuilder = builder.Services
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        // ใช้ SocketsHttpHandler เพื่อ:
-        // 1) ปิด certificate revocation check (OCSP/CRL) อย่างชัดเจน
-        //    HttpClientHandler เดิมบน Windows ยังพยายามเช็ค revocation
-        //    ทางเครือข่ายก่อน แม้จะตั้ง DangerousAccept... แล้วก็ตาม
-        //    ถ้าเครื่องเข้าถึง OCSP responder ไม่ได้ จะรอ timeout
-        //    ~2 วินาทีต่อ TLS handshake -> ต้นเหตุที่ API call ช้า
-        // 2) เปิด connection pooling/keep-alive ลด handshake ซ้ำ
-        //    ในหน้าที่ยิงหลาย API call
         var handler = new SocketsHttpHandler
         {
             UseProxy = false,

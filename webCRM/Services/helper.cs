@@ -2371,11 +2371,11 @@ namespace webCRM.Services
         {
             try
             {
-                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                if (env != "production")
-                {
-                    request.Subject = "[ทดสอบ]" + request.Subject;
-                }
+                // var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+                // if (env != "production")
+                // {
+                //     request.Subject = "[ทดสอบ]" + request.Subject;
+                // }
 
                 var response =
                     await PostAsync(

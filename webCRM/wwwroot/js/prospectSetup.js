@@ -1839,8 +1839,6 @@ function updateSelectedList() {
                 }
             }
 
-            // แถวใน "รายการลูกค้า" ยังคงอยู่แล้ว (ไม่ได้ถูกย้ายออก) จึงไม่ต้องโหลดใหม่
-            // แค่ re-render checkbox หน้าปัจจุบันให้ติ๊กหลุดตาม state ล่าสุด
             if (prospectTable) {
                 prospectTable
                     .rows({ page: 'current' })
@@ -1874,7 +1872,6 @@ function updateSendForApprovalButtonState() {
 
     const isWaitingProspect = isProspectSelectionAllowed();
 
-    // ต้องมีรหัสแคมเปญ (selectedCampaign.code) ก่อน ปุ่มลบจึงจะใช้งานได้
     const hasCampaignCode = !!(selectedCampaign && selectedCampaign.code);
 
     if (saveBtn) {

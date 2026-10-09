@@ -391,7 +391,7 @@ function extractProspectCustomers(data) {
 
             const branch = item.Branch_name || item.branch_name || item.BranchName || '-';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
-            const createdDate = item.created || item.ImportDate || '-';
+            const createdDate = item.created || '-';
             const createdBy = item.created_by || '-';
             const isActive = item.isActive || false;
 
@@ -452,39 +452,32 @@ function formatDateTime(dateStr) {
         var str = String(dateStr).trim();
         if (!str || str === '-') return '-';
 
+        // อ่านค่าวันเวลาตามที่เขียนมาตรงๆ (ไม่แปลง timezone)
+        // รองรับ "YYYY-MM-DDTHH:mm..." และ "YYYY-MM-DD HH:mm..."
+        const m = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})[T ](\d{2}):(\d{2})/);
+        if (m) {
+            let year = parseInt(m[1], 10);
+            if (year > 2400) year -= 543; // แปลง พ.ศ. -> ค.ศ. ถ้าจำเป็น
+            return `${m[3]}/${m[2]}/${year} ${m[4]}:${m[5]}`;
+        }
+        // เฉพาะวันที่ ไม่มีเวลา
+        const md = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+        if (md) {
+            let year = parseInt(md[1], 10);
+            if (year > 2400) year -= 543;
+            return `${md[3]}/${md[2]}/${year}`;
+        }
+
         let d;
         if (/^\d+$/.test(str)) {
             d = new Date(parseInt(str, 10));
         } else {
-            let parsedStr = str;
-            const yearMatch = str.match(/^(\d{4})[-/]/);
-            if (yearMatch && parseInt(yearMatch[1], 10) > 2400) {
-                const gregorianYear = parseInt(yearMatch[1], 10) - 543;
-                parsedStr = gregorianYear + str.substring(4);
-            }
-            d = new Date(parsedStr);
+            d = new Date(str);
         }
 
         if (d && !isNaN(d.getTime())) {
-            const formatter = new Intl.DateTimeFormat('en-GB', {
-                timeZone: 'Asia/Bangkok',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            });
-            const parts = formatter.formatToParts(d);
-            const getPart = (type) => (parts.find(p => p.type === type)?.value || '');
-            const day = getPart('day');
-            const month = getPart('month');
-            const year = getPart('year');
-            const hour = getPart('hour');
-            const minute = getPart('minute');
-            if (day && month && year && hour && minute) {
-                return `${day}/${month}/${year} ${hour}:${minute}`;
-            }
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         }
     } catch (e) {
         console.error("Error formatting date time:", e);
@@ -533,8 +526,10 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
     if (isImport) {
         try {
             const etlRes = await getCampaignDataForETL(productCode);
+            // console.log("etlRes",etlRes)
             const res = etlRes ? etlRes.IsBatch : null;
             const parsedEtl = extractProspectCustomers(res);
+            // console.log("parsedEtl",parsedEtl)
             if (parsedEtl.items && parsedEtl.items.length > 0) {
                 items = parsedEtl.items;
                 totalCount = parsedEtl.totalCount;
@@ -546,6 +541,7 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
         if (!items || items.length === 0) {
             try {
                 const viewRes = await getProspectCustomerView(productCode);
+
                 if (viewRes) {
                     const parsedView = extractProspectCustomers(viewRes);
                     if (parsedView.items && parsedView.items.length > 0) {
@@ -558,7 +554,7 @@ async function loadProspectApproveData(productCode, page = 1, pageSize = 5) {
             }
         }
     }
-
+    // console.log("items",items)
     rawProspectItems = items;
     prospectTotalCount = totalCount || items.length;
 
@@ -1029,7 +1025,7 @@ function filterProspectTable() {
 
     var tbody = document.getElementById('prospectTableBody');
     if (!tbody) return;
-
+// console.log("rawProspectItems",rawProspectItems)
     var filteredItems = rawProspectItems.filter(function (item) {
         var matchText = !query ||
             item.branch.toLowerCase().includes(query) ||
@@ -1068,10 +1064,13 @@ function filterProspectTable() {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-emoji-neutral me-1"></i> ไม่พบรายการ Prospect</td></tr>`;
     } else {
         var html = '';
-
+// console.log("filteredItems",filteredItems)
+console.log("filteredItems",filteredItems)
         pagedItems.forEach(function (item, index) {
             var seq = start + index + 1;
             var dtStr = formatDateTime(item.createdDate);
+            console.log("item.createdDate",item.createdDate)
+            console.log("dtStr",dtStr)
             html += `
                 <tr data-branch="${item.branch}" data-name="${item.name}" data-contract="${item.contract}" data-by="${item.createdBy}">
                     <td style="text-align: center;">${seq}</td>

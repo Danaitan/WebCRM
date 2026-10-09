@@ -494,8 +494,14 @@ function renderStaffBranchDropdownOptions(allowedOffcdes) {
 
     container.innerHTML = '';
 
-    const result = (allBranch || [])
-        .filter(branch => allowedOffcdes.includes(branch.offcde));
+    // const result = (allBranch || [])
+    //     .filter(branch => allowedOffcdes.includes(branch.offcde));
+    // filter เอาสาขา "99-ทุกสาขา" ออก
+    const result = (allBranch || []).filter(b => {
+        const code = getBranchCode(b);
+        const name = String(getBranchName(b) || '').trim();
+        return code !== '99' && name !== '99-ทุกสาขา';
+    });
 
     // ตัวเลือก "ทั้งหมด" สำหรับเลือก/ยกเลิกสาขาพนักงานที่เลือกได้ทั้งหมด
     if (result.some(b => getBranchCode(b))) {
@@ -694,7 +700,7 @@ async function getStaffList(){
             throw new Error('Network response was not ok');
         }
         const data = await response.json();
-console.log("data",data)
+        console.log("getStaffList_data",data)
         let arr = [];
         if (Array.isArray(data)) {
             arr = data;
@@ -757,14 +763,22 @@ console.log("loadAndRenderStaffList")
     // โหลด staff ทั้งหมด (ดึงครั้งเดียว แล้ว cache) ก่อนกรอง
     const allStaffList = await getStaffList();
 
-    // normalize รหัสสาขาที่เลือกให้เป็น 2 หลัก เพื่อเทียบกับสาขาของพนักงาน
-    const allowedBranchCodes = branchIds
-        .map(v => String(v).trim().padStart(2, '0'))
+    // ค่าที่ใช้กรอง variable_func = รหัสสาขาพนักงานที่ผู้ใช้เลือกจาก dropdown (เทียบตรงตัว ไม่ตัด 0)
+    const allowedVariableFunc = branchIds
+        .map(v => String(v).trim())
         .filter(Boolean);
+console.log("allowedVariableFunc", allowedVariableFunc)
 
+    // กรองด้วย variable_func เท่านั้น (ไม่เทียบสาขา offcde ของพนักงาน)
     let staffArray = (allStaffList || []).filter(s => {
-        const code = getStaffBranchCode(s).padStart(2, '0');
-        return code && allowedBranchCodes.includes(code);
+        // variable_func อาจเป็นหลายค่าคั่นด้วย "," เช่น "1,23,3,26"
+        // แยกออกมาแล้วเช็กว่ามีค่าใดตรงกับรหัสสาขาที่เลือกอย่างน้อยหนึ่งค่า
+        const vFuncList = String((s && s.variable_func != null ? s.variable_func : ''))
+            .split(',')
+            .map(v => v.trim())
+            .filter(Boolean);
+
+        return vFuncList.some(v => allowedVariableFunc.includes(v));
     });
 
     // ลบข้อมูลซ้ำ
@@ -1095,7 +1109,7 @@ function extractProspectCustomers(data) {
     if (typeof raw === 'string') {
         try { raw = JSON.parse(raw); } catch (e) { return { items: [], totalCount: 0 }; }
     }
-
+console.log("extractProspectCustomers_data",data)
     let items = [];
     let totalCount = 0;
     if (raw && typeof raw === 'object') {
@@ -1161,7 +1175,7 @@ function extractProspectCustomers(data) {
             const prospectID = item.prospectID || item.prospectId || item.ProspectID || item.ProspectId || item.prospect_id || '';
             const name = item.nameCus || item.customer_name || '-';
             const contract = item.contno || '-';
-            const branch = item.branch_Name || item.Branch_name || '-';
+            const branch = item.branch_Name || item.Branch_name || item.BranchName || '-';
             const branchCode = item.offcde || item.Offcde || item.branch_code || item.branchCode || item.contractoffcde || item.ContractOffCde || item.branch || item.Branch || '';
             const carLocation = item.provinceUsecar || item.provinceUseCar || item.carLocation || item.car_location || '-';
             const createdDate = item.created || item.ImportDate || '-';
@@ -1307,8 +1321,10 @@ async function loadProspectAssignData(productCode) {
     if (isImport) {
         const etlRes = await getCampaignDataForETL(productCode);
         res = etlRes ? (etlRes.IsBatch) : null;
+        console.log("getCampaignDataForETL_res",res)
     } else {
         res = await getProductBatchByProductCode(productCode);
+        console.log("getProductBatchByProductCode_res",res)
     }
 
     const { items, totalCount } = extractProspectCustomers(res);
@@ -1376,18 +1392,50 @@ function prospectMatchesSelectedBranch(item, filterSet) {
     const name = String(item.branch || '').trim().toLowerCase();
     // ดึงรหัสสาขาจาก contractoffcde/offcde ของแถวดิบเหมือนหน้า productApprove
     const raw = item.raw || {};
+
     const contractOffcde = String(raw.contractoffcde || raw.ContractOffCde || '').trim().toLowerCase();
     const rawOffcde = String(raw.offcde || raw.Offcde || '').trim().toLowerCase();
+    const company = String(raw.company || raw.Company || '').trim().toLowerCase();
+
 
     if (code && filterSet.codeSet.has(code)) return true;
     if (contractOffcde && filterSet.codeSet.has(contractOffcde)) return true;
     if (rawOffcde && filterSet.codeSet.has(rawOffcde)) return true;
     if (name && filterSet.nameSet.has(name)) return true;
+    if (company && filterSet.codeSet.has(company)) return true;
     return false;
+}
+
+// หากเลือกสาขาลูกค้าเพียง 1 สาขา ให้ default สาขาพนักงานเป็นสาขาเดียวกันนั้นให้อัตโนมัติ
+function syncStaffBranchWithSingleCustomerBranch() {
+    console.log("syncStaffBranchWithSingleCustomerBranch");
+
+    const selectedCustomerCodes = getSelectedBranchCodes();
+
+    // ทำงานเฉพาะกรณีเลือกสาขาลูกค้าเพียงสาขาเดียว
+    if (selectedCustomerCodes.length !== 1) return;
+
+    const targetCode = selectedCustomerCodes[0];
+
+    const staffCheckboxes = Array.from(document.querySelectorAll('.staff-branch-checkbox'));
+    const targetStaffCheckbox = staffCheckboxes.find(cb => cb.value === targetCode);
+
+    // ไม่มีสาขาพนักงานที่ตรงกัน หรือเลือกไว้อยู่แล้ว -> ไม่ต้องทำอะไร
+    if (!targetStaffCheckbox || targetStaffCheckbox.checked) return;
+
+    // ตั้ง default ให้เลือกเฉพาะสาขาพนักงานที่ตรงกับสาขาลูกค้า
+    staffCheckboxes.forEach(cb => { cb.checked = (cb === targetStaffCheckbox); });
+
+    syncStaffBranchSelectAllState();
+    updateStaffBranchSelectedDisplay();
+    loadAndRenderStaffList(getSelectedStaffBranchCodes());
 }
 
 // เรียกเมื่อการเลือกสาขาเปลี่ยน: ล้างการเลือก prospect ที่ไม่อยู่ในสาขาที่เลือกแล้ว และ render ใหม่
 function onBranchSelectionChanged() {
+    // sync สาขาพนักงานตามสาขาลูกค้าที่เลือก (กรณีเลือกสาขาลูกค้าเดียว)
+    syncStaffBranchWithSingleCustomerBranch();
+
     const branchFilter = getSelectedBranchFilterSet();
 
     if (branchFilter.count === 0) {
@@ -1456,6 +1504,7 @@ function filterAndRenderProspectTable(currentCampaign) {
 
     // กรองตามสาขาที่เลือกก่อน
     let filteredItems = rawProspectItems.filter(item => prospectMatchesSelectedBranch(item, branchFilter));
+
     if (activeStatusFilter !== 'all') {
         filteredItems = filteredItems.filter(item => {
             const statusLabel = getStatusLabel(item.status, item.assignee).toLowerCase();
@@ -1512,8 +1561,6 @@ function filterAndRenderProspectTable(currentCampaign) {
         pageItems.forEach(item => {
             const dotClass = getStatusDotClass(item.status, item.assignee);
             const statusText = getStatusLabel(item.status, item.assignee);
-            // selectKey = key เฉพาะสำหรับติดตามการเลือก (ทุกแถวไม่ซ้ำ)
-            // assignId  = id จริงที่ใช้ส่งไป assign (import ใช้ prospectID, ปกติใช้ id)
             const selectKey = getSelectKey(item);
             const assignId = getAssignId(item);
 
@@ -1788,7 +1835,7 @@ function buildPageRange(current, total) {
         const s = String(status).trim().toLowerCase();
         const normalized = s.replace(/_/g, ' ');
         if (normalized === 'reject' || normalized === 'rejected' || normalized === 'ไม่อนุมัติ' || normalized === 'cancel' || normalized === 'cancelled' || normalized === 'ยกเลิก') return 'rejected';
-        if (normalized === 'waiting prospect' || normalized === 'waiting prospect (prospect setup)') return 'waiting-prospect';
+        if (normalized === 'waiting prospect') return 'waiting-prospect';
         if (normalized === 'waiting approve' || normalized === 'waiting approval' || normalized === 'รออนุมัติ') return 'waiting-approve';
         if (normalized.includes('draft') || normalized.includes('ร่าง') || normalized === 'inactive') return 'draft';
         if (normalized === 'approve' || normalized === 'approved' || normalized === 'อนุมัติ' || normalized === 'อนุมัติแล้ว' || normalized === 'active' || normalized === 'ปกติ') return 'approved';

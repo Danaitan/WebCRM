@@ -237,7 +237,6 @@ async function setDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
-console.log("payload",payload)
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     if (!data) return;
@@ -965,17 +964,14 @@ async function setFilterBranch(branchData) {
 
     }
 
-    // Populate the hidden <select multiple> that the rest of the code reads.
     let optionsHtml = '';
     branches.forEach(b => {
         optionsHtml += `<option value="${b.code}">${b.name}</option>`;
     });
     selectEl.innerHTML = optionsHtml;
 
-    // Render the checkbox list inside the dropdown.
     renderBranchCheckboxes(branches);
 
-    // Decide the default selection.
     const hasFcrm006 = hasPermissionFCRM006();
     let selection = [];
     if (!hasFcrm006 && window.USER_BRANCH_NAME) {
@@ -989,12 +985,11 @@ async function setFilterBranch(branchData) {
     if (selection.length > 0) {
         setBranchSelection(selection);
     } else {
-        // Default = all branches selected.
         selectAllBranches();
     }
+    await setFilterEmployee();
 }
 
-// Render checkbox options (including a master "ทั้งหมด" checkbox) for the branch filter.
 function renderBranchCheckboxes(branches) {
     const container = document.getElementById('filterBranchOptions');
     if (!container) return;
@@ -1018,7 +1013,6 @@ function renderBranchCheckboxes(branches) {
 
     container.innerHTML = html;
 
-    // Wire up the "ทั้งหมด" master checkbox.
     const allCb = document.getElementById('branchOptAll');
     if (allCb) {
         allCb.addEventListener('change', function () {
@@ -1027,15 +1021,14 @@ function renderBranchCheckboxes(branches) {
             } else {
                 setBranchSelection([]);
             }
+            setFilterEmployee();
         });
     }
 
-    // Wire up each branch checkbox.
     container.querySelectorAll('.branch-opt').forEach(cb => {
         cb.addEventListener('change', syncBranchFromCheckboxes);
     });
 
-    // Wire up the search box (filters visible options only).
     const searchInput = document.getElementById('filterBranchSearch');
     if (searchInput && !searchInput._bound) {
         searchInput._bound = true;
@@ -1048,12 +1041,9 @@ function renderBranchCheckboxes(branches) {
         });
     }
 
-    // Make sure the open/close behaviour for the branch dropdown is wired up.
     initBranchDropdownToggle();
 }
 
-// Manually control the branch dropdown open/close so it always closes reliably.
-// (Replaces Bootstrap's data-bs-toggle behaviour, which was leaving the menu stuck open.)
 function initBranchDropdownToggle() {
     const toggleBtn = document.getElementById('filterBranchButton');
     if (!toggleBtn) return;
@@ -1071,7 +1061,6 @@ function initBranchDropdownToggle() {
         toggleBtn.setAttribute('aria-expanded', 'false');
     };
 
-    // Toggle when the button itself is clicked.
     if (!toggleBtn._branchToggleBound) {
         toggleBtn._branchToggleBound = true;
         toggleBtn.addEventListener('click', function (e) {
@@ -1084,13 +1073,11 @@ function initBranchDropdownToggle() {
             }
         });
 
-        // Keep the menu open while interacting with its contents (search, checkboxes).
         menu.addEventListener('click', function (e) {
             e.stopPropagation();
         });
     }
 
-    // Close on any click outside the branch multiselect (bound once at document level).
     if (!document._branchDropdownOutsideBound) {
         document._branchDropdownOutsideBound = true;
         document.addEventListener('click', function (e) {
@@ -1103,7 +1090,7 @@ function initBranchDropdownToggle() {
                 if (btn) btn.setAttribute('aria-expanded', 'false');
             }
         });
-        // Close on Escape.
+
         document.addEventListener('keydown', function (e) {
             if (e.key !== 'Escape') return;
             document.querySelectorAll('.branch-multiselect-menu.show').forEach(m => {
@@ -1115,7 +1102,6 @@ function initBranchDropdownToggle() {
     }
 }
 
-// Get every real branch code from the hidden select (excludes "99").
 function getAllBranchCodes() {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return [];
@@ -1124,31 +1110,25 @@ function getAllBranchCodes() {
         .filter(v => v && v !== "99");
 }
 
-// Check all branch checkboxes and select all in the hidden select.
 function selectAllBranches() {
     setBranchSelection(getAllBranchCodes());
 }
 
-// Set the hidden select + checkboxes to exactly the given codes, then refresh UI.
 function setBranchSelection(codes) {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
 
     const wanted = new Set((codes || []).map(v => String(v).trim()).filter(Boolean));
-
-    // Sync individual checkboxes.
     document.querySelectorAll('#filterBranchOptions .branch-opt').forEach(cb => {
         cb.checked = wanted.has(String(cb.value).trim());
     });
 
-    // Sync hidden select.
     $(selectEl).val(Array.from(wanted));
 
     updateBranchAllCheckbox();
     updateBranchLabel();
 }
 
-// Read the checkboxes and push the result into the hidden select.
 function syncBranchFromCheckboxes() {
     const selectEl = document.getElementById('filterBranch');
     if (!selectEl) return;
@@ -1164,7 +1144,6 @@ function syncBranchFromCheckboxes() {
     setFilterEmployee();
 }
 
-// Reflect whether every branch is selected in the master "ทั้งหมด" checkbox.
 function updateBranchAllCheckbox() {
     const allCb = document.getElementById('branchOptAll');
     if (!allCb) return;
@@ -1176,7 +1155,6 @@ function updateBranchAllCheckbox() {
     allCb.indeterminate = !everySelected && checked.length > 0;
 }
 
-// Update the single-line summary shown on the dropdown button.
 function updateBranchLabel() {
     const labelEl = document.getElementById('filterBranchLabel');
     if (!labelEl) return;
@@ -1249,20 +1227,62 @@ async function setFilterCallResult(){
     }
 }
 
+let allEmployeeList = null;
+
 async function getEmployeeList(){
-    if (rawEmployeeData && rawEmployeeData.length > 0) {
-        return rawEmployeeData;
+    if (Array.isArray(allEmployeeList)) {
+        rawEmployeeData = allEmployeeList;
+        return allEmployeeList;
     }
-    const response = await fetch(`/DashboardProspectCall/GetEmployeeList`);
+
+    const url = `/DashboardProspectCall/GetEmployeeList`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error("Network response was not ok");
-    const res = await response.json();
-    rawEmployeeData = Array.isArray(res) ? res : [];
-    return rawEmployeeData;
+    let res = await response.json();
+
+    if (typeof res === 'string') {
+        try { res = JSON.parse(res); } catch (e) { /* ignore */ }
+    }
+    let list = [];
+    if (Array.isArray(res)) {
+        list = res;
+    } else if (res && typeof res === 'object') {
+        list = (Array.isArray(res.data) && res.data)
+            || (Array.isArray(res.result) && res.result)
+            || (Array.isArray(res.items) && res.items)
+            || (Array.isArray(res.list) && res.list)
+            || (res.data && Array.isArray(res.data.data) && res.data.data)
+            || [];
+    }
+
+    allEmployeeList = list;
+    rawEmployeeData = list;
+    return list;
+}
+
+function getEmployeeBranchCode(emp){
+    if (!emp) return '';
+    const raw = emp.branch_no ?? emp.offcde ?? emp.branch_code ?? emp.BranchNo
+        ?? emp.branchNo ?? emp.branch ?? emp.Branch ?? emp.off_cde ?? '';
+    return String(raw).trim();
+}
+
+function getEmployeeBranchName(emp){
+    if (!emp) return '';
+    const raw = emp.branch_name ?? emp.branch_name_th ?? emp.BranchNameTH
+        ?? emp.branchName ?? (typeof emp.branch === 'string' ? emp.branch : '') ?? '';
+    return String(raw).trim();
+}
+
+function normalizeBranchCode(code){
+    const s = String(code == null ? '' : code).trim();
+    if (!s) return '';
+    const stripped = s.replace(/^0+/, '');
+    return stripped === '' ? '0' : stripped;
 }
 
 async function setFilterEmployee(){
     try {
-        const items = await getEmployeeList();
         const filterEmployee = document.getElementById('filterCaller');
         if (!filterEmployee) return;
 
@@ -1270,8 +1290,58 @@ async function setFilterEmployee(){
         const isLockedCaller = !hasFcrm006;
         const userPersonalId = (window.USER_PERSONAL_ID || '').toString().trim();
 
+        let selectedBranchVals = $('#filterBranch').val() || [];
+        if (!Array.isArray(selectedBranchVals)) {
+            selectedBranchVals = selectedBranchVals ? [selectedBranchVals] : [];
+        }
+        selectedBranchVals = selectedBranchVals.map(v => String(v).trim()).filter(Boolean);
+
+        const allBranchCodes = (typeof getAllBranchCodes === 'function') ? getAllBranchCodes() : [];
+        const allSelected = allBranchCodes.length > 0 &&
+            allBranchCodes.every(c => selectedBranchVals.includes(c));
+        const showAllBranches = selectedBranchVals.includes("99") || allSelected;
+        const noBranchSelected = selectedBranchVals.length === 0;
+
+        const allItems = await getEmployeeList();
+
+        const selectedCodeSet = new Set(
+            selectedBranchVals
+                .filter(v => v !== "99")
+                .map(v => normalizeBranchCode(v))
+        );
+
+        const branchOptionEls = Array.from(document.querySelectorAll('#filterBranch option'));
+        const selectedBranchNames = [];
+        selectedBranchVals.forEach(val => {
+            const opt = branchOptionEls.find(o => String(o.value).trim() === val);
+            const text = (opt ? opt.textContent : '').trim();
+            if (text) {
+                const cleanName = text.includes('-')
+                    ? text.split('-').slice(1).join('-').trim()
+                    : text.trim();
+                if (cleanName) selectedBranchNames.push(cleanName);
+            }
+        });
+
+        let items;
+        if (showAllBranches) {
+            items = allItems;
+        } else {
+            items = allItems.filter(emp => {
+                const empCode = normalizeBranchCode(getEmployeeBranchCode(emp));
+                if (empCode && selectedCodeSet.has(empCode)) return true;
+
+                const empName = getEmployeeBranchName(emp);
+                if (empName && selectedBranchNames.some(name =>
+                    empName === name || empName.includes(name) || name.includes(empName))) {
+                    return true;
+                }
+                return false;
+            });
+        }
+
         if (isLockedCaller && userPersonalId) {
-            const matchedEmp = items.find(obj => {
+            const matchedEmp = allItems.find(obj => {
                 if (!obj) return false;
                 const code = (obj.personnel_code || obj.code || obj.personnel_id || obj.emp_code || "").trim();
                 return code === userPersonalId;
@@ -1304,47 +1374,33 @@ async function setFilterEmployee(){
             return;
         }
 
-        // Collect all selected branches (multi-select => array).
-        let selectedBranchVals = $('#filterBranch').val() || [];
-        if (!Array.isArray(selectedBranchVals)) {
-            selectedBranchVals = selectedBranchVals ? [selectedBranchVals] : [];
-        }
-        selectedBranchVals = selectedBranchVals.map(v => String(v).trim()).filter(Boolean);
-
-        // No branch restriction on callers when nothing / everything is selected.
-        const allBranchCodes = (typeof getAllBranchCodes === 'function') ? getAllBranchCodes() : [];
-        const allSelected = allBranchCodes.length > 0 &&
-            allBranchCodes.every(c => selectedBranchVals.includes(c));
-        const showAllBranches = selectedBranchVals.length === 0 ||
-            selectedBranchVals.includes("99") || allSelected;
-
-        // Build a lookup of the selected branches by both code and clean name.
-        const branchOptionEls = Array.from(document.querySelectorAll('#filterBranch option'));
-        const selectedBranchNames = [];
-        if (!showAllBranches) {
-            selectedBranchVals.forEach(val => {
-                const opt = branchOptionEls.find(o => String(o.value).trim() === val);
-                const text = (opt ? opt.textContent : '').trim();
-                if (text && text !== "ทั้งหมด") {
-                    const cleanName = text.includes('-')
-                        ? text.split('-').slice(1).join('-').trim()
-                        : text.trim();
-                    if (cleanName) selectedBranchNames.push(cleanName);
-                }
-            });
+        if (noBranchSelected) {
+            filterEmployee.innerHTML = '<option value="">ทั้งหมด</option>';
+            $(filterEmployee).prop('disabled', false);
+            if (typeof $.fn !== 'undefined' && $.fn.select2) {
+                $(filterEmployee).select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    language: {
+                        noResults: function () {
+                            return "ไม่พบข้อมูล";
+                        }
+                    }
+                });
+                $(filterEmployee).val('').trigger('change');
+            }
+            return;
         }
 
-        const filteredItems = showAllBranches
-            ? items
-            : items.filter(obj => {
-                if (!obj) return false;
-                const empBranch = (obj.branch || obj.branch_name_th || obj.branch_name || obj.Branch || obj.BranchNameTH || '').trim();
-                const empBranchNo = (obj.branch_no || obj.offcde || obj.branch_code || obj.BranchNo || '').trim();
-                const matchByNo = empBranchNo && selectedBranchVals.includes(empBranchNo);
-                const matchByName = empBranch && selectedBranchNames.some(name =>
-                    empBranch === name || empBranch.includes(name) || name.includes(empBranch));
-                return matchByNo || matchByName;
-            });
+        const filteredItems = items;
+
+        if (!showAllBranches && !noBranchSelected) {
+            console.log('[filterEmployee] selected =', JSON.stringify(selectedBranchVals),
+                '| allItems =', allItems.length, '| filtered =', filteredItems.length);
+            if (filteredItems.length === 0 && allItems.length > 0) {
+                console.log('[filterEmployee] ตัวอย่าง employee[0] =', JSON.stringify(allItems[0]));
+            }
+        }
 
         const optionsHtml = ['<option value="">ทั้งหมด</option>'].concat(
             filteredItems.map(obj => {
@@ -1452,10 +1508,17 @@ async function exportCallExcel() {
         }
 
         let historyExportRows = [];
+        let historyRawDebug = null;
         if (historyResponse.ok) {
             const historyRes = await historyResponse.json();
+            historyRawDebug = historyRes;
             historyExportRows = extractRows(historyRes);
         }
+
+        if (historyRawDebug && typeof historyRawDebug === 'object') {
+            console.log('HISTORY raw top-level keys:', Object.keys(historyRawDebug));
+        }
+        console.log('HISTORY rows count after extract:', historyExportRows.length);
 
         if ((!exportRows || exportRows.length === 0) && (!historyExportRows || historyExportRows.length === 0)) {
             if (typeof stopLoading === 'function') {
@@ -1519,13 +1582,7 @@ async function exportCallExcel() {
         // History Call ให้เหลือเฉพาะคอลัมน์: product_code, วัตถุประสงค์, วันที่ Call Report, ผลการติดต่อ, รายงานผล, อธิบายผลการติดต่อ, Status Lead
         const historyHeaders = [
             { title: 'product_code', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
-            { title: 'idno', keys: ['idno'], width: 20, align: 'center' },
-            { title: 'nameCus', keys: ['nameCus'], width: 25, align: 'left' },
-            { title: 'contno', keys: ['contno'], width: 18, align: 'center' },
-            { title: 'contractoffcde', keys: ['contractoffcde'], width: 18, align: 'center' },
-            { title: 'company', keys: ['company'], width: 15, align: 'center' },
-            { title: 'phone', keys: ['phone'], width: 18, align: 'center' },
-            { title: 'เบอร์โทรศัพท์ 2', keys: ['เบอร์โทรศัพท์ 2'], width: 18, align: 'center' },
+        
             { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
             { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
             { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },

@@ -1730,6 +1730,7 @@ async function openRecordResultModal(trElement) {
 // Save Record Result
 function saveRecordResult() {
     const resultVal = $('#modalContactResult').val();
+    const resultText = $('#modalContactResult option:selected').text();
     const statusLeadVal = $('#modalStatusLead').val();
     const reportVal = $('#modalContactReport').val();
     const productVal = $('#modalProduct').val() || '';
@@ -1802,7 +1803,7 @@ function saveRecordResult() {
 
     Swal.fire({
         title: 'ยืนยันการบันทึกผลการติดต่อ?',
-        text: `บันทึกผล: "${resultVal}" สำหรับลูกค้า ${customerName}`,
+        text: `บันทึกผล: "${resultText}" สำหรับลูกค้า ${customerName}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
@@ -1817,6 +1818,9 @@ function saveRecordResult() {
             if (nextDateVal) {
                 apptStr = nextDateVal + (nextTimeVal ? ` ${nextTimeVal}` : '');
             }
+            // ส่ง null เมื่อไม่มีวันนัดหมาย เพื่อป้องกันไม่ให้ปลายทางแปลง empty string
+            // เป็น 1900-01-01 00:00:00.000 ในคอลัมน์ชนิด DATETIME
+            const appointmentVal = apptStr.trim() ? apptStr.trim() : null;
 
             const t = targetItem || {};
             const cidVal = t.id || rawItem.id || rawItem.Id || rawItem.cid || '';
@@ -1844,7 +1848,7 @@ function saveRecordResult() {
                     "product_present": String(productVal),
                     "interest_level": String(interestVal),
                     "call_report": String(reportVal),
-                    "appointment": String(apptStr),
+                    "appointment": appointmentVal,
                     "appointment_way": String(channelVal)
                 }
             ];

@@ -958,50 +958,18 @@ namespace webCRM.Services
             string? call_result,
             string? campaign_name)
         {
-            var queryParams =
-                new Dictionary<string, string?>();
-
-            if (!string.IsNullOrEmpty(startdate))
+            var body = new
             {
-                queryParams["startdate"] = startdate;
-            }
+                startdate = string.IsNullOrEmpty(startdate) ? null : startdate,
+                enddate = string.IsNullOrEmpty(enddate) ? null : enddate,
+                call_type = string.IsNullOrEmpty(call_type) ? null : call_type,
+                branch = string.IsNullOrEmpty(branch) ? null : branch,
+                call_by = string.IsNullOrEmpty(call_by) ? null : call_by,
+                call_result = string.IsNullOrEmpty(call_result) ? null : call_result,
+                campaign_name = string.IsNullOrEmpty(campaign_name) ? null : campaign_name
+            };
 
-            if (!string.IsNullOrEmpty(enddate))
-            {
-                queryParams["enddate"] = enddate;
-            }
-
-            if (!string.IsNullOrEmpty(call_type))
-            {
-                queryParams["call_type"] = call_type;
-            }
-
-            if (!string.IsNullOrEmpty(branch))
-            {
-                queryParams["branch"] = branch;
-            }
-
-            if (!string.IsNullOrEmpty(call_by))
-            {
-                queryParams["call_by"] = call_by;
-            }
-
-            if (!string.IsNullOrEmpty(call_result))
-            {
-                queryParams["call_result"] = call_result;
-            }
-
-            if (!string.IsNullOrEmpty(campaign_name))
-            {
-                queryParams["campaign_name"] = campaign_name;
-            }
-
-            var endpoint =
-                QueryHelpers.AddQueryString(
-                    "p3/callDashboardExcel",
-                    queryParams);
-
-            return await GetStringAsync(endpoint);
+            return await PostStringAsync("p3/callDashboardExcel", body);
         }
 
         public async Task<string> GetHistoryCallDashboardExcel(
@@ -1013,50 +981,18 @@ namespace webCRM.Services
             string? call_result,
             string? campaign_name)
         {
-            var queryParams =
-                new Dictionary<string, string?>();
-
-            if (!string.IsNullOrEmpty(startdate))
+            var body = new
             {
-                queryParams["startdate"] = startdate;
-            }
+                startdate = string.IsNullOrEmpty(startdate) ? null : startdate,
+                enddate = string.IsNullOrEmpty(enddate) ? null : enddate,
+                call_type = string.IsNullOrEmpty(call_type) ? null : call_type,
+                branch = string.IsNullOrEmpty(branch) ? null : branch,
+                call_by = string.IsNullOrEmpty(call_by) ? null : call_by,
+                call_result = string.IsNullOrEmpty(call_result) ? null : call_result,
+                campaign_name = string.IsNullOrEmpty(campaign_name) ? null : campaign_name
+            };
 
-            if (!string.IsNullOrEmpty(enddate))
-            {
-                queryParams["enddate"] = enddate;
-            }
-
-            if (!string.IsNullOrEmpty(call_type))
-            {
-                queryParams["call_type"] = call_type;
-            }
-
-            if (!string.IsNullOrEmpty(branch))
-            {
-                queryParams["branch"] = branch;
-            }
-
-            if (!string.IsNullOrEmpty(call_by))
-            {
-                queryParams["call_by"] = call_by;
-            }
-
-            if (!string.IsNullOrEmpty(call_result))
-            {
-                queryParams["call_result"] = call_result;
-            }
-
-            if (!string.IsNullOrEmpty(campaign_name))
-            {
-                queryParams["campaign_name"] = campaign_name;
-            }
-
-            var endpoint =
-                QueryHelpers.AddQueryString(
-                    "p3/historyCallExcel",
-                    queryParams);
-
-            return await GetStringAsync(endpoint);
+            return await PostStringAsync("p3/historyCallExcel", body);
         }
 
         #endregion

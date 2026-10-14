@@ -1353,7 +1353,14 @@ function getSidebarIcon(path, isChild = false) {
 
 function isSidebarPathActive(path) {
     if (!path || path === '#') return false;
-    const currentPath = (window.location.pathname || '/').toLowerCase().replace(/\/$/, "");
+
+    const base = (window.appBase || '').toLowerCase().replace(/\/+$/, "");
+    let rawCurrent = (window.location.pathname || '/').toLowerCase();
+    if (base && (rawCurrent === base || rawCurrent.startsWith(base + '/'))) {
+        rawCurrent = rawCurrent.substring(base.length) || '/';
+    }
+
+    const currentPath = rawCurrent.replace(/\/$/, "");
     const targetPath = (path.split('?')[0] || '').toLowerCase().replace(/\/$/, "");
 
     if (targetPath === '' || targetPath === '/' || targetPath === '/home' || targetPath === '/home/index') {
@@ -1424,9 +1431,11 @@ function renderSidebarMenu(items) {
                 const cIconClass = getSidebarIcon(cPath, true);
                 const isCActive = isSidebarPathActive(cPath);
                 const cActiveClass = isCActive ? 'active-menu text-primary' : 'text-secondary';
+                // เติม base ให้ href เท่านั้น (ไม่แตะค่าที่ส่งเข้า active/icon ซึ่งเทียบกับ raw path)
+                const cHref = (window.appUrl && cPath !== '#') ? window.appUrl(cPath) : cPath;
 
                 childrenHtml += `
-                    <a href="${cPath}" class="nav-link ${cActiveClass} d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+                    <a href="${cHref}" class="nav-link ${cActiveClass} d-flex align-items-center gap-2 px-3 py-1.5 rounded">
                         <i class="bi ${cIconClass} fs-6"></i>
                         <span class="sidebar-text">${cTitle}</span>
                     </a>
@@ -1456,8 +1465,10 @@ function renderSidebarMenu(items) {
             `;
         } else {
             const activeClass = isSidebarPathActive(path) ? 'active-menu text-primary' : 'text-secondary';
+            // เติม base ให้ href เท่านั้น (ไม่แตะค่าที่ส่งเข้า active/icon ซึ่งเทียบกับ raw path)
+            const pHref = (window.appUrl && path !== '#') ? window.appUrl(path) : path;
             html += `
-                <a href="${path}" class="nav-link ${activeClass} d-flex align-items-center gap-3 px-3 py-2 rounded mb-1">
+                <a href="${pHref}" class="nav-link ${activeClass} d-flex align-items-center gap-3 px-3 py-2 rounded mb-1">
                     <i class="bi ${iconClass} fs-5"></i>
                     <span class="fw-medium sidebar-text">${title}</span>
                 </a>
@@ -1839,7 +1850,8 @@ async function switchOwnRole(roleId, roleName) {
         const returnUrl = window.location.pathname
             + window.location.search
             + window.location.hash;
-        window.location.href = '/Login?returnUrl='
+        window.location.href = (window.appUrl ? window.appUrl('/Login') : '/Login')
+            + '?returnUrl='
             + encodeURIComponent(returnUrl);
     } catch (err) {
         console.error('Error switching role:', err);

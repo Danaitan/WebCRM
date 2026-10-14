@@ -571,8 +571,6 @@ namespace webCRM.Controllers
                         });
                     }
 
-                    // เก็บ ref_id สำหรับ API รุ่นที่รองรับ และฝังในข้อความเป็น fallback
-                    // สำหรับ API รุ่นเดิมที่ยังไม่คืน ref_id ตอนอ่านการแจ้งเตือน
                     request.RefId = suggestionGuid.ToString();
                     if (request.Message?.Contains(
                             request.RefId,

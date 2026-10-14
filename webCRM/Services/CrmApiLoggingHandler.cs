@@ -14,13 +14,16 @@ namespace webCRM.Services
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<CrmApiLoggingHandler> _logger;
+        private readonly ActivityLogService _activityLog;
 
         public CrmApiLoggingHandler(
             IHttpContextAccessor httpContextAccessor,
-            ILogger<CrmApiLoggingHandler> logger)
+            ILogger<CrmApiLoggingHandler> logger,
+            ActivityLogService activityLog)
         {
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
+            _activityLog = activityLog;
         }
 
         // call ที่ CRM API ตอบช้ากว่าค่านี้ (ms) จะถูก log เป็น Warning
@@ -58,9 +61,6 @@ namespace webCRM.Services
 
                 long elapsedMs = stopwatch.ElapsedMilliseconds;
 
-                // [DEBUG] log เวลา CRM API ทุก call ออก console
-                // เพื่อหา endpoint ที่ backend ตอบช้า (ตัวที่ทำให้ "ช้าเป็นนาที")
-                // ค่านี้คือเวลารอ CRM API ตอบล้วน ๆ (connection เปิดแล้ว)
                 string codeText =
                     response != null
                         ? ((int)response.StatusCode).ToString()
@@ -157,7 +157,7 @@ namespace webCRM.Services
             // ดึง personalCode จาก URL path เพื่อส่งเป็น actorIdOverride
             string? actorOverride = ExtractPersonalCodeFromPath(module);
 
-            return ActivityLogger.SendAsync(
+            return _activityLog.SendAsync(
                 httpContext,
                 action: action,
                 category: "service",

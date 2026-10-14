@@ -1723,11 +1723,11 @@ $(document).ready(async function () {
     });
 
     $("#homeActionBtn").off("click").on("click", function () {
-        window.location.href = "/";
+        window.location.href = (window.appUrl ? window.appUrl("/") : "/");
     });
 
     $("#backActionBtn").off("click").on("click", function () {
-        window.location.href = "/";
+        window.location.href = (window.appUrl ? window.appUrl("/") : "/");
     });
 
     $("#prospectActionBtn").off("click").on("click", function () {

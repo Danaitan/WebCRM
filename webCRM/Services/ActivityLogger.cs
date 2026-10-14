@@ -1,19 +1,19 @@
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
 namespace webCRM.Services
 {
+    /// <summary>
+    /// Static, stateless helpers สำหรับ activity logging:
+    /// action name mapping, error catalog, และ session trace id.
+    ///
+    /// การ "ส่ง" log ออกไปที่ LOG_URL ย้ายไปอยู่ที่ ActivityLogService
+    /// (instance service ที่ใช้ IHttpClientFactory) เพื่อ reuse connection
+    /// </summary>
     public static class ActivityLogger
     {
-        private static string? LogUrl =>
-            Environment.GetEnvironmentVariable("LOG_URL");
         public static readonly Dictionary<string, string> ActionMap =
             new(StringComparer.OrdinalIgnoreCase)
             {
@@ -98,12 +98,6 @@ namespace webCRM.Services
             return fallback ?? lastSegment;
         }
 
-        private static bool IsLogOn =>
-            string.Equals(
-                Environment.GetEnvironmentVariable("isLogOn"),
-                "true",
-                StringComparison.OrdinalIgnoreCase);
-
         private static readonly List<ErrorCode> ErrorCatalog = new()
         {
             new ErrorCode { error_code = "SYS-1000", http_status_code = "400", category = "VALIDATION", default_message_en = "Invalid request payload format", default_message_th = "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง", log_level = "WARN" },
@@ -127,7 +121,7 @@ namespace webCRM.Services
 
         private const string TraceIdSessionKey = "activityTraceId";
 
-        private static string GetOrCreateSessionTraceId(HttpContext httpContext)
+        internal static string GetOrCreateSessionTraceId(HttpContext httpContext)
         {
             var existing = httpContext.Session.GetString(TraceIdSessionKey);
 
@@ -148,7 +142,7 @@ namespace webCRM.Services
             return traceId;
         }
 
-        private static ErrorCode? ResolveErrorCode(string? code)
+        internal static ErrorCode? ResolveErrorCode(string? code)
         {
             if (string.IsNullOrWhiteSpace(code))
             {
@@ -168,246 +162,15 @@ namespace webCRM.Services
             return ErrorCatalog.FirstOrDefault(e =>
                 string.Equals(e.http_status_code, key, StringComparison.OrdinalIgnoreCase));
         }
-
-        public static async Task SendAsync(
-            HttpContext? httpContext,
-            string action,
-            string category = "user",
-            string status = "SUCCESS",
-            string code = "-",
-            string targetId = "",
-            string targetType = "",
-            string message = "",
-            string module = "",
-            string? environment = null,
-            string? appVersion = null,
-            string? actorIdOverride = null
-            )
-        {
-            try
-            {
-                environment ??= Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                if (!IsLogOn)
-                {
-                    Console.WriteLine(
-                        "[ActivityLogger] isLogOn is not \"true\" (value: "
-                        + (Environment.GetEnvironmentVariable("isLogOn") ?? "")
-                        + "). Skipping log.");
-                    return;
-                }
-
-                var logUrl = LogUrl;
-
-                if (string.IsNullOrWhiteSpace(logUrl))
-                {
-                    Console.WriteLine(
-                        "[ActivityLogger] WARNING: LOG_URL is not configured. Skipping log.");
-                    return;
-                }
-
-                string traceId = string.Empty;
-
-                string clientIp = string.Empty;
-                string browser = string.Empty;
-                string personnelCode = string.Empty;
-                string sessionId = string.Empty;
-
-                if (httpContext != null)
-                {
-                    clientIp =
-                        httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim()
-                        ?? httpContext.Request.Headers["X-Real-IP"].FirstOrDefault()
-                        ?? httpContext.Connection.RemoteIpAddress?.ToString()
-                        ?? string.Empty;
-
-                    browser =
-                        httpContext.Request.Headers["User-Agent"].FirstOrDefault()
-                        ?? string.Empty;
-
-                    try
-                    {
-                        personnelCode =
-                            httpContext.Session.GetString("personalId")
-                            ?? string.Empty;
-
-                        if (string.IsNullOrEmpty(personnelCode)
-                            && !string.IsNullOrEmpty(actorIdOverride))
-                        {
-                            personnelCode = actorIdOverride;
-                        }
-
-                        sessionId = httpContext.Session.Id;
-
-                        traceId = GetOrCreateSessionTraceId(httpContext);
-                    }
-                    catch
-                    {
-
-                    }
-                }
-
-                if (string.IsNullOrEmpty(personnelCode)
-                    && !string.IsNullOrEmpty(actorIdOverride))
-                {
-                    personnelCode = actorIdOverride;
-                }
-
-                var resolved = ResolveErrorCode(code);
-
-                string eventCode = resolved?.error_code ?? code ?? string.Empty;
-
-                string eventLogLevel = resolved?.log_level ?? "INFO";
-
-                var eventTimestamp = DateTime.UtcNow.ToString("o");
-                var envelope = new
-                {
-                    source_service = "WebCRM",
-                    sent_at = DateTime.UtcNow.ToString("o"),
-                    context = new
-                    {
-                        environment = environment ?? string.Empty,
-                        app_version = appVersion ?? string.Empty
-                    },
-                    events = new[]
-                    {
-                        new
-                        {
-
-                            timestamp = eventTimestamp,
-                            trace_id = traceId,
-                            log_level = eventLogLevel,
-
-                            @event = new
-                            {
-                                category = category ?? string.Empty,
-                                action = action ?? string.Empty,
-                                status = status ?? string.Empty,
-                                code = eventCode
-                            },
-
-                            actor = new
-                            {
-                                id = personnelCode,
-                                type = "user",
-                                client_ip = clientIp,
-                                session_id = sessionId
-                            },
-
-                            target = new
-                            {
-                                id = targetId ?? string.Empty,
-                                type = targetType ?? string.Empty
-                            },
-
-                            details = new
-                            {
-                                message = message ?? string.Empty,
-                                browser = browser,
-                                module = module ?? string.Empty
-                            }
-                        }
-                    }
-                };
-
-                var json = JsonSerializer.Serialize(
-                    envelope,
-                    new JsonSerializerOptions
-                    {
-                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                    });
-
-                var handler = new SocketsHttpHandler
-                {
-                    // ปิด revocation check (OCSP/CRL) กัน TLS handshake
-                    // ค้างรอ timeout เมื่อเข้าถึง responder ไม่ได้
-                    SslOptions =
-                    {
-                        CertificateRevocationCheckMode =
-                            System.Security.Cryptography.X509Certificates
-                                .X509RevocationMode.NoCheck,
-                        RemoteCertificateValidationCallback =
-                            (message, cert, chain, errors) => true
-                    },
-                    ConnectTimeout = TimeSpan.FromSeconds(5)
-                };
-
-                using var client = new HttpClient(handler)
-                {
-                    // log ต้องไม่หน่วงนาน ถ้า endpoint ช้าให้ยอมแพ้เร็ว
-                    Timeout = TimeSpan.FromSeconds(10)
-                };
-
-                using var content = new StringContent(
-                    json,
-                    Encoding.UTF8,
-                    "application/json");
-
-                // var token = httpContext?.Items["LogToken"] as string;
-                var token = Environment.GetEnvironmentVariable("LOG_Token") ?? "";;
-
-                if (string.IsNullOrWhiteSpace(token))
-                {
-                    token = httpContext?.Request.Cookies["LogToken"] ?? "";
-                }
-
-                if (!string.IsNullOrWhiteSpace(token))
-                {
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", token);
-                }
-                else
-                {
-                    Console.WriteLine(
-                        "[ActivityLogger] WARNING: LogToken cookie is empty. Sending without Authorization header.");
-                }
-
-                // Console.WriteLine(
-                //     $"[ActivityLogger] Sending POST {logUrl}");
-                // Console.WriteLine(
-                //     $"[ActivityLogger] Payload: {json}");
-
-                var response = await client.PostAsync(
-                    logUrl,
-                    content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent =
-                        await response.Content.ReadAsStringAsync();
-
-                    Console.WriteLine(
-                        $"[ActivityLogger] HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-
-                    Console.WriteLine(
-                        $"[ActivityLogger] Error Response Body: {errorContent}");
-                }
-                else
-                {
-                    Console.WriteLine(
-                        $"[ActivityLogger] Log sent successfully. HTTP {(int)response.StatusCode}");
-                }
-
-                response.Dispose();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(
-                    $"[ActivityLogger] Exception: {ex.GetType().Name}: {ex.Message}");
-
-                Console.WriteLine(
-                    $"[ActivityLogger] StackTrace: {ex.StackTrace}");
-            }
-        }
     }
 
-public class ErrorCode
-{
-    public string? error_code { get; set; }
-    public string? http_status_code { get; set; }
-    public string? category { get; set; }
-    public string? default_message_en { get; set; }
-    public string? default_message_th { get; set; }
-    public string? log_level { get; set; }
-}
-
+    public class ErrorCode
+    {
+        public string? error_code { get; set; }
+        public string? http_status_code { get; set; }
+        public string? category { get; set; }
+        public string? default_message_en { get; set; }
+        public string? default_message_th { get; set; }
+        public string? log_level { get; set; }
+    }
 }

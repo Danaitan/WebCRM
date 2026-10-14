@@ -5,29 +5,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"]</title>
-    @*
-        PathBase ที่แอปทำงานอยู่ (เช่น "/crmweb" เมื่อ deploy
-        ผ่าน Nginx Proxy Manager, หรือ "" เมื่อรันที่ root).
-        ใช้ Content("~/") เพื่อให้ ASP.NET คืน path base จริง
-        แล้วตัด trailing slash ออก
-    *@
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" asp-append-version="true" />
+    <link rel="shortcut icon" href="~/favicon.ico" />
     <script>
         window.appBase = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
             (Url.Content("~/") ?? "/").TrimEnd('/')));
     </script>
     <script src="~/js/app-base.js"></script>
-    <!-- Add Google Fonts (Prompt and Kanit for standard Thai UI) -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Add Bootstrap for layout/utilities -->
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <!-- Add Bootstrap Icons -->
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <!-- Add DataTables CSS -->
+
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
-    <!-- Flatpickr Datepicker -->
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -37,7 +33,17 @@
 <body class="crm-body">
     @{
         bool hideSidebar = ViewData["HideSidebar"] as bool? == true;
-        var currentPath = Context.Request.Path.Value ?? "/";
+
+        var pathBaseValue = Context.Request.PathBase.Value ?? "";
+        var rawPath = Context.Request.Path.Value ?? "/";
+
+        if (!string.IsNullOrEmpty(pathBaseValue)
+            && rawPath.StartsWith(pathBaseValue, StringComparison.OrdinalIgnoreCase))
+        {
+            rawPath = rawPath.Substring(pathBaseValue.Length);
+        }
+
+        var currentPath = string.IsNullOrEmpty(rawPath) ? "/" : rawPath;
         string GetActiveClass(string path)
         {
             if (path == "/" || path == "/Home/Index")

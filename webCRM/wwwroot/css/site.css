@@ -475,6 +475,7 @@ table.table-dark thead th {
 }
 
 .crm-notification-list {
+  min-height: 180px;
   max-height: 350px;
 }
 

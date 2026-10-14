@@ -644,8 +644,10 @@ async function getDashboardCustomerInfo(options = {}) {
         if (contactStatus) params.append('contactStatus', contactStatus);
 
         const queryString = params.toString();
-        console.log("queryString", queryString)
-        const url = '/Home/GetCustommerDashboard' + (queryString ? `?${queryString}` : '');
+        const base = window.appBase || '';
+        console.log("base",base)
+        console.log("queryString",queryString)
+        const url = base + '/Home/GetCustommerDashboard' + (queryString ? `?${queryString}` : '');
 
         const response = await fetch(url, inline ? { skipLoading: true } : undefined);
         if (!response.ok) {
@@ -1065,7 +1067,8 @@ async function loadDashboardDropdowns(company = '') {
         const params = new URLSearchParams();
         if (company) params.append('company', company);
         const queryString = params.toString();
-        const url = '/Home/GetCustommerDashboardDropdown' + (queryString ? `?${queryString}` : '');
+        const base = window.appBase || '';
+        const url = base + '/Home/GetCustommerDashboardDropdown' + (queryString ? `?${queryString}` : '');
 
         const response = await fetch(url, { skipLoading: true });
         if (!response.ok) {
@@ -1137,7 +1140,9 @@ $(document).ready(async function () {
     (async function loadInitialDashboard() {
         try {
             await loadDashboardDropdowns();
+            console.log("start getDashboardCustomerInfo")
             await getDashboardCustomerInfo({ inline: true });
+            console.log("finish getDashboardCustomerInfo")
         } catch (error) {
             console.error("Error in document ready:", error);
         }

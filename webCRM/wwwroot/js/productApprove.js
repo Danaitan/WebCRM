@@ -208,7 +208,7 @@ async function SearchCampaign() {
 }  
 
 function reloadCampaignComponent() {
-    console.log("reloadCampaignComponent")
+    // console.log("reloadCampaignComponent")
     if (typeof campaignTable !== "undefined" && campaignTable) {
         campaignTable.ajax.reload(null, false);
     } else {
@@ -883,7 +883,7 @@ async function getCampainList(page, pageSize, statusText) {
 }
 
 function initDataTables() {
-    console.log("initDataTables")
+    // console.log("initDataTables")
     campaignTable = $("#campaignsTable").DataTable({
         serverSide: true,
         processing: false,
@@ -1065,12 +1065,12 @@ function filterProspectTable() {
     } else {
         var html = '';
 // console.log("filteredItems",filteredItems)
-console.log("filteredItems",filteredItems)
+// console.log("filteredItems",filteredItems)
         pagedItems.forEach(function (item, index) {
             var seq = start + index + 1;
             var dtStr = formatDateTime(item.createdDate);
-            console.log("item.createdDate",item.createdDate)
-            console.log("dtStr",dtStr)
+            // console.log("item.createdDate",item.createdDate)
+            // console.log("dtStr",dtStr)
             html += `
                 <tr data-branch="${item.branch}" data-name="${item.name}" data-contract="${item.contract}" data-by="${item.createdBy}">
                     <td style="text-align: center;">${seq}</td>

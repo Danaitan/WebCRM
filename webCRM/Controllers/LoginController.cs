@@ -42,7 +42,8 @@ namespace webCRM.Controllers
                 // string personalCode = "690001";
                 //string personalCode = "100650";
 
-                if (!env.IsDevelopment())
+                // if (!env.IsDevelopment())
+                if (false)
                 {
                     if (!string.IsNullOrWhiteSpace(user))
                     {
@@ -119,65 +120,24 @@ namespace webCRM.Controllers
                         "ไม่พบข้อมูลผู้ใช้งานในระบบ");
                 }
 
-                string pCode =
-                    profile["personnel_code"]?.ToString()
-                    ?? personalCode;
+                string Field(string key, string fallback = "")
+                    => profile[key]?.ToString() ?? fallback;
 
-                string pNameTh =
-                    profile["personnel_name_TH"]?.ToString()
-                    ?? "";
-
-                string pLastTh =
-                    profile["personnel_last_TH"]?.ToString()
-                    ?? "";
-
-                string pNameEn =
-                    profile["personnel_name_EN"]?.ToString()
-                    ?? "";
-
-                string pLastEn =
-                    profile["personnel_last_EN"]?.ToString()
-                    ?? "";
-
-                string email =
-                    profile["e_mail"]?.ToString()
-                    ?? "";
-
-                string groupEmail =
-                    profile["groupEmail"]?.ToString()
-                    ?? "";
-
-                string roleId =
-                    profile["role_id"]?.ToString()
-                    ?? "";
-
-                string branchNo =
-                    profile["branch_no"]?.ToString()
-                    ?? "";
-
-                string branch =
-                    profile["branch"]?.ToString()
-                    ?? "";
-
-                string funcId =
-                    profile["func_id"]?.ToString()
-                    ?? "";
-
-                string variableFunc =
-                    profile["variable_func"]?.ToString()
-                    ?? "";
-
-                string func_name =
-                    profile["func_name"]?.ToString()
-                    ?? "";
-
-                string roleName =
-                    profile["role_name"]?.ToString()
-                    ?? "";
-
-                string company =
-                    profile["companyCode"]?.ToString()
-                    ?? "";
+                string pCode        = Field("personnel_code", personalCode);
+                string pNameTh      = Field("personnel_name_TH");
+                string pLastTh      = Field("personnel_last_TH");
+                string pNameEn      = Field("personnel_name_EN");
+                string pLastEn      = Field("personnel_last_EN");
+                string email        = Field("e_mail");
+                string groupEmail   = Field("groupEmail");
+                string roleId       = Field("role_id");
+                string branchNo     = Field("branch_no");
+                string branch       = Field("branch");
+                string funcId       = Field("func_id");
+                string variableFunc = Field("variable_func");
+                string func_name    = Field("func_name");
+                string roleName     = Field("role_name");
+                string company      = Field("companyCode");
 
                 if (!string.IsNullOrWhiteSpace(switchedRoleId))
                 {
@@ -193,66 +153,34 @@ namespace webCRM.Controllers
                         "ไม่มีสิทธิ์การใช้งานระบบ");
                 }
 
-                // =========================
                 // Set Session
-                // =========================
-
-                HttpContext.Session.SetString(
-                    "profile_welcome",
-                    $"[{pCode}] ({pNameTh} {pLastTh}) [{roleName}]");
-
-                HttpContext.Session.SetString(
-                    "fullNameEn",
-                    $"{pNameEn} {pLastEn}");
-
-                HttpContext.Session.SetString(
-                    "personalId",
-                    pCode);
-
-                HttpContext.Session.SetString(
-                    "email",
-                    email);
-
-                HttpContext.Session.SetString(
-                    "groupEmail",
-                    groupEmail);
-
-                HttpContext.Session.SetString(
-                    "company",
-                    company);
-
-                HttpContext.Session.SetString(
-                    "fullNameTh",
-                    $"{pNameTh} {pLastTh}");
-
-                HttpContext.Session.SetString(
-                    "roleId",
-                    roleId);
-
-                HttpContext.Session.SetString(
-                    "roleName",
-                    roleName);
-
-                HttpContext.Session.SetString(
-                    "func_id",
-                    funcId);
-
-                HttpContext.Session.SetString(
-                    "variable_func",
-                    variableFunc);
-
-                HttpContext.Session.SetString(
-                    "func_name",
-                    func_name);
 
                 string formattedBranchNo =
                     int.TryParse(branchNo, out int bNo)
                         ? bNo.ToString("00")
                         : branchNo;
 
-                HttpContext.Session.SetString(
-                    "branchName",
-                    $"{formattedBranchNo}-{branch}");
+                var sessionValues = new Dictionary<string, string>
+                {
+                    ["profile_welcome"] = $"[{pCode}] ({pNameTh} {pLastTh}) [{roleName}]",
+                    ["fullNameEn"] = $"{pNameEn} {pLastEn}",
+                    ["personalId"] = pCode,
+                    ["email"] = email,
+                    ["groupEmail"] = groupEmail,
+                    ["company"] = company,
+                    ["fullNameTh"] = $"{pNameTh} {pLastTh}",
+                    ["roleId"] = roleId,
+                    ["roleName"] = roleName,
+                    ["func_id"] = funcId,
+                    ["variable_func"] = variableFunc,
+                    ["func_name"] = func_name,
+                    ["branchName"] = $"{formattedBranchNo}-{branch}"
+                };
+
+                foreach (var (key, value) in sessionValues)
+                {
+                    HttpContext.Session.SetString(key, value);
+                }
 
                 Console.WriteLine(
                     $"LOGIN SUCCESS: {pCode}");

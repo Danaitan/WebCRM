@@ -644,9 +644,9 @@ async function getDashboardCustomerInfo(options = {}) {
         if (contactStatus) params.append('contactStatus', contactStatus);
 
         const queryString = params.toString();
+        console.log("queryString", queryString)
         const url = '/Home/GetCustommerDashboard' + (queryString ? `?${queryString}` : '');
 
-        // เมื่อโหลดแบบ inline จะข้าม overlay เต็มจอ (fetch interceptor) เพื่อไม่บล็อกหน้า
         const response = await fetch(url, inline ? { skipLoading: true } : undefined);
         if (!response.ok) {
             console.error("HTTP error fetching dashboard customer info:", response.status);
@@ -654,7 +654,8 @@ async function getDashboardCustomerInfo(options = {}) {
             return;
         }
         const data = await response.json();
-
+        console.log("response", response)
+        console.log("data", data)
         if (!data || data.status === false) {
             console.error("Error fetching dashboard customer info:", data ? data.message : "No data received");
             renderEmptyDashboard();
@@ -715,7 +716,6 @@ async function setDataDashboardCustomer(data) {
             const currentSum = scaled.reduce((sum, item) => sum + item.floorVal, 0);
             const diff = 10000 - currentSum;
 
-            // เรียงลำดับตาม remainder มากไปน้อย เพื่อบวก 0.01% ให้กับตัวที่มีเศษเหลือมากที่สุด
             const sortedByRemainder = [...scaled].sort((a, b) => b.remainder - a.remainder);
             for (let i = 0; i < diff && i < sortedByRemainder.length; i++) {
                 sortedByRemainder[i].floorVal += 1;

@@ -13,11 +13,18 @@ namespace webCRM.Services
     public sealed class CrmApiLoggingHandler : DelegatingHandler
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<CrmApiLoggingHandler> _logger;
 
-        public CrmApiLoggingHandler(IHttpContextAccessor httpContextAccessor)
+        public CrmApiLoggingHandler(
+            IHttpContextAccessor httpContextAccessor,
+            ILogger<CrmApiLoggingHandler> logger)
         {
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
+
+        // call ที่ CRM API ตอบช้ากว่าค่านี้ (ms) จะถูก log เป็น Warning
+        private const long SlowApiThresholdMs = 1000;
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -49,6 +56,29 @@ namespace webCRM.Services
             {
                 stopwatch.Stop();
 
+                long elapsedMs = stopwatch.ElapsedMilliseconds;
+
+                // [DEBUG] log เวลา CRM API ทุก call ออก console
+                // เพื่อหา endpoint ที่ backend ตอบช้า (ตัวที่ทำให้ "ช้าเป็นนาที")
+                // ค่านี้คือเวลารอ CRM API ตอบล้วน ๆ (connection เปิดแล้ว)
+                string codeText =
+                    response != null
+                        ? ((int)response.StatusCode).ToString()
+                        : (error != null ? "ERR" : "-");
+
+                if (elapsedMs >= SlowApiThresholdMs)
+                {
+                    _logger.LogWarning(
+                        "[CRMAPI] {Method} {Endpoint} -> {Code} in {ElapsedMs}ms (SLOW)",
+                        method, endpoint, codeText, elapsedMs);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "[CRMAPI] {Method} {Endpoint} -> {Code} in {ElapsedMs}ms",
+                        method, endpoint, codeText, elapsedMs);
+                }
+
                 if (!ShouldSkipLogging(method, endpoint))
                 {
                     _ = LogCallAsync(
@@ -56,7 +86,7 @@ namespace webCRM.Services
                         endpoint,
                         response,
                         error,
-                        stopwatch.ElapsedMilliseconds);
+                        elapsedMs);
                 }
             }
         }

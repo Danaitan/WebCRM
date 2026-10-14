@@ -179,8 +179,12 @@ var httpClientBuilder = builder.Services
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", bearerToken);
     })
-    .ConfigurePrimaryHttpMessageHandler(() =>
+    .ConfigurePrimaryHttpMessageHandler((sp) =>
     {
+        var connLogger = sp
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("CRMApi.Connect");
+
         var handler = new SocketsHttpHandler
         {
             UseProxy = false,
@@ -193,6 +197,88 @@ var httpClientBuilder = builder.Services
 
             // กันค้างตอนต่อ (เช่น IPv6 fallback) ไม่เกิน 5 วินาที
             ConnectTimeout = TimeSpan.FromSeconds(5)
+        };
+
+        // [DEBUG] วัดเวลา "เปิด connection" แยก DNS resolve กับ TCP connect
+        // callback นี้ถูกเรียก "เฉพาะตอนต้องเปิด connection ใหม่"
+        // (ไม่ถูกเรียกเมื่อ reuse connection เดิมจาก pool)
+        // => ถ้าเห็น log นี้โผล่บ่อย = connection ไม่ถูก reuse
+        // => ถ้า dnsMs หรือ connectMs สูง = คอขวดอยู่ที่ DNS หรือ TCP/TLS
+        handler.ConnectCallback = async (ctx, ct) =>
+        {
+            string hostName = ctx.DnsEndPoint.Host;
+            int port = ctx.DnsEndPoint.Port;
+
+            var swDns = System.Diagnostics.Stopwatch.StartNew();
+
+            System.Net.IPAddress[] addresses =
+                await System.Net.Dns.GetHostAddressesAsync(hostName, ct);
+
+            swDns.Stop();
+            long dnsMs = swDns.ElapsedMilliseconds;
+
+            var swConn = System.Diagnostics.Stopwatch.StartNew();
+
+            var socket = new System.Net.Sockets.Socket(
+                System.Net.Sockets.SocketType.Stream,
+                System.Net.Sockets.ProtocolType.Tcp)
+            {
+                NoDelay = true
+            };
+
+            Exception? connectError = null;
+            System.Net.IPAddress? usedAddress = null;
+
+            try
+            {
+                // ลองต่อทีละ address ตามลำดับที่ DNS คืนมา
+                // (มักเป็น IPv6 ::1 ก่อน แล้วค่อย IPv4 127.0.0.1)
+                // ทำให้เห็นว่าถ้า IPv6 ต่อไม่ได้ ต้องเสียเวลา fallback เท่าไร
+                foreach (var addr in addresses)
+                {
+                    try
+                    {
+                        await socket.ConnectAsync(addr, port, ct);
+                        usedAddress = addr;
+                        break;
+                    }
+                    catch (Exception exAddr)
+                    {
+                        connectError = exAddr;
+                        connLogger.LogWarning(
+                            "[CONNECT] {Host}:{Port} addr={Addr} " +
+                            "FAILED after {Ms}ms: {Err}",
+                            hostName, port, addr,
+                            swConn.ElapsedMilliseconds,
+                            exAddr.Message);
+                    }
+                }
+
+                if (usedAddress == null)
+                {
+                    socket.Dispose();
+                    throw connectError
+                        ?? new System.Net.Sockets.SocketException();
+                }
+
+                swConn.Stop();
+
+                connLogger.LogWarning(
+                    "[CONNECT] {Host}:{Port} OPENED NEW connection " +
+                    "dns={DnsMs}ms connect={ConnectMs}ms " +
+                    "addrCount={Count} usedAddr={Used}",
+                    hostName, port, dnsMs,
+                    swConn.ElapsedMilliseconds,
+                    addresses.Length, usedAddress);
+
+                return new System.Net.Sockets.NetworkStream(
+                    socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         };
 
         if (!isCheckCert)
@@ -214,6 +300,7 @@ builder.Services.AddScoped<CRMService>();
 
 var app = builder.Build();
 app.UseForwardedHeaders();
+
 if (!string.IsNullOrEmpty(pathBase))
 {
     app.UsePathBase(pathBase);
@@ -269,6 +356,27 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseSession();
+
+//app.Use(async (context, next) =>
+//{
+//    var sw = System.Diagnostics.Stopwatch.StartNew();
+//    try
+//    {
+//        await context.Session.LoadAsync();
+//        context.Items["sessionId"] = context.Session.Id;
+//    }
+//    catch
+//    {
+//        // ไม่ให้ debug code ทำ request พัง
+//    }
+//    finally
+//    {
+//        sw.Stop();
+//        context.Items["sessionLoadMs"] = sw.ElapsedMilliseconds;
+//    }
+
+//    await next();
+//});
 
 app.UseAuthorization();
 

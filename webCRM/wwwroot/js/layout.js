@@ -1262,6 +1262,7 @@ let wsReconnectAttempts = 0;
 const MAX_WS_RECONNECT_ATTEMPTS = 5;
 
 function connectWebSocket() {
+    console.log("เข้า_connectWebSocket")
     if (typeof userId === 'undefined' || !userId || userId.trim() === '') {
         return;
     }
@@ -1291,10 +1292,11 @@ function connectWebSocket() {
         socket.onopen = function () {
             wsReconnectAttempts = 0;
         };
-
+console.log("connectWebSocket_event",event)
         socket.onmessage = function (event) {
             try {
                 const result = JSON.parse(event.data);
+console.log("connectWebSocket_result",result)
                 fetchNotifications();
                 const itemData = result.data || result.notification || (result.type === "notification" || result.type === "postNotification" ? result : null);
                 if (itemData && (itemData.topic || itemData.title || itemData.header || itemData.content || itemData.message)) {

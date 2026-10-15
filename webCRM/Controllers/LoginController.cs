@@ -42,8 +42,8 @@ namespace webCRM.Controllers
                 // string personalCode = "690001";
                 //string personalCode = "100650";
 
-                // if (!env.IsDevelopment())
-                if (false)
+                if (!env.IsDevelopment())
+                // if (false)
                 {
                     if (!string.IsNullOrWhiteSpace(user))
                     {

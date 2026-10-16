@@ -342,7 +342,9 @@ async function renderMasterObjectives() {
 // ใช้ระบุ filter ให้ไม่ซ้ำกัน เพราะ fcode อย่างเดียวอาจซ้ำข้ามบริษัทได้
 function buildFilterKey(item) {
     if (!item) return "";
-    const fcode = (item.fcode || item.fCode || item.FCode || item.f_code || "").toString().trim().toLowerCase();
+            console.log("item",item)
+    // const fcode = (item.fcode || "").toString().trim().toLowerCase();
+    const fcode = (item.fremark || "").toString().trim().toLowerCase();
     const fcompany = (item.fcompany || "").toString().trim().toLowerCase();
     return `${fcode}||${fcompany}`;
 }
@@ -633,6 +635,7 @@ function renderFilterRows() {
     $container.empty();
 
     rows.forEach(item => {
+
         const description = item.fremark || "-";
         const company = item.fcompany || "-";
         const ftype = item.ftype || "-";

@@ -83,7 +83,9 @@ namespace webCRM.Models
       //อายุ
       public string? age { get; set; }
       //สาขาที่เปิดสัญญา
-      public string? branchName { get; set; }
+    //   public string? branchName { get; set; }
+      //สาขาที่เปิดสัญญา
+      public string? contractoffcde { get; set; }
       //ภูมิภาคที่อยู่ปัจจุบัน
       public string? current_region { get; set; }
       //จำนวนงวดที่ค้างชำระ

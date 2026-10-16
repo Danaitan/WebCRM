@@ -2041,6 +2041,8 @@ async function getContactInfo(idno, company, encodedC, clickedRow) {
             document.getElementById("loan-detail-overdue-days").innerText = contract.DPD;
             document.getElementById("loan-detail-installment-amount").innerText = formatValues(contract.instamt) || '-';
             document.getElementById("loan-detail-overdue-terms").innerText = contract.totalOvd || '-';
+            // console.log("contract.totalOvd",contract.totalOvd)
+            // console.log("contract",contract)
             document.getElementById("loan-detail-insurance-due-date").innerText = formatDate(contract.insurancedte);
             document.getElementById("loan-detail-interest-rate").innerText = contract.rateFlat;
             document.getElementById("loan-detail-tax-due-date").innerText = formatDate(contract.taxdte);

@@ -5,13 +5,6 @@ using Microsoft.AspNetCore.Http;
 
 namespace webCRM.Services
 {
-    /// <summary>
-    /// Static, stateless helpers สำหรับ activity logging:
-    /// action name mapping, error catalog, และ session trace id.
-    ///
-    /// การ "ส่ง" log ออกไปที่ LOG_URL ย้ายไปอยู่ที่ ActivityLogService
-    /// (instance service ที่ใช้ IHttpClientFactory) เพื่อ reuse connection
-    /// </summary>
     public static class ActivityLogger
     {
         public static readonly Dictionary<string, string> ActionMap =

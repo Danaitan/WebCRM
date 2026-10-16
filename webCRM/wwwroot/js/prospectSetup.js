@@ -711,7 +711,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                     } else {
 
                         const filterData = await getProductFilterByGuid(targetGuid);
-
+console.log("filterData",filterData)
                         // ถ้า Campaign ถูกเปลี่ยนไปแล้ว
                         if (requestId !== currentFilterRequestId) {
                             console.log(
@@ -1327,12 +1327,13 @@ async function getProspect(signal = null) {
         if (!hasAnyProspectFilter(filterParams)) {
             return { count: 0, total: 0, data: [] };
         }
-
+console.log("BEFOER_filterParams.toString()",filterParams.toString())
         const campaignBatch = getCampaignBatch();
         const campaignBranch = selectedCampaign ? (selectedCampaign.offcde || '') : '';
         if (campaignBatch) filterParams.append('batch', campaignBatch);
         if (campaignBranch) filterParams.append('branch', campaignBranch);
-
+        console.log("campaignBranch",campaignBranch)
+console.log("AFTER_filterParams.toString()",filterParams.toString())
         const response = await fetch(
             `/ProspectSetup/GetProspect?${filterParams.toString()}`,
             { signal }

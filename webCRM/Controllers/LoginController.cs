@@ -168,6 +168,7 @@ namespace webCRM.Controllers
                     ["email"] = email,
                     ["groupEmail"] = groupEmail,
                     ["company"] = company,
+                    // ["company"] = "MIB",
                     ["fullNameTh"] = $"{pNameTh} {pLastTh}",
                     ["roleId"] = roleId,
                     ["roleName"] = roleName,

@@ -1182,7 +1182,7 @@ console.log("extractProspectCustomers_data",data)
             const createdBy = item.created_by || '-';
             const custType = item.custype || '-';
             const occupation = item.occupation || '-';
-            const assignee = item.staffName || '-';
+            const assignee = item.staffName || item.assign_to_name || '-';
             const status = item.assign_status || '-';
             const isActive = item.isActive || false;
 

@@ -184,8 +184,8 @@ namespace webCRM.Services
                     Encoding.UTF8,
                     "application/json");
 
-                // var token = httpContext?.Items["LogToken"] as string;
-                var token = Environment.GetEnvironmentVariable("LOG_Token") ?? "";
+                var token = httpContext?.Items["LogToken"] as string;
+                // var token = Environment.GetEnvironmentVariable("LOG_Token") ?? "";
 
                 if (string.IsNullOrWhiteSpace(token))
                 {

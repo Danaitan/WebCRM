@@ -26,7 +26,6 @@ namespace webCRM.Services
             _activityLog = activityLog;
         }
 
-        // call ที่ CRM API ตอบช้ากว่าค่านี้ (ms) จะถูก log เป็น Warning
         private const long SlowApiThresholdMs = 1000;
 
         protected override async Task<HttpResponseMessage> SendAsync(
@@ -99,6 +98,9 @@ namespace webCRM.Services
                 {
                     "/p3/customerDashboardDropdown",
                     "/p3/getNotification",
+                    "/contactLists",
+                    "/receiveInfo",
+                    "/claimInfo",
                 },
 
                 ["POST"] = new(StringComparer.OrdinalIgnoreCase)
@@ -147,14 +149,10 @@ namespace webCRM.Services
 
             string module = endpoint.Split('?')[0];
 
-            // ใช้ ActionMap แปลงชื่อ action ให้อ่านง่าย
-            // ถ้าไม่มีใน map จะ fallback เป็น "{METHOD} {path}" เหมือนเดิม
             string action = ActivityLogger.ResolveActionName(
                 module,
                 fallback: $"{method} {module}");
 
-            // ตอน login session ยังไม่มี personalId
-            // ดึง personalCode จาก URL path เพื่อส่งเป็น actorIdOverride
             string? actorOverride = ExtractPersonalCodeFromPath(module);
 
             return _activityLog.SendAsync(
@@ -169,9 +167,6 @@ namespace webCRM.Services
                 actorIdOverride: actorOverride);
         }
 
-        // ดึง personalCode จาก path เช่น
-        // /p2/getProfileByPersonalCode/100664 → "100664"
-        // คืน null ถ้า path ไม่ตรงรูปแบบ เพื่อให้ SendAsync ใช้ session ตามปกติ
         private static string? ExtractPersonalCodeFromPath(string path)
         {
             const string marker = "getProfileByPersonalCode/";
@@ -187,7 +182,6 @@ namespace webCRM.Services
 
             string tail = path[(idx + marker.Length)..].TrimEnd('/');
 
-            // เอาเฉพาะ segment แรก (กัน path ต่อท้าย)
             int slash = tail.IndexOf('/');
             return slash >= 0 ? tail[..slash] : tail;
         }

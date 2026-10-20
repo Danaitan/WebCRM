@@ -30,7 +30,7 @@ namespace webCRM.Controllers
             try
             {
                 var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "";
-                // string CookieLogToken = Request.Cookies["LogToken"] ?? "";
+                string CookieLogToken = Request.Cookies["LogToken"] ?? "";
 
                 string switchedRoleId =
                     HttpContext.Session.GetString("switchedRoleId") ?? "";
@@ -64,43 +64,43 @@ namespace webCRM.Controllers
                     }
                 }
 
-                // if (string.IsNullOrEmpty(CookieLogToken))
-                // {
-                //     var LogClientId = Environment.GetEnvironmentVariable("LOG_client_id") ?? "";
-                //     var LogClientSecret = Environment.GetEnvironmentVariable("LOG_client_secret") ?? "";
+                if (string.IsNullOrEmpty(CookieLogToken))
+                {
+                    var LogClientId = Environment.GetEnvironmentVariable("LOG_client_id") ?? "";
+                    var LogClientSecret = Environment.GetEnvironmentVariable("LOG_client_secret") ?? "";
 
-                //     var body = JsonSerializer.SerializeToElement(new
-                //     {
-                //         client_id = LogClientId,
-                //         client_secret = LogClientSecret
-                //     });
+                    var body = JsonSerializer.SerializeToElement(new
+                    {
+                        client_id = LogClientId,
+                        client_secret = LogClientSecret
+                    });
 
-                //     var LogAuthResponse = await crmService.LogAuth(body);
-                //     var LogAuthContent =
-                //         await LogAuthResponse.Content.ReadAsStringAsync();
-                //     var LogAuthResult =
-                //         JsonNode.Parse(LogAuthContent);
-                //         Console.WriteLine("LogAuthContent",LogAuthContent);
-                //         Console.WriteLine("LogAuthResult",LogAuthResult);
-                //     var LogToken = LogAuthResult?["access_token"]?.ToString() ?? "";
+                    var LogAuthResponse = await crmService.LogAuth(body);
+                    var LogAuthContent =
+                        await LogAuthResponse.Content.ReadAsStringAsync();
+                    var LogAuthResult =
+                        JsonNode.Parse(LogAuthContent);
+                        Console.WriteLine("LogAuthContent",LogAuthContent);
+                        Console.WriteLine("LogAuthResult",LogAuthResult);
+                    var LogToken = LogAuthResult?["access_token"]?.ToString() ?? "";
 
 
-                //     Response.Cookies.Append(
-                //         "LogToken",
-                //         LogToken,
-                //         new CookieOptions
-                //         {
-                //             HttpOnly = true,
-                //             IsEssential = true,
-                //             SameSite = SameSiteMode.Lax
-                //         });
+                    Response.Cookies.Append(
+                        "LogToken",
+                        LogToken,
+                        new CookieOptions
+                        {
+                            HttpOnly = true,
+                            IsEssential = true,
+                            SameSite = SameSiteMode.Lax
+                        });
 
-                //     HttpContext.Items["LogToken"] = LogToken;
-                // }
-                // else
-                // {
-                //     HttpContext.Items["LogToken"] = CookieLogToken;
-                // }
+                    HttpContext.Items["LogToken"] = LogToken;
+                }
+                else
+                {
+                    HttpContext.Items["LogToken"] = CookieLogToken;
+                }
 
                 var traceId = ActivityLogger.ResetSessionTraceId(HttpContext);
 

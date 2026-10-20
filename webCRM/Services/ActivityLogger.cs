@@ -42,10 +42,10 @@ namespace webCRM.Services
 
                 // --- Customer ---
                 { "customerLists", "ดึงรายการลูกค้า" },
-                { "contactLists",  "ดึงรายการผู้ติดต่อ" },
-                { "contactInfo",   "ดึงข้อมูลผู้ติดต่อ" },
-                { "receiveInfo",   "ดึงข้อมูลการรับชำระ" },
-                { "claimInfo",     "ดึงข้อมูลการเคลม" },
+                // { "contactLists",  "ดึงรายการสัญญา },
+                { "contactInfo",   "ดึงข้อมูลสัญญา" },
+                // { "receiveInfo",   "ดึงข้อมูลการรับชำระ" },
+                // { "claimInfo",     "ดึงข้อมูลการเคลม" },
 
                 // --- Notification ---
                 { "getNotification", "ดึงการแจ้งเตือน" },

@@ -10,4 +10,10 @@ services:
       ApiSettings__APIDomain: "https://172.16.17.78:7103"
       ApiSettings__APILogin: "https://172.16.17.78:7102"
       ApiSettings__WebDomain: "http://172.16.17.78:5003"
+      # --- Activity Log ---
+      isLogOn: "true"
+      LOG_URL: "https://172.16.17.78:30011/api/v1/logs"
+      LOG_Auth: "https://172.16.17.78:30011/api/v1/auth/token"
+      LOG_client_id: "admin"
+      LOG_client_secret: "p@ssword"
     restart: unless-stopped

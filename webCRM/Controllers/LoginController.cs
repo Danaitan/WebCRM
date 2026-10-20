@@ -78,24 +78,50 @@ namespace webCRM.Controllers
                     var LogAuthResponse = await crmService.LogAuth(body);
                     var LogAuthContent =
                         await LogAuthResponse.Content.ReadAsStringAsync();
-                    var LogAuthResult =
-                        JsonNode.Parse(LogAuthContent);
-                        Console.WriteLine("LogAuthContent",LogAuthContent);
-                        Console.WriteLine("LogAuthResult",LogAuthResult);
-                    var LogToken = LogAuthResult?["access_token"]?.ToString() ?? "";
 
+                    Console.WriteLine(
+                        $"[LogAuth] HTTP {(int)LogAuthResponse.StatusCode} " +
+                        $"({LogAuthResponse.StatusCode})");
+                    Console.WriteLine($"[LogAuth] Body: {LogAuthContent}");
 
-                    Response.Cookies.Append(
-                        "LogToken",
-                        LogToken,
-                        new CookieOptions
+                    string LogToken = "";
+
+                    if (LogAuthResponse.IsSuccessStatusCode
+                        && !string.IsNullOrWhiteSpace(LogAuthContent))
+                    {
+                        try
                         {
-                            HttpOnly = true,
-                            IsEssential = true,
-                            SameSite = SameSiteMode.Lax
-                        });
+                            var LogAuthResult = JsonNode.Parse(LogAuthContent);
+                            LogToken =
+                                LogAuthResult?["access_token"]?.ToString() ?? "";
+                        }
+                        catch (Exception parseEx)
+                        {
+                            Console.WriteLine(
+                                $"[LogAuth] Failed to parse response: {parseEx.Message}");
+                        }
+                    }
 
-                    HttpContext.Items["LogToken"] = LogToken;
+                    if (!string.IsNullOrWhiteSpace(LogToken))
+                    {
+                        Response.Cookies.Append(
+                            "LogToken",
+                            LogToken,
+                            new CookieOptions
+                            {
+                                HttpOnly = true,
+                                IsEssential = true,
+                                SameSite = SameSiteMode.Lax
+                            });
+
+                        HttpContext.Items["LogToken"] = LogToken;
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "[LogAuth] WARNING: access_token is empty. " +
+                            "Skipping LogToken cookie. Activity logs will be sent without a token.");
+                    }
                 }
                 else
                 {

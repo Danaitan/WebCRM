@@ -15,6 +15,8 @@ namespace webCRM.Services
         private readonly HttpClient _httpClient =
             httpClientFactory.CreateClient("CRMApi");
 
+        private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+
         private readonly ILogger<CRMService> _logger = logger;
 
         private readonly JsonSerializerOptions _jsonOptions = new()
@@ -2522,13 +2524,38 @@ namespace webCRM.Services
             {
                 var LOG_Auth_URL = Environment.GetEnvironmentVariable("LOG_Auth") ?? "";
 
-                return await PostAsync(LOG_Auth_URL,body);
+                if (string.IsNullOrWhiteSpace(LOG_Auth_URL))
+                {
+                    _logger.LogError(
+                        "LogAuth: LOG_Auth environment variable is not configured.");
+
+                    throw new InvalidOperationException(
+                        "LOG_Auth environment variable is not configured.");
+                }
+
+                var authClient = _httpClientFactory.CreateClient();
+                authClient.Timeout = TimeSpan.FromSeconds(30);
+
+                _logger.LogInformation(
+                    "LogAuth: requesting token from {Url}", LOG_Auth_URL);
+
+                var response = await authClient.PostAsJsonAsync(
+                    LOG_Auth_URL,
+                    body,
+                    _jsonOptions);
+
+                _logger.LogInformation(
+                    "LogAuth: response {StatusCode} ({IsSuccess})",
+                    (int)response.StatusCode,
+                    response.IsSuccessStatusCode);
+
+                return response;
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Error upserting ProspectFromETL");
+                    "Error requesting LogAuth token");
 
                 throw;
             }

@@ -119,11 +119,11 @@ namespace webCRM.Services
 
                 string eventLogLevel = resolved?.log_level ?? "INFO";
 
-                var eventTimestamp = DateTime.UtcNow.ToString("o");
+                var eventTimestamp = DateTime.Now.ToString("o");
                 var envelope = new
                 {
                     source_service = "WebCRM",
-                    sent_at = DateTime.UtcNow.ToString("o"),
+                    sent_at = DateTime.Now.ToString("o"),
                     context = new
                     {
                         environment = environment ?? string.Empty,

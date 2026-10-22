@@ -711,7 +711,7 @@ async function loadBatchList(page = 1, pageSize = 5, searchText) {
                     } else {
 
                         const filterData = await getProductFilterByGuid(targetGuid);
-console.log("filterData",filterData)
+// console.log("filterData",filterData)
                         // ถ้า Campaign ถูกเปลี่ยนไปแล้ว
                         if (requestId !== currentFilterRequestId) {
                             console.log(
@@ -1321,19 +1321,18 @@ async function getProspect(signal = null) {
                 data: rawData
             };
         }
-
+   
         const filterParams = getFilterParams();
 
         if (!hasAnyProspectFilter(filterParams)) {
             return { count: 0, total: 0, data: [] };
         }
-console.log("BEFOER_filterParams.toString()",filterParams.toString())
+
         const campaignBatch = getCampaignBatch();
         const campaignBranch = selectedCampaign ? (selectedCampaign.offcde || '') : '';
         if (campaignBatch) filterParams.append('batch', campaignBatch);
         if (campaignBranch) filterParams.append('branch', campaignBranch);
-        console.log("campaignBranch",campaignBranch)
-console.log("AFTER_filterParams.toString()",filterParams.toString())
+
         const response = await fetch(
             `/ProspectSetup/GetProspect?${filterParams.toString()}`,
             { signal }
@@ -1343,6 +1342,7 @@ console.log("AFTER_filterParams.toString()",filterParams.toString())
             throw new Error(`GetProspect HTTP ${response.status} ${response.statusText}`);
         }
         const result = await response.json();
+        console.log("result",result)
         return result;
     }
     catch(error){
@@ -2559,9 +2559,9 @@ async function refreshSelectedCampaignCustomers(
         if (isImportCampaign) {
             const response = await getCampaignDataForETL(campaignCode);
             if (requestId !== currentFilterRequestId || selectedCampaign?.code !== campaignCode) return;
-
             currentSelectedPage = 1;
             const etlResult = response ? (response.IsBatch) : null;
+            // console.log("etlResult",etlResult)
             currentBatchCustomers = extractCustomers(etlResult);
             currentProductBatches = [];
             updateSelectedList();

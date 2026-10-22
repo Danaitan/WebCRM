@@ -80,12 +80,37 @@ namespace webCRM.Services
 
                 if (!ShouldSkipLogging(method, endpoint))
                 {
-                    _ = LogCallAsync(
-                        method,
-                        endpoint,
-                        response,
-                        error,
-                        elapsedMs);
+                    // Fire-and-forget: การ log ต้องไม่ทำให้ request หลักพังไม่ว่ากรณีใด
+                    // ครอบ try/catch รอบการ "เริ่ม" task ด้วย เผื่อ exception เกิดก่อนเข้า try ภายใน SendAsync
+                    // และผูก continuation กันไม่ให้เกิด unobserved task exception
+                    try
+                    {
+                        _ = LogCallAsync(
+                                method,
+                                endpoint,
+                                response,
+                                error,
+                                elapsedMs)
+                            .ContinueWith(
+                                t =>
+                                {
+                                    if (t.Exception != null)
+                                    {
+                                        _logger.LogWarning(
+                                            t.Exception.Flatten(),
+                                            "[CRMAPI] activity log failed for {Method} {Endpoint}",
+                                            method, endpoint);
+                                    }
+                                },
+                                TaskContinuationOptions.OnlyOnFaulted);
+                    }
+                    catch (Exception logEx)
+                    {
+                        _logger.LogWarning(
+                            logEx,
+                            "[CRMAPI] activity log threw synchronously for {Method} {Endpoint}",
+                            method, endpoint);
+                    }
                 }
             }
         }

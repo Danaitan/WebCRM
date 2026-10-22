@@ -46,7 +46,6 @@ function escapeHtmlAttr(v) {
         .replace(/>/g, "&gt;");
 }
 
-// วาดรายการไฟล์ทั้งหมด (ทั้งที่อัปโหลดแล้วและที่รออัปโหลด) ลงใน #selectedFilesList
 function renderSelectedFilesList() {
     const $list = $("#selectedFilesList");
     if ($list.length === 0) return;
@@ -77,13 +76,16 @@ function renderSelectedFilesList() {
     });
 }
 
-// โหลดข้อมูลไฟล์เดิมจาก CSV ของ file_id (เรียก getFile ครั้งเดียวด้วย CSV แล้วได้ array กลับมา)
 async function loadExistingCampaignFiles(fileIdCsv) {
+    console.log("========== [โหลดไฟล์แนบเดิม] loadExistingCampaignFiles ==========");
+    console.log("[โหลดไฟล์แนบเดิม] file_id CSV:", fileIdCsv);
+
     campaignExistingFiles = [];
     campaignPendingFiles = [];
     campaignRemovedFileIds = [];
 
     const ids = csvToIds(fileIdCsv);
+    console.log("[โหลดไฟล์แนบเดิม] ids ที่จะโหลด:", ids);
     if (ids.length > 0) {
         try {
             const res = await fetch(`/Campain/getFile?Id=${encodeURIComponent(ids.join(","))}`);
@@ -92,8 +94,7 @@ async function loadExistingCampaignFiles(fileIdCsv) {
                 if (Array.isArray(data)) {
                     data.forEach((row, i) => {
                         const name = row.Name || row.name || "";
-                        // ใช้ dms_doc_file_id เป็นตัวอ้างอิงไฟล์ใน DMS (สำหรับ preview/download)
-                        // fallback เป็น path เดิมสำหรับไฟล์เก่าที่ยังเก็บแบบ local
+
                         const docFileId = row.Dms_doc_file_id || row.dms_doc_file_id || "";
                         const path = docFileId || row.Path || row.path || "";
                         const id = row.Id || row.id || ids[i] || "";
@@ -104,9 +105,10 @@ async function loadExistingCampaignFiles(fileIdCsv) {
                 }
             }
         } catch (e) {
-            console.error("Error loading campaign files:", e);
+            console.error("[โหลดไฟล์แนบเดิม] Error loading campaign files:", e);
         }
     }
+    console.log("[โหลดไฟล์แนบเดิม] ✅ โหลดเสร็จ -> ไฟล์เดิม:", campaignExistingFiles.map(f => ({ id: f.id, name: f.name })));
     renderSelectedFilesList();
 }
 // จำสถานะว่าแคมเปญที่เลือกอยู่เป็นแบบ import จาก Excel หรือไม่ (คำนวณตอนโหลด filter ตาม guid)
@@ -2230,6 +2232,8 @@ async function getCheckProductNo() {
     });
 
     $("#submitFormBtn").off("click").on("click", function () {
+        console.log("========== [บันทึก] กดปุ่มบันทึก (#submitFormBtn) ==========");
+        console.log("[บันทึก] selectedCampaignCode:", selectedCampaignCode, "| ไฟล์รออัปโหลด:", campaignPendingFiles.map(f => f.name), "| ไฟล์เดิม:", campaignExistingFiles.map(f => f.name), "| ไฟล์ที่กดลบ:", campaignRemovedFileIds);
         if (!selectedCampaignCode) {
             Swal.fire({ 
                 title: "กรุณาเลือก Campaign", 
@@ -2353,12 +2357,15 @@ async function getCheckProductNo() {
                         }
                         campaignRemovedFileIds = [];
 
-                        await uploadPendingCampaignFiles();
+                        console.log("[บันทึก-แก้ไข] เริ่มอัปโหลดไฟล์ที่รออยู่ก่อนบันทึก...");
+                        const uploadResult = await uploadPendingCampaignFiles();
+                        const failedFiles = (uploadResult && uploadResult.failedFiles) || [];
 
                         let fileIdToSave = buildCampaignFileIdCsv();
                         if (!fileIdToSave) {
                             fileIdToSave = hadFileDeleted ? "0" : "";
                         }
+                        console.log("[บันทึก-แก้ไข] file_id ที่จะบันทึก (CSV):", fileIdToSave, "| hadFileDeleted:", hadFileDeleted);
                         selectedCampaignFileId = fileIdToSave;
 
                         let currentCampaignId = selectedCampaignId || (existingIdx > -1 ? campaigns[existingIdx].id : 0);
@@ -2432,7 +2439,15 @@ async function getCheckProductNo() {
                             campaigns[existingIdx] = campaignData;
 
                             stopLoading(true);
-                            Swal.fire({ title: "บันทึกข้อมูลสำเร็จ", text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
+                            if (failedFiles.length > 0) {
+                                Swal.fire({
+                                    title: "บันทึกสำเร็จบางส่วน",
+                                    html: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว` + buildFailedFilesHtml(failedFiles),
+                                    icon: "warning"
+                                });
+                            } else {
+                                Swal.fire({ title: "บันทึกข้อมูลสำเร็จ", text: `อัปเดตข้อมูลแคมเปญรหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
+                            }
                             await loadCampaignToForm(code);
                         } else {
                             stopLoading(true);
@@ -2465,8 +2480,11 @@ async function getCheckProductNo() {
                         const newGuid = generateUUID();
                         const company = window.CURRENT_COMPANY || "MICRO";
                         // อัปโหลดไฟล์ที่รออยู่ทั้งหมด (ใช้รหัสแคมเปญที่กำลังสร้าง)
-                        await uploadPendingCampaignFiles(code);
+                        console.log("[บันทึก-สร้างใหม่] เริ่มอัปโหลดไฟล์ที่รออยู่ก่อนบันทึก... code:", code);
+                        const uploadResult = await uploadPendingCampaignFiles(code);
+                        const failedFiles = (uploadResult && uploadResult.failedFiles) || [];
                         let mainFileId = buildCampaignFileIdCsv();
+                        console.log("[บันทึก-สร้างใหม่] file_id ที่จะบันทึก (CSV):", mainFileId);
                         const postData = {
                             productInfo: {
                                 product_code: code,
@@ -2506,7 +2524,15 @@ async function getCheckProductNo() {
                             stopLoading(true);
                             // โหลดรายการใหม่จากฐานข้อมูลแล้วเลือกแคมเปญที่เพิ่งสร้าง
                             await reloadCampaignsAndSelect(code);
-                            Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
+                            if (failedFiles.length > 0) {
+                                Swal.fire({
+                                    title: "สร้างสำเร็จบางส่วน",
+                                    html: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว` + buildFailedFilesHtml(failedFiles),
+                                    icon: "warning"
+                                });
+                            } else {
+                                Swal.fire({ title: "สร้างสำเร็จ", text: `สร้างแคมเปญใหม่ รหัส ${code} เรียบร้อยแล้ว`, icon: "success" });
+                            }
                         } else {
                             stopLoading(true);
                             Swal.fire({ title: "เกิดข้อผิดพลาด", text: data.message || "ไม่สามารถสร้างแคมเปญได้", icon: "error" });
@@ -2596,6 +2622,7 @@ async function getCheckProductNo() {
             const idx = parseInt($(this).attr("data-index"), 10);
             const removed = campaignExistingFiles.splice(idx, 1)[0];
             if (removed && removed.id) campaignRemovedFileIds.push(removed.id);
+            console.log("[ลบไฟล์เดิม] ลบไฟล์:", removed, "| คิวลบตอน save:", campaignRemovedFileIds, "| ไฟล์เดิมคงเหลือ:", campaignExistingFiles.map(f => f.name));
             renderSelectedFilesList();
         });
 
@@ -2604,7 +2631,8 @@ async function getCheckProductNo() {
             e.stopPropagation();
             if ($("#btnImportFile").is(":disabled")) return;
             const idx = parseInt($(this).attr("data-index"), 10);
-            campaignPendingFiles.splice(idx, 1);
+            const removedPending = campaignPendingFiles.splice(idx, 1)[0];
+            console.log("[ลบไฟล์ใหม่] ลบไฟล์รออัปโหลด:", removedPending ? removedPending.name : null, "| คงเหลือ:", campaignPendingFiles.map(f => f.name));
             renderSelectedFilesList();
         });
 
@@ -2689,8 +2717,14 @@ function previewCampaignFile(fileName, filePath, fileInputSelector = null) {
 }
 
 function handleFileSelect(fileInputEl, isModal = false) {
+    console.log("========== [แนบไฟล์] handleFileSelect START ==========");
+    console.log("[แนบไฟล์] isModal:", isModal);
     const files = fileInputEl.files ? Array.from(fileInputEl.files) : [];
-    if (files.length === 0) return;
+    console.log("[แนบไฟล์] จำนวนไฟล์ที่เลือก:", files.length, files.map(f => ({ name: f.name, size: f.size, type: f.type })));
+    if (files.length === 0) {
+        console.log("[แนบไฟล์] ❌ ไม่มีไฟล์ที่เลือก -> return");
+        return;
+    }
 
     const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.png', '.jpg', '.jpeg'];
 
@@ -2700,6 +2734,7 @@ function handleFileSelect(fileInputEl, isModal = false) {
     });
 
     if (invalid) {
+        console.log("[แนบไฟล์] ❌ ประเภทไฟล์ไม่ถูกต้อง:", invalid.name);
         Swal.fire({
             title: "ประเภทไฟล์ไม่ถูกต้อง",
             text: `กรุณาอัปโหลดเฉพาะไฟล์: ${allowedExtensions.join(', ')}`,
@@ -2718,6 +2753,7 @@ function handleFileSelect(fileInputEl, isModal = false) {
     // ตรวจขนาดไฟล์: ห้ามเกินไฟล์ละ MAX_ATTACHMENT_SIZE_MB MB
     const tooLarge = files.find(f => f.size > MAX_ATTACHMENT_SIZE_BYTES);
     if (tooLarge) {
+        console.log("[แนบไฟล์] ❌ ไฟล์ใหญ่เกินกำหนด:", tooLarge.name, tooLarge.size);
         Swal.fire({
             title: "ไฟล์มีขนาดใหญ่เกินไป",
             text: `ขนาดไฟล์ต้องไม่เกิน ${MAX_ATTACHMENT_SIZE_MB} MB ต่อไฟล์ (ไฟล์ "${tooLarge.name}" มีขนาดใหญ่เกินกำหนด)`,
@@ -2767,7 +2803,9 @@ function handleFileSelect(fileInputEl, isModal = false) {
     }
     // เคลียร์ input เพื่อให้เลือกไฟล์เดิมซ้ำได้อีกครั้งหากต้องการ
     fileInputEl.value = '';
+    console.log("[แนบไฟล์] ✅ หลังเพิ่มไฟล์ -> campaignPendingFiles:", campaignPendingFiles.map(f => f.name), "| existing:", campaignExistingFiles.map(f => f.name));
     renderSelectedFilesList();
+    console.log("========== [แนบไฟล์] handleFileSelect END ==========");
 }
 
 // พรีวิว/ดาวน์โหลดไฟล์ที่ยังอยู่ในเครื่อง (ยังไม่อัปโหลด)
@@ -2788,14 +2826,23 @@ function previewLocalFile(file) {
     }
 }
 
-// อัปโหลดไฟล์ที่รออยู่ทั้งหมด แล้วคืนค่าเป็น array ของ id
+// อัปโหลดไฟล์ที่รออยู่ทั้งหมด แล้วคืนค่าเป็น { uploadedIds, failedFiles }
 async function uploadPendingCampaignFiles(campaignCodeOverride = "") {
+    console.log("========== [อัปโหลด] uploadPendingCampaignFiles START ==========");
+    console.log("[อัปโหลด] campaignCodeOverride:", campaignCodeOverride, "| จำนวนไฟล์รออัปโหลด:", campaignPendingFiles.length, campaignPendingFiles.map(f => f.name));
     const uploadedIds = [];
+    // เก็บไฟล์ที่อัปโหลดไม่สำเร็จ เพื่อนำไปแจ้งเตือนผู้ใช้ตอนบันทึก
+    const failedFiles = [];
+    // ไฟล์ที่อัปโหลด/บันทึกไม่สำเร็จจะยังคงค้างอยู่ใน pending เพื่อให้ผู้ใช้ลองใหม่ได้
+    const remainingPendingFiles = [];
     for (let i = 0; i < campaignPendingFiles.length; i++) {
         const file = campaignPendingFiles[i];
+        console.log(`[อัปโหลด] (${i + 1}/${campaignPendingFiles.length}) กำลังอัปโหลด:`, file.name, "ขนาด:", file.size);
         const uploadRes = await uploadSingleCampaignFile(file, campaignCodeOverride);
+        console.log(`[อัปโหลด] (${i + 1}/${campaignPendingFiles.length}) ผลลัพธ์:`, uploadRes);
         if (uploadRes && uploadRes.status === "success") {
             const id = extractUploadedFileId(uploadRes);
+            console.log(`[อัปโหลด] (${i + 1}) ได้ file id:`, id);
             if (id) {
                 uploadedIds.push(id);
                 campaignExistingFiles.push({
@@ -2803,12 +2850,39 @@ async function uploadPendingCampaignFiles(campaignCodeOverride = "") {
                     name: uploadRes.name || file.name,
                     path: uploadRes.path || ""
                 });
+            } else {
+                // อัปโหลดขึ้น DMS แล้วแต่ดึง id กลับมาไม่ได้ ถือว่าไม่เข้า DB
+                console.log(`[อัปโหลด] (${i + 1}) ❌ อัปโหลดสำเร็จแต่ไม่พบ file id:`, file.name);
+                failedFiles.push({ name: file.name, reason: "ไม่พบรหัสไฟล์จากระบบ" });
+                remainingPendingFiles.push(file);
             }
+        } else {
+            console.log(`[อัปโหลด] (${i + 1}) ❌ อัปโหลดไม่สำเร็จ:`, file.name);
+            failedFiles.push({
+                name: file.name,
+                reason: (uploadRes && uploadRes.message) ? uploadRes.message : "อัปโหลดไม่สำเร็จ"
+            });
+            remainingPendingFiles.push(file);
         }
     }
-    campaignPendingFiles = [];
+    campaignPendingFiles = remainingPendingFiles;
     renderSelectedFilesList();
-    return uploadedIds;
+    console.log("[อัปโหลด] ✅ เสร็จสิ้น -> uploadedIds:", uploadedIds, "| failedFiles:", failedFiles, "| existing files:", campaignExistingFiles.map(f => ({ id: f.id, name: f.name })));
+    console.log("========== [อัปโหลด] uploadPendingCampaignFiles END ==========");
+    return { uploadedIds, failedFiles };
+}
+
+// สร้างข้อความ HTML แจ้งเตือนรายการไฟล์ที่บันทึกไม่สำเร็จ
+function buildFailedFilesHtml(failedFiles) {
+    if (!Array.isArray(failedFiles) || failedFiles.length === 0) return "";
+    const items = failedFiles.map(f => {
+        const name = escapeHtmlAttr(f.name || "ไฟล์");
+        const reason = f.reason ? ` <span class="text-muted">(${escapeHtmlAttr(f.reason)})</span>` : "";
+        return `<li class="text-start">${name}${reason}</li>`;
+    }).join("");
+    return `<div class="mt-2 text-start">มีไฟล์แนบที่บันทึกไม่สำเร็จ ${failedFiles.length} ไฟล์:` +
+        `<ul class="mb-0 mt-1">${items}</ul>` +
+        `<div class="mt-2 text-muted">ไฟล์เหล่านี้ยังไม่ถูกบันทึกลงระบบ กรุณาลองแนบและบันทึกอีกครั้ง</div></div>`;
 }
 
 function buildCampaignFileIdCsv() {
@@ -2818,12 +2892,19 @@ function buildCampaignFileIdCsv() {
 
 // อัปโหลดไฟล์เดียว (รับ File object) ใช้กับการแนบหลายไฟล์ - ไม่ยุ่งกับ UI display
 async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
-    if (!file) return { status: "error", message: "ไม่พบไฟล์" };
+    console.log("---------- [อัปโหลดเดี่ยว] uploadSingleCampaignFile ----------");
+    console.log("[อัปโหลดเดี่ยว] file:", file ? { name: file.name, size: file.size, type: file.type } : null, "| campaignCodeOverride:", campaignCodeOverride);
+    if (!file) {
+        console.log("[อัปโหลดเดี่ยว] ❌ ไม่พบไฟล์");
+        return { status: "error", message: "ไม่พบไฟล์" };
+    }
 
     let campaignCode = (campaignCodeOverride || selectedCampaignCode || $("#campaignCode").val() || "").trim();
     if (campaignCode === CAMPAIGN_CODE_PLACEHOLDER) campaignCode = "";
+    console.log("[อัปโหลดเดี่ยว] campaignCode ที่ใช้:", campaignCode);
 
     if (!campaignCode) {
+        console.log("[อัปโหลดเดี่ยว] ❌ ไม่พบรหัสแคมเปญ");
         return { status: "error", message: "ไม่พบรหัสแคมเปญ" };
     }
 
@@ -2831,6 +2912,7 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("campaignCode", campaignCode);
+        console.log("[อัปโหลดเดี่ยว] กำลัง POST /Campain/UploadCampaignFile -> ไฟล์:", file.name);
 
         // const response = await fetch('/crmweb/Campain/UploadCampaignFile', {
         //     method: 'POST',
@@ -2841,6 +2923,7 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
             body: formData
         });
         const data = await response.json();
+        console.log("[อัปโหลดเดี่ยว] response:", data);
 
         if (data.status === "success") {
             let returnedFileName = data.name || file.name;
@@ -2862,10 +2945,13 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
             }
             data.name = returnedFileName;
             data.path = returnedPath;
+            console.log("[อัปโหลดเดี่ยว] ✅ สำเร็จ -> name:", returnedFileName, "| path/id:", returnedPath);
+        } else {
+            console.log("[อัปโหลดเดี่ยว] ❌ status ไม่ใช่ success:", data.status, data.message);
         }
         return data;
     } catch (err) {
-        console.error("Upload error:", err);
+        console.error("[อัปโหลดเดี่ยว] ❌ Upload error:", err);
         return { status: "error", message: err.message };
     }
 }

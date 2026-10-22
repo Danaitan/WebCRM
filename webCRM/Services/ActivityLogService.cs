@@ -232,22 +232,22 @@ namespace webCRM.Services
 
                 using var response = await client.SendAsync(requestMessage, cts.Token);
 
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent =
-                        await response.Content.ReadAsStringAsync();
+                //if (!response.IsSuccessStatusCode)
+                //{
+                //    var errorContent =
+                //        await response.Content.ReadAsStringAsync();
 
-                    Console.WriteLine(
-                        $"[ActivityLogger] HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                //    Console.WriteLine(
+                //        $"[ActivityLogger] HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
 
-                    Console.WriteLine(
-                        $"[ActivityLogger] Error Response Body: {errorContent}");
-                }
-                else
-                {
-                    Console.WriteLine(
-                        $"[ActivityLogger] Log sent successfully. HTTP {(int)response.StatusCode}");
-                }
+                //    Console.WriteLine(
+                //        $"[ActivityLogger] Error Response Body: {errorContent}");
+                //}
+                //else
+                //{
+                //    Console.WriteLine(
+                //        $"[ActivityLogger] Log sent successfully. HTTP {(int)response.StatusCode}");
+                //}
             }
             catch (OperationCanceledException)
             {

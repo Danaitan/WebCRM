@@ -38,9 +38,9 @@ namespace webCRM.Controllers
                     HttpContext.Session.GetString("switchedRoleName") ?? "";
 
                 string CookieCde = Request.Cookies["userCde"] ?? "";
-                //  string personalCode = "100664";
+                 string personalCode = "100664";
                 // string personalCode = "690001";
-                string personalCode = "682007";
+                // string personalCode = "682007";
 
                 if (!env.IsDevelopment())
                 // if (false)
@@ -575,6 +575,20 @@ namespace webCRM.Controllers
                         }),
                     "application/json");
             }
+        }
+
+        [HttpGet]
+        public IActionResult Logout()
+        {
+            // Clear all session data
+            HttpContext.Session.Clear();
+
+            // Remove login cookies so the next visit re-authenticates via SSO
+            Response.Cookies.Delete("LogToken");
+            Response.Cookies.Delete("userCde");
+
+            // Redirect back to the MG SSO domain
+            return RedirectToMGResult();
         }
 
     }

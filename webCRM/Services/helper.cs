@@ -2539,11 +2539,14 @@ namespace webCRM.Services
                 _logger.LogInformation(
                     "LogAuth: requesting token from {Url}", LOG_Auth_URL);
 
+
                 var response = await authClient.PostAsJsonAsync(
                     LOG_Auth_URL,
                     body,
                     _jsonOptions);
 
+                _logger.LogInformation(
+                    "LogAuth:response", response);
                 _logger.LogInformation(
                     "LogAuth: response {StatusCode} ({IsSuccess})",
                     (int)response.StatusCode,

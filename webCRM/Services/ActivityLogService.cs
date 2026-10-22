@@ -21,6 +21,24 @@ namespace webCRM.Services
             _httpClientFactory = httpClientFactory;
         }
 
+        // คืนเวลาปัจจุบันเป็นเวลาไทย (+07:00) เสมอ ไม่ขึ้นกับ timezone ของเครื่อง/คอนเทนเนอร์
+        private static DateTimeOffset GetThaiNow()
+        {
+            TimeZoneInfo thaiZone;
+            try
+            {
+                // Windows
+                thaiZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                // Linux / Docker (IANA)
+                thaiZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+            }
+
+            return TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, thaiZone);
+        }
+
         private static string? LogUrl =>
             Environment.GetEnvironmentVariable("LOG_URL");
 
@@ -119,11 +137,12 @@ namespace webCRM.Services
 
                 string eventLogLevel = resolved?.log_level ?? "INFO";
 
-                var eventTimestamp = DateTime.Now.ToString("o");
+                var nowThai = GetThaiNow();
+                var eventTimestamp = nowThai.ToString("o");
                 var envelope = new
                 {
                     source_service = "WebCRM",
-                    sent_at = DateTime.Now.ToString("o"),
+                    sent_at = nowThai.ToString("o"),
                     context = new
                     {
                         environment = environment ?? string.Empty,

@@ -30,7 +30,6 @@ namespace webCRM.Controllers
             try
             {
                 var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "";
-                string CookieLogToken = Request.Cookies["LogToken"] ?? "";
 
                 string switchedRoleId =
                     HttpContext.Session.GetString("switchedRoleId") ?? "";
@@ -64,75 +63,30 @@ namespace webCRM.Controllers
                     }
                 }
 
-                if (string.IsNullOrEmpty(CookieLogToken))
-                {
-                    var LogClientId = Environment.GetEnvironmentVariable("LOG_client_id") ?? "";
-                    var LogClientSecret = Environment.GetEnvironmentVariable("LOG_client_secret") ?? "";
-
-                    var body = JsonSerializer.SerializeToElement(new
-                    {
-                        client_id = LogClientId,
-                        client_secret = LogClientSecret
-                    });
-
-                    var LogAuthResponse = await crmService.LogAuth(body);
-                    var LogAuthContent =
-                        await LogAuthResponse.Content.ReadAsStringAsync();
-
-                    Console.WriteLine(
-                        $"[LogAuth] HTTP {(int)LogAuthResponse.StatusCode} " +
-                        $"({LogAuthResponse.StatusCode})");
-                    Console.WriteLine($"[LogAuth] Body: {LogAuthContent}");
-
-                    string LogToken = "";
-
-                    if (LogAuthResponse.IsSuccessStatusCode
-                        && !string.IsNullOrWhiteSpace(LogAuthContent))
-                    {
-                        try
-                        {
-                            var LogAuthResult = JsonNode.Parse(LogAuthContent);
-                            LogToken =
-                                LogAuthResult?["access_token"]?.ToString() ?? "";
-                        }
-                        catch (Exception parseEx)
-                        {
-                            Console.WriteLine(
-                                $"[LogAuth] Failed to parse response: {parseEx.Message}");
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(LogToken))
-                    {
-                        Response.Cookies.Append(
-                            "LogToken",
-                            LogToken,
-                            new CookieOptions
-                            {
-                                HttpOnly = true,
-                                IsEssential = true,
-                                SameSite = SameSiteMode.Lax
-                            });
-
-                        HttpContext.Items["LogToken"] = LogToken;
-                        Console.Write("LogToken",LogToken);
-                    }
-                    else
-                    {
-                        Console.WriteLine(
-                            "[LogAuth] WARNING: access_token is empty. " +
-                            "Skipping LogToken cookie. Activity logs will be sent without a token.");
-                    }
-                }
-                else
-                {
-                    HttpContext.Items["LogToken"] = CookieLogToken;
-                }
-
                 var traceId = ActivityLogger.ResetSessionTraceId(HttpContext);
 
-                var rootNode =
-                    await crmService.GetProfileByPersonalCode(personalCode);
+                JsonNode? rootNode;
+
+                try
+                {
+                    rootNode =
+                        await crmService.GetProfileByPersonalCode(personalCode);
+                }
+                catch (Exception profileEx)
+                    when (profileEx is TaskCanceledException
+                        or TimeoutException
+                        or OperationCanceledException
+                        or HttpRequestException)
+                {
+                    Console.WriteLine(
+                        $"[Login] GetProfileByPersonalCode failed: {profileEx.Message}");
+
+                    HttpContext.Session.Clear();
+
+                    return NoPermissionResult(
+                        "ไม่สามารถเชื่อมต่อระบบข้อมูลผู้ใช้งานได้ในขณะนี้ " +
+                        "กรุณาลองใหม่อีกครั้ง");
+                }
 
                 var profile =
                     rootNode is JsonArray arr && arr.Count > 0

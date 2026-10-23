@@ -21,5 +21,5 @@ WORKDIR /app
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 COPY --from=build /app/publish .
-EXPOSE 8080
+EXPOSE 8888
 ENTRYPOINT ["dotnet", "webCRM.dll"]

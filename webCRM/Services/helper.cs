@@ -2533,8 +2533,10 @@ namespace webCRM.Services
                         "LOG_Auth environment variable is not configured.");
                 }
 
+                // Log เป็นของเสริมเท่านั้น ใช้ timeout สั้น เพื่อไม่ให้
+                // login ค้างรอ หาก log service ล่มหรือช้า
                 var authClient = _httpClientFactory.CreateClient();
-                authClient.Timeout = TimeSpan.FromSeconds(30);
+                authClient.Timeout = TimeSpan.FromSeconds(3);
 
                 _logger.LogInformation(
                     "LogAuth: requesting token from {Url}", LOG_Auth_URL);

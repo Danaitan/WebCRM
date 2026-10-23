@@ -1,0 +1,221 @@
+@{
+    ViewData["Title"] = "Prospect Setup";
+    ViewData["HeaderTitle"] = "Prospect Setup";
+    ViewData["HeaderSubtitle"] = "จัดการและตั้งค่าชุดข้อมูลลูกค้าเป้าหมาย (Prospect)";
+
+    var funcId = Context.Session.GetString("func_id") ?? "";
+    var isCampaignCreate = funcId.Split(',').Select(r => r.Trim()).Contains("FCRM004");
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="~/css/prospectSetup.css" asp-append-version="true" />
+}
+<!-- Main Layout -->
+<div class="prospect-layout">
+    
+    <!-- Left Panel -->
+    <div class="panel-left">
+        <div class="d-flex gap-2 mb-3">
+            <div class="search-box">
+                <i class="bi bi-search" style="cursor: pointer;"></i>
+                <input id="campaignSearchInput" type="text" class="form-control form-control-custom w-100" placeholder="ค้นหา Campaign">
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <select id="campaignStatusFilter"
+                    class="form-select"
+                    style="border-radius: 10px; height: 42px; font-size: 0.875rem; border: 1px solid #e2e8f0; background-color: #fff; cursor: pointer;">
+                <option value="">ทั้งหมด</option>
+            </select>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-dark fw-medium" id="batchFoundCount" style="font-size: 0.9rem;">พบ 0 รายการ</span>
+            <i class="bi bi-arrow-down-up text-secondary" style="cursor:pointer; font-size: 0.9rem;" id="sortCampaignBtn" title="เรียงตามค่าเริ่มต้น"></i>
+        </div>
+        
+        <div class="flex-grow-1 overflow-auto pe-1" id="dataTable">
+        </div>
+        
+        <div class="d-flex flex-column align-items-center mt-3 pt-2 border-top gap-2">
+            <ul class="pagination pagination-sm pagination-custom mb-0 justify-content-center flex-wrap" id="batchPagination">
+            </ul>
+            <span class="text-muted text-center" style="font-size: 0.75rem;" id="batchListText">แสดง 0 ถึง 0 จากทั้งหมด 0 รายการ</span>
+        </div>
+    </div>
+
+    <!-- Main Panel -->
+    <div class="panel-main">
+
+        <!-- การ์ดเงื่อนไข: กว้างเต็มด้านบน -->
+        <div class="card-custom mb-4" id="filterCard">
+            <div class="card-header-custom filter-card-header" id="filterCardToggle" role="button" tabindex="0"
+                 aria-expanded="true" aria-controls="filterCardBody">
+                <h3 class="card-title-custom">
+                    <i class="bi bi-funnel-fill text-primary"></i> เงื่อนไขการคัดเลือกลูกค้าเป้าหมาย
+                </h3>
+                <i class="bi bi-chevron-up filter-card-chevron" aria-hidden="true"></i>
+            </div>
+            <div class="card-body-custom" id="filterCardBody">
+                <div class="row g-3" id="dynamicFilter">       
+                </div>
+
+                <div class="col-12 mt-4 d-flex gap-2 flex-wrap">
+                    <button class="btn  btn-primary px-4 py-2" style="border-radius: 8px; font-size: 0.9rem; font-weight: 500;" id="btnApplyFilters">
+                        <i class="bi bi-search me-1"></i> ค้นหา
+                    </button>
+                    <button class="btn btn-outline-secondary px-4 py-2" style="border-radius: 8px; font-size: 0.9rem; font-weight: 500;" id="btnClearFilters">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> ล้างเงื่อนไข
+                    </button>
+                </div>
+
+                <div class="col-12 mt-4" id="importExcelContainer">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div id="selectedFileNameDisplay" class="d-none align-items-center gap-2 px-3 py-1 bg-light border rounded" style="font-size: 0.875rem;">
+                            <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+                            <span id="selectedFileNameText" class="fw-medium text-dark"></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- แถวล่าง: การ์ดรายการลูกค้า (ซ้าย) + ปุ่ม/รายการที่เลือก (ขวา) -->
+        <div class="prospect-bottom-row">
+
+        <div class="card-custom mb-0 prospect-list-card">
+            <div class="card-body-custom">
+                    <div class="prospect-list-toolbar d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <div class="prospect-list-heading" id="totalFoundText">
+                            <i class="bi bi-people-fill"></i>
+                            <span class="prospect-list-heading-text">รายการลูกค้า</span>
+                            <span class="prospect-count-badge">
+                                พบ&nbsp;<span id="totalFound">0</span>&nbsp;รายการ
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="search-box prospect-list-search">
+                                <i class="bi bi-search" id="prospectSearchIcon" style="cursor: pointer;"></i>
+                                <input id="prospectSearchInput" type="text" class="form-control form-control-custom w-100" placeholder="ค้นหา รหัสบัตร / ชื่อ / เบอร์โทร / สาขา / เลขที่สัญญา...">
+                            </div>
+                        </div>
+                    </div>
+                        <div class="table-responsive border rounded-3 prospect-table-wrap">
+                            <table class="table table-hover table-custom mb-0" 
+                            id="batchListContainer"
+                            >
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;">
+                                            <div class="form-check d-flex justify-content-center m-0">
+                                                <input class="form-check-input" type="checkbox" id="checkAll">
+                                            </div>
+                                        </th>
+                                        <th>รหัสบัตรประชาชน</th>
+                                        <th>ชื่อ-นามสกุล</th>
+                                        <th>เบอร์โทรศัพท์</th>
+                                        <th>สาขา</th>
+                                        <th>เลขที่สัญญา</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataTableBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">ไม่พบข้อมูล กรุณาเลือก Campaign ทางด้านซ้ายก่อน</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                </div>
+
+            </div> 
+
+            <div class="panel-right">
+                    
+                <!-- Action Buttons -->
+                <div class="panel-right-actions">
+                    @if(isCampaignCreate){
+                        <button class="action-btn btn-primary-green disabled" id="saveDraftBtn" disabled>
+                            <i class="bi bi-file-earmark-text"></i>
+                            <div>
+                                <span class="action-btn-title">บันทึกชุดข้อมูล</span>
+                                <span class="action-btn-sub">บันทึกชุดข้อมูลนี้</span>
+                            </div>
+                        </button>
+                        
+                        <button class="action-btn btn-primary-purple disabled" id="sendForApprovalBtn" disabled>
+                            <i class="bi bi-send"></i>
+                            <div>
+                                <span class="action-btn-title">ส่งอนุมัติ</span>
+                                <span class="action-btn-sub">ส่งชุดข้อมูลเพื่อขออนุมัติ</span>
+                            </div>
+                        </button>
+                    }
+                </div>
+                
+                <!-- Selected Items -->
+                <div class="selected-items-section">
+                    <div class="selected-list-header">
+                        <span class="selected-list-title">
+                            <i class="bi bi-check2-square"></i>
+                            <span id="selectedCountText">รายการที่เลือก (0 รายการ)</span>
+                        </span>
+
+                        <button class="btn btn-danger w-10" type="button" id="btnDelSelected" disabled>
+                            ลบลูกค้าทั้งหมด
+                        </button>
+
+                    </div>
+                    
+                    <div class="table-responsive rounded-3 border selected-table-wrapper">
+                        <table class="table table-borderless selected-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>รหัสบัตรประชาชน</th>
+                                    <th>ชื่อ-นามสกุล</th>
+                                    <th>เบอร์โทรศัพท์</th>
+                                    <th>สาขา</th>
+                                    <th>เลขที่สัญญา</th>
+                                    <th style="width: 30px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="selectedTableBody">
+                                <tr class="selected-empty-row">
+                                    <td colspan="6">
+                                        <div class="selected-empty-state">
+                                            <i class="bi bi-inbox"></i>
+                                            <span>ยังไม่มีรายการที่เลือก</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                    
+            </div>
+
+        </div>
+        <!-- /prospect-bottom-row -->
+
+    </div>
+    <!-- /panel-main -->
+
+</div>
+
+@section Scripts {
+    <script>
+        window.CURRENT_COMPANY = '@(Context.Session.GetString("company") ?? "MICRO")';
+        window.isCampaignCreate = @(isCampaignCreate.ToString().ToLower());
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="~/js/prospectSetup.js" asp-append-version="true"></script>
+}

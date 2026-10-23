@@ -1,0 +1,1109 @@
+:root {
+        --primary-blue: #0d6efd;
+        --text-dark: #1e293b;
+        --text-gray: #64748b;
+        --border-color: #e2e8f0;
+        --bg-light: #f8fafc;
+        --batch-blue: #0d6efd;
+        --batch-green: #10b981;
+        --batch-orange: #f59e0b;
+        --batch-purple: #8b5cf6;
+        --batch-cyan: #06b6d4;
+    }
+
+    body {
+        background-color: var(--bg-light);
+        font-family: 'Prompt', sans-serif;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent; 
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; 
+    }
+
+    /* Custom Navbar */
+    .prospect-navbar {
+        background-color: #fff;
+        height: 64px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    
+    .logo-text {
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    .logo-sub {
+        font-size: 0.75rem;
+        color: var(--text-gray);
+    }
+    
+    .page-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+    }
+    .page-subtitle {
+        font-size: 0.8rem;
+        color: var(--text-gray);
+        margin: 0;
+    }
+
+    /* Layout Grids */
+    .prospect-layout {
+        display: flex;
+        min-height: 1000px;
+        height: 100vh;
+        overflow: hidden;
+        flex: column;
+    }
+    
+    .panel-left {
+        width: 320px;
+        min-width: 320px;
+        background-color: #fff;
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
+        overflow-y: auto;
+    }
+    
+    .panel-main {
+        flex: 1;
+        padding: 20px;
+        overflow: hidden;               /* panel เองไม่เลื่อน ให้เลื่อนเฉพาะในตาราง */
+        background-color: var(--bg-light);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    /* การ์ดเงื่อนไข: กว้างเต็ม อยู่บน ยอมหดได้เมื่อพื้นที่แนวตั้งไม่พอ */
+    .panel-main > .card-custom:first-child {
+        flex: 0 1 auto;
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* เงื่อนไขเยอะ: การ์ดเงื่อนไขจำกัดความสูงรวม และเป็น flex column
+       เพื่อให้เฉพาะส่วน filter fields เลื่อน ส่วนปุ่มปักอยู่ล่างสุดเสมอ */
+    .panel-main > .card-custom:first-child .card-body-custom {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: 40vh;
+        overflow: hidden;               /* ตัว body ไม่เลื่อน */
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* เฉพาะรายการ filter ที่เลื่อนได้ (คงระยะ gutter ของ .row ไว้) */
+    .panel-main > .card-custom:first-child .card-body-custom > #dynamicFilter {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 6px;             /* เผื่อที่ให้ scrollbar ไม่ทับ field */
+    }
+
+    /* ปุ่มค้นหา/ล้างเงื่อนไข และส่วนแนบไฟล์: ปักอยู่ล่าง ไม่เลื่อนตาม */
+    .panel-main > .card-custom:first-child .card-body-custom > #dynamicFilter ~ * {
+        flex-shrink: 0;
+    }
+
+    /* แถวล่าง: การ์ดรายการลูกค้า (ยืดเต็มความกว้างที่เหลือ) + panel ปุ่มด้านขวา
+       ยืดเต็มความสูงที่เหลือ และถ้าเตี้ยเกินก็ยังมีความสูงขั้นต่ำ */
+    .prospect-bottom-row {
+        display: flex;
+        gap: 20px;
+        flex: 1 1 auto;
+        min-height: 0;                  /* ให้ตารางย่อตามพื้นที่ เพื่อไม่ดัน footer/pagination หลุดกรอบ */
+        overflow: hidden;
+        align-items: stretch;
+    }
+
+    /* การ์ด "รายการลูกค้า" อยู่ซ้าย ยืดเต็มพื้นที่ */
+    .prospect-bottom-row > .card-custom {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        margin-bottom: 0;
+    }
+
+    .prospect-bottom-row > .card-custom .card-body-custom {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .prospect-bottom-row > .card-custom .card-body-custom .table-responsive {
+        flex: 1 1 0;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    /* Keep the table header visible while the body scrolls inside the card */
+    .prospect-bottom-row > .card-custom .card-body-custom .table-responsive thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .prospect-bottom-row > .card-custom .card-body-custom > div:not(.table-responsive) {
+        flex-shrink: 0;
+    }
+
+    /* DataTables layout: table scrolls, footer (length/info/pagination) ติดล่างสุดไม่เลื่อนตาม */
+    .prospect-bottom-row > .card-custom .card-body-custom .table-responsive.prospect-table-wrap {
+        overflow: hidden;               /* ไม่ให้ตัว wrapper scroll เอง */
+    }
+
+    #batchListContainer_wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
+    #batchListContainer_wrapper .prospect-table-scroll {
+        flex: 1 1 auto;
+        min-height: 0;                  /* ยอมให้ส่วนตารางหด เพื่อคง footer/pagination ไว้ในกรอบ */
+        overflow: auto;                 /* เลื่อนข้อมูลได้ทั้งแนวตั้งและแนวนอน */
+    }
+
+    #batchListContainer_wrapper .prospect-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #fff;
+    }
+
+    #batchListContainer_wrapper .prospect-table-footer {
+        flex-shrink: 0;                 /* footer ติดล่างสุด ไม่เลื่อน */
+        display: flex;
+        flex-wrap: wrap;                /* พื้นที่แคบให้ pagination ลงบรรทัดใหม่แทนการหาย */
+        align-items: flex-end;
+        gap: 8px;
+        border-top: 1px solid var(--border-color);
+        padding: 10px;
+        margin-top: 4px;
+        background: #fff;
+        overflow: visible;
+    }
+
+    /* length (แสดง N รายการ) อยู่บน, info (แสดง x ถึง y) อยู่ใต้ */
+    #batchListContainer_wrapper .prospect-footer-left {
+        gap: 2px;
+    }
+
+    /* info เป็น secondary text */
+    #batchListContainer_wrapper .prospect-info-text,
+    #batchListContainer_wrapper .dataTables_info {
+        font-size: 0.8rem;
+        color: var(--bs-secondary-color, #6c757d);
+        padding-top: 0;
+    }
+
+    /* ตัวเลือกหน้า (pagination) ของรายการลูกค้า: บังคับให้แสดงและ style ให้เข้าธีม */
+    #batchListContainer_wrapper .dataTables_paginate {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        margin: 0 0 0 auto;
+        max-width: 100%;
+        overflow-x: auto;               /* เลขหน้าหลายหน้าให้เลื่อนได้ ไม่ถูกตัดหาย */
+        padding-bottom: 2px;
+    }
+    #batchListContainer_wrapper .dataTables_paginate .pagination {
+        margin: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    /* รองรับทั้งกรณี Bootstrap5 (.page-link) และ default (.paginate_button) */
+    #batchListContainer_wrapper .dataTables_paginate .page-link,
+    #batchListContainer_wrapper .dataTables_paginate .paginate_button {
+        border: none;
+        color: var(--text-gray);
+        border-radius: 6px;
+        margin: 0 2px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        background: transparent;
+        cursor: pointer;
+    }
+    #batchListContainer_wrapper .dataTables_paginate .page-item.active .page-link,
+    #batchListContainer_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: var(--primary-blue);
+        color: #fff;
+    }
+    #batchListContainer_wrapper .dataTables_paginate .page-item.disabled .page-link,
+    #batchListContainer_wrapper .dataTables_paginate .paginate_button.disabled {
+        color: #cbd5e1;
+        pointer-events: none;
+    }
+    #batchListContainer_wrapper .dataTables_paginate .paginate_button:hover {
+        background: #eef4ff;
+        color: var(--primary-blue);
+    }
+    
+    .panel-right {
+        flex: 0 0 460px;
+        width: 460px;
+        min-width: 400px;
+        background-color: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        padding: 20px;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    /* Left Panel Styles */
+    .search-box {
+        position: relative;
+        flex: 1;
+    }
+    .search-box i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-gray);
+    }
+    .search-box input {
+        padding-left: 35px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        font-size: 0.85rem;
+    }
+    .btn-icon-outline {
+        border: 1px solid var(--border-color);
+        background: #fff;
+        border-radius: 8px;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-blue);
+    }
+
+    .batch-card {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 12px 15px;
+        margin-bottom: 12px;
+        position: relative;
+        cursor: pointer;
+        background: #fff;
+        transition: all 0.2s;
+    }
+    .batch-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .batch-card.active {
+        border-color: var(--primary-blue);
+        background-color: #f8fbff;
+    }
+    .batch-card::before {
+        content: '';
+        position: absolute;
+        left: -1px;
+        top: -1px;
+        bottom: -1px;
+        width: 4px;
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+    }
+    .batch-card.color-blue::before { background-color: var(--batch-blue); }
+    .batch-card.color-green::before { background-color: var(--batch-green); }
+    .batch-card.color-orange::before { background-color: var(--batch-orange); }
+    .batch-card.color-purple::before { background-color: var(--batch-purple); }
+    .batch-card.color-cyan::before { background-color: var(--batch-cyan); }
+    
+    .batch-id {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .batch-id.color-blue { color: var(--batch-blue); }
+    .batch-id.color-green { color: var(--batch-green); }
+    .batch-id.color-orange { color: var(--batch-orange); }
+    .batch-id.color-purple { color: var(--batch-purple); }
+    .batch-id.color-cyan { color: var(--batch-cyan); }
+
+    .batch-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+    }
+    .batch-meta {
+        font-size: 0.75rem;
+        color: var(--text-gray);
+        line-height: 1.4;
+    }
+    .batch-count {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    .check-circle {
+        color: var(--primary-blue);
+        font-size: 1.1rem;
+    }
+
+    /* Main Panel Styles */
+    .card-custom {
+        background: #fff;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }
+    .card-header-custom {
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .card-title-custom {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .card-body-custom {
+        padding: 20px;
+    }
+    
+    .form-label-custom {
+        font-size: 0.85rem;
+        color: var(--text-dark);
+        font-weight: 500;
+        margin-bottom: 6px;
+    }
+    .form-control-custom, .form-select-custom {
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+
+    .table-custom {
+        margin: 0;
+    }
+    .table-custom th {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-gray);
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 16px;
+        background: #f8fafc;
+        white-space: nowrap;
+    }
+    .table-custom td {
+        font-size: 0.85rem;
+        color: var(--text-dark);
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 16px;
+        vertical-align: middle;
+    }
+    .badge-blue {
+        background-color: var(--primary-blue);
+        color: #fff;
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .company-name {
+        font-weight: 500;
+    }
+    .branch-name {
+        font-size: 0.75rem;
+        color: var(--text-gray);
+    }
+
+    /* Right Panel Styles */
+    .action-btn {
+        width: 100%;
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        border: none;
+        color: #fff;
+        margin-bottom: 12px;
+        text-align: left;
+        transition: transform 0.1s;
+    }
+    .action-btn:active {
+        transform: scale(0.98);
+    }
+    .action-btn:disabled,
+    .action-btn.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+    .action-btn i {
+        font-size: 1.5rem;
+    }
+    .action-btn-title {
+        font-size: 1rem;
+        font-weight: 600;
+        display: block;
+        line-height: 1.2;
+    }
+    .action-btn-sub {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        margin-top: 2px;
+        display: block;
+    }
+    
+    .btn-primary-blue { background-color: var(--primary-blue); }
+    .btn-primary-green { background-color: var(--batch-green); }
+    .btn-primary-purple { background-color: var(--batch-purple); }
+
+    .selected-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .selected-list-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    .btn-clear {
+        color: #ef4444;
+        font-size: 0.8rem;
+        background: none;
+        border: none;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .selected-table-wrapper {
+        max-height: 480px;
+        overflow-y: auto;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .selected-table th, .selected-table td {
+        font-size: 0.8rem;
+        padding: 10px 5px;
+        border-bottom: 1px solid var(--border-color);
+        white-space: nowrap;            /* ไม่ตัดบรรทัด: หัวข้อ/ข้อมูลอยู่บรรทัดเดียว ต้องเลื่อนซ้ายขวาเพื่อดูเพิ่ม */
+    }
+    .selected-table th {
+        color: var(--text-gray);
+        font-weight: 500;
+        background: #f8fafc;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: inset 0 -1px 0 var(--border-color);
+    }
+
+    .selected-table {
+        table-layout: fixed;
+        width: max-content;
+        min-width: 100%;
+        /* min-height: 400px; */
+    }
+    .selected-table th:not(:last-child),
+    .selected-table td:not(:last-child) {
+        width: 140px;
+        min-width: 140px;
+    }
+    /* คอลัมน์สุดท้าย = ปุ่มลบ */
+    .selected-table th:last-child,
+    .selected-table td:last-child {
+        width: 30px;
+        min-width: 30px;
+    }
+    /* กรอบมองเห็นกว้างเต็ม panel (panel ด้านขวาแคบอยู่แล้ว ~3.5 หัวข้อ)
+       ตารางกว้างตามผลรวมคอลัมน์ จึงเลื่อนซ้ายขวาดูส่วนที่เหลือได้ */
+    .selected-table-wrapper {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Pagination styling */
+    .pagination-custom .page-link {
+        border: none;
+        color: var(--text-gray);
+        border-radius: 6px;
+        margin: 0 2px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+    }
+    .pagination-custom .page-item.active .page-link {
+        background-color: var(--primary-blue);
+        color: #fff;
+    }
+
+    .selected-pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    /* Checkbox */
+    .form-check-input {
+        border-color: #cbd5e1;
+        width: 1.1em;
+        height: 1.1em;
+    }
+    .form-check-input:checked {
+        background-color: var(--primary-blue);
+        border-color: var(--primary-blue);
+    }
+
+    /* Responsive Layout */
+    @media (max-width: 1199.98px) {
+        .prospect-layout {
+            flex-direction: column;
+            height: calc(100vh - 77px);
+            min-height: 1000px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .panel-left {
+            width: 100%;
+            min-width: 100%;
+            border-right: none;
+            border-bottom: 1px solid var(--border-color);
+            height: 400px;
+            flex-shrink: 0;
+        }
+        
+        .panel-main {
+            width: 100%;
+            height: auto;
+            overflow: visible;
+            flex-shrink: 0;
+            display: block;
+        }
+        
+        /* จอเล็ก: การ์ดเงื่อนไขแสดงเต็มความสูง */
+        .panel-main > .card-custom:first-child {
+            flex: none;
+            height: auto;
+            display: block;
+            overflow: visible;
+        }
+
+        /* จอเล็ก: การ์ดเงื่อนไขไหลตามเนื้อหา ไม่ต้อง scroll ภายใน (ทั้งหน้าเลื่อนได้อยู่แล้ว) */
+        .panel-main > .card-custom:first-child .card-body-custom {
+            flex: none;
+            max-height: none;
+            overflow: visible;
+            display: block;
+        }
+
+        .panel-main > .card-custom:first-child .card-body-custom > #dynamicFilter {
+            flex: none;
+            overflow: visible;
+            padding-right: 0;
+        }
+
+        /* จอเล็ก: แถวล่างเรียงเป็นแนวตั้ง */
+        .prospect-bottom-row {
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .prospect-bottom-row > .card-custom {
+            flex: none;
+            height: auto;
+            min-height: 0;
+            display: block;
+            margin-bottom: 20px;
+        }
+
+        .prospect-bottom-row > .card-custom .card-body-custom {
+            flex: none;
+            height: auto;
+            display: block;
+        }
+
+        .prospect-bottom-row > .card-custom .card-body-custom .table-responsive {
+            flex: none;
+            overflow-y: visible;
+        }
+
+        /* มือถือ: ให้ส่วนข้อมูลมีความสูงจำกัดและ scroll ได้ ส่วน footer อยู่ใต้ตาราง */
+        .prospect-bottom-row > .card-custom .card-body-custom .table-responsive.prospect-table-wrap {
+            overflow: hidden;
+        }
+
+        #batchListContainer_wrapper {
+            height: auto;
+        }
+
+        #batchListContainer_wrapper .prospect-table-scroll {
+            /* Reserve enough space for the header and at least 10 customer rows. */
+            height: 510px;
+            min-height: 510px;
+            max-height: 510px;
+        }
+
+        #batchListContainer_wrapper .prospect-table-footer {
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #batchListContainer_wrapper .prospect-footer-left {
+            align-items: flex-start;
+        }
+
+        #batchListContainer_wrapper .dataTables_paginate {
+            margin-left: auto;
+        }
+
+        #batchListContainer_wrapper .dataTables_paginate .pagination {
+            justify-content: flex-end;
+            flex-wrap: nowrap;
+        }
+        
+        .panel-right {
+            width: 100%;
+            min-width: 100%;
+            flex: none;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            height: auto;
+            flex-shrink: 0;
+        }
+
+        /* Reserve enough space for the header and at least 10 selected rows. */
+        .selected-table-wrapper {
+            height: 450px;
+            min-height: 450px;
+            max-height: 450px;
+        }
+        
+        .card-header-custom {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        
+        .card-header-custom > div {
+            width: 100%;
+            justify-content: space-between;
+        }
+        
+        .d-flex.justify-content-between.align-items-center.mt-3 {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 15px;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .col-md-8 .d-flex.align-items-center.gap-2 {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        
+        .col-md-8 .d-flex.align-items-center.gap-2 > div.position-relative {
+            width: 100% !important;
+        }
+        
+        .col-md-8 .d-flex.align-items-center.gap-2 > span {
+            align-self: center;
+        }
+    }
+
+    .bg-orange {
+        background-color: #f97316 !important;
+        color: #ffffff !important;
+    }
+
+/* ===== เงื่อนไขคัดเลือกลูกค้าเป้าหมาย: จัด filter 5 อันต่อแถว =====
+   #dynamicFilter เป็น .row (มี gutter จาก g-3) แต่ 12 คอลัมน์หาร 5 ไม่ลงตัว
+   จึงใช้คอลัมน์ custom ที่กว้าง 20% แล้วลดจำนวนต่อแถวเมื่อจอเล็กลง */
+#dynamicFilter .prospect-filter-col {
+    /* รวม gutter ของ .row (padding มาจาก --bs-gutter-x ของ Bootstrap) */
+    flex: 0 0 auto;
+    width: 20%;                 /* 5 อันต่อแถว */
+    padding-right: calc(var(--bs-gutter-x, 1rem) * 0.5);
+    padding-left: calc(var(--bs-gutter-x, 1rem) * 0.5);
+    margin-top: var(--bs-gutter-y, 0);
+}
+
+/* จอกลาง: 3 อันต่อแถว */
+@media (max-width: 1399.98px) {
+    #dynamicFilter .prospect-filter-col {
+        width: 33.3333%;
+    }
+}
+
+/* จอเล็ก: 2 อันต่อแถว */
+@media (max-width: 991.98px) {
+    #dynamicFilter .prospect-filter-col {
+        width: 50%;
+    }
+}
+
+/* มือถือ: 1 อันต่อแถว */
+@media (max-width: 575.98px) {
+    #dynamicFilter .prospect-filter-col {
+        width: 100%;
+    }
+}
+
+/* ===== Select2 สำหรับ dropdown เงื่อนไขคัดเลือกลูกค้าเป้าหมาย ===== */
+/* ให้กล่องเลือกดูเข้ากับ input อื่นในฟอร์ม */
+#dynamicFilter .select2-container--bootstrap-5 .select2-selection {
+    border-radius: 8px;
+    min-height: 42px;
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+#dynamicFilter .select2-container--bootstrap-5 .select2-selection--single {
+    display: flex;
+    align-items: center;
+}
+
+/* dropdown รายการตัวเลือก: แสดงสูงสุด ~7 รายการ, ต่ำสุด ~3 รายการ แล้วมี scrollbar */
+.prospect-filter-select2-dropdown .select2-results__options {
+    /* option แต่ละแถวสูง ~34px => 7 แถว ≈ 238px, 3 แถว ≈ 102px */
+    max-height: 238px;
+    min-height: 102px;
+    overflow-y: auto;
+}
+
+.prospect-filter-select2-dropdown .select2-results__option {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+
+/* scrollbar ของ dropdown ให้เข้ากับธีมหน้า */
+.prospect-filter-select2-dropdown .select2-results__options::-webkit-scrollbar {
+    width: 6px;
+}
+.prospect-filter-select2-dropdown .select2-results__options::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
+.prospect-filter-select2-dropdown .select2-results__options::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* กล่องช่องค้นหาใน dropdown */
+.prospect-filter-select2-dropdown .select2-search--dropdown .select2-search__field {
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    padding: 4px 8px;
+    font-size: 0.9rem;
+}
+
+/* ===================================================================
+   Bottom row polish: การ์ดรายการลูกค้า + panel ด้านขวา ให้ดูสวยขึ้น
+   =================================================================== */
+
+/* ---- การ์ดรายการลูกค้า ---- */
+.prospect-list-card .card-body-custom {
+    padding: 18px 20px;
+}
+
+/* Toolbar หัวตาราง: ชื่อ + badge จำนวน + ช่องค้นหา */
+.prospect-list-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.prospect-list-heading > .bi {
+    color: var(--primary-blue);
+    font-size: 1.05rem;
+}
+
+.prospect-list-heading-text {
+    letter-spacing: 0.01em;
+}
+
+/* Badge จำนวนรายการที่พบ */
+.prospect-count-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #eef4ff;
+    color: var(--primary-blue);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    line-height: 1.4;
+}
+
+/* ช่องค้นหาในหัวตาราง */
+.prospect-list-search {
+    width: 380px;
+    min-width: 280px;
+    max-width: 100%;
+}
+
+.prospect-list-search input {
+    background: var(--bg-light);
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.prospect-list-search input:focus {
+    background: #fff;
+}
+
+/* กรอบตารางให้ดูนุ่มขึ้น */
+.prospect-list-card .prospect-table-wrap {
+    border-color: var(--border-color) !important;
+    background: #fff;
+}
+
+/* แถวข้อมูล hover เด่นขึ้นเล็กน้อย */
+.prospect-list-card .table-custom tbody tr {
+    transition: background-color 0.12s;
+}
+.prospect-list-card .table-custom tbody tr:hover {
+    background-color: #f5f9ff;
+}
+
+/* ---- Panel ด้านขวา ---- */
+.panel-right {
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-right-actions {
+    display: flex;
+    flex-direction: row;
+    gap:10px;
+}
+
+/* ปุ่มบันทึกชุดข้อมูล / ส่งอนุมัติ: กว้างเท่ากัน ยืดเต็มพื้นที่ และข้อความอยู่บรรทัดเดียว
+   (คงขนาดข้อความเดิม แล้วขยายปุ่ม/กรอบ panel ให้พอ ไม่ตัดบรรทัด) */
+.panel-right-actions .action-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-bottom: 0;
+}
+.panel-right-actions .action-btn > div {
+    min-width: 0;
+}
+.panel-right-actions .action-btn-title,
+.panel-right-actions .action-btn-sub {
+    white-space: nowrap;            /* ข้อความในปุ่มไม่ตัดบรรทัด */
+}
+
+/* จอเล็ก: ปุ่ม action เรียงเป็นแนวตั้ง (column) แทนแนวนอน */
+@media (max-width: 1199.98px) {
+    .panel-right-actions {
+        flex-direction: column;
+    }
+}
+
+/* ปุ่ม action ให้มีมิติ + hover */
+.action-btn {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.action-btn:not(:disabled):not(.disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
+    filter: brightness(1.03);
+}
+.action-btn:not(:disabled):not(.disabled):active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.action-btn i {
+    flex-shrink: 0;
+}
+
+/* ให้ไอคอนในปุ่มมีพื้นวงกลมจางๆ ดูมีระดับ */
+.action-btn > .bi {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 1.25rem;
+}
+
+/* ---- ส่วนรายการที่เลือก ---- */
+.selected-items-section {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.selected-list-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.selected-list-title > .bi {
+    color: var(--primary-blue);
+}
+
+.selected-table-wrapper {
+    border-color: var(--border-color) !important;
+    background: #fff;
+}
+
+/* แถวข้อมูลใน selected table hover */
+.selected-table tbody tr:not(.selected-empty-row):hover {
+    background-color: #f5f9ff;
+}
+
+/* ปุ่มลบรายการ hover */
+.selected-table .remove-item {
+    transition: color 0.12s, transform 0.12s;
+    border-radius: 6px;
+}
+.selected-table .remove-item:hover {
+    color: #ef4444 !important;
+    transform: scale(1.2);
+}
+
+/* Empty state สวยๆ */
+.selected-empty-row td {
+    border-bottom: none !important;
+}
+.selected-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 28px 10px;
+    color: var(--text-gray);
+    text-align: center;
+}
+.selected-empty-state .bi {
+    font-size: 1.8rem;
+    color: #cbd5e1;
+}
+.selected-empty-state span {
+    font-size: 0.82rem;
+}
+
+/* จอเล็ก: search box ในหัวตารางเต็มความกว้าง */
+@media (max-width: 767.98px) {
+    .prospect-list-search {
+        width: 100%;
+        min-width: 0;
+    }
+    .prospect-list-toolbar {
+        align-items: stretch !important;
+    }
+}
+
+/* ===================================================================
+   การ์ดเงื่อนไข: หุบ/ขยายได้ เพื่อเพิ่มพื้นที่แสดงรายการลูกค้า
+   =================================================================== */
+
+/* header ของการ์ดเงื่อนไข: คลิกได้ */
+.filter-card-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-card-header:hover {
+    background-color: #f8fafc;
+}
+
+/* ไอคอน chevron หมุนตามสถานะ */
+.filter-card-chevron {
+    color: var(--text-gray);
+    font-size: 1rem;
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+/* สถานะหุบ: ซ่อน body ของการ์ดเงื่อนไข */
+#filterCard.filter-collapsed .card-body-custom {
+    display: none !important;
+}
+
+/* เมื่อหุบ ไม่ต้องมีเส้นคั่นใต้ header */
+#filterCard.filter-collapsed .filter-card-header {
+    border-bottom: none;
+}
+
+/* เมื่อหุบ การ์ดเงื่อนไขไม่ยืด ให้แถวรายการลูกค้ากินพื้นที่ที่เหลือทั้งหมด
+   ต้องล้าง min-height ที่ตั้งไว้ 400px ด้วย ไม่งั้นการ์ดจะคงความสูงเดิมทั้งที่ซ่อน body แล้ว */
+#filterCard.filter-collapsed {
+    flex: 0 0 auto;
+    min-height: 0 !important;
+}
+
+/* หมุน chevron เมื่อหุบ */
+#filterCard.filter-collapsed .filter-card-chevron {
+    transform: rotate(180deg);
+}

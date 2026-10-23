@@ -1,0 +1,1080 @@
+﻿@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<!DOCTYPE html>
+
+<html lang="th">
+
+<head>
+
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>@ViewData["Title"]</title>
+
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" asp-append-version="true" />
+
+    <link rel="shortcut icon" href="~/favicon.ico" />
+
+    <script>
+
+        window.appBase = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+
+            (Url.Content("~/") ?? "/").TrimEnd('/')));
+
+    </script>
+
+    <script src="~/js/app-base.js"></script>
+
+
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+
+
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+
+    
+
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+
+
+    @await RenderSectionAsync("Styles", required: false)
+
+</head>
+
+<body class="crm-body">
+
+    @{
+
+        bool hideSidebar = ViewData["HideSidebar"] as bool? == true;
+
+
+
+        var pathBaseValue = Context.Request.PathBase.Value ?? "";
+
+        var rawPath = Context.Request.Path.Value ?? "/";
+
+
+
+        if (!string.IsNullOrEmpty(pathBaseValue)
+
+            && rawPath.StartsWith(pathBaseValue, StringComparison.OrdinalIgnoreCase))
+
+        {
+
+            rawPath = rawPath.Substring(pathBaseValue.Length);
+
+        }
+
+
+
+        var currentPath = string.IsNullOrEmpty(rawPath) ? "/" : rawPath;
+
+        string GetActiveClass(string path)
+
+        {
+
+            if (path == "/" || path == "/Home/Index")
+
+            {
+
+                return (currentPath == "/" || currentPath.Equals("/Home/Index", StringComparison.OrdinalIgnoreCase)) ? "active-menu text-primary" : "text-secondary";
+
+            }
+
+            return (path != "#" && currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase)) ? "active-menu text-primary" : "text-secondary";
+
+        }
+
+
+
+        var currentRoleId = Context.Session.GetString("roleId") ?? "";
+
+        var currentRoleName = Context.Session.GetString("roleName") ?? "";
+
+        var userCode = Context.Session.GetString("personalId") ?? "";
+
+        var personelCanChangRole = new[] { "100664", "690001" };
+
+        var isCanChangRole = personelCanChangRole.Contains(userCode);
+
+        var isAdmin = string.Equals(currentRoleId, "RCRM017", StringComparison.OrdinalIgnoreCase);
+    }
+
+
+
+    <div class="d-flex crm-shell">
+
+        @if (!hideSidebar)
+
+        {
+
+            <!-- Sidebar -->
+
+            <aside class="sidebar crm-sidebar bg-white border-end d-flex flex-column flex-shrink-0" id="crmSidebar">
+
+                <!-- Sidebar Header (Title & Hide Button) -->
+
+                <div class="px-3 py-3 border-bottom d-flex align-items-center justify-content-between">
+
+                    <div class="sidebar-text">
+
+                        <h5 class="fw-bold text-dark mb-0 crm-sidebar-title">CRM 3.0</h5>
+
+                    </div>
+
+                    <button class="btn text-secondary d-flex align-items-center gap-2 p-0 border-0 crm-hide-sidebar-btn" id="hideSidebarBtn">
+
+                        <i class="bi bi-chevron-double-left fs-6" id="hideSidebarIcon"></i>
+
+                    </button>
+
+                </div>
+
+                
+
+                <!-- Menu Items -->
+
+                <nav class="sidebar-nav flex-grow-1 px-2 py-3 d-flex flex-column gap-1 overflow-auto" id="sidebarNav">
+
+                    @{
+
+                        bool isDashboardActive = currentPath == "/" || currentPath.StartsWith("/Home", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/Dashboard", StringComparison.OrdinalIgnoreCase);
+
+                    }
+
+                    <div class="sidebar-item-group mb-1">
+
+                        <button class="nav-link @(isDashboardActive ? "text-primary fw-semibold" : "text-secondary") d-flex align-items-center justify-content-between w-100 px-3 py-2 rounded border-0 bg-transparent text-start sidebar-parent-toggle" 
+
+                                type="button" 
+
+                                data-bs-toggle="collapse" 
+
+                                data-bs-target="#sidebarSubmenu_1" 
+
+                                aria-expanded="@(isDashboardActive ? "true" : "false")" 
+
+                                aria-controls="sidebarSubmenu_1">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <i class="bi bi-house fs-5"></i>
+
+                                <span class="fw-medium sidebar-text">Dashboard</span>
+
+                            </div>
+
+                            <i class="bi bi-chevron-down sidebar-chevron fs-6"></i>
+
+                        </button>
+
+                        <div class="collapse @(isDashboardActive ? "show" : "")" id="sidebarSubmenu_1">
+
+                            <div class="sidebar-submenu d-flex flex-column gap-1 my-1">
+
+                                <a href="~/Home/Index" class="nav-link @GetActiveClass("/Home/Index") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+
+                                    <i class="bi bi-person fs-6"></i>
+
+                                    <span class="sidebar-text">ข้อมูลสัญญา</span>
+
+                                </a>
+
+                                <a href="~/DashboardProspectCall" class="nav-link @GetActiveClass("/DashboardProspectCall") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+
+                                    <i class="bi bi-telephone-inbound fs-6"></i>
+
+                                    <span class="sidebar-text">การติดต่อลูกค้า</span>
+
+                                </a>
+
+                                <a href="~/DashboardSuggestion" class="nav-link @GetActiveClass("/DashboardSuggestion") d-flex align-items-center gap-2 px-3 py-1.5 rounded">
+
+                                    <i class="bi bi-chat-left-dots fs-6"></i>
+
+                                    <span class="sidebar-text">ข้อเสนอแนะ/ร้องเรียน</span>
+
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    
+
+                    <a href="~/CustomerDetail" class="nav-link @GetActiveClass("/CustomerDetail") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-person fs-5"></i> <span class="fw-medium sidebar-text">ข้อมูลลูกค้า</span>
+
+                    </a>
+
+                    
+
+                    <a href="~/Suggestions" class="nav-link @GetActiveClass("/Suggestions") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-chat-dots fs-5"></i> <span class="fw-medium sidebar-text">ข้อเสนอแนะ/ร้องเรียน</span>
+
+                    </a>
+
+
+
+                    <a href="~/Campain" class="nav-link @GetActiveClass("/Campain") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-megaphone fs-5"></i> <span class="fw-medium sidebar-text">Campaign Create</span>
+
+                    </a>
+
+                    
+
+                    <a href="~/ProspectSetup" class="nav-link @GetActiveClass("/ProspectSetup") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-people-fill fs-5"></i> <span class="fw-medium sidebar-text">Prospect Setup</span>
+
+                    </a>
+
+                    
+
+                    <a href="~/ProductApprove" class="nav-link @GetActiveClass("/ProductApprove") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-shield-check fs-5"></i> <span class="fw-medium sidebar-text">Campaign Approve</span>
+
+                    </a>
+
+                    
+
+                    <a href="~/ProspectAssign" class="nav-link @GetActiveClass("/ProspectAssign") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-people fs-5"></i> <span class="fw-medium sidebar-text">Prospect Assign</span>
+
+                    </a>
+
+                    
+
+                    <a href="~/ProspectCall" class="nav-link @GetActiveClass("/ProspectCall") d-flex align-items-center gap-3 px-3 py-2 rounded">
+
+                        <i class="bi bi-telephone fs-5"></i> <span class="fw-medium sidebar-text">ขายและติดตาม</span>
+
+                    </a>
+
+                    
+
+                </nav>
+
+
+
+                <!-- Logout Button (pinned to bottom) -->
+
+                <div class="border-top px-2 py-3 mt-auto">
+
+                    <a href="~/Login/Logout" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded text-danger crm-logout-btn">
+
+                        <i class="bi bi-box-arrow-right fs-5"></i>
+
+                        <span class="fw-medium sidebar-text">ออกจากระบบ</span>
+
+                    </a>
+
+                </div>
+
+
+
+            </aside>
+
+        }
+
+
+
+        <!-- Main Content Area -->
+
+        <div class="flex-grow-1 d-flex flex-column crm-main">
+
+            @{
+
+                bool hideHeader = ViewData["HideHeader"] as bool? == true;
+
+            }
+
+            @if (!hideHeader)
+
+            {
+
+            <!-- Header -->
+
+            <header class="crm-header d-flex align-items-center justify-content-between px-4 py-3 bg-white shadow-sm border-bottom">
+
+                <div class="d-flex align-items-center gap-3">
+
+                    <div class="ms-2">
+
+                        <h4 class="mb-0 fw-bold text-dark-blue">@(ViewData["HeaderTitle"] ?? "CRM 3.0")</h4>
+
+                        @if (ViewData["HeaderSubtitle"] != null)
+
+                        {
+
+                            <p class="text-muted small mb-0 mt-1">@ViewData["HeaderSubtitle"]</p>
+
+                        }
+
+                    </div>
+
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+
+                
+
+                <div class="d-flex align-items-center gap-3">
+
+                    <div class="user-company text-end d-none d-md-block">
+
+
+
+                        <div class="text-muted crm-welcome-text">
+
+                            ยินดีต้อนรับ
+
+                            <span class="fw-bold text-primary">
+
+                                @(Context.Session.GetString("profile_welcome") ?? "")
+
+                            </span>
+
+                        </div>
+
+
+
+                        <!-- 
+
+                        <div>
+
+                            @foreach (var func in (Context.Session.GetString("func_name") ?? "")
+
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries))
+
+                            {
+
+                                <span class="fw-bold text-primary">[@func.Trim()]</span>
+
+                            }
+
+                        </div> 
+
+                        -->
+
+
+
+                        @{
+
+                            var branches = (Context.Session.GetString("variable_func") ?? "")
+
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+
+                                .Select(x => x.Trim())
+
+                                .ToList();
+
+                        }
+
+
+
+                        <div class="dropdown">
+
+                            <button class="btn btn-link p-0 text-decoration-none"
+
+                                    type="button"
+
+                                    data-bs-toggle="dropdown"
+
+                                    aria-expanded="false">
+
+                                รหัสสาขาที่มีสิทธิ์
+
+                                <i class="bi bi-chevron-down ms-1"></i>
+
+                            </button>
+
+
+
+                            <ul class="dropdown-menu dropdown-menu-end">
+
+                                @foreach (var branch in branches)
+
+                                {
+
+                                    <li>
+
+                                        <a class="dropdown-item" href="#">
+
+                                            [@branch]
+
+                                        </a>
+
+                                    </li>
+
+                                }
+
+                            </ul>
+
+                        </div>
+
+
+
+                    </div>
+
+                </div>
+
+                @if (isAdmin)
+                {
+
+                    <!-- System Status Badge กดได้ (เฉพาะ Admin) -->
+
+                    <button type="button" 
+
+                            class="btn btn-sm btn-outline-secondary rounded-pill d-flex align-items-center gap-2 px-2.5 py-1 me-2 shadow-sm"
+
+                            id="btnSystemStatus" 
+
+                            data-bs-toggle="modal" 
+
+                            data-bs-target="#systemStatusModal"
+
+                            title="สถานะระบบและการเชื่อมต่อ (เฉพาะ Admin)">
+
+                        <span class="spinner-grow spinner-grow-sm text-secondary" id="systemStatusDot" style="width: 0.65rem; height: 0.65rem;" role="status"></span>
+
+                        <span class="small fw-semibold d-none d-lg-inline" id="systemStatusText">ระบบ: ตรวจสอบ...</span>
+
+                    </button>
+
+                }
+                else
+                {
+                    <!-- System Status Badge ดูเท่านั้น (ไม่ใช่ Admin) -->
+
+                    <span class="btn btn-sm btn-outline-secondary rounded-pill d-flex align-items-center gap-2 px-2.5 py-1 me-2 shadow-sm disabled"
+
+                          id="btnSystemStatus"
+
+                          style="pointer-events: none; cursor: default;"
+
+                          aria-disabled="true"
+
+                          title="สถานะระบบและการเชื่อมต่อ (ดูเท่านั้น)">
+
+                        <span class="spinner-grow spinner-grow-sm text-secondary" id="systemStatusDot" style="width: 0.65rem; height: 0.65rem;" role="status"></span>
+
+                        <span class="small fw-semibold d-none d-lg-inline" id="systemStatusText">ระบบ: ตรวจสอบ...</span>
+
+                    </span>
+
+                }
+
+<div class="dropdown me-2">
+
+                        <div class="position-relative d-flex align-items-center justify-content-center crm-bell" id="bellNotification" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+
+                            <i class="bi bi-bell fs-5 text-secondary hover-ring d-inline-block"></i>
+
+                            <span id="notificationBadge" class="position-absolute badge rounded-pill bg-danger shadow-sm crm-notification-badge" style="display: none;">
+
+                                0
+
+                            </span>
+
+                        </div>
+
+                        <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 crm-dropdown-panel" aria-labelledby="bellNotification">
+
+                            <div class="p-3 text-white d-flex justify-content-between align-items-center crm-panel-header">
+
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-bell-fill me-2"></i>การแจ้งเตือน</h6>
+
+                                <span class="badge bg-white text-primary rounded-pill shadow-sm" id="notificationHeaderCount">0</span>
+
+                            </div>
+
+                            <div id="notificationList" class="overflow-auto bg-white crm-notification-list">
+
+                                <!-- Notification items will be appended here -->
+
+                            </div>
+
+                            <div class="p-2 text-center border-top crm-dropdown-footer">
+
+                                <a href="#" class="text-primary text-decoration-none small fw-medium" data-bs-toggle="modal" data-bs-target="#allNotificationsModal">ดูการแจ้งเตือนทั้งหมด</a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                @if (isCanChangRole)
+                {
+
+                    <!-- Switch Own Role -->
+
+                    <div class="dropdown me-2" id="roleSwitcher"
+
+                         data-current-role-id="@currentRoleId"
+
+                         data-current-role-name="@currentRoleName">
+
+                        <button type="button"
+
+                                class="btn btn-light border d-flex align-items-center gap-2 rounded-pill px-3 py-1"
+
+                                id="roleSwitcherToggle"
+
+                                data-bs-toggle="dropdown"
+
+                                data-bs-auto-close="outside"
+
+                                aria-expanded="false"
+
+                                title="ปรับบทบาทของตัวเอง">
+
+                            <i class="bi bi-person-badge fs-6 text-primary"></i>
+
+                            <span class="d-none d-md-inline small fw-medium text-dark" id="roleSwitcherLabel">
+
+                                @(string.IsNullOrWhiteSpace(currentRoleName) ? "เปลี่ยนบทบาท" : currentRoleName)
+
+                            </span>
+
+                            <i class="bi bi-chevron-down small text-secondary"></i>
+
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-0 crm-dropdown-panel-wide"
+
+                             aria-labelledby="roleSwitcherToggle">
+
+                            <div class="p-3 text-white d-flex justify-content-between align-items-center crm-panel-header">
+
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2"></i>ปรับบทบาทของตัวเอง</h6>
+
+                            </div>
+
+                            <div class="p-2 border-bottom bg-white">
+
+                                <div class="input-group input-group-sm">
+
+                                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-secondary"></i></span>
+
+                                    <input type="text" class="form-control border-start-0" id="roleSwitcherSearch" placeholder="ค้นหาบทบาท..." autocomplete="off">
+
+                                </div>
+
+                            </div>
+
+                            <div id="roleSwitcherList" class="overflow-auto bg-white crm-role-list">
+
+                                <div class="p-3 text-center text-muted small">
+
+                                    <span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดบทบาท...
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                }
+
+
+
+                </div>
+
+            </header>
+
+            }
+
+
+
+            <!-- System Alert Banner (for Offline Log or DB warnings) -->
+
+            <div id="systemAlertBanner" class="alert alert-warning alert-dismissible fade show m-3 mb-0 shadow-sm rounded-3 py-2 px-3 d-none align-items-center" role="alert">
+
+                <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-5"></i>
+
+                <div class="small flex-grow-1" id="systemAlertText">
+
+                    <strong>แจ้งเตือน:</strong> ไม่สามารถเชื่อมต่อ Server Log ได้ ระบบกำลังทำงานในโหมดออฟไลน์ (หน้าเว็บยังใช้งานได้ตามปกติ)
+
+                </div>
+
+                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+
+            </div>
+
+
+
+            <div class="content-wrapper flex-grow-1 overflow-auto crm-content-wrapper">
+
+                @RenderBody()
+
+            </div>
+
+
+
+            @{
+
+                var appVersion = Environment.GetEnvironmentVariable("appVersion")
+
+                                 ?? Configuration["appVersion"]
+
+                                 ?? "";
+
+            }
+
+
+
+            <footer class="crm-footer text-center text-muted small py-2 px-4 border-top bg-white">
+
+                &copy; สงวนลิขสิทธิ์ พ.ศ.@(DateTime.Now.Year + 543) บริษัท ไมโครลิสซิ่ง จำกัด (มหาชน).
+
+                @if (!string.IsNullOrWhiteSpace(appVersion))
+
+                {
+
+                    <span class="ms-1">| Version @appVersion</span>
+
+                }
+
+            </footer>
+
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- All Notifications Modal -->
+
+    <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+
+            <div class="modal-content border-0 shadow-lg crm-modal-content">
+
+                <div class="modal-header text-white border-0 crm-modal-header">
+
+                    <h5 class="modal-title fw-bold" id="allNotificationsModalLabel"><i class="bi bi-bell-fill me-2"></i>การแจ้งเตือนทั้งหมด</h5>
+
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body p-0 crm-modal-body-light">
+
+                    <div class="row g-0 crm-modal-grid">
+
+                        <!-- Left Pane: List of items -->
+
+                        <div class="col-12 col-md-5 border-end overflow-auto p-3 crm-modal-list-pane" id="allNotificationsModalBody">
+
+                            <!-- Modal notifications will be appended here -->
+
+                        </div>
+
+                        <!-- Right Pane: Detail view -->
+
+                        <div class="col-12 col-md-7 overflow-auto p-4 bg-white crm-modal-detail-pane" id="allNotificationsModalDetail">
+
+                            <!-- Notification detail will be loaded here -->
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer bg-light border-top d-flex justify-content-between align-items-center px-3 py-2 crm-modal-footer">
+
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-2 shadow-sm transition-all" onclick="deleteReadNotifications()">
+
+                        <i class="bi bi-trash3-fill"></i>
+
+                        <span class="fw-medium">ลบที่อ่านแล้วทั้งหมด</span>
+
+                    </button>
+
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">
+
+                        ปิด
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Notification Detail Popup Modal -->
+
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-labelledby="notificationDetailModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+
+            <div class="modal-content border-0 shadow-lg crm-modal-content-plain">
+
+                <div class="modal-header text-white border-0 crm-modal-header-plain">
+
+                    <h5 class="modal-title fw-bold" id="notificationDetailModalLabel">
+
+                        <i class="bi bi-bell-fill me-2"></i>รายละเอียดการแจ้งเตือน
+
+                    </h5>
+
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body p-4 bg-white crm-modal-body-scroll" id="notificationDetailModalBody">
+
+                    <!-- Notification details will be loaded here -->
+
+                </div>
+
+                <div class="modal-footer bg-light border-top d-flex justify-content-between align-items-center px-3 py-2">
+
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1 shadow-sm" id="notiDetailDeleteBtn">
+
+                        <i class="bi bi-trash3-fill"></i>
+
+                        <span>ลบ</span>
+
+                    </button>
+
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">
+
+                        ปิด
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Global Loading Overlay -->
+
+    <partial name="~/Views/Component/Loading.cshtml" />
+
+
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @{
+
+        var personalId = Context.Session.GetString("personalId");
+
+        if (string.IsNullOrWhiteSpace(personalId))
+
+        {
+
+            var profileWelcome = Context.Session.GetString("profile_welcome") ?? "";
+
+            var match = System.Text.RegularExpressions.Regex.Match(profileWelcome, @"\[(.*?)\]");
+
+            personalId = match.Success ? match.Groups[1].Value : profileWelcome;
+
+        }
+
+        var apiDomain = Environment.GetEnvironmentVariable("ApiSettings__APIDomain") 
+
+                        ?? Configuration["ApiSettings:APIDomain"] 
+
+                        ?? Configuration.GetSection("ApiSettings")["APIDomain"] 
+
+                        ?? "";
+
+        var webDomain = Environment.GetEnvironmentVariable("ApiSettings__WebDomain")
+
+                        ?? Configuration["ApiSettings:WebDomain"]
+
+                        ?? Configuration.GetSection("ApiSettings")["WebDomain"]
+
+                        ?? "";
+
+        <!-- var mgDomain = Environment.GetEnvironmentVariable("MGDomain") || ""; -->
+
+    }
+
+    <script>
+
+        var userId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(personalId ?? ""));
+
+        var apiDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiDomain ?? ""));
+
+        var webDomain = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(webDomain ?? ""));
+
+        var currentUserEmail = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("email") ?? ""));
+
+        var userFullNameEn = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameEn") ?? ""));
+
+        var userFullNameTh = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Session.GetString("fullNameTh") ?? ""));
+
+    </script>
+
+    <script src="~/js/suggestion-reply-authorization.js" asp-append-version="true"></script>
+
+    <script src="~/js/layout.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+
+
+
+
+
+    <!-- System Status Modal -->
+
+        @if (isAdmin)
+
+    {
+
+    <div class="modal fade" id="systemStatusModal" tabindex="-1" aria-labelledby="systemStatusModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+
+            <div class="modal-content shadow-lg border-0 rounded-4">
+
+                <div class="modal-header bg-dark text-white rounded-top-4 px-4 py-3">
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <i class="bi bi-hdd-network fs-5 text-info"></i>
+
+                        <h5 class="modal-title fw-bold" id="systemStatusModalLabel">สถานะระบบและการเชื่อมต่อ (System Status)</h5>
+
+                    </div>
+
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body p-4 bg-light">
+
+                    <!-- Overall Status Row -->
+
+                    <div class="row g-3 mb-3">
+
+                        <div class="col-md-6 col-lg-3">
+
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+
+                                <div class="text-muted small">Environment</div>
+
+                                <div class="fw-bold fs-6 text-primary mt-1" id="sysEnv">-</div>
+
+                                <div class="small text-muted mt-auto" id="sysVersion">v-</div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+
+                                <div class="text-muted small">Frontend Server</div>
+
+                                <div class="fw-bold fs-6 text-dark mt-1" id="sysServerIp">-</div>
+
+                                <div class="small text-muted mt-auto" id="sysServerHost">-</div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+
+                                <div class="text-muted small">Database (MSSQL)</div>
+
+                                <div class="fw-bold fs-6 mt-1" id="sysDbStatus"><span class="badge bg-secondary">กำลังตรวจ...</span></div>
+
+                                <div class="small text-muted mt-auto" id="sysDbHost">-</div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
+
+                            <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+
+                                <div class="text-muted small">Log Service</div>
+
+                                <div class="fw-bold fs-6 mt-1" id="sysLogStatus"><span class="badge bg-secondary">กำลังตรวจ...</span></div>
+
+                                <div class="small text-muted mt-auto" id="sysLogUrl">-</div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Detailed Table -->
+
+                    <div class="card border-0 shadow-sm rounded-3 bg-white p-3">
+
+                        <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+
+                            <i class="bi bi-info-circle text-primary me-2"></i>รายละเอียดการเชื่อมต่อ
+
+                        </h6>
+
+                        <div class="table-responsive">
+
+                            <table class="table table-sm table-borderless align-middle mb-0">
+
+                                <tbody>
+
+                                    <tr>
+
+                                        <td class="text-muted" style="width: 35%;">แอปพลิเคชัน & เวอร์ชั่น:</td>
+
+                                        <td class="fw-medium" id="tblAppVer">-</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td class="text-muted">สภาพแวดล้อม (Env) / PathBase:</td>
+
+                                        <td class="fw-medium" id="tblEnvPath">-</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td class="text-muted">เครื่องแม่ข่าย (Server Host / IP):</td>
+
+                                        <td class="fw-medium" id="tblServerDetail">-</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td class="text-muted">ฐานข้อมูล (Database Host / DB Name):</td>
+
+                                        <td class="fw-medium" id="tblDbDetail">-</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td class="text-muted">ความเร็วตอบสนองฐานข้อมูล (Latency):</td>
+
+                                        <td class="fw-medium" id="tblDbLatency">-</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td class="text-muted">เซิร์ฟเวอร์ Log (Target URL / สถานะ):</td>
+
+                                        <td class="fw-medium" id="tblLogDetail">-</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td class="text-muted">CRM Backend API:</td>
+
+                                        <td class="fw-medium" id="tblApiDetail">-</td>
+
+                                    </tr>
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer bg-white border-top px-4 py-2 d-flex justify-content-between">
+
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" id="btnRefreshSystemStatus">
+
+                        <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรชสถานะ
+
+                    </button>
+
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">ปิด</button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    }
+
+</body>
+
+</html>
+

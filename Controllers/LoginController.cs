@@ -38,9 +38,9 @@ namespace webCRM.Controllers
                     HttpContext.Session.GetString("switchedRoleName") ?? "";
 
                 string CookieCde = Request.Cookies["userCde"] ?? "";
-                 string personalCode = "100664";
+                //  string personalCode = "100664";
                 // string personalCode = "690001";
-                // string personalCode = "682007";
+                string personalCode = "682007";
 
                 if (!env.IsDevelopment())
                 // if (false)
@@ -524,42 +524,6 @@ namespace webCRM.Controllers
                     message =
                         $"Request failed: {ex.Message}"
                 });
-            }
-        }
-        
-        [HttpPost("ssoLogin")]
-        public async Task<IActionResult> SsoLogin([FromForm] string access_token, [FromForm] string targetUrl)
-        {
-            if (string.IsNullOrWhiteSpace(access_token)) return Unauthorized("Token missing");
-            try
-            {
-                var JWT_SECRET_KEY = Environment.GetEnvironmentVariable("ApiSettings__WebDomain") ?? "";
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.UTF8.GetBytes(JWT_SECRET_KEY);
-                var validationParams = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero
-                };
-
-                var principal = tokenHandler.ValidateToken(access_token, validationParams, out _);
-
-                var username = principal.Claims.FirstOrDefault(c => c.Type == "user")?.Value;
-
-                var claims = new List<Claim> { new Claim(ClaimTypes.Name, username ?? "Unknown") };
-                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-
-                var redirectPath = string.IsNullOrEmpty(targetUrl) ? "/" : targetUrl;
-                return Redirect(redirectPath);
-            }
-            catch
-            {
-                return Unauthorized("Invalid or expired token");
             }
         }
 

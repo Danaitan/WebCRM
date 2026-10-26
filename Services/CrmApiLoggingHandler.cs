@@ -126,6 +126,12 @@ namespace webCRM.Services
                     "/contactLists",
                     "/receiveInfo",
                     "/claimInfo",
+                    "/system-status",
+                    "/p3/getMasterObjective",
+                    "/p2/getMasterFilter",
+                    "/p3/getMasterDropdown",
+                    "/p2/getBranchListForCRM",
+                    "/p3/getFile",
                 },
 
                 ["POST"] = new(StringComparer.OrdinalIgnoreCase)
@@ -136,8 +142,14 @@ namespace webCRM.Services
 
         private static bool IsNotAllowedEndpoint(string method, string path)
         {
-            return NotAllowedEndpoints.TryGetValue(method, out var paths) &&
-                paths.Any(path.EndsWith);
+            if (!NotAllowedEndpoints.TryGetValue(method, out var paths))
+            {
+                return false;
+            }
+
+            return paths.Any(entry =>
+                path.EndsWith(entry, StringComparison.OrdinalIgnoreCase) ||
+                path.Contains(entry + "/", StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool ShouldSkipLogging(string method, string endpoint)
@@ -178,6 +190,10 @@ namespace webCRM.Services
                 module,
                 fallback: $"{method} {module}");
 
+            // user/system กำหนดจาก API endpoint (ActionMap) ว่าเป็นการกดของผู้ใช้
+            // หรือระบบดึงอัตโนมัติ
+            EventSource eventSource = ActivityLogger.ResolveEventSource(module);
+
             string? actorOverride = ExtractPersonalCodeFromPath(module);
 
             return _activityLog.SendAsync(
@@ -189,7 +205,8 @@ namespace webCRM.Services
                 targetType: "CRMApi",
                 message: message,
                 module: module,
-                actorIdOverride: actorOverride);
+                actorIdOverride: actorOverride,
+                eventSource: eventSource);
         }
 
         private static string? ExtractPersonalCodeFromPath(string path)

@@ -7,69 +7,100 @@ namespace webCRM.Services
 {
     public static class ActivityLogger
     {
-        public static readonly Dictionary<string, string> ActionMap =
+        // map ของแต่ละ API endpoint: ชื่อ action ภาษาไทย + ชนิดของ event
+        // Source = User   -> API ที่เกิดจากการกดใช้งานของผู้ใช้โดยตรง
+        // Source = System -> API ที่ระบบดึงข้อมูลอัตโนมัติเบื้องหลัง (เช่น polling แจ้งเตือน)
+        public static readonly Dictionary<string, ActionInfo> ActionMap =
             new(StringComparer.OrdinalIgnoreCase)
             {
                 // --- Login / Authentication ---
-                { "getProfileByPersonalCode", "เข้าสู่ระบบ" },
-                { "getPage",                  "ดึงข้อมูลหน้าMenu" },
+                { "getProfileByPersonalCode", new("เข้าสู่ระบบ", EventSource.User) },
+                { "getPage",                  new("ดึงข้อมูลหน้าMenu", EventSource.System) },
 
                 // --- Campaign (แคมเปญ) ---
-                { "getProductsPhase3",           "ดึงรายการแคมเปญ" },
-                { "getProductFilterByGuid",      "ดึงตัวกรองแคมเปญ" },
-                { "getProductBatchByProductCode", "ดึงข้อมูล Batch แคมเปญ" },
-                { "getFilterDropdown",           "ดึงตัวเลือกตัวกรอง" },
-                { "getProductStatus",            "ดึงสถานะแคมเปญ" },
-                { "getCheckProductNo",           "ตรวจสอบเลขแคมเปญ" },
-                { "postNewProduct",              "สร้างแคมเปญใหม่" },
-                { "putProductsPhase3",           "แก้ไขแคมเปญ" },
-                { "putProductRemove",            "ลบแคมเปญ" },
-                { "postNewProductFilter",        "บันทึกตัวกรองแคมเปญ" },
+                { "getProductsPhase3",            new("ดึงรายการแคมเปญ", EventSource.User) },
+                { "getProductFilterByGuid",       new("ดึงตัวกรองแคมเปญ", EventSource.System) },
+                { "getProductBatchByProductCode", new("ดึงข้อมูล Batch แคมเปญ", EventSource.User) },
+                { "getFilterDropdown",            new("ดึงตัวเลือกตัวกรอง", EventSource.System) },
+                { "getProductStatus",             new("ดึงสถานะแคมเปญ", EventSource.System) },
+                { "getCheckProductNo",            new("ตรวจสอบเลขแคมเปญ", EventSource.System) },
+                { "postNewProduct",               new("สร้างแคมเปญใหม่", EventSource.User) },
+                { "putProductsPhase3",            new("แก้ไขแคมเปญ", EventSource.User) },
+                { "putProductRemove",             new("ลบแคมเปญ", EventSource.User) },
+                { "postNewProductFilter",         new("บันทึกตัวกรองแคมเปญ", EventSource.User) },
 
                 // --- Prospect ---
-                { "getProspect_phase3",  "ดึงรายการ Prospect" },
+                { "getProspect_phase3",  new("ดึงรายการ Prospect", EventSource.User) },
 
                 // --- Master Data ---
-                { "getMasterObjective",  "ดึง Master Objective" },
-                { "getMasterFilter",     "ดึง Master Filter" },
-                { "getMasterDropdown",   "ดึง Master Dropdown" },
-                { "getBranchListForCRM", "ดึงรายการสาขา" },
+                // { "getMasterObjective",  new("ดึง Master Objective", EventSource.System) },
+                // { "getMasterFilter",     new("ดึง Master Filter", EventSource.System) },
+                // { "getMasterDropdown",   new("ดึง Master Dropdown", EventSource.System) },
+                // { "getBranchListForCRM", new("ดึงรายการสาขา", EventSource.System) },
 
                 // --- File ---
-                { "postFile",   "อัปโหลดไฟล์" },
-                { "getFile",    "ดึงไฟล์" },
-                { "updateFile", "อัปเดตไฟล์" },
+                { "postFile",   new("อัปโหลดไฟล์", EventSource.User) },
+                // { "getFile",    new("ดึงไฟล์", EventSource.User) },
+                { "updateFile", new("อัปเดตไฟล์", EventSource.User) },
 
                 // --- Customer ---
-                { "customerLists", "ดึงรายการลูกค้า" },
-                // { "contactLists",  "ดึงรายการสัญญา },
-                { "contactInfo",   "ดึงข้อมูลสัญญา" },
-                // { "receiveInfo",   "ดึงข้อมูลการรับชำระ" },
-                // { "claimInfo",     "ดึงข้อมูลการเคลม" },
+                { "customerLists", new("ดึงรายการลูกค้า", EventSource.User) },
+                // { "contactLists",  new("ดึงรายการสัญญา", EventSource.User) },
+                { "contactInfo",   new("ดึงข้อมูลสัญญา", EventSource.User) },
+                // { "receiveInfo",   new("ดึงข้อมูลการรับชำระ", EventSource.User) },
+                // { "claimInfo",     new("ดึงข้อมูลการเคลม", EventSource.User) },
 
                 // --- Notification ---
-                { "getNotification", "ดึงการแจ้งเตือน" },
+                { "getNotification", new("ดึงการแจ้งเตือน", EventSource.System) },
 
                 // --- PDPA ---
-                { "getpdpa",      "ดึงข้อมูล PDPA" },
-                { "getCheckPDPA", "ตรวจสอบ PDPA" },
+                { "getpdpa",      new("ดึงข้อมูล PDPA", EventSource.System) },
+                { "getCheckPDPA", new("ตรวจสอบ PDPA", EventSource.System) },
 
                 // --- Dashboard ---
-                { "callDashboard", "ดึง Dashboard การโทร" },
-                {"customerDashboard","ดึง Dashboard สัญญาลูกค้า"},
+                { "callDashboard",     new("ดึง Dashboard การโทร", EventSource.User) },
+                { "customerDashboard", new("ดึง Dashboard สัญญาลูกค้า", EventSource.User) },
 
                 // --- master ---
-                {"master","ดึง master อีเมล"},
-                {"getpersonalwithRole","ดึงข้อมูล Role ของพนักงาน"},
-                {"getFunc","ดึงข้อมูล Function ของพนักงาน"},
-                {"getCRMRoles","ดึงข้อมูล Roles ทั้งหมด"},
-                {"getPageSidebar","ดึงหน้าเมนูทั้งหมด"},
-                {"getStaffList","ดึงรายชื่อพนักงานทั้งหมด"},
-                {"postCRMPersonalRole","อัพเดท Role พนักงาน"},
+                { "master",              new("ดึง master อีเมล", EventSource.System) },
+                { "getpersonalwithRole", new("ดึงข้อมูล Role ของพนักงาน", EventSource.User) },
+                { "getFunc",             new("ดึงข้อมูล Function ของพนักงาน", EventSource.User) },
+                { "getCRMRoles",         new("ดึงข้อมูล Roles ทั้งหมด", EventSource.System) },
+                { "getPageSidebar",      new("ดึงหน้าเมนูทั้งหมด", EventSource.System) },
+                { "getStaffList",        new("ดึงรายชื่อพนักงานทั้งหมด", EventSource.System) },
+                { "postCRMPersonalRole", new("อัพเดท Role พนักงาน", EventSource.User) },
             };
+
+        // หา entry ใน ActionMap ที่ตรงกับ segment ใด segment หนึ่งใน path
+        private static ActionInfo? MatchActionInfo(string? endpoint)
+        {
+            if (string.IsNullOrWhiteSpace(endpoint))
+            {
+                return null;
+            }
+
+            string path = endpoint.Split('?')[0].TrimEnd('/');
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var segment in segments)
+            {
+                if (ActionMap.TryGetValue(segment, out var info))
+                {
+                    return info;
+                }
+            }
+
+            return null;
+        }
 
         public static string ResolveActionName(string? endpoint, string? fallback = null)
         {
+            var info = MatchActionInfo(endpoint);
+            if (info != null)
+            {
+                return info.Name;
+            }
+
             if (string.IsNullOrWhiteSpace(endpoint))
             {
                 return fallback ?? string.Empty;
@@ -77,39 +108,38 @@ namespace webCRM.Services
 
             string path = endpoint.Split('?')[0].TrimEnd('/');
             var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var segment in segments)
-            {
-                if (ActionMap.TryGetValue(segment, out var friendly))
-                {
-                    return friendly;
-                }
-            }
-
-            string lastSegment =
-                segments.LastOrDefault() ?? path;
+            string lastSegment = segments.LastOrDefault() ?? path;
 
             return fallback ?? lastSegment;
         }
 
+        // ระบุว่า endpoint นี้เป็น event จากผู้ใช้ หรือการดึงข้อมูลอัตโนมัติของระบบ
+        // ถ้าไม่พบใน ActionMap จะถือเป็น User เป็นค่า default
+        public static EventSource ResolveEventSource(string? endpoint)
+        {
+            return MatchActionInfo(endpoint)?.Source ?? EventSource.User;
+        }
+
         private static readonly List<ErrorCode> ErrorCatalog = new()
         {
-            new ErrorCode { error_code = "SYS-1000", http_status_code = "400", category = "VALIDATION", default_message_en = "Invalid request payload format", default_message_th = "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-1001", http_status_code = "400", category = "VALIDATION", default_message_en = "Required fields are missing", default_message_th = "กรอกข้อมูลไม่ครบถ้วนตามที่กำหนด", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-1002", http_status_code = "400", category = "VALIDATION", default_message_en = "Invalid data format or value", default_message_th = "ข้อมูลที่ระบุมีรูปแบบหรือค่าไม่ถูกต้อง", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4001", http_status_code = "401", category = "AUTH", default_message_en = "Unauthorized access or missing token", default_message_th = "กรุณายืนยันตัวตนก่อนเข้าใช้งาน", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4002", http_status_code = "401", category = "AUTH", default_message_en = "Token has expired", default_message_th = "เซสชันหมดอายุ กรุณาล็อกอินใหม่อีกครั้ง", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4003", http_status_code = "401", category = "AUTH", default_message_en = "Invalid access token or signature", default_message_th = "โทเคนไม่ถูกต้องหรือถูกแก้ไข", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4004", http_status_code = "403", category = "AUTH", default_message_en = "Permission denied for this resource", default_message_th = "คุณไม่มีสิทธิ์เข้าถึงหรือทำรายการนี้", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4005", http_status_code = "404", category = "RESOURCE", default_message_en = "Requested resource not found", default_message_th = "ไม่พบข้อมูลหรือทรัพยากรที่ร้องขอ", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4006", http_status_code = "409", category = "RESOURCE", default_message_en = "Resource conflict or duplicate data", default_message_th = "พบข้อมูลซ้ำในระบบ ไม่สามารถดำเนินการได้", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-4007", http_status_code = "429", category = "RATE_LIMIT", default_message_en = "Too many requests. Please try again later", default_message_th = "มีการเรียกใช้งานถี่เกินไป กรุณารอสักครู่", log_level = "WARN" },
-            new ErrorCode { error_code = "SYS-5000", http_status_code = "500", category = "SYSTEM", default_message_en = "Internal server error occurred", default_message_th = "เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง", log_level = "ERROR" },
-            new ErrorCode { error_code = "SYS-5001", http_status_code = "500", category = "DATABASE", default_message_en = "Database connection error or query failed", default_message_th = "ไม่สามารถเชื่อมต่อหรือประมวลผลฐานข้อมูลได้", log_level = "FATAL" },
-            new ErrorCode { error_code = "SYS-5002", http_status_code = "502", category = "GATEWAY", default_message_en = "Bad gateway or upstream service error", default_message_th = "ระบบย่อยตอบกลับไม่ถูกต้อง", log_level = "ERROR" },
-            new ErrorCode { error_code = "SYS-5003", http_status_code = "503", category = "SYSTEM", default_message_en = "Service temporarily unavailable", default_message_th = "ระบบปิดปรับปรุงชั่วคราว กรุณาลองใหม่ภายหลัง", log_level = "ERROR" },
-            new ErrorCode { error_code = "SYS-5004", http_status_code = "504", category = "TIMEOUT", default_message_en = "Service response timeout", default_message_th = "การเชื่อมต่อหมดเวลา (Timeout)", log_level = "ERROR" },
-            new ErrorCode { error_code = "SYS-2000", http_status_code = "200", category = "SYSTEM", default_message_en = "OK", default_message_th = "OK", log_level = "INFO" },
-            new ErrorCode { error_code = "SYS-2001", http_status_code = "201", category = "SYSTEM", default_message_en = "Created", default_message_th = "สร้างแล้ว", log_level = "INFO" }
+            // --- SYS-xxxx : map http status -> error code + log level ---
+            new ErrorCode { error_code = "SYS-1000", http_status_code = "400", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-1001", http_status_code = "400", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-1002", http_status_code = "400", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4001", http_status_code = "401", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4002", http_status_code = "401", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4003", http_status_code = "401", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4004", http_status_code = "403", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4005", http_status_code = "404", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4006", http_status_code = "409", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-4007", http_status_code = "429", log_level = "WARN"  },
+            new ErrorCode { error_code = "SYS-5000", http_status_code = "500", log_level = "ERROR" },
+            new ErrorCode { error_code = "SYS-5001", http_status_code = "500", log_level = "FATAL" },
+            new ErrorCode { error_code = "SYS-5002", http_status_code = "502", log_level = "ERROR" },
+            new ErrorCode { error_code = "SYS-5003", http_status_code = "503", log_level = "ERROR" },
+            new ErrorCode { error_code = "SYS-5004", http_status_code = "504", log_level = "ERROR" },
+            new ErrorCode { error_code = "SYS-2000", http_status_code = "200", log_level = "INFO"  },
+            new ErrorCode { error_code = "SYS-2001", http_status_code = "201", log_level = "INFO"  }
         };
 
         private const string TraceIdSessionKey = "activityTraceId";
@@ -157,13 +187,21 @@ namespace webCRM.Services
         }
     }
 
+
+    // ชนิดของ event: User = ผู้ใช้กดใช้งาน, System = ระบบดึงข้อมูลอัตโนมัติ (-> actor.type)
+    public enum EventSource
+    {
+        User,
+        System
+    }
+
+    // ข้อมูลของแต่ละ API ใน ActionMap: ชื่อ action + ชนิดของ event
+    public sealed record ActionInfo(string Name, EventSource Source);
+
     public class ErrorCode
     {
         public string? error_code { get; set; }
         public string? http_status_code { get; set; }
-        public string? category { get; set; }
-        public string? default_message_en { get; set; }
-        public string? default_message_th { get; set; }
         public string? log_level { get; set; }
     }
 }

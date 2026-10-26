@@ -501,6 +501,9 @@ app.UseSession();
 
 app.UseAuthorization();
 
+// รองรับ attribute routing เช่น SsoController ([Route("sso")] POST /sso/login)
+app.MapControllers();
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Login}/{action=Index}/{id?}");

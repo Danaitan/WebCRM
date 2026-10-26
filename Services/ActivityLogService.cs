@@ -51,9 +51,6 @@ namespace webCRM.Services
             return TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, thaiZone);
         }
 
-        // อ่านค่า appVersion จาก Properties/launchSettings.json โดยตรง
-        // หมายเหตุ: ไฟล์นี้เป็นไฟล์สำหรับ dev เท่านั้น และปกติจะไม่ถูก publish ไปด้วยตอน deploy จริง
-        // ถ้าหาไฟล์/ค่าไม่เจอจะคืน null เพื่อให้ caller fallback ไปแหล่งอื่นต่อได้
         private string? ReadAppVersionFromLaunchSettings()
         {
             try
@@ -161,7 +158,8 @@ namespace webCRM.Services
             string module = "",
             string? environment = null,
             string? appVersion = null,
-            string? actorIdOverride = null
+            string? actorIdOverride = null,
+            EventSource eventSource = EventSource.User
             )
         {
             _logger.LogDebug(
@@ -178,11 +176,6 @@ namespace webCRM.Services
             {
                 environment ??= Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
-                // ถ้า caller ไม่ได้ส่ง appVersion มา ให้ resolve ตามลำดับ:
-                //   1) Properties/launchSettings.json (บังคับดึงจากไฟล์นี้ก่อนตามที่ต้องการ)
-                //   2) env var "appVersion" / "APP_VERSION" (Docker/host ตั้งไว้)
-                //   3) IConfiguration["appVersion"] (จาก appsettings.json) — fallback สุดท้ายตอน deploy จริง
-                //      เพราะ launchSettings.json มักไม่ถูก publish ไปด้วย
                 if (string.IsNullOrWhiteSpace(appVersion))
                 {
                     appVersion =
@@ -274,13 +267,17 @@ namespace webCRM.Services
 
                 string eventLogLevel = resolved?.log_level ?? "INFO";
 
+                // user/system กำหนดจาก caller (แมพผ่าน API endpoint ใน ActionMap) ไม่ใช่จาก error code
+                string actorType = eventSource == EventSource.System ? "system" : "user";
+
                 _logger.LogDebug(
-                    "[ActivityLogger] Resolved context. TraceId={TraceId}, PersonnelCode={PersonnelCode}, ClientIp={ClientIp}, EventCode={EventCode}, EventLogLevel={EventLogLevel}, Environment={Environment}, AppVersion={AppVersion}",
+                    "[ActivityLogger] Resolved context. TraceId={TraceId}, PersonnelCode={PersonnelCode}, ClientIp={ClientIp}, EventCode={EventCode}, EventLogLevel={EventLogLevel}, ActorType={ActorType}, Environment={Environment}, AppVersion={AppVersion}",
                     traceId,
                     personnelCode,
                     clientIp,
                     eventCode,
                     eventLogLevel,
+                    actorType,
                     environment ?? string.Empty,
                     appVersion ?? string.Empty);
 
@@ -315,7 +312,7 @@ namespace webCRM.Services
                             actor = new
                             {
                                 id = personnelCode,
-                                type = "user",
+                                type = actorType,
                                 client_ip = clientIp,
                                 session_id = sessionId
                             },

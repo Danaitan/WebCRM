@@ -38,9 +38,7 @@ namespace webCRM.Controllers
                     HttpContext.Session.GetString("switchedRoleName") ?? "";
 
                 string CookieCde = Request.Cookies["userCde"] ?? "";
-                //  string personalCode = "100664";
-                // string personalCode = "690001";
-                string personalCode = "682007";
+                 string personalCode = "";
 
                 if (!env.IsDevelopment())
                 // if (false)

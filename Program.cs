@@ -352,14 +352,13 @@ app.MapGet("/api/system/status", async (
     var currentRoleId = context?.Session.GetString("roleId") ?? "";
     var userCode = context?.Session.GetString("personalId") ?? "";
 
-    bool isAdmin = currentRoleName.Contains("Admin", StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(currentRoleId, "RCRM001", StringComparison.OrdinalIgnoreCase)
-                   || new[] { "100664", "690001", "100657" }.Contains(userCode);
+    // bool isAdmin = currentRoleName.Contains("Admin", StringComparison.OrdinalIgnoreCase)
+    //                || string.Equals(currentRoleId, "RCRM001", StringComparison.OrdinalIgnoreCase);
 
-    if (!isAdmin)
-    {
-        return Results.Forbid();
-    }
+    // if (!isAdmin)
+    // {
+    //     return Results.Forbid();
+    // }
 
     var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
     var version = Environment.GetEnvironmentVariable("appVersion") ?? "3.0.1";

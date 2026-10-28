@@ -901,20 +901,35 @@ async function exportSuggestionExcel() {
             return;
         }
 
-        const headers = [
-            { title: 'วันที่รับเรื่อง', width: 22, align: 'center' },
-            { title: 'หัวข้อเรื่อง', width: 28, align: 'center' },
-            { title: 'ลูกค้า', width: 28, align: 'center' },
-            { title: 'เบอร์โทร', width: 18, align: 'center' },
-            { title: 'E-mail', width: 28, align: 'center' },
-            { title: 'ที่อยู่/จังหวัด', width: 25, align: 'center' },
-            { title: 'ผู้รับผิดชอบ', width: 25, align: 'center' },
-            { title: 'CC E-mail', width: 32, align: 'center' },
-            { title: 'รายละเอียดข้อเสนอแนะ/ร้องเรียน', width: 45, align: 'center' },
-            { title: 'อัปเดทล่าสุด', width: 20, align: 'center' },
-            { title: 'Reply / การตอบกลับ', width: 40, align: 'center' },
-            { title: 'สถานะ', width: 16, align: 'center' }
-        ];
+        // สร้างหัวข้อแบบ dynamic จาก key ที่ API ส่งกลับมา (ลูปเก็บ key จากทุกแถว ตามลำดับที่พบครั้งแรก)
+        // ใช้หัวข้อตามที่ API ส่งมาตรง ๆ ไม่ดัดแปลง
+        const buildDynamicHeaders = (rows) => {
+            const seen = new Set();
+            const cols = [];
+            (rows || []).forEach(row => {
+                if (!row || typeof row !== 'object') return;
+                Object.keys(row).forEach(k => {
+                    if (seen.has(k)) return;
+                    seen.add(k);
+                    cols.push({ title: k, key: k, width: 25, align: 'center' });
+                });
+            });
+            return cols;
+        };
+
+        const headers = buildDynamicHeaders(exportRows);
+
+        const getCellVal = (row, col) => {
+            if (!row || typeof row !== 'object') return '';
+            let raw = row[col.key];
+            if (raw === undefined || raw === null) {
+                const target = String(col.key).trim().toLowerCase();
+                const foundKey = Object.keys(row).find(rk => rk.trim().toLowerCase() === target);
+                if (foundKey !== undefined) raw = row[foundKey];
+            }
+            if (raw === undefined || raw === null) return '';
+            return String(raw);
+        };
 
         const todayStr = new Date().toISOString().slice(0, 10);
         const fileName = `Suggestion_Dashboard_Report_${todayStr}.xlsx`;
@@ -924,86 +939,9 @@ async function exportSuggestionExcel() {
             const rowHeights = [{ hpt: 28 }];
 
             exportRows.forEach(row => {
-                const getVal = (key, fallbackKeys = [], isDate = false) => {
-                    let raw = row[key];
-                    if (raw === undefined || raw === null) {
-                        for (const fbKey of fallbackKeys) {
-                            if (row[fbKey] !== undefined && row[fbKey] !== null) {
-                                raw = row[fbKey];
-                                break;
-                            }
-                        }
-                    }
-                    if (raw === undefined || raw === null) return '';
-                    if (isDate || (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw))) {
-                        return formatDate(raw);
-                    }
-                    return String(raw);
-                };
-
-                const dateRec = getVal('วันที่รับเรื่อง', ['วันที่รับเรื่อง', 'FirstUpdDate'], true);
-                const topicVal = getVal('หัวข้อเรื่อง', ['หัวข้อเรื่อง', 'suggesDesc']);
-                const customerVal = getVal('ลูกค้า', ['ลูกค้า', 'nameCus']);
-                const phoneVal = getVal('เบอร์โทร', ['เบอร์โทร', 'telCus']);
-                const emailVal = getVal('E-mail', ['E-mail', 'emailCus']);
-                const addressVal = getVal('ที่อยู่', ['ที่อยู่', 'addressCus']);
-                const providerVal = getVal('ผู้รับผิดชอบ', ['ผู้รับผิดชอบ', 'sendToPerson', 'sendToGroupAbb']);
-                const rawCcEmail = getVal('CC E-mail', ['CC E-mail', 'ccEmail', 'cc_email', 'cceMail']);
-                const ccEmailVal = rawCcEmail
-                    ? String(rawCcEmail)
-                        .split(/[\r\n;,]+/)
-                        .map(e => e.trim())
-                        .filter(Boolean)
-                        .join('\n')
-                    : '';
-                const detailVal = getVal('รายละเอียดข้อเสนอแนะ/ร้องเรียน', ['รายละเอียดข้อเสนอแนะ/ร้องเรียน', 'suggesDetail']);
-                const lastUpdVal = getVal('อัปเดทล่าสุด', ['อัปเดทล่าสุด', 'LastUpdDate'], true);
-                const replyVal = getVal('Reply / การตอบกลับ', ['Reply / การตอบกลับ', 'replyDetail']);
-                const statusVal = getVal('สถานะ', ['สถานะ', 'StatusTask']);
-
-                const estimateCellLines = (val, colWidth) => {
-                    if (!val) return 1;
-                    const str = String(val);
-                    const lines = str.split(/\r?\n/);
-                    let totalLines = 0;
-                    const effWidth = Math.max(8, colWidth - 3);
-                    lines.forEach(line => {
-                        if (!line.length) {
-                            totalLines += 1;
-                        } else {
-                            totalLines += Math.max(1, Math.ceil(line.length / effWidth));
-                        }
-                    });
-                    return Math.max(1, totalLines);
-                };
-
-                const maxLines = Math.max(
-                    1,
-                    estimateCellLines(topicVal, headers[1].width),
-                    estimateCellLines(customerVal, headers[2].width),
-                    estimateCellLines(emailVal, headers[4].width),
-                    estimateCellLines(addressVal, headers[5].width),
-                    estimateCellLines(providerVal, headers[6].width),
-                    estimateCellLines(ccEmailVal, headers[7].width),
-                    estimateCellLines(detailVal, headers[8].width),
-                    estimateCellLines(replyVal, headers[10].width)
-                );
-                rowHeights.push({ hpt: Math.max(26, Math.ceil(maxLines * 20 + 8)) });
-
-                sheetData.push([
-                    dateRec,
-                    topicVal,
-                    customerVal,
-                    phoneVal,
-                    emailVal,
-                    addressVal,
-                    providerVal,
-                    ccEmailVal,
-                    detailVal,
-                    lastUpdVal,
-                    replyVal,
-                    statusVal
-                ]);
+                const rowData = headers.map(col => getCellVal(row, col));
+                sheetData.push(rowData);
+                rowHeights.push({ hpt: 22 });
             });
 
             const ws = XLSX.utils.aoa_to_sheet(sheetData);
@@ -1019,7 +957,8 @@ async function exportSuggestionExcel() {
 
                     const isHeader = (R === 0);
                     const isOddRow = (R % 2 === 1);
-                    const align = headers[C]?.align || 'left';
+                    const col = headers[C];
+                    const align = col?.align || 'left';
 
                     if (isHeader) {
                         ws[cellRef].s = {
@@ -1034,18 +973,9 @@ async function exportSuggestionExcel() {
                             }
                         };
                     } else {
-                        let statusColor = "000000";
-                        if (C === 11) {
-                            const val = String(ws[cellRef].v || '').toLowerCase();
-                            if (val === 'pending') statusColor = "D97706";
-                            else if (val === 'forward') statusColor = "0284C7";
-                            else if (val === 'reply' || val === 'replying') statusColor = "7C3AED";
-                            else if (val === 'close') statusColor = "059669";
-                        }
-
                         ws[cellRef].s = {
                             fill: { fgColor: { rgb: isOddRow ? "EBF3F9" : "FFFFFF" } },
-                            font: { name: "Segoe UI", sz: 9.5, bold: (C === 11), color: { rgb: statusColor } },
+                            font: { name: "Segoe UI", sz: 9.5, bold: false, color: { rgb: "000000" } },
                             alignment: { horizontal: align, vertical: "center", wrapText: true },
                             border: {
                                 top: { style: "thin", color: { rgb: "D9D9D9" } },
@@ -1117,8 +1047,18 @@ async function exportSuggestionExcel() {
                 <tr>
             `;
 
+            const escapeXml = (str) => {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;"/>');
+            };
+
             headers.forEach(h => {
-                html += `        <th style="background-color: #387699; color: #ffffff;">${h.title}</th>\n`;
+                html += `        <th style="background-color: #387699; color: #ffffff;">${escapeXml(h.title)}</th>\n`;
             });
 
             html += `    </tr>
@@ -1127,105 +1067,17 @@ async function exportSuggestionExcel() {
         `;
 
             exportRows.forEach((row, index) => {
-                const getVal = (key, fallbackKeys = [], isDate = false) => {
-                    let raw = row[key];
-                    if (raw === undefined || raw === null) {
-                        for (const fbKey of fallbackKeys) {
-                            if (row[fbKey] !== undefined && row[fbKey] !== null) {
-                                raw = row[fbKey];
-                                break;
-                            }
-                        }
-                    }
-                    if (raw === undefined || raw === null) return '';
-                    if (isDate || (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw))) {
-                        return formatDate(raw);
-                    }
-                    return String(raw);
-                };
-
-                const dateRec = getVal('วันที่รับเรื่อง', ['วันที่รับเรื่อง', 'FirstUpdDate'], true);
-                const topicVal = getVal('หัวข้อเรื่อง', ['หัวข้อเรื่อง', 'suggesDesc']);
-                const customerVal = getVal('ลูกค้า', ['ลูกค้า', 'nameCus']);
-                const phoneVal = getVal('เบอร์โทร', ['เบอร์โทร', 'telCus']);
-                const emailVal = getVal('E-mail', ['E-mail', 'emailCus']);
-                const addressVal = getVal('ที่อยู่', ['ที่อยู่', 'addressCus']);
-                const providerVal = getVal('ผู้รับผิดชอบ', ['ผู้รับผิดชอบ', 'sendToPerson', 'sendToGroupAbb']);
-                const rawCcEmail = getVal('CC E-mail', ['CC E-mail', 'ccEmail', 'cc_email', 'cceMail']);
-                const ccEmailVal = rawCcEmail
-                    ? String(rawCcEmail)
-                        .split(/[\r\n;,]+/)
-                        .map(e => e.trim())
-                        .filter(Boolean)
-                        .join('\n')
-                    : '';
-                const detailVal = getVal('รายละเอียดข้อเสนอแนะ/ร้องเรียน', ['รายละเอียดข้อเสนอแนะ/ร้องเรียน', 'suggesDetail']);
-                const lastUpdVal = getVal('อัปเดทล่าสุด', ['อัปเดทล่าสุด', 'LastUpdDate'], true);
-                const replyVal = getVal('Reply / การตอบกลับ', ['Reply / การตอบกลับ', 'replyDetail']);
-                const statusVal = getVal('สถานะ', ['สถานะ', 'StatusTask']);
-
-                const estimateCellLines = (val, colWidth) => {
-                    if (!val) return 1;
-                    const str = String(val);
-                    const lines = str.split(/\r?\n/);
-                    let totalLines = 0;
-                    const effWidth = Math.max(8, colWidth - 3);
-                    lines.forEach(line => {
-                        if (!line.length) {
-                            totalLines += 1;
-                        } else {
-                            totalLines += Math.max(1, Math.ceil(line.length / effWidth));
-                        }
-                    });
-                    return Math.max(1, totalLines);
-                };
-
-                const maxLines = Math.max(
-                    1,
-                    estimateCellLines(topicVal, headers[1].width),
-                    estimateCellLines(customerVal, headers[2].width),
-                    estimateCellLines(emailVal, headers[4].width),
-                    estimateCellLines(addressVal, headers[5].width),
-                    estimateCellLines(providerVal, headers[6].width),
-                    estimateCellLines(ccEmailVal, headers[7].width),
-                    estimateCellLines(detailVal, headers[8].width),
-                    estimateCellLines(replyVal, headers[10].width)
-                );
-                const rowHeight = Math.max(30, Math.ceil(maxLines * 22 + 10));
-
-                let statusClass = '';
-                const stLower = (statusVal || '').toLowerCase();
-                if (stLower === 'pending') statusClass = 'status-pending';
-                else if (stLower === 'forward') statusClass = 'status-forward';
-                else if (stLower === 'reply' || stLower === 'replying') statusClass = 'status-replying';
-                else if (stLower === 'close') statusClass = 'status-close';
+                const rowData = headers.map(col => getCellVal(row, col));
 
                 const rowBg = (index % 2 === 1) ? 'background-color: #ebf3f9;' : 'background-color: #ffffff;';
 
-                const escapeXml = (str) => {
-                    if (!str) return '';
-                    return String(str)
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;')
-                        .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;"/>');
-                };
-
-                html += `    <tr style="${rowBg} height: ${rowHeight}px;">
-            <td class="text-center">${escapeXml(dateRec)}</td>
-            <td class="text-left">${escapeXml(topicVal)}</td>
-            <td class="text-left">${escapeXml(customerVal)}</td>
-            <td class="text-center">${escapeXml(phoneVal)}</td>
-            <td class="text-left">${escapeXml(emailVal)}</td>
-            <td class="text-left">${escapeXml(addressVal)}</td>
-            <td class="text-left">${escapeXml(providerVal)}</td>
-            <td class="text-left">${escapeXml(ccEmailVal)}</td>
-            <td class="text-left">${escapeXml(detailVal)}</td>
-            <td class="text-center">${escapeXml(lastUpdVal)}</td>
-            <td class="text-left">${escapeXml(replyVal)}</td>
-            <td class="${statusClass}">${escapeXml(statusVal)}</td>
-        </tr>\n`;
+                html += `    <tr style="${rowBg}">\n`;
+                headers.forEach((col, idx) => {
+                    const val = rowData[idx];
+                    const alignClass = col.align === 'center' ? 'text-center' : 'text-left';
+                    html += `            <td class="${alignClass}">${escapeXml(val)}</td>\n`;
+                });
+                html += `        </tr>\n`;
             });
 
             html += `</tbody>

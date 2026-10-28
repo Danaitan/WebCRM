@@ -476,6 +476,7 @@ namespace webCRM.Controllers
             IFormFile file,
             string campaignCode)
         {
+            Console.Write("เข้า UploadCampaignFile");
             // New SaveToDMS
             try
             {
@@ -501,6 +502,12 @@ namespace webCRM.Controllers
                 string dmsBaseUrl =
                     Environment.GetEnvironmentVariable("DMS") ?? "";
                 string dmsUploadUrl = dmsBaseUrl.TrimEnd('/') + "/uploads";
+
+Console.Write($"file_test2: {file?.FileName ?? "null"}");
+Console.Write($"file_Length2: {file?.Length ?? 0}");
+
+Console.Write($"dmsUploadUrl_test2: {dmsUploadUrl}");
+Console.Write($"dmsBaseUrl_test2: {dmsBaseUrl}");
 
                 string dmsToken =
                     Environment.GetEnvironmentVariable("DMS_BearerToken")
@@ -550,11 +557,11 @@ namespace webCRM.Controllers
                 form.Add(new StringContent(docTypeId), "docTypeId");
                 form.Add(new StringContent(storeId), "storeId");
                 form.Add(new StringContent(remark), "remark");
-
+Console.Write("dmsUploadUrl : ",dmsUploadUrl);
                 var dmsResponse = await client.PostAsync(dmsUploadUrl, form);
-
+Console.Write("dmsResponse : ",dmsResponse);
                 string dmsBody = await dmsResponse.Content.ReadAsStringAsync();
-
+Console.Write("dmsBody : ",dmsBody);
                 if (!dmsResponse.IsSuccessStatusCode)
                 {
                     return Ok(new

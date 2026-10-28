@@ -2914,10 +2914,6 @@ async function uploadSingleCampaignFile(file, campaignCodeOverride = "") {
         formData.append("campaignCode", campaignCode);
         console.log("[อัปโหลดเดี่ยว] กำลัง POST /Campain/UploadCampaignFile -> ไฟล์:", file.name);
 
-        // const response = await fetch('/crmweb/Campain/UploadCampaignFile', {
-        //     method: 'POST',
-        //     body: formData
-        // });
         const response = await fetch('/Campain/UploadCampaignFile', {
             method: 'POST',
             body: formData

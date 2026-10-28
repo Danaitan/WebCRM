@@ -141,7 +141,7 @@ function bindDateRangeEvents() {
 function isRowExpired(row) {
     if (!row) return false;
     const status = (row.activeStatus || row.status || '').trim().toLowerCase();
-    return status === 'expire' || status === 'หมดอายุ';
+    return status === 'expire';
 }
 
 function parseDateTimestamp(val) {
@@ -267,14 +267,14 @@ async function setDashboard() {
         table = data;
     }
 
-    renderOverview(graph.overAll || graph.overall || (graph.data && graph.data.overAll) || []);
+    renderOverview(graph.overAll || []);
 
-    initCallResultChart(graph.callResult || graph.call_result || (graph.data && graph.data.callResult) || []);
-    initObjectiveChart(graph.objective || (graph.data && graph.data.objective) || []);
-
+    initCallResultChart(graph.callResult || []);
+    initObjectiveChart(graph.objective || []);
+    console.log("graph",graph)
     updateTopCallersVisibility();
     if (hasPermissionFCRM006()) {
-        const callerData = graph.callNumber || graph.call_number || graph.callNumbers || graph.call_numbers || graph.topCallers || graph.top_callers || graph.callBy || graph.call_by || graph.caller || graph.callers || graph.personal || graph.personnel || graph.employee || (data.callNumber) || (data.data && data.data.callNumber) || [];
+        const callerData = graph.callNumber || [];
         renderTopCallers(callerData);
     }
 
@@ -517,14 +517,14 @@ function renderTopCallers(callNumberData) {
 
     const getCount = (item) => {
         if (!item) return 0;
-        const val = item.count ?? item.total ?? item.amount ?? item.value ?? item.num ?? item.call_count ?? item.qty;
+        const val = item.count || 0;
         const n = Number(val);
         return isNaN(n) ? 0 : n;
     };
 
     const getName = (item) => {
         if (!item) return 'ไม่ระบุชื่อ';
-        let rawName = item.name || item.caller || item.caller_name || item.call_by || item.personnel_name_TH || item.personnel_name || item.thname || item.fullName || item.employee_name || item.emp_name || item.personal_name || item.personalName || item.user_name || item.username || item.code || '';
+        let rawName = item.name || '';
         rawName = String(rawName).trim();
         if (!rawName) return 'ไม่ระบุชื่อ';
 
@@ -556,6 +556,7 @@ function renderTopCallers(callNumberData) {
 
     let html = '';
     targetList.forEach((item, index) => {
+        console.log("targetList_item",item)
         const name = getName(item);
         const count = getCount(item);
         const pct = Math.round((count / maxCount) * 100);
@@ -681,6 +682,22 @@ function renderCampaignTable() {
             </tr>
         `;
     });
+
+    // rowsHtml += `
+    //         <tr>
+    //             <td class="text-secondary">${createdFormatted}</td>
+    //             <td class="fw-medium text-dark">${row.product_name || '-'}</td>
+    //             <td class="text-center">${objBadge}</td>
+    //             <td class="text-muted extra-small">${formatDisplayDateRange(row['startDate-endDate'])}</td>
+    //             <td class="text-end fw-semibold">${totalCust.toLocaleString()}</td>
+    //             <td class="text-end text-primary fw-bold">${calledCust.toLocaleString()}</td>
+    //             <td class="text-end fw-bold text-success">${successRate}</td>
+    //             <td class="text-center">
+    //                 <span class="px-2 py-1 rounded-pill">${status}</span>
+    //             </td>
+    //         </tr>
+    //     `;
+    // });
 
     tbody.innerHTML = rowsHtml;
 
@@ -1465,7 +1482,8 @@ async function exportCallExcel() {
         }
         const campaignName = $('#filterCampaign').val() || '';
         const callResult = $('#filterCallResult').val() || '';
-
+        const is_creater = (window.isCreater === true || window.isCreater === 1 || window.isCreater === '1' || window.isCreater === 'true') ? '1' : '0'
+        
         const params = new URLSearchParams();
         if (startDate) params.append('startdate', startDate);
         if (endDate) params.append('enddate', endDate);
@@ -1474,6 +1492,7 @@ async function exportCallExcel() {
         if (callBy) params.append('call_by', callBy);
         if (callResult) params.append('call_result', callResult);
         if (campaignName) params.append('campaign_name', campaignName);
+        if (is_creater) params.append('is_creater', is_creater);
 
         const queryString = params.toString();
         const url = `/DashboardProspectCall/GetCallDashboardExcel${queryString ? '?' + queryString : ''}`;
@@ -1483,7 +1502,8 @@ async function exportCallExcel() {
             fetch(url),
             fetch(historyUrl)
         ]);
-
+console.log("exportCallExcel_response",response)
+console.log("exportCallExcel_historyResponse",historyResponse)
         const extractRows = (data) => {
             if (!data) return [];
             if (typeof data === 'string') {
@@ -1504,6 +1524,7 @@ async function exportCallExcel() {
         let exportRows = [];
         if (response.ok) {
             const res = await response.json();
+            console.log("exportCallExcel_res",res)
             exportRows = extractRows(res);
         }
 
@@ -1537,59 +1558,26 @@ async function exportCallExcel() {
             return;
         }
 
-        const headers = [
-            { title: 'product_code', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
-            { title: 'idno', keys: ['idno'], width: 20, align: 'center' },
-            { title: 'nameCus', keys: ['nameCus'], width: 25, align: 'left' },
-            { title: 'contno', keys: ['contno'], width: 18, align: 'center' },
-            { title: 'contractoffcde', keys: ['contractoffcde'], width: 18, align: 'center' },
-            { title: 'company', keys: ['company'], width: 15, align: 'center' },
-            { title: 'phone', keys: ['phone'], width: 18, align: 'center' },
-            { title: 'เบอร์โทรศัพท์ 2', keys: ['เบอร์โทรศัพท์ 2'], width: 18, align: 'center' },
-            { title: 'ที่อยู่ปัจจุบัน', keys: ['ที่อยู่ปัจจุบัน'], width: 35, align: 'left' },
-            { title: 'จังหวัดที่อยู่ปัจจุบัน', keys: ['จังหวัดที่อยู่ปัจจุบัน'], width: 20, align: 'center' },
-            { title: 'ชื่อสาขาเดิม', keys: ['ชื่อสาขาเดิม'], width: 20, align: 'center' },
-            { title: 'category', keys: ['category'], width: 18, align: 'center' },
-            { title: 'brand', keys: ['brand'], width: 15, align: 'center' },
-            { title: 'carStype', keys: ['carStype'], width: 18, align: 'center' },
-            { title: 'ประเภทสัญญา', keys: ['ประเภทสัญญา'], width: 20, align: 'center' },
-            { title: 'วันที่เปิดสัญญา', keys: ['วันที่เปิดสัญญา'], width: 18, align: 'center', isDate: true },
-            { title: 'วันที่ปิดสัญญา', keys: ['วันที่ปิดสัญญา'], width: 18, align: 'center', isDate: true },
-            { title: 'สถานะปัจจุบัน', keys: ['สถานะปัจจุบัน'], width: 18, align: 'center' },
-            { title: 'ค่างวด', keys: ['ค่างวด'], width: 15, align: 'right' },
-            { title: 'term', keys: ['term'], width: 12, align: 'center' },
-            { title: 'termpaid', keys: ['termpaid'], width: 12, align: 'center' },
-            { title: 'total_ovd', keys: ['total_ovd'], width: 15, align: 'center' },
-            { title: 'Customer Group', keys: ['Customer Group', 'customer_group'], width: 18, align: 'center' },
-            { title: 'จัดกลุ่มลูกค้า', keys: ['จัดกลุ่มลูกค้า'], width: 18, align: 'center' },
-            { title: 'Customer Grade', keys: ['Customer Grade', 'customer_grade'], width: 18, align: 'center' },
-            { title: 'Customer Grade MIB', keys: ['Customer Grade MIB', 'customer_grade_mib'], width: 20, align: 'center' },
-            { title: 'AR-Net', keys: ['AR-Net', 'ar_net'], width: 18, align: 'center' },
-            { title: 'Aging CF', keys: ['Aging CF', 'aging_cf'], width: 18, align: 'center' },
-            { title: 'ประเภทประกัน', keys: ['ประเภทประกัน'], width: 20, align: 'center' },
-            { title: 'เลขที่กรมธรรม์', keys: ['เลขที่กรมธรรม์'], width: 20, align: 'center' },
-            { title: 'วันที่สิ้นสุดกรมธรรม์', keys: ['วันที่สิ้นสุดกรมธรรม์'], width: 20, align: 'center', isDate: true },
-            { title: 'ปีต่ออายุ', keys: ['ปีต่ออายุ'], width: 15, align: 'center' },
-            { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
-            { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
-            { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
-            { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
-            { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
-            { title: 'Status Lead', keys: ['Status Lead', 'status_lead'], width: 15, align: 'center' },
-            { title: 'ผู้ดูแล Lead', keys: ['ผู้ดูแล Lead'], width: 20, align: 'center' }
-        ];
+        // สร้างหัวข้อแบบ dynamic จาก key ที่ API ส่งกลับมา (ลูปเก็บ key จากทุกแถว ตามลำดับที่พบครั้งแรก)
+        // ใช้หัวข้อตามที่ API ส่งมาตรง ๆ ไม่ดัดแปลง จัดกึ่งกลางทุกคอลัมน์
+        const buildDynamicHeaders = (rows) => {
+            const seen = new Set();
+            const cols = [];
+            (rows || []).forEach(row => {
+                if (!row || typeof row !== 'object') return;
+                Object.keys(row).forEach(k => {
+                    if (seen.has(k)) return;
+                    seen.add(k);
+                    cols.push({ title: k, keys: [k], width: 20, align: 'center' });
+                });
+            });
+            return cols;
+        };
 
-        // History Call ให้เหลือเฉพาะคอลัมน์: product_code, วัตถุประสงค์, วันที่ Call Report, ผลการติดต่อ, รายงานผล, อธิบายผลการติดต่อ, Status Lead
-        const historyHeaders = [
-            { title: 'product_code', keys: ['product_code', 'รหัส แคมเปญ', 'รหัส Campaign'], width: 18, align: 'center' },
-        
-            { title: 'วัตถุประสงค์', keys: ['วัตถุประสงค์'], width: 35, align: 'center' },
-            { title: 'วันที่ Call Report', keys: ['วันที่ Call Report'], width: 18, align: 'center', isDate: true },
-            { title: 'ผลการติดต่อ', keys: ['ผลการติดต่อ'], width: 25, align: 'center' },
-            { title: 'รายงานผล', keys: ['รายงานผล'], width: 20, align: 'center' },
-            { title: 'อธิบายผลการติดต่อ', keys: ['อธิบายผลการติดต่อ'], width: 30, align: 'center' },
-            { title: 'Status Lead', keys: ['Status Lead', 'status_lead'], width: 15, align: 'center' }
-        ];
+        const headers = buildDynamicHeaders(exportRows);
+
+        // History Call: สร้างหัวข้อแบบ dynamic จาก key ที่ API ส่งกลับมาเช่นกัน
+        const historyHeaders = buildDynamicHeaders(historyExportRows);
 
         const todayStr = new Date().toISOString().slice(0, 10);
 

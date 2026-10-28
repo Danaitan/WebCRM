@@ -115,7 +115,9 @@ namespace webCRM.Controllers
             string? branch,
             string? call_by,
             string? call_result,
-            string? campaign_name)
+            string? campaign_name,
+            string? is_creater
+            )
         {
             try
             {
@@ -153,7 +155,9 @@ namespace webCRM.Controllers
             string? branch,
             string? call_by,
             string? call_result,
-            string? campaign_name)
+            string? campaign_name,
+            string? is_creater
+            )
         {
             try
             {

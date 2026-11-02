@@ -147,7 +147,10 @@ namespace webCRM.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateSuggestion(
             string guid,
-            string reply)
+            string reply,
+            int? resultId = null,
+            DateOnly? dateSugges = null,
+            TimeOnly? timeSugges = null)
         {
             try
             {
@@ -166,7 +169,10 @@ namespace webCRM.Controllers
                     await crmService.UpdateSuggestion(
                         guid,
                         reply,
-                        updBy);
+                        updBy,
+                        resultId,
+                        dateSugges,
+                        timeSugges);
 
                 if (!result.Success)
                 {
@@ -610,7 +616,7 @@ namespace webCRM.Controllers
             }
         }
     
-            [HttpGet]
+        [HttpGet]
         public async Task<IActionResult> GetpersonalInGroup(
             string? groupEmail= null
             )
@@ -624,7 +630,15 @@ namespace webCRM.Controllers
             return Json(suggestions);
         }
     
-    
+        [HttpGet]
+        public async Task<IActionResult> GetSuggestionResult()
+        {
+
+            var suggestions =
+                await crmService.GetSuggestionResult();
+
+            return Json(suggestions);
+        }
     
     }
 }

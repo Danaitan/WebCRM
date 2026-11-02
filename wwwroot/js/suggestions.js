@@ -4,6 +4,117 @@ let table;
 // ใช้กฎสิทธิ์กลางร่วมกับหน้าการแจ้งเตือน เพื่อให้แก้เงื่อนไขเพียงจุดเดียว
 const suggestionReplyAuthorization = window.SuggestionReplyAuthorization;
 
+async function GetSuggestionResult(){
+    try{
+        
+        const response = await fetch('/Suggestions/GetSuggestionResult');
+
+        if (!response.ok) {
+            console.log("GetSuggestionResult_response",response)
+            return;
+        }
+        let data = await response.json();
+        // Controller ส่ง JSON เป็น string (Json(string)) จึงต้อง parse ซ้ำอีกชั้น
+        if (typeof data === "string") {
+            data = JSON.parse(data);
+        }
+        const select = document.getElementById("result-title");
+        if (!select || !Array.isArray(data)) return;
+            console.log("GetSuggestionResult_data",data)
+        select.innerHTML = "";
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.className = "text-muted";
+        defaultOption.textContent = "-";
+        defaultOption.selected = true;
+        select.appendChild(defaultOption);
+
+        data.forEach(item => {
+            const id = item.Id ?? item.id;
+            const title = item.Title ?? item.title;
+            if (id === undefined || id === null) return;
+
+            const option = document.createElement("option");
+            option.value = String(id);
+            option.textContent = title ?? "";
+            select.appendChild(option);
+        });
+
+    } catch (ex){
+        console.error("Error GetSuggestionResult:", ex);
+    }
+}
+
+// แปลงปี พ.ศ. (> 2400) ในรูป yyyy-MM-dd ให้เป็น ค.ศ. ก่อนส่งไป backend / ใส่ใน picker
+function normalizeIsoDateToCe(dateIso) {
+    const match = String(dateIso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return "";
+    let year = parseInt(match[1], 10);
+    if (year > 2400) year -= 543;
+    return `${String(year).padStart(4, "0")}-${match[2]}-${match[3]}`;
+}
+
+function replyContactDateIso() {
+    return normalizeIsoDateToCe($("#reply-contact-date").val()?.toString() || "");
+}
+
+function initializeReplyContactDatePicker() {
+    const input = document.getElementById("reply-contact-date");
+    if (!input || typeof flatpickr === "undefined") return;
+
+    const thLocale = (flatpickr.l10ns && flatpickr.l10ns.th) ? flatpickr.l10ns.th : "default";
+    flatpickr(input, {
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "d/m/Y",
+        allowInput: false,
+        disableMobile: true,
+        locale: thLocale,
+        minDate: formatLocalDateAsIso(new Date()),
+        // อัปเดตวันต่ำสุดทุกครั้งที่เปิด เผื่อหน้าเว็บเปิดค้างข้ามวัน
+        onOpen: function (selectedDates, dateStr, instance) {
+            instance.set("minDate", formatLocalDateAsIso(new Date()));
+        }
+    });
+}
+
+// ค่าเริ่มต้นของ "วันที่และเวลา (ให้ติดต่อกลับ)" ในส่วนตอบกลับ คือ null (ว่าง)
+function resetReplyContactFields() {
+    const input = document.getElementById("reply-contact-date");
+    if (input) {
+        if (input._flatpickr) {
+            input._flatpickr.clear();
+            input._flatpickr.set("minDate", formatLocalDateAsIso(new Date()));
+        } else {
+            $(input).val("");
+        }
+    }
+
+    $("#reply-contact-include-time").prop("checked", false);
+    $("#reply-contact-hour").val("00");
+    $("#reply-contact-minute").val("00");
+    syncReplyContactTimeState();
+}
+
+function syncReplyContactTimeState() {
+    const includeTime = $("#reply-contact-include-time").is(":checked");
+    $("#reply-contact-hour, #reply-contact-minute").prop("disabled", !includeTime);
+}
+
+// วันที่ให้ติดต่อกลับของผลการตอบกลับ (dateSugges) เช่น 2026-11-02 หรือ "" ถ้าไม่ได้เลือก
+function getReplyContactDateValue() {
+    return replyContactDateIso();
+}
+
+// เวลาให้ติดต่อกลับของผลการตอบกลับ (timeSugges) เช่น 10:30:00 หรือ "" ถ้าไม่ได้ระบุเวลา/ไม่มีวันที่
+function getReplyContactTimeValue() {
+    if (!replyContactDateIso()) return "";
+    if (!$("#reply-contact-include-time").is(":checked")) return "";
+    const hour = $("#reply-contact-hour").val() || "00";
+    const minute = $("#reply-contact-minute").val() || "00";
+    return `${hour}:${minute}:00`;
+}
+
 async function loadGroupEmailSet(forceReload = false) {
     return suggestionReplyAuthorization.loadGroupEmailSet(forceReload);
 }
@@ -136,7 +247,7 @@ async function sendSuggestionNotification(target, targetText, ctx) {
 
 async function GetPersonalAndGroup() {
     try {
-        // const response = await fetch('/crmweb/DashboardSuggestion/GetPersonalAndGroup');
+
         const response = await fetch('/DashboardSuggestion/GetPersonalAndGroup');
         const data = await response.json();
         return data;
@@ -209,7 +320,7 @@ function escapeAttr(str) {
 
 function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
     if (!table) return;
-
+        console.log("renderSuggestionsTable_data",data)
     table.clear();
 
     // เรียงข้อมูลตาม "วันที่สร้าง" (createdDate) จากใหม่ไปเก่าก่อนเพิ่มลงตาราง
@@ -265,13 +376,20 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
             const phone = item.phoneProvider || item.PhoneProvider || '-';
 
             let contactDateStr = '-';
+            let contactDateIso = '';
+            let contactTimeRaw = '';
             if (item.dateSugges || item.DateSugges) {
                 const rawContact = item.dateSugges || item.DateSugges;
                 contactDateStr = formatDateDisplay(rawContact).split(' ')[0];
+                const isoMatch = String(rawContact).match(/^(\d{4}-\d{2}-\d{2})/);
+                if (isoMatch) contactDateIso = isoMatch[1];
                 if (item.timeSugges || item.TimeSugges) {
                     const timePart = item.timeSugges || item.TimeSugges;
                     const timeMatch = String(timePart).match(/\d{2}:\d{2}/);
-                    if (timeMatch) contactDateStr += ' ' + timeMatch[0];
+                    if (timeMatch) {
+                        contactDateStr += ' ' + timeMatch[0];
+                        contactTimeRaw = timeMatch[0];
+                    }
                 }
             }
 
@@ -307,6 +425,8 @@ function renderSuggestionsTable(data, selectedGuidToPreserve = null) {
             $tr.attr({
                 'data-phone': phone,
                 'data-contact': contactDateStr,
+                'data-contact-date': contactDateIso,
+                'data-contact-time': contactTimeRaw,
                 'data-email': email,
                 'data-line': line,
                 'data-idno': idno,
@@ -419,7 +539,7 @@ function clearDetails() {
     $('#detail-guid').text('');
     $('#detail-updBy').text('');
     $('#detail-sendTo').text('');
-    $('#detail-reply-list').html('<tr><td colspan="3" class="text-center text-muted py-3">ไม่มีข้อมูลการตอบกลับ</td></tr>');
+    $('#detail-reply-list').html('<tr><td colspan="4" class="text-center text-muted py-4">ไม่มีข้อมูลการตอบกลับ</td></tr>');
     $('#replyHistoryTotalBadge').text('ทั้งหมด 0 รายการ');
 
     $('#replyPermissionDenied').remove();
@@ -553,10 +673,6 @@ $(document).ready(function () {
 
 async function loadDepartmentOptions() {
     try {
-        // const [masterRes, personalData] = await Promise.all([
-        //     fetch('/crmweb/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
-        //     GetPersonalAndGroup().catch(() => null)
-        // ]);
 
         const [masterRes, personalData] = await Promise.all([
             fetch('/Home/GetMaster').then(res => res.ok ? res.json() : null).catch(() => null),
@@ -701,7 +817,6 @@ console.log("data",data)
 
 async function loadSuggestionHeaderOptions() {
     try {
-        // const response = await fetch('/crmweb/Suggestions/GetSuggestionHeader');
         const response = await fetch('/Suggestions/GetSuggestionHeader');
         if (!response.ok) return;
         const data = await response.json();
@@ -745,7 +860,7 @@ window.suggestionStatusMap = {};
 
 async function loadSuggestionStatusOptions() {
     try {
-        // const response = await fetch('/crmweb/Suggestions/GetSuggestionStatus');
+
         const response = await fetch('/Suggestions/GetSuggestionStatus');
         if (!response.ok) return;
         const data = await response.json();
@@ -1027,6 +1142,7 @@ async function showDetails(row) {
     $('#detail-nameprovider').text(getVal('nameprovider'));
     $('#detail-phone').text(getVal('phone'));
     $('#detail-contact-back').text(getVal('contact'));
+    resetReplyContactFields();
     $('#detail-email').text(getVal('email'));
     $('#detail-line').text(getVal('line'));
     $('#detail-idno').text(getVal('idno'));
@@ -1124,6 +1240,10 @@ async function showDetails(row) {
 
             const formattedDate = formatDateDisplay(rawDate);
 
+            const result = isEmptyValue(item.Result)
+                ? '-'
+                : String(item.Result).trim();
+
             const $tr = $('<tr>');
 
             $tr.html(`
@@ -1141,6 +1261,11 @@ async function showDetails(row) {
                     style="word-break: break-word; overflow-wrap: break-word;">
                     ${escapeHtml(replyMsg)}
                 </td>
+
+                <td class="py-2 text-dark text-break"
+                    style="word-break: break-word; overflow-wrap: break-word;">
+                    ${escapeHtml(result)}
+                </td>
             `);
 
             $tbody.append($tr);
@@ -1150,7 +1275,7 @@ async function showDetails(row) {
 
         $tbody.html(`
             <tr>
-                <td colspan="3" class="text-center text-muted py-3">
+                <td colspan="4" class="text-center text-muted py-3">
                     ไม่มีข้อมูลการตอบกลับ
                 </td>
             </tr>
@@ -1246,16 +1371,24 @@ async function UpdateSuggestion() {
         return;
     }
 
+    const replyContactDate = getReplyContactDateValue();
+    if (replyContactDate && replyContactDate < formatLocalDateAsIso(new Date())) {
+        showAlert('warning', 'แจ้งเตือน', 'ไม่สามารถเลือกวันที่ให้ติดต่อกลับย้อนหลังได้');
+        return;
+    }
+
     try {
         startLoading('กำลังบันทึกข้อมูล', 'ระบบกำลังบันทึกข้อความตอบกลับของคุณ กรุณารอสักครู่...');
-        var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}`, {
+        var response = await fetch(`/Suggestions/UpdateSuggestion?guid=${encodeURIComponent(guid)}&reply=${encodeURIComponent(reply)}&resultId=${encodeURIComponent($("#result-title").val() || "")}&dateSugges=${encodeURIComponent(getReplyContactDateValue())}&timeSugges=${encodeURIComponent(getReplyContactTimeValue())}`, {
             method: 'POST',
             skipLoading: true
         });
         if (!response.ok) {
             throw new Error("HTTP error " + response.status);
         }
+
         var msg = await response.json();
+
         if (msg && msg.status === "error") {
             throw new Error(msg.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
         }
@@ -1271,6 +1404,7 @@ async function UpdateSuggestion() {
                 const topicTitle = $activeRow.length > 0 ? $activeRow.find('td:nth-child(2)').text().trim() : '';
                 const fullNameTh = userFullNameTh || '';
                 const homeUrl = `${webDomain}/Login?returnUrl=${encodeURIComponent('/Suggestions')}`;
+
                 const emailContent =
                     `เรียน ${profile.thname}<br><br>` +
                     `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${fullNameTh} ` +
@@ -1936,6 +2070,11 @@ $("#post-contact-include-time, #post-contact-hour, #post-contact-minute").on("ch
 });
 
 syncContactTimeState();
+
+initializeReplyContactDatePicker();
+$("#reply-contact-include-time").on("change", syncReplyContactTimeState);
+syncReplyContactTimeState();
+GetSuggestionResult();
 
 $("#btnSaveSuggestion").click(async function () {
     await AddSuggestion();

@@ -113,6 +113,9 @@ namespace webCRM.Models
 
         [JsonPropertyName("upDate")]
         public string? UpDate { get; set; }
+
+        [JsonPropertyName("Result")]
+        public string? Result { get; set; }
     }
 
     public class RequestPostSuggestion

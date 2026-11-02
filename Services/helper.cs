@@ -732,6 +732,114 @@ namespace webCRM.Services
 
         #endregion
 
+        #region CalendarPlanner
+        public async Task<string> GetCalendar(
+            string? startDate,
+            string? endDate,
+            string? personalCode,
+            string? actityCode = null,
+            string? dealer = null,
+            string? branch = null,
+            string? status = null
+            )
+        {
+            try
+            {
+                // Dictionary keys are not affected by PropertyNamingPolicy, so names are sent exactly as written
+                static string? OrNull(string? v) => string.IsNullOrWhiteSpace(v) ? null : v;
+
+                var body = new Dictionary<string, string?>
+                {
+                    ["startDate"] = startDate ?? "",
+                    ["endDate"] = endDate ?? "",
+                    ["personalCode"] = personalCode ?? "",
+                    ["ActityCode"] = OrNull(actityCode),
+                    ["Dealer"] = OrNull(dealer),
+                    ["Branch"] = OrNull(branch),
+                    ["status"] = OrNull(status)
+                };
+
+                return await PostStringAsync("p3/GetCalendar", body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading GetCalendar. startDate: {StartDate}, endDate: {EndDate}, personalCode: {PersonalCode}",
+                    startDate,
+                    endDate,
+                    personalCode);
+
+                throw;
+            }
+        }
+
+        public async Task<string> UpsertCalendar(UpsertCalendarRequest request)
+        {
+            try
+            {
+                return await PostStringAsync("p3/UpsertCalendar", request);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error upserting calendar. UUID: {UUID}, DealerCode: {DealerCode}, Title: {Title}",
+                    request.UUID,
+                    request.DealerCode,
+                    request.Title);
+
+                throw;
+            }
+        }
+
+        public async Task<string> GetMasterCalendarActivity (){
+
+            try
+            {
+                return await GetStringAsync("p3/GetMasterCalendarActivity");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,"Error GetMasterCalendarActivity");
+                Console.WriteLine($"GetMasterCalendarActivity Error : {ex}");
+                throw;
+            }
+
+        }
+
+        public async Task<string> GetCalendarStatus (){
+
+            try
+            {
+                return await GetStringAsync("p3/GetCalendarStatus");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,"Error GetCalendarStatus");
+                Console.WriteLine($"GetCalendarStatus Error : {ex}");
+                throw;
+            }
+
+        }
+
+        public async Task<string> GetDealer (){
+
+            try
+            {
+                return await GetStringAsync("p3/GetDealer");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,"Error GetCalendarStatus");
+                Console.WriteLine($"GetCalendarStatus Error : {ex}");
+                throw;
+            }
+
+        }
+
+        #endregion
+
         #region LoginController
 
         public async Task<JsonNode?> GetProfileByPersonalCode(
@@ -2111,7 +2219,14 @@ namespace webCRM.Services
             }
         }
 
-        public async Task<(bool Success, int StatusCode, string Response)> UpdateSuggestion(string guid, string reply, string updBy)
+        public async Task<(bool Success, int StatusCode, string Response)> UpdateSuggestion(
+            string guid, 
+            string reply, 
+            string updBy, 
+            int? resultId = null, 
+            DateOnly? dateSugges = null,
+            TimeOnly? timeSugges = null
+            )
         {
             try
             {
@@ -2119,7 +2234,10 @@ namespace webCRM.Services
                 {
                     guid,
                     reply,
-                    updBy
+                    updBy,
+                    resultId,
+                    dateSugges,
+                    timeSugges,
                 };
 
                 var response =
@@ -2586,5 +2704,25 @@ namespace webCRM.Services
                 });
             }
         }
+
+        public async Task<string> GetSuggestionResult()
+        {
+            try
+            {
+
+                var data = await GetStringAsync($"p3/GetSuggestionResult");
+
+                return data;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error loading GetSuggestionResult: ");
+
+                throw;
+            }
+        }
+
     }
 }
